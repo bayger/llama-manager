@@ -1,5 +1,6 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box } from "ink";
+import { FullScreenBox } from "fullscreen-ink";
 import Tabs from "./Tabs.js";
 import StatusBar from "./StatusBar.js";
 import ServerTab from "./tabs/ServerTab.js";
@@ -26,7 +27,7 @@ export default function App() {
   const ActiveComponent = tabComponents[activeTab];
 
   return (
-    <Box flexDirection="column" flexGrow={1}>
+    <FullScreenBox flexDirection="column">
       <Box>
         <Tabs tabs={TABS} selectedIndex={tabIndex} onChange={handleTabChange} />
       </Box>
@@ -36,6 +37,6 @@ export default function App() {
       <Box>
         <StatusBar activeTab={activeTab} />
       </Box>
-    </Box>
+    </FullScreenBox>
   );
 }
