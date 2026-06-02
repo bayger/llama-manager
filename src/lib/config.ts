@@ -12,6 +12,23 @@ const HF_HOME = process.env.HF_HOME || path.join(os.homedir(), ".cache", "huggin
 
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
+export type PresetFieldType = "string" | "number" | "boolean" | "enum";
+
+export interface PresetFieldDef {
+  key: string;
+  flag: string;
+  type: PresetFieldType;
+  default: unknown;
+  options?: string[];
+  description: string;
+}
+
+export interface PresetCategory {
+  name: string;
+  presetKey: keyof ServerPresets;
+  fields: PresetFieldDef[];
+}
+
 export interface ServerPresets {
   server: Record<string, unknown>;
   model: Record<string, unknown>;
@@ -44,6 +61,114 @@ export interface ConfigData {
     autoParse: boolean;
   };
 }
+
+export const PRESET_CATEGORIES: PresetCategory[] = [
+  {
+    name: "Server",
+    presetKey: "server",
+    fields: [
+      { key: "host", flag: "--host", type: "string", default: "127.0.0.1", description: "Bind address" },
+      { key: "port", flag: "--port", type: "number", default: 8080, description: "HTTP port" },
+      { key: "parallel", flag: "--parallel", type: "number", default: -1, description: "Server slots (-1=auto)" },
+      { key: "timeout", flag: "--timeout", type: "number", default: 600, description: "Read/write timeout (s)" },
+      { key: "apiKey", flag: "--api-key", type: "string", default: null, description: "API key" },
+      { key: "threadsHttp", flag: "--threads-http", type: "number", default: -1, description: "HTTP worker threads" },
+      { key: "contBatching", flag: "--cont-batching", type: "boolean", default: true, description: "Continuous batching" },
+      { key: "cachePrompt", flag: "--cache-prompt", type: "boolean", default: true, description: "Prompt caching" },
+      { key: "metrics", flag: "--metrics", type: "boolean", default: false, description: "Prometheus metrics" },
+      { key: "ui", flag: "--ui", type: "boolean", default: true, description: "Built-in Web UI" },
+      { key: "embedding", flag: "--embedding", type: "boolean", default: false, description: "Embeddings mode" },
+      { key: "rerank", flag: "--rerank", type: "boolean", default: false, description: "Reranking endpoint" },
+    ],
+  },
+  {
+    name: "Model",
+    presetKey: "model",
+    fields: [
+      { key: "model", flag: "--model", type: "string", default: null, description: "GGUF model path" },
+      { key: "lora", flag: "--lora", type: "string", default: null, description: "LoRA adapter path" },
+      { key: "hfRepo", flag: "--hf-repo", type: "string", default: null, description: "HF repo (user/model[:quant])" },
+      { key: "hfToken", flag: "--hf-token", type: "string", default: null, description: "HF access token" },
+      { key: "chatTemplate", flag: "--chat-template", type: "string", default: null, description: "Chat template name" },
+      { key: "jinja", flag: "--jinja", type: "boolean", default: true, description: "Jinja template engine" },
+    ],
+  },
+  {
+    name: "Compute",
+    presetKey: "compute",
+    fields: [
+      { key: "threads", flag: "--threads", type: "number", default: -1, description: "CPU threads" },
+      { key: "threadsBatch", flag: "--threads-batch", type: "number", default: null, description: "Batch threads" },
+      { key: "ctxSize", flag: "--ctx-size", type: "number", default: 0, description: "Context size (0=model)" },
+      { key: "batchSize", flag: "--batch-size", type: "number", default: 2048, description: "Max batch size" },
+      { key: "ubatchSize", flag: "--ubatch-size", type: "number", default: 512, description: "Physical batch size" },
+      { key: "flashAttn", flag: "--flash-attn", type: "enum", default: "auto", options: ["on", "off", "auto"], description: "Flash Attention" },
+      { key: "mlock", flag: "--mlock", type: "boolean", default: false, description: "Lock model in RAM" },
+      { key: "mmap", flag: "--mmap", type: "boolean", default: true, description: "Memory-map model" },
+      { key: "cacheTypeK", flag: "--cache-type-k", type: "enum", default: "f16", options: ["f32", "f16", "q8_0", "q4_0"], description: "KV cache K type" },
+      { key: "cacheTypeV", flag: "--cache-type-v", type: "enum", default: "f16", options: ["f32", "f16", "q8_0", "q4_0"], description: "KV cache V type" },
+    ],
+  },
+  {
+    name: "GPU",
+    presetKey: "gpu",
+    fields: [
+      { key: "gpuLayers", flag: "--gpu-layers", type: "string", default: "auto", description: "VRAM layers (auto/number)" },
+      { key: "splitMode", flag: "--split-mode", type: "enum", default: "layer", options: ["none", "layer", "row", "tensor"], description: "Multi-GPU split" },
+      { key: "tensorSplit", flag: "--tensor-split", type: "string", default: null, description: "GPU proportions (3,1)" },
+      { key: "mainGpu", flag: "--main-gpu", type: "number", default: 0, description: "Primary GPU index" },
+      { key: "device", flag: "--device", type: "string", default: null, description: "Device list" },
+      { key: "fit", flag: "--fit", type: "enum", default: "on", options: ["on", "off"], description: "Auto-fit to VRAM" },
+    ],
+  },
+  {
+    name: "Sampling",
+    presetKey: "sampling",
+    fields: [
+      { key: "seed", flag: "--seed", type: "number", default: -1, description: "RNG seed (-1=random)" },
+      { key: "temperature", flag: "--temperature", type: "number", default: 0.8, description: "Temperature" },
+      { key: "topK", flag: "--top-k", type: "number", default: 40, description: "Top-k (0=off)" },
+      { key: "topP", flag: "--top-p", type: "number", default: 0.95, description: "Top-p (1.0=off)" },
+      { key: "minP", flag: "--min-p", type: "number", default: 0.05, description: "Min-p (0.0=off)" },
+      { key: "repeatLastN", flag: "--repeat-last-n", type: "number", default: 64, description: "Penalty window" },
+      { key: "repeatPenalty", flag: "--repeat-penalty", type: "number", default: 1.0, description: "Repeat penalty" },
+      { key: "presencePenalty", flag: "--presence-penalty", type: "number", default: 0.0, description: "Presence penalty" },
+      { key: "frequencyPenalty", flag: "--frequency-penalty", type: "number", default: 0.0, description: "Frequency penalty" },
+      { key: "grammar", flag: "--grammar", type: "string", default: null, description: "BNF grammar" },
+      { key: "jsonSchema", flag: "--json-schema", type: "string", default: null, description: "JSON schema" },
+      { key: "ignoreEos", flag: "--ignore-eos", type: "boolean", default: false, description: "Ignore EOS token" },
+    ],
+  },
+  {
+    name: "Speculative",
+    presetKey: "speculative",
+    fields: [
+      { key: "draftModel", flag: "--spec-draft-model", type: "string", default: null, description: "Draft model path" },
+      { key: "specType", flag: "--spec-type", type: "string", default: "none", description: "Spec type" },
+      { key: "draftNMax", flag: "--spec-draft-n-max", type: "number", default: 3, description: "Max draft tokens" },
+      { key: "draftThreads", flag: "--spec-draft-threads", type: "number", default: null, description: "Draft threads" },
+      { key: "draftGpuLayers", flag: "--spec-draft-gpu-layers", type: "string", default: "auto", description: "Draft GPU layers" },
+    ],
+  },
+  {
+    name: "Reasoning",
+    presetKey: "reasoning",
+    fields: [
+      { key: "reasoning", flag: "--reasoning", type: "enum", default: "auto", options: ["on", "off", "auto"], description: "Thinking mode" },
+      { key: "reasoningBudget", flag: "--reasoning-budget", type: "number", default: -1, description: "Thinking token budget" },
+      { key: "reasoningFormat", flag: "--reasoning-format", type: "enum", default: "auto", options: ["none", "deepseek", "deepseek-legacy", "auto"], description: "Format" },
+    ],
+  },
+  {
+    name: "Logging",
+    presetKey: "logging",
+    fields: [
+      { key: "logVerbosity", flag: "--log-verbosity", type: "number", default: 3, description: "Verbosity (0-5)" },
+      { key: "logColors", flag: "--log-colors", type: "enum", default: "auto", options: ["on", "off", "auto"], description: "Colored logs" },
+      { key: "logTimestamps", flag: "--log-timestamps", type: "boolean", default: true, description: "Include timestamps" },
+    ],
+  },
+];
 
 const DEFAULT_PRESETS: ServerPresets = {
   server: {
