@@ -10,6 +10,33 @@ export interface VersionInfo {
   active: boolean;
 }
 
+export interface RemoteVersion {
+  tag: string;
+  name: string;
+  publishedAt: string;
+  assets: Array<{ name: string; size: number }>;
+}
+
+const GITHUB_REPO = "ggml-org/llama.cpp";
+
+export async function listRecentVersions(limit = 20): Promise<RemoteVersion[]> {
+  const response = await fetch(
+    `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=${limit}`,
+    {
+      headers: { "User-Agent": "llama-dashboard" },
+    },
+  );
+
+  if (!response.ok) throw new Error(`Failed to fetch releases: ${response.status}`);
+  const data = await response.json();
+  return data.map((r: any) => ({
+    tag: r.tag_name,
+    name: r.name || r.tag_name,
+    publishedAt: r.published_at,
+    assets: (r.assets || []).map((a: any) => ({ name: a.name, size: a.size })),
+  }));
+}
+
 export type InstallProgress = (pct: number, label: string) => void;
 
 export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
@@ -60,7 +87,7 @@ export async function uninstallVersion(config: ConfigData, version: string): Pro
 
 export async function checkLatestVersion(): Promise<string> {
   const response = await fetch(
-    "https://api.github.com/repos/ggerganov/llama.cpp/releases/latest",
+    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
     {
       headers: { "User-Agent": "llama-dashboard" },
     },
@@ -74,17 +101,24 @@ export async function checkLatestVersion(): Promise<string> {
 function getPlatformKey(): string {
   const platform = os.platform();
   const arch = os.arch();
-  if (platform === "linux" && arch === "x64") return "linux-x64";
-  if (platform === "linux" && arch === "arm64") return "linux-arm64";
+  if (platform === "linux" && arch === "x64") return "ubuntu-x64";
+  if (platform === "linux" && arch === "arm64") return "ubuntu-arm64";
   if (platform === "darwin" && arch === "x64") return "macos-x64";
   if (platform === "darwin" && arch === "arm64") return "macos-arm64";
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
 }
 
 function resolveAssetName(version: string, platform: string, assets: Array<{ name: string }>): string | null {
-  const patterns = [
-    `${platform}`,
-  ];
+  const expected = `llama-${version}-bin-${platform}.tar.gz`;
+  const exact = assets.find((a) => a.name === expected);
+  if (exact) return exact.name;
+
+  for (const asset of assets) {
+    const name = asset.name.toLowerCase();
+    if (name === expected.toLowerCase()) return asset.name;
+  }
+
+  const patterns = [`bin-${platform}`];
   for (const asset of assets) {
     const name = asset.name.toLowerCase();
     for (const p of patterns) {
@@ -110,7 +144,7 @@ export async function installVersion(
 
   onProgress(0, "Downloading release info...");
   const res = await fetch(
-    `https://api.github.com/repos/ggerganov/llama.cpp/releases/tags/${version}`,
+    `https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${version}`,
     {
       headers: { "User-Agent": "llama-dashboard" },
     },
@@ -185,6 +219,17 @@ export async function installVersion(
   }
 
   await fs.remove(tmpPath);
+
+  const subdirs = await fs.readdir(versionPath, { withFileTypes: true });
+  const topDir = subdirs.find((e) => e.isDirectory() && e.name.startsWith("llama-"));
+  if (topDir && (await fs.readdir(versionPath)).length === 1) {
+    const srcPath = path.join(versionPath, topDir.name);
+    const entries = await fs.readdir(srcPath, { withFileTypes: true });
+    for (const entry of entries) {
+      await fs.move(path.join(srcPath, entry.name), path.join(versionPath, entry.name), { overwrite: true });
+    }
+    await fs.remove(srcPath);
+  }
 
   const binary = path.join(versionPath, "llama-server");
   if (await fs.pathExists(binary)) {
