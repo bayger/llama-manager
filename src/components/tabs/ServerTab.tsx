@@ -1,17 +1,12 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
-import { loadConfig, saveConfig, ConfigData, PRESET_CATEGORIES, PresetFieldDef, PresetCategory } from "../../lib/config.js";
+import { loadConfig, saveConfig, ConfigData, PRESET_CATEGORIES } from "../../lib/config.js";
 import { startServer, stopServer, getStatus } from "../../lib/server.js";
 import TextInput from "ink-text-input";
 
 type ServerState = "stopped" | "starting" | "running" | "stopping";
-
-type FocusMode = "controls" | "categories" | "edit" | "freeform";
-interface EditTarget {
-  categoryIndex: number;
-  fieldIndex: number;
-}
+type FocusArea = "controls" | "form";
 
 function formatUptime(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -22,10 +17,27 @@ function formatUptime(ms: number): string {
   return `${s}s`;
 }
 
-function formatValue(value: unknown, field: PresetFieldDef): string {
-  if (value === null || value === undefined) return "<default>";
-  if (field.type === "boolean") return value ? "on" : "off";
+function formatValue(value: unknown, type: string): string {
+  if (value === null || value === undefined) return "";
+  if (type === "boolean") return value ? "on" : "off";
   return String(value);
+}
+
+function buildFieldList(config: ConfigData, collapsed: Set<number>) {
+  const items: Array<{
+    type: "header" | "field";
+    categoryIndex: number;
+    fieldIndex?: number;
+  }> = [];
+  for (let ci = 0; ci < PRESET_CATEGORIES.length; ci++) {
+    items.push({ type: "header", categoryIndex: ci });
+    if (!collapsed.has(ci)) {
+      for (let fi = 0; fi < PRESET_CATEGORIES[ci].fields.length; fi++) {
+        items.push({ type: "field", categoryIndex: ci, fieldIndex: fi });
+      }
+    }
+  }
+  return items;
 }
 
 export default function ServerTab() {
@@ -34,33 +46,31 @@ export default function ServerTab() {
   const [pid, setPid] = React.useState<number | null>(null);
   const [uptime, setUptime] = React.useState(0);
   const [message, setMessage] = React.useState<string | null>(null);
-  const [focusMode, setFocusMode] = React.useState<FocusMode>("controls");
+  const [focusArea, setFocusArea] = React.useState<FocusArea>("controls");
   const [controlIndex, setControlIndex] = React.useState(0);
-  const [expandedCategories, setExpandedCategories] = React.useState<Set<number>>(new Set());
-  const [editTarget, setEditTarget] = React.useState<EditTarget | null>(null);
+  const [collapsed, setCollapsed] = React.useState<Set<number>>(new Set());
+  const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [editMode, setEditMode] = React.useState(false);
   const [editValue, setEditValue] = React.useState("");
-  const [freeformIndex, setFreeformIndex] = React.useState(0);
 
   React.useEffect(() => {
-    loadConfig().then(setConfig);
+    loadConfig().then((c) => {
+      setConfig(c);
+      setCollapsed(new Set([1, 2, 3, 4, 5, 6, 7]));
+    });
   }, []);
 
-  const uptimeInterval = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
+  const uptimeRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   React.useEffect(() => {
     if (serverState === "running") {
-      uptimeInterval.current = setInterval(() => {
-        const st = getStatus(config!);
-        setUptime(Date.now() - (st.uptime || 0));
-      }, 1000);
+      const start = Date.now() - uptime;
+      uptimeRef.current = setInterval(() => setUptime(Date.now() - start), 1000);
     } else {
-      if (uptimeInterval.current) clearInterval(uptimeInterval.current);
+      if (uptimeRef.current) clearInterval(uptimeRef.current);
       setUptime(0);
     }
-    return () => {
-      if (uptimeInterval.current) clearInterval(uptimeInterval.current);
-    };
-  }, [serverState, config]);
+    return () => { if (uptimeRef.current) clearInterval(uptimeRef.current); };
+  }, [serverState]);
 
   const showMessage = (msg: string) => {
     setMessage(msg);
@@ -68,10 +78,7 @@ export default function ServerTab() {
   };
 
   const handleStart = async () => {
-    if (!config) {
-      showMessage("No config loaded");
-      return;
-    }
+    if (!config) { showMessage("No config loaded"); return; }
     setServerState("starting");
     try {
       const p = await startServer(config);
@@ -96,181 +103,117 @@ export default function ServerTab() {
     }
   };
 
-  const handleRestart = async () => {
-    await handleStop();
-    await handleStart();
-  };
-
   const controls = ["Start", "Stop", "Restart"];
   const canStart = serverState === "stopped";
   const canStop = serverState === "running";
 
-  const toggleCategory = (index: number) => {
-    const next = new Set(expandedCategories);
-    if (next.has(index)) next.delete(index);
-    else next.add(index);
-    setExpandedCategories(next);
-  };
+  const fieldList = config ? buildFieldList(config, collapsed) : [];
 
-  const setValue = (categoryIndex: number, field: PresetFieldDef, raw: string) => {
+  const fieldOnlyList = fieldList.filter((item) => item.type === "field");
+
+  const setValue = (ci: number, key: string, type: string, raw: string) => {
     if (!config) return;
-    const cat = PRESET_CATEGORIES[categoryIndex];
+    const cat = PRESET_CATEGORIES[ci];
     const presets = { ...config.server.presets };
     const category = { ...(presets[cat.presetKey] as Record<string, unknown>) };
     let value: unknown = raw;
-    if (field.type === "number") value = Number(raw);
-    else if (field.type === "boolean") value = raw === "on";
-    category[field.key] = value;
+    if (type === "number") value = Number(raw);
+    else if (type === "boolean") value = raw === "on";
+    category[key] = value;
     presets[cat.presetKey] = category;
     const newConfig = { ...config, server: { ...config.server, presets } };
     setConfig(newConfig);
     saveConfig(newConfig);
   };
 
-  const openEdit = (categoryIndex: number, fieldIndex: number) => {
-    if (!config) return;
-    const cat = PRESET_CATEGORIES[categoryIndex];
-    const field = cat.fields[fieldIndex];
-    const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
-    setEditTarget({ categoryIndex, fieldIndex });
-    setEditValue(current !== null && current !== undefined ? String(current) : "");
-    setFocusMode("edit");
+  const toggleGroup = (ci: number) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(ci)) next.delete(ci);
+      else next.add(ci);
+      return next;
+    });
   };
 
-  const submitEdit = () => {
-    if (!config || !editTarget) return;
-    const cat = PRESET_CATEGORIES[editTarget.categoryIndex];
-    const field = cat.fields[editTarget.fieldIndex];
-    setValue(editTarget.categoryIndex, field, editValue);
-    setEditTarget(null);
-    setFocusMode("categories");
-    showMessage(`${field.flag} = ${editValue}`);
+  const moveUp = () => {
+    setSelectedIndex((prev) => {
+      if (prev > 0) return prev - 1;
+      return prev;
+    });
   };
 
-  const cycleEnum = (categoryIndex: number, field: PresetFieldDef) => {
-    if (!config || !field.options) return;
-    const cat = PRESET_CATEGORIES[categoryIndex];
-    const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
-    const idx = field.options.indexOf(String(current));
-    const nextIdx = (idx + 1) % field.options.length;
-    setValue(categoryIndex, field, field.options[nextIdx]);
+  const moveDown = () => {
+    setSelectedIndex((prev) => {
+      if (prev < fieldList.length - 1) return prev + 1;
+      return prev;
+    });
   };
 
-  const toggleBoolean = (categoryIndex: number, field: PresetFieldDef) => {
-    if (!config) return;
-    const cat = PRESET_CATEGORIES[categoryIndex];
-    const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
-    setValue(categoryIndex, field, String(!current));
-  };
-
-  const flattenedFields: Array<{ categoryIndex: number; fieldIndex: number }> = [];
-  for (let ci = 0; ci < PRESET_CATEGORIES.length; ci++) {
-    const cat = PRESET_CATEGORIES[ci];
-    if (!expandedCategories.has(ci)) continue;
-    for (let fi = 0; fi < cat.fields.length; fi++) {
-      flattenedFields.push({ categoryIndex: ci, fieldIndex: fi });
-    }
-  }
-
-  const [fieldCursor, setFieldCursor] = React.useState(0);
+  const currentItem = fieldList[selectedIndex];
 
   useInput((input, key) => {
-    if (input === "q") return;
-
-    if (focusMode === "edit") {
+    if (editMode) {
       if (key.return) {
-        submitEdit();
-        return;
-      }
-      if (input === "\u0003") {
-        setEditTarget(null);
-        setFocusMode("categories");
-        return;
-      }
-      return;
-    }
-
-    if (focusMode === "freeform") {
-      if (key.upArrow) {
-        setFocusMode("categories");
-        return;
-      }
-      if (key.return && config) {
-        const args = [...config.server.freeFormArgs];
-        args[freeformIndex] = args[freeformIndex] || "";
-        const newConfig = { ...config, server: { ...config.server, freeFormArgs: args } };
-        setConfig(newConfig);
-        saveConfig(newConfig);
-        return;
+        if (currentItem && currentItem.type === "field" && config && currentItem.fieldIndex !== undefined) {
+          const cat = PRESET_CATEGORIES[currentItem.categoryIndex];
+          const field = cat.fields[currentItem.fieldIndex];
+          setValue(currentItem.categoryIndex, field.key, field.type, editValue);
+          showMessage(`${field.flag} = ${editValue}`);
+        }
+        setEditMode(false);
+      } else if (input === "\u0003") {
+        setEditMode(false);
       }
       return;
     }
 
-    if (focusMode === "controls") {
+    if (focusArea === "controls") {
       if (input === "l" || key.rightArrow) {
         setControlIndex((prev) => Math.min(prev + 1, controls.length - 1));
-        return;
-      }
-      if (input === "h" || key.leftArrow) {
+      } else if (input === "h" || key.leftArrow) {
         setControlIndex((prev) => Math.max(prev - 1, 0));
-        return;
-      }
-      if (key.return) {
+      } else if (key.return) {
         if (controlIndex === 0 && canStart) handleStart();
         else if (controlIndex === 1 && canStop) handleStop();
-        else if (controlIndex === 2) handleRestart();
-        return;
+        else if (controlIndex === 2) { handleStop().then(() => handleStart()); }
+      } else if (input === "j" || key.downArrow) {
+        if (fieldList.length > 0) {
+          setFocusArea("form");
+          setSelectedIndex(0);
+        }
       }
-      if (input === "j" || key.downArrow) {
-        setFocusMode("categories");
-        setFieldCursor(0);
-        return;
-      }
-      return;
-    }
-
-    if (focusMode === "categories") {
+    } else if (focusArea === "form") {
       if (input === "k" || key.upArrow) {
-        if (fieldCursor > 0) {
-          setFieldCursor((prev) => prev - 1);
+        if (selectedIndex > 0) {
+          moveUp();
         } else {
-          setFocusMode("controls");
+          setFocusArea("controls");
         }
-        return;
-      }
-      if (input === "j" || key.downArrow) {
-        if (flattenedFields.length === 0) {
-          const nextCat = PRESET_CATEGORIES.findIndex((_, i) => !expandedCategories.has(i));
-          if (nextCat >= 0) toggleCategory(nextCat);
-        } else if (fieldCursor < flattenedFields.length - 1) {
-          setFieldCursor((prev) => prev + 1);
+      } else if (input === "j" || key.downArrow) {
+        if (selectedIndex < fieldList.length - 1) {
+          moveDown();
         }
-        return;
-      }
-      if (key.return && flattenedFields.length > 0) {
-        const { categoryIndex, fieldIndex } = flattenedFields[fieldCursor];
-        const cat = PRESET_CATEGORIES[categoryIndex];
-        const field = cat.fields[fieldIndex];
-        if (field.type === "boolean") {
-          toggleBoolean(categoryIndex, field);
-        } else if (field.type === "enum") {
-          cycleEnum(categoryIndex, field);
-        } else {
-          openEdit(categoryIndex, fieldIndex);
+      } else if (key.return && currentItem) {
+        if (currentItem.type === "header") {
+          toggleGroup(currentItem.categoryIndex);
+        } else if (config && currentItem.fieldIndex !== undefined) {
+          const cat = PRESET_CATEGORIES[currentItem.categoryIndex];
+          const field = cat.fields[currentItem.fieldIndex];
+          if (field.type === "boolean") {
+            const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+            setValue(currentItem.categoryIndex, field.key, field.type, String(!current));
+          } else if (field.type === "enum" && field.options) {
+            const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+            const idx = field.options.indexOf(String(current));
+            setValue(currentItem.categoryIndex, field.key, field.type, field.options[(idx + 1) % field.options.length]);
+          } else {
+            const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+            setEditValue(current !== null && current !== undefined ? String(current) : "");
+            setEditMode(true);
+          }
         }
-        return;
-      }
-      if (input === "u") {
-        if (fieldCursor >= 0 && flattenedFields.length > 0) {
-          const { categoryIndex } = flattenedFields[fieldCursor];
-          toggleCategory(categoryIndex);
-          setFieldCursor(0);
-        }
-        return;
-      }
-      if (input === "g") {
-        setFocusMode("controls");
-        return;
+      } else if (input === "g") {
+        setFocusArea("controls");
       }
     }
   });
@@ -294,16 +237,18 @@ export default function ServerTab() {
         <Box flexDirection="row" justifyContent="space-between">
           <Box>
             <Text bold>Server</Text>
-            <Text color="gray"> │ </Text>
-            <Text color={serverState === "running" ? "green" : serverState === "starting" ? "yellow" : serverState === "stopping" ? "yellow" : "red"}>
-              {serverState === "starting" || serverState === "stopping" ? <><Text color="cyan"><Spinner type="line" /></Text> {serverState}</> : serverState}
+            <Text> {" │ "} </Text>
+            <Text color={serverState === "running" ? "green" : serverState === "starting" || serverState === "stopping" ? "yellow" : "red"}>
+              {serverState === "starting" || serverState === "stopping"
+                ? <><Text color="cyan"><Spinner type="line" /></Text> {serverState}</>
+                : serverState}
             </Text>
           </Box>
           <Box>
             {pid && <Text color="gray">PID: {pid}</Text>}
             {serverState === "running" && (
               <>
-                <Text color="gray"> │ </Text>
+                <Text> {" │ "} </Text>
                 <Text color="gray">Uptime: {formatUptime(uptime)}</Text>
               </>
             )}
@@ -312,7 +257,7 @@ export default function ServerTab() {
         <Box>
           <Text color="gray">Version: </Text>
           <Text>{config.activeVersion || "<none>"}</Text>
-          <Text color="gray"> │ </Text>
+          <Text> {" │ "} </Text>
           <Text color="gray">URL: </Text>
           <Text color="blue">{`http://${host}:${port}`}</Text>
         </Box>
@@ -321,7 +266,7 @@ export default function ServerTab() {
       <Box marginTop={1}>
         <Box flexDirection="row">
           {controls.map((label, i) => {
-            const isActive = focusMode === "controls" && controlIndex === i;
+            const isActive = focusArea === "controls" && controlIndex === i;
             const enabled = (i === 0 && canStart) || (i === 1 && canStop) || i === 2;
             return (
               <Box key={label} marginRight={1}>
@@ -340,48 +285,50 @@ export default function ServerTab() {
 
       {message && (
         <Box marginTop={1}>
-          <Text color="green">› {message}</Text>
+          <Text color="green">{` › ${message}`}</Text>
         </Box>
       )}
 
       <Box flexDirection="column" flexGrow={1} marginTop={1}>
         <Box marginBottom={1}>
           <Text color="gray" wrap="wrap">
-            j/k navigate │ Enter edit/toggle │ u collapse │ g controls │ Ctrl+C cancel edit
+            j/k navigate │ Enter edit/toggle │ Space expand/collapse │ g controls │ Ctrl+C cancel edit
           </Text>
         </Box>
 
-        <Box flexDirection="column" flexGrow={1} overflow="hidden">
+        <Box flexDirection="column" flexGrow={1}>
           {PRESET_CATEGORIES.map((cat, ci) => {
-            const isExpanded = expandedCategories.has(ci);
+            const isCollapsed = collapsed.has(ci);
             const preset = config.server.presets[cat.presetKey] as Record<string, unknown>;
+
+            const headerIndex = fieldList.findIndex((item) => item.type === "header" && item.categoryIndex === ci);
+            const isHeaderSelected = focusArea === "form" && selectedIndex === headerIndex && !editMode;
+
             return (
               <Box key={cat.name} flexDirection="column">
                 <Box>
-                  <Text color={isExpanded ? "white" : "cyan"} bold>
-                    {isExpanded ? "▼" : "▶"} {cat.name}
+                  <Text
+                    color={isHeaderSelected ? "white" : "cyan"}
+                    bold={isHeaderSelected}
+                    backgroundColor={isHeaderSelected ? "white" : undefined}
+                  >
+                    {isCollapsed ? "▶" : "▼"} {cat.name} ({cat.fields.length})
                   </Text>
-                  <Text color="gray"> ({cat.fields.length} fields)</Text>
                 </Box>
-                {isExpanded &&
+                {!isCollapsed &&
                   cat.fields.map((field, fi) => {
                     const value = preset[field.key];
-                    const isCursor =
-                      focusMode === "categories" &&
-                      flattenedFields[fieldCursor]?.categoryIndex === ci &&
-                      flattenedFields[fieldCursor]?.fieldIndex === fi;
-                    const isEditing =
-                      focusMode === "edit" &&
-                      editTarget?.categoryIndex === ci &&
-                      editTarget?.fieldIndex === fi;
+                    const fieldPos = fieldList.findIndex((item) =>
+                      item.type === "field" && item.categoryIndex === ci && item.fieldIndex === fi
+                    );
+                    const isSelected = focusArea === "form" && selectedIndex === fieldPos && !editMode;
+                    const isEditing = editMode && selectedIndex === fieldPos;
 
                     if (isEditing && (field.type === "string" || field.type === "number")) {
                       return (
                         <Box key={field.key} marginLeft={2}>
-                          <Text color="yellow" bold>
-                            {field.flag}
-                          </Text>
-                          <Text color="gray"> {" "}</Text>
+                          <Text color="yellow" bold>{field.flag}</Text>
+                          <Text> {" "} </Text>
                           <TextInput
                             value={editValue}
                             onChange={setEditValue}
@@ -393,29 +340,25 @@ export default function ServerTab() {
 
                     return (
                       <Box key={field.key} marginLeft={2}>
-                        <Text
-                          color={isCursor ? "yellow" : "gray"}
-                          bold={isCursor}
-                        >
+                        <Text color={isSelected ? "white" : "gray"} bold={isSelected}>
                           {field.flag}
                         </Text>
-                        <Text color="gray"> {" "}</Text>
-                        <Text
-                          color={isCursor ? "white" : value !== field.default ? "green" : "gray"}
-                        >
-                          {formatValue(value, field)}
+                        <Text> {" "} </Text>
+                        <Text color={isSelected ? "white" : value !== field.default ? "green" : "gray"}>
+                          {formatValue(value, field.type) || <Text color="gray">&lt;default&gt;</Text>}
                         </Text>
                         {field.type === "enum" && field.options && (
                           <>
-                            <Text color="gray"> </Text>
-                            <Text color="gray">({field.options.join("/")})</Text>
+                            <Text> {" "} </Text>
+                            <Text color="gray">{`[${field.options.join("/")}]`}</Text>
                           </>
                         )}
-                        {isCursor && (
+                        {isSelected && (
                           <>
-                            <Text color="gray"> </Text>
+                            <Text> {" "} </Text>
                             <Text color="gray">
-                              {field.type === "boolean" ? "[Enter toggle]" : field.type === "enum" ? "[Enter cycle]" : "[Enter edit]"}
+                              {field.type === "boolean" ? "[toggle]"
+                                : field.type === "enum" ? "[cycle]" : "[edit]"}
                             </Text>
                           </>
                         )}
@@ -430,23 +373,18 @@ export default function ServerTab() {
             <Text color="white" bold>Free-form args</Text>
             <Text color="gray"> (arbitrary flags)</Text>
           </Box>
-          {(config.server.freeFormArgs.length > 0 || focusMode === "freeform") &&
-            config.server.freeFormArgs.map((arg, i) => (
-              <Box key={i} marginLeft={2}>
-                <Text color={focusMode === "freeform" && freeformIndex === i ? "yellow" : "gray"}>
-                  {i + 1}.
-                </Text>
-                <Text color="gray"> {" "}</Text>
-                <Text color={focusMode === "freeform" && freeformIndex === i ? "white" : "cyan"}>
-                  {arg || "<empty>"}
-                </Text>
-              </Box>
-            ))}
-          <Box marginLeft={2}>
-            <Text color="gray">
-              + Add arg (coming soon)
-            </Text>
-          </Box>
+          {config.server.freeFormArgs.length > 0
+            ? config.server.freeFormArgs.map((arg, i) => (
+                <Box key={i} marginLeft={2}>
+                  <Text color="gray">{`${i + 1}. `}</Text>
+                  <Text color="cyan">{arg}</Text>
+                </Box>
+              ))
+            : (
+                <Box marginLeft={2}>
+                  <Text color="gray">None configured</Text>
+                </Box>
+              )}
         </Box>
       </Box>
     </Box>

@@ -1,5 +1,5 @@
 import React from "react";
-import { Box } from "ink";
+import { Box, useInput, useApp } from "ink";
 import { FullScreenBox } from "fullscreen-ink";
 import Tabs from "./Tabs.js";
 import StatusBar from "./StatusBar.js";
@@ -25,6 +25,13 @@ export default function App() {
   const tabIndex = TABS.indexOf(activeTab);
   const handleTabChange = (index: number) => setActiveTab(TABS[index]);
   const ActiveComponent = tabComponents[activeTab];
+  const { exit } = useApp();
+
+  useInput((input) => {
+    if (input === "q") {
+      exit();
+    }
+  });
 
   return (
     <FullScreenBox flexDirection="column">
