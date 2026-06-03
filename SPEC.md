@@ -643,6 +643,214 @@ The TUI is the primary interface. Headless commands are convenience shortcuts th
 
 ---
 
+## Feature 6: Model Browser
+
+### Tab: `[Models]` — Enhanced Browse Mode
+
+Extends the existing model search with a full HuggingFace model browser. Accessible via a new "Browse" action alongside "Set Active", "Delete", and "Search". Provides a curated, filterable view of the HuggingFace model hub without requiring a specific search query.
+
+#### Browse Modes
+
+The models tab supports three modes for discovering models:
+
+| Mode | Trigger | Description |
+|---|---|------|
+| **Search** (existing) | `Search` action + query | Free-text search with GGUF filter |
+| **Browse** (new) | `Browse` action | Curated, filterable hub browse |
+| **Repo Detail** (existing) | Enter on search result | File listing for a given repo |
+
+#### Browse Interface
+
+```
+Browse HuggingFace Models:
+  ┌──────────────────────────────────────────────────────────┐
+  │  Filters: [All Tasks] [Q4_K_M] [Q5_K_M] [Q8_]  Sort: [↓Likes] │
+  │  > mistral 7b                                              │
+  └──────────────────────────────────────────────────────────┘
+
+  Results (42):
+    bartowski/Mistral-7B-Instruct-v0.3-GGUF      22 files   ♥ 3.1k   ↓ 120k
+    ✓ TheBloke/Mistral-7B-v0.1-GGUF              14 files   ♥ 2.8k   ↓ 98k
+    Qwen/Qwen2.5-7B-Instruct-GGUF                18 files   ♥ 5.2k   ↓ 240k
+    ...
+
+  Storage: 15.29 GB used │ Page 1/5 │ j/k navigate │ f filters │ s sort │ Enter open
+```
+
+#### Filters
+
+Filters are applied as query parameters to the HuggingFace API. Each filter is toggleable with `Enter` when focused, navigable with `h`/`l`.
+
+**Task Filters**
+
+| Filter | API Parameter | Description |
+|---|---|---|
+| Text Generation | `pipeline_tag:text-generation` | General-purpose LLMs |
+| Text Generation Infilling | `pipeline_tag:text-generation-infilling` | Fill-in-the-middle models |
+| Feature Extraction | `pipeline_tag:feature-extraction` | Embedding models |
+
+**Quantization Filters** (quick-access tags)
+
+| Filter | API Parameter | Description |
+|---|---|---|
+| Q2_K | `tag:q2_k` | 2-bit quantization |
+| Q3_K_S / Q3_K_M / Q3_K_L | `tag:q3_k_*` | 3-bit variants |
+| Q4_0 | `tag:q4_0` | Original 4-bit |
+| Q4_K_S / Q4_K_M | `tag:q4_k_*` | Q4 K-quants (most common) |
+| Q5_K_S / Q5_K_M | `tag:q5_k_*` | Q5 K-quants |
+| Q6_K | `tag:q6_k` | 6-bit quantization |
+| Q8_0 | `tag:q8_0` | 8-bit quantization |
+| FP16 | `tag:fp16` | Half-precision |
+| FP32 | `tag:fp32` | Full precision |
+
+**Author / Organization Filters**
+
+| Filter | API Parameter | Description |
+|---|---|---|
+| TheBloke | `author:TheBloke` | Popular GGUF converter |
+| bartowski | `author:bartowski` | Active GGUF quantizer |
+| Qwen | `author:Qwen` | Qwen family models |
+| meta-llama | `author:meta-llama` | Llama family (may require auth) |
+
+**Sort Options**
+
+| Sort | API Parameter | Description |
+|---|---|---|
+| Likes (default) | `sort:likes` | Most liked |
+| Downloads | `sort:downloads` | Most downloaded |
+| Last Modified | `sort:lastModified` | Recently updated |
+| Trending | `sort:trending` | Rising popularity |
+| Created | `sort:created` | Oldest / newest |
+
+Each sort can be ascending or descending (toggled with `R`).
+
+#### Filter UI
+
+```
+  Filters:
+    [✓ All Tasks]  [Text Gen]  [Embedding]  [Infilling]
+    [Q4_K_M]  [Q5_K_M]  [Q8_]  [FP16]
+    [TheBloke]  [bartowski]  [Qwen]
+    Sort: [↓Likes]  [↓Downloads]  [↓Modified]  [Trending]
+
+  h/l navigate │ Enter toggle │ g back │ Enter on repo to open
+```
+
+Filters are combined with AND logic. The `gguf` tag is always applied. When no filter is active, the "All" option shows top GGUF models sorted by the selected criterion.
+
+#### Model Card Preview
+
+Pressing `m` on a selected repo shows an expanded model card with metadata from the HuggingFace API:
+
+```
+  Model Card: bartowski/Mistral-7B-Instruct-v0.3-GGUF
+
+  Author:     bartowski
+  Likes:      3,142
+  Downloads:  124,583
+  Tags:       mistral, gguf, q4_k_m, q5_k_m, q8_0, fp16
+  Pipeline:   text-generation
+  Created:    15 Mar 2024
+  Modified:   02 Jun 2025
+
+  README (first 8 lines):
+    # Mistral-7B-Instruct-v0.3 GGUF
+    Converted from original Mistral-7B-Instruct-v0.3.
+    Quantizations: Q2_K, Q3_K_S/M/L, Q4_0, Q4_K_S/M, ...
+
+  m close │ Enter open files
+```
+
+Fetched from `GET /api/models/{repoId}`. Cached locally to avoid repeated API calls.
+
+#### API Endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/models?sort={sort}&direction={dir}&search={q}&filter={filter}&limit={n}` | Browse/list models |
+| `GET /api/models/{repoId}` | Model metadata (for card preview) |
+| `GET /api/models/{repoId}/tree/main` | File listing (existing) |
+| `GET /api/whoami` | Auth check — validates HF token |
+
+The browse mode reuses the existing `searchRepos()` function in `hf.ts` but with different default parameters (no search query, different sort/filter). A new `getModelInfo()` function fetches full model metadata for the card preview.
+
+#### New Functions in `hf.ts`
+
+```typescript
+export interface HFModelInfo {
+  id: string;
+  author: string;
+  likes: number;
+  downloads: number;
+  tags: string[];
+  pipelineTag: string | null;
+  createdAt: string;
+  lastModified: string;
+  private: boolean;
+  disabled: boolean;
+  cardData?: {
+    language?: string[];
+    license?: string;
+    library_name?: string;
+  };
+}
+
+export interface BrowseOptions {
+  sort?: "likes" | "downloads" | "lastModified" | "trending" | "created";
+  direction?: 1 | -1;
+  search?: string;
+  filters?: string[];    // e.g. ["author:bartowski", "tag:q4_k_m"]
+  limit?: number;
+  offset?: number;
+}
+
+export async function browseModels(
+  options: BrowseOptions,
+  token?: string,
+): Promise<HFRepoInfo[]>
+
+export async function getModelInfo(
+  repoId: string,
+  token?: string,
+): Promise<HFModelInfo>
+```
+
+#### State and Navigation
+
+New focus area: `browse`. New action in the actions bar: `Browse`.
+
+```
+Actions:  [Set Active]  [Delete]  [Search]  [Browse]
+```
+
+Navigation flow:
+1. `g` → actions → `Browse` → Enter
+2. Lands in `browse` focus area with filter bar at top
+3. `f` → enter filter mode, `h`/`l` navigate filters, `Enter` toggles
+4. `s` → enter sort mode, `h`/`l` pick sort, `R` reverse
+5. `j`/`k` → navigate results
+6. `Enter` → open repo files (download)
+7. `m` → model card preview
+8. `g` → back to main model list
+
+#### Auth Handling
+
+Gated repos (e.g., `meta-llama/Llama-3.1-8B-Instruct-GGUF`) require authentication. The browser should:
+- Show a lock icon (🔒) next to gated repos
+- Attempt fetch with token if configured
+- Display clear error: `Access denied. Set HF token in config.`
+- Provide hint: `Token needed for gated models. Export HF_TOKEN or set in config.`
+
+#### Caching
+
+Model metadata and browse results are cached in memory for the session duration. Model card data (`getModelInfo`) is cached per repo ID to avoid repeated API calls when navigating back to the same repo.
+
+#### Config
+
+No new config fields required. Reuses existing `hfToken` from config. The browse mode is always available alongside the existing search.
+
+---
+
 ## Future Considerations
 
 - Multi-server support (run several instances on different ports)
