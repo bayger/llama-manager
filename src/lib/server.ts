@@ -118,7 +118,7 @@ export function buildArgs(config: ConfigData): string[] {
   push("--model", p.model.model);
   push("--lora", p.model.lora);
   push("--hf-repo", p.model.hfRepo);
-  push("--hf-token", p.model.hfToken);
+  push("--hf-token", config.hfToken);
   push("--chat-template", p.model.chatTemplate);
   if (p.model.jinja === false) args.push("--no-jinja");
 
