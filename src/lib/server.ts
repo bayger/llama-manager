@@ -133,7 +133,7 @@ export function buildArgs(config: ConfigData): string[] {
   push("--cache-type-k", p.compute.cacheTypeK);
   push("--cache-type-v", p.compute.cacheTypeV);
 
-  push("--gpu-layers", p.gpu.gpuLayers);
+  if (p.gpu.gpuLayers && p.gpu.gpuLayers !== "auto") push("--gpu-layers", p.gpu.gpuLayers);
   push("--split-mode", p.gpu.splitMode);
   push("--tensor-split", p.gpu.tensorSplit);
   push("--main-gpu", p.gpu.mainGpu);
@@ -157,11 +157,11 @@ export function buildArgs(config: ConfigData): string[] {
   push("--spec-type", p.speculative.specType);
   push("--spec-draft-n-max", p.speculative.draftNMax);
   push("--spec-draft-threads", p.speculative.draftThreads);
-  push("--spec-draft-gpu-layers", p.speculative.draftGpuLayers);
+  if (p.speculative.draftGpuLayers && p.speculative.draftGpuLayers !== "auto") push("--spec-draft-ngl", p.speculative.draftGpuLayers);
 
   push("--reasoning", p.reasoning.reasoning);
   push("--reasoning-budget", p.reasoning.reasoningBudget);
-  push("--reasoning-format", p.reasoning.reasoningFormat);
+  if (p.reasoning.reasoningFormat && p.reasoning.reasoningFormat !== "auto") push("--reasoning-format", p.reasoning.reasoningFormat);
 
   push("--log-file", getLogFile(config));
   push("--log-verbosity", p.logging.logVerbosity);
