@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text, useInput } from "ink";
+import { Box, Text, useInput, useStdout } from "ink";
 import { spawn } from "child_process";
 import { onServerLog, serverLogLines, clearServerLogs, getStatus } from "../../lib/server.js";
 import { theme } from "../../lib/theme.js";
@@ -37,6 +37,8 @@ export default function LiveLogsTab({ message, showMessage, setIsTextInputFocuse
   const [running, setRunning] = React.useState(false);
   const [autoScroll, setAutoScroll] = React.useState(true);
   const [copied, setCopied] = React.useState(false);
+  const [scrollOffset, setScrollOffset] = React.useState(0);
+  const { stdout } = useStdout();
 
   React.useEffect(() => {
     const unsub = onServerLog(() => {
@@ -63,18 +65,28 @@ export default function LiveLogsTab({ message, showMessage, setIsTextInputFocuse
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const maxVisible = Math.max(1, stdout.rows - 5);
+
   useInput((input, key) => {
-    if (key.upArrow || key.downArrow || key.pageUp || key.pageDown) {
+    if (key.upArrow || key.pageUp) {
       setAutoScroll(false);
+      setScrollOffset((prev) => Math.max(0, prev - (key.pageUp ? maxVisible : 1)));
+    }
+    if (key.downArrow || key.pageDown) {
+      setAutoScroll(false);
+      setScrollOffset((prev) => Math.min(serverLogLines.length - maxVisible, prev + (key.pageDown ? maxVisible : 1)));
     }
     if (input === "G") {
       setAutoScroll(false);
+      setScrollOffset(0);
     }
     if (input === "g") {
       setAutoScroll(true);
+      setScrollOffset(0);
     }
     if (input === "u") {
       clearServerLogs();
+      setScrollOffset(0);
       setTick((t) => t + 1);
     }
     if (input === "y") {
@@ -83,6 +95,8 @@ export default function LiveLogsTab({ message, showMessage, setIsTextInputFocuse
   });
 
   const lines = serverLogLines;
+  const visibleStart = autoScroll ? Math.max(0, lines.length - maxVisible) : scrollOffset;
+  const visibleLines = lines.slice(visibleStart, visibleStart + maxVisible);
 
   return (
     <Box flexDirection="column" flexGrow={1}>
@@ -118,17 +132,16 @@ export default function LiveLogsTab({ message, showMessage, setIsTextInputFocuse
         marginTop={1}
         borderStyle="single"
         borderColor={theme.border}
-        overflow="hidden"
       >
         {lines.length === 0 ? (
           <Box>
             <Text color={theme.textMuted}>Waiting for server output...</Text>
           </Box>
         ) : (
-          lines.map((line, i) => {
+          visibleLines.map((line, i) => {
             const { timestamp, level, component, message } = parseLogLine(line);
             return (
-              <Box key={i}>
+              <Box key={visibleStart + i}>
                 <Text color={theme.textMuted}>{"› "}</Text>
                 {timestamp && (
                   <Text color={theme.textMuted}>{timestamp}</Text>
