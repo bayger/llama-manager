@@ -10,6 +10,7 @@ export interface HFRepoInfo {
 }
 
 export interface HFFileInfo {
+  path: string;
   rfpath: string;
   size: number;
   type: string;
@@ -56,7 +57,9 @@ export async function listFiles(repoId: string, token?: string): Promise<HFFileI
     throw new Error(`HF files list failed: ${res.status}`);
   }
   const data = await res.json();
-  return data.filter((f: HFFileInfo) => f.rfpath.endsWith(".gguf"));
+  return data
+    .map((entry: any) => ({ path: entry.path, rfpath: entry.path, size: entry.size, type: entry.type }))
+    .filter((f: HFFileInfo) => f.rfpath.endsWith(".gguf"));
 }
 
 export function getDownloadUrl(repoId: string, filename: string): string {

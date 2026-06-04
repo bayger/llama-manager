@@ -3,6 +3,7 @@ import path from "path";
 import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
 import TextInput from "ink-text-input";
+import { useOnClick } from "@ink-tools/ink-mouse";
 import { loadConfig, saveConfig, ConfigData, getModelsDir } from "../../lib/config.js";
 import { listLocalModels, deleteModel, formatSize, getTotalModelsSize, downloadModel, setActiveModel, LocalModel, DownloadProgress } from "../../lib/models.js";
 import { searchRepos, listFiles, browseModels, getModelInfo, HFRepoInfo, HFFileInfo, HFModelInfo } from "../../lib/hf.js";
@@ -56,6 +57,162 @@ const SORT_OPTIONS = [
   { label: "Created", value: "created" },
 ] as const;
 
+function ActionButton({ action, isActive, onClick }: { action: Action; isActive: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  const label =
+    action === "setactive" ? "Set Active"
+      : action === "delete" ? "Delete"
+        : action === "search" ? "Search"
+          : "Browse";
+  return (
+    <Box marginRight={1} ref={ref}>
+      <Text
+        bold={isActive}
+        color={isActive ? "white" : "cyan"}
+        backgroundColor={isActive ? "white" : undefined}
+      >
+        {` ${label} `}
+      </Text>
+    </Box>
+  );
+}
+
+function ModelRow({ model, isSelected, onClick }: { model: LocalModel; isSelected: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box ref={ref}>
+      <Text color={isSelected ? "white" : model.active ? "green" : "gray"} bold={isSelected || model.active}>
+        {model.active ? "● " : "  "}
+      </Text>
+      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+        {model.repoId}
+      </Text>
+      <Text color={isSelected ? "white" : "gray"}>
+        /{model.filename}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        ({formatSize(model.sizeBytes)})
+      </Text>
+      {model.active && (
+        <>
+          <Text> {" "} </Text>
+          <Text color="green">(active)</Text>
+        </>
+      )}
+    </Box>
+  );
+}
+
+function BrowseRepoRow({ repo, isSelected, onClick }: { repo: HFRepoInfo; isSelected: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box ref={ref}>
+      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+        {isSelected ? "▸ " : "  "}
+      </Text>
+      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+        {repo.id}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        ♥ {formatLikes(repo.likes)}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        ↓ {formatDownloads(repo.downloads)}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        {formatDate(repo.lastModified)}
+      </Text>
+    </Box>
+  );
+}
+
+function SearchRepoRow({ repo, isSelected, onClick }: { repo: HFRepoInfo; isSelected: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box ref={ref}>
+      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+        {isSelected ? "▸ " : "  "}
+      </Text>
+      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+        {repo.id}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        ♥ {formatLikes(repo.likes)}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        {formatDate(repo.lastModified)}
+      </Text>
+    </Box>
+  );
+}
+
+function FileRow({ file, isSelected, isDownloaded, onClick }: { file: HFFileInfo; isSelected: boolean; isDownloaded: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box ref={ref}>
+      <Text color={isSelected ? "white" : isDownloaded ? "green" : "cyan"} bold={isSelected}>
+        {isSelected ? "▸ " : "  "}
+      </Text>
+      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+        {file.rfpath}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        ({formatSize(file.size)})
+      </Text>
+      {isDownloaded && (
+        <>
+          <Text> {" "} </Text>
+          <Text color="green">[downloaded]</Text>
+        </>
+      )}
+    </Box>
+  );
+}
+
+function FilterButton({ label, isActive, isOn, onClick }: { label: string; isActive: boolean; isOn: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box marginRight={1} ref={ref}>
+      <Text
+        bold={isActive}
+        color={isActive ? "white" : isOn ? "green" : "gray"}
+        backgroundColor={isActive ? "white" : undefined}
+      >
+        {` ${isOn ? "● " : "○ "}${label} `}
+      </Text>
+    </Box>
+  );
+}
+
+function SortButton({ label, isActive, isCurrent, direction, onClick }: { label: string; isActive: boolean; isCurrent: boolean; direction: number; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box marginRight={1} ref={ref}>
+      <Text
+        bold={isActive}
+        color={isActive ? "white" : isCurrent ? "green" : "gray"}
+        backgroundColor={isActive ? "white" : undefined}
+      >
+        {` ${direction === -1 ? "↓" : "↑"}${label} `}
+      </Text>
+    </Box>
+  );
+}
+
 export default function ModelsTab() {
   const [config, setConfig] = React.useState<ConfigData | null>(null);
   const [models, setModels] = React.useState<LocalModel[]>([]);
@@ -89,6 +246,8 @@ export default function ModelsTab() {
   const [modelCard, setModelCard] = React.useState<HFModelInfo | null>(null);
   const [fetchingCard, setFetchingCard] = React.useState(false);
 
+  const actions: Action[] = ["setactive", "delete", "search", "browse"];
+
   React.useEffect(() => {
     loadConfig().then(async (c) => {
       setConfig(c);
@@ -109,7 +268,6 @@ export default function ModelsTab() {
     setTimeout(() => setMessage(null), 5000);
   };
 
-  const actions: Action[] = ["setactive", "delete", "search", "browse"];
   const installedPaths = new Set(models.map((m) => m.path));
 
   const handleSetActive = async () => {
@@ -482,13 +640,7 @@ export default function ModelsTab() {
         </Box>
 
         <Box flexDirection="column" flexGrow={1} marginTop={1}>
-          {searching ? (
-            <Box>
-              <Text color="cyan"><Spinner type="line" /></Text>
-              <Text> {" "} </Text>
-              <Text color="gray">Searching...</Text>
-            </Box>
-          ) : fetchingFiles ? (
+          {fetchingFiles ? (
             <Box>
               <Text color="cyan"><Spinner type="line" /></Text>
               <Text> {" "} </Text>
@@ -500,57 +652,41 @@ export default function ModelsTab() {
                 <Text color="gray">No GGUF files found. Press g to go back.</Text>
               </Box>
             ) : (
-              repoFiles.map((f, i) => {
-                const isSelected = fileIndex === i;
-                const isDownloaded = config ? installedPaths.has(path.join(getModelsDir(config), repoId, f.rfpath)) : false;
-                return (
-                  <Box key={f.rfpath}>
-                    <Text color={isSelected ? "white" : isDownloaded ? "green" : "cyan"} bold={isSelected}>
-                      {isSelected ? "▸ " : "  "}
-                    </Text>
-                    <Text color={isSelected ? "white" : "white"} bold={isSelected}>
-                      {f.rfpath}
-                    </Text>
-                    <Text> {" "} </Text>
-                    <Text color={isSelected ? "gray" : "gray"}>
-                      ({formatSize(f.size)})
-                    </Text>
-                    {isDownloaded && (
-                      <>
-                        <Text> {" "} </Text>
-                        <Text color="green">[downloaded]</Text>
-                      </>
-                    )}
-                  </Box>
-                );
-              })
+              repoFiles.map((f, i) => (
+                <FileRow
+                  key={f.rfpath}
+                  file={f}
+                  isSelected={fileIndex === i}
+                  isDownloaded={config ? installedPaths.has(path.join(getModelsDir(config), repoId, f.rfpath)) : false}
+                  onClick={() => {
+                    setFileIndex(i);
+                    handleDownload(f);
+                  }}
+                />
+              ))
             )
+          ) : searching ? (
+            <Box>
+              <Text color="cyan"><Spinner type="line" /></Text>
+              <Text> {" "} </Text>
+              <Text color="gray">Searching...</Text>
+            </Box>
           ) : searchResults.length === 0 ? (
             <Box>
               <Text color="gray">No results. Press e for new search or g to go back.</Text>
             </Box>
           ) : (
-            searchResults.map((r, i) => {
-              const isSelected = searchIndex === i;
-              return (
-                <Box key={r.id}>
-                  <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
-                    {isSelected ? "▸ " : "  "}
-                  </Text>
-                  <Text color={isSelected ? "white" : "white"} bold={isSelected}>
-                    {r.id}
-                  </Text>
-                  <Text> {" "} </Text>
-                  <Text color={isSelected ? "gray" : "gray"}>
-                    ♥ {formatLikes(r.likes)}
-                  </Text>
-                  <Text> {" "} </Text>
-                  <Text color={isSelected ? "gray" : "gray"}>
-                    {formatDate(r.lastModified)}
-                  </Text>
-                </Box>
-              );
-            })
+            searchResults.map((r, i) => (
+              <SearchRepoRow
+                key={r.id}
+                repo={r}
+                isSelected={searchIndex === i}
+                onClick={() => {
+                  setSearchIndex(i);
+                  openRepoFiles(r.id);
+                }}
+              />
+            ))
           )}
         </Box>
 
@@ -686,21 +822,15 @@ export default function ModelsTab() {
                   <Text color="gray"> (h/l navigate │ Enter toggle │ s sort │ g back)</Text>
                 </Box>
                 <Box flexDirection="row" marginTop={1}>
-                  {ALL_FILTERS.map((f, i) => {
-                    const isActive = filterIndex === i;
-                    const isOn = browseFilters[i];
-                    return (
-                      <Box key={f.label} marginRight={1}>
-                        <Text
-                          bold={isActive}
-                          color={isActive ? "white" : isOn ? "green" : "gray"}
-                          backgroundColor={isActive ? "white" : undefined}
-                        >
-                          {` ${isOn ? "● " : "○ "}${f.label} `}
-                        </Text>
-                      </Box>
-                    );
-                  })}
+                  {ALL_FILTERS.map((f, i) => (
+                    <FilterButton
+                      key={f.label}
+                      label={f.label}
+                      isActive={filterIndex === i}
+                      isOn={browseFilters[i]}
+                      onClick={() => toggleFilter(i)}
+                    />
+                  ))}
                 </Box>
               </Box>
             )}
@@ -711,21 +841,21 @@ export default function ModelsTab() {
                   <Text color="gray"> (h/l navigate │ Enter apply │ R reverse │ g back)</Text>
                 </Box>
                 <Box flexDirection="row" marginTop={1}>
-                  {SORT_OPTIONS.map((s, i) => {
-                    const isActive = sortIndex === i;
-                    const isCurrent = browseSort === i;
-                    return (
-                      <Box key={s.value} marginRight={1}>
-                        <Text
-                          bold={isActive}
-                          color={isActive ? "white" : isCurrent ? "green" : "gray"}
-                          backgroundColor={isActive ? "white" : undefined}
-                        >
-                          {` ${browseDirection === -1 ? "↓" : "↑"}${s.label} `}
-                        </Text>
-                      </Box>
-                    );
-                  })}
+                  {SORT_OPTIONS.map((s, i) => (
+                    <SortButton
+                      key={s.value}
+                      label={s.label}
+                      isActive={sortIndex === i}
+                      isCurrent={browseSort === i}
+                      direction={browseDirection}
+                      onClick={() => {
+                        setSortIndex(i);
+                        setBrowseSort(i);
+                        setFocusArea("browse");
+                        executeBrowse();
+                      }}
+                    />
+                  ))}
                 </Box>
               </Box>
             )}
@@ -744,31 +874,17 @@ export default function ModelsTab() {
               <Text color="gray">No results. Press f for filters or g to go back.</Text>
             </Box>
           ) : (
-            browseResults.map((r, i) => {
-              const isSelected = browseIndex === i;
-              return (
-                <Box key={r.id}>
-                  <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
-                    {isSelected ? "▸ " : "  "}
-                  </Text>
-                  <Text color={isSelected ? "white" : "white"} bold={isSelected}>
-                    {r.id}
-                  </Text>
-                  <Text> {" "} </Text>
-                  <Text color={isSelected ? "gray" : "gray"}>
-                    ♥ {formatLikes(r.likes)}
-                  </Text>
-                  <Text> {" "} </Text>
-                  <Text color={isSelected ? "gray" : "gray"}>
-                    ↓ {formatDownloads(r.downloads)}
-                  </Text>
-                  <Text> {" "} </Text>
-                  <Text color={isSelected ? "gray" : "gray"}>
-                    {formatDate(r.lastModified)}
-                  </Text>
-                </Box>
-              );
-            })
+            browseResults.map((r, i) => (
+              <BrowseRepoRow
+                key={r.id}
+                repo={r}
+                isSelected={browseIndex === i}
+                onClick={() => {
+                  setBrowseIndex(i);
+                  openRepoFiles(r.id);
+                }}
+              />
+            ))
           )}
         </Box>
 
@@ -826,32 +942,18 @@ export default function ModelsTab() {
             <Text color="gray">No models downloaded. Press g for actions → Search.</Text>
           </Box>
         ) : (
-          models.map((m, i) => {
-            const isSelected = focusArea === "list" && selectedIndex === i;
-            return (
-              <Box key={m.path}>
-                <Text color={isSelected ? "white" : m.active ? "green" : "gray"} bold={isSelected || m.active}>
-                  {m.active ? "● " : "  "}
-                </Text>
-                <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
-                  {m.repoId}
-                </Text>
-                <Text color={isSelected ? "white" : "gray"}>
-                  /{m.filename}
-                </Text>
-                <Text> {" "} </Text>
-                <Text color={isSelected ? "gray" : "gray"}>
-                  ({formatSize(m.sizeBytes)})
-                </Text>
-                {m.active && (
-                  <>
-                    <Text> {" "} </Text>
-                    <Text color="green">(active)</Text>
-                  </>
-                )}
-              </Box>
-            );
-          })
+          models.map((m, i) => (
+            <ModelRow
+              key={m.path}
+              model={m}
+              isSelected={focusArea === "list" && selectedIndex === i}
+              onClick={() => {
+                setSelectedIndex(i);
+                setFocusArea("actions");
+                setActionIndex(0);
+              }}
+            />
+          ))
         )}
       </Box>
 
@@ -859,26 +961,27 @@ export default function ModelsTab() {
         <Box>
           <Text color="gray" bold>Actions:</Text>
         </Box>
-        <Box flexDirection="row">
-          {actions.map((action, i) => {
-            const isActive = focusArea === "actions" && actionIndex === i;
-            const label =
-              action === "setactive" ? "Set Active"
-                : action === "delete" ? "Delete"
-                  : action === "search" ? "Search"
-                    : "Browse";
-            return (
-              <Box key={action} marginRight={1}>
-                <Text
-                  bold={isActive}
-                  color={isActive ? "white" : "cyan"}
-                  backgroundColor={isActive ? "white" : undefined}
-                >
-                  {` ${label} `}
-                </Text>
-              </Box>
-            );
-          })}
+      <Box flexDirection="row">
+          {actions.map((action, i) => (
+            <ActionButton
+              key={action}
+              action={action}
+              isActive={focusArea === "actions" && actionIndex === i}
+              onClick={() => {
+                setFocusArea("actions");
+                setActionIndex(i);
+                if (action === "setactive") handleSetActive();
+                else if (action === "delete") handleDelete();
+                else if (action === "search") {
+                  setFocusArea("search");
+                  setEditMode(true);
+                  setEditValue("");
+                } else if (action === "browse") {
+                  startBrowse();
+                }
+              }}
+            />
+          ))}
         </Box>
       </Box>
 

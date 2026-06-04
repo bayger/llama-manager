@@ -5,6 +5,7 @@ import TextInput from "ink-text-input";
 import { loadConfig, saveConfig, ConfigData, getVersionsDir } from "../../lib/config.js";
 import { listVersions, switchVersion, uninstallVersion, checkLatestVersion, installVersion, listRecentVersions, getTotalVersionsSize, VersionInfo, RemoteVersion } from "../../lib/versions.js";
 import { formatSize } from "../../lib/models.js";
+import { useOnClick } from "@ink-tools/ink-mouse";
 
 type FocusArea = "list" | "actions" | "releases";
 type Action = "switch" | "uninstall" | "check" | "install";
@@ -12,6 +13,73 @@ type Action = "switch" | "uninstall" | "check" | "install";
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function ActionButton({ action, isActive, onClick }: { action: Action; isActive: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  const label =
+    action === "switch" ? "Switch"
+      : action === "uninstall" ? "Uninstall"
+        : action === "check" ? "Check Updates"
+          : "Install";
+  return (
+    <Box marginRight={1} ref={ref}>
+      <Text
+        bold={isActive}
+        color={isActive ? "white" : "cyan"}
+        backgroundColor={isActive ? "white" : undefined}
+      >
+        {` ${label} `}
+      </Text>
+    </Box>
+  );
+}
+
+function VersionRow({ version, isSelected, onClick }: { version: VersionInfo; isSelected: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box ref={ref}>
+      <Text color={isSelected ? "white" : version.active ? "green" : "gray"} bold={isSelected || version.active}>
+        {version.active ? "● " : "  "}
+      </Text>
+      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+        {version.version}
+      </Text>
+      {version.active && (
+        <>
+          <Text> {" "} </Text>
+          <Text color="green">(active)</Text>
+        </>
+      )}
+    </Box>
+  );
+}
+
+function ReleaseRow({ release, isSelected, isInstalled, onClick }: { release: RemoteVersion; isSelected: boolean; isInstalled: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, onClick);
+  return (
+    <Box ref={ref}>
+      <Text color={isSelected ? "white" : isInstalled ? "green" : "cyan"} bold={isSelected}>
+        {isSelected ? "▸ " : "  "}
+      </Text>
+      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+        {release.tag}
+      </Text>
+      <Text> {" "} </Text>
+      <Text color={isSelected ? "gray" : "gray"}>
+        ({formatDate(release.publishedAt)})
+      </Text>
+      {isInstalled && (
+        <>
+          <Text> {" "} </Text>
+          <Text color="green">[installed]</Text>
+        </>
+      )}
+    </Box>
+  );
 }
 
 export default function VersionsTab() {
@@ -31,6 +99,8 @@ export default function VersionsTab() {
   const [releaseIndex, setReleaseIndex] = React.useState(0);
   const [fetchingReleases, setFetchingReleases] = React.useState(false);
   const [editMode, setEditMode] = React.useState(false);
+
+  const actionsArr: Action[] = ["switch", "uninstall", "check", "install"];
 
   React.useEffect(() => {
     loadConfig().then(async (c) => {
@@ -52,7 +122,7 @@ export default function VersionsTab() {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  const actions: Action[] = ["switch", "uninstall", "check", "install"];
+  const actions: Action[] = actionsArr;
   const installedTags = new Set(versions.map((v) => v.version));
 
   const handleSwitch = async () => {
@@ -255,30 +325,18 @@ export default function VersionsTab() {
               <Text color="gray">Failed to fetch releases. Press e for custom tag or g to go back.</Text>
             </Box>
           ) : (
-            releases.map((r, i) => {
-              const isSelected = releaseIndex === i;
-              const isInstalled = installedTags.has(r.tag);
-              return (
-                <Box key={r.tag}>
-                  <Text color={isSelected ? "white" : isInstalled ? "green" : "cyan"} bold={isSelected}>
-                    {isSelected ? "▸ " : "  "}
-                  </Text>
-                  <Text color={isSelected ? "white" : "white"} bold={isSelected}>
-                    {r.tag}
-                  </Text>
-                  <Text> {" "} </Text>
-                  <Text color={isSelected ? "gray" : "gray"}>
-                    ({formatDate(r.publishedAt)})
-                  </Text>
-                  {isInstalled && (
-                    <>
-                      <Text> {" "} </Text>
-                      <Text color="green">[installed]</Text>
-                    </>
-                  )}
-                </Box>
-              );
-            })
+            releases.map((r, i) => (
+              <ReleaseRow
+                key={r.tag}
+                release={r}
+                isSelected={releaseIndex === i}
+                isInstalled={installedTags.has(r.tag)}
+                onClick={() => {
+                  setReleaseIndex(i);
+                  handleInstall(r.tag);
+                }}
+              />
+            ))
           )}
         </Box>
 
@@ -343,25 +401,18 @@ export default function VersionsTab() {
             <Text color="gray">No versions installed. Press g for actions → Install.</Text>
           </Box>
         ) : (
-          versions.map((v, i) => {
-            const isSelected = focusArea === "list" && selectedIndex === i;
-            return (
-              <Box key={v.version}>
-                <Text color={isSelected ? "white" : v.active ? "green" : "gray"} bold={isSelected || v.active}>
-                  {v.active ? "● " : "  "}
-                </Text>
-                <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
-                  {v.version}
-                </Text>
-                {v.active && (
-                  <>
-                    <Text> {" "} </Text>
-                    <Text color="green">(active)</Text>
-                  </>
-                )}
-              </Box>
-            );
-          })
+          versions.map((v, i) => (
+            <VersionRow
+              key={v.version}
+              version={v}
+              isSelected={focusArea === "list" && selectedIndex === i}
+              onClick={() => {
+                setSelectedIndex(i);
+                setFocusArea("actions");
+                setActionIndex(0);
+              }}
+            />
+          ))
         )}
       </Box>
 
@@ -370,25 +421,21 @@ export default function VersionsTab() {
           <Text color="gray" bold>Actions:</Text>
         </Box>
         <Box flexDirection="row">
-          {actions.map((action, i) => {
-            const isActive = focusArea === "actions" && actionIndex === i;
-            const label =
-              action === "switch" ? "Switch"
-                : action === "uninstall" ? "Uninstall"
-                  : action === "check" ? "Check Updates"
-                    : "Install";
-            return (
-              <Box key={action} marginRight={1}>
-                <Text
-                  bold={isActive}
-                  color={isActive ? "white" : "cyan"}
-                  backgroundColor={isActive ? "white" : undefined}
-                >
-                  {` ${label} `}
-                </Text>
-              </Box>
-            );
-          })}
+          {actions.map((action, i) => (
+            <ActionButton
+              key={action}
+              action={action}
+              isActive={focusArea === "actions" && actionIndex === i}
+              onClick={() => {
+                setFocusArea("actions");
+                setActionIndex(i);
+                if (action === "switch") handleSwitch();
+                else if (action === "uninstall") handleUninstall();
+                else if (action === "check") handleCheckUpdates();
+                else if (action === "install") openInstall();
+              }}
+            />
+          ))}
         </Box>
       </Box>
 
