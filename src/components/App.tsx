@@ -17,7 +17,7 @@ import { taskStore } from "./../lib/tasks.js";
 const TABS = ["Server", "Tasks", "Versions", "Models", "Dashboard", "Logs", "Options"] as const;
 type TabId = (typeof TABS)[number];
 
-const tabComponents: Record<TabId, React.ComponentType<{ message: string | null; showMessage: (msg: string) => void }>> = {
+const tabComponents: Record<TabId, React.ComponentType<{ message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }>> = {
   Server: ServerTab,
   Tasks: TasksTab,
   Versions: VersionsTab,
@@ -34,6 +34,7 @@ export default function App() {
   const ActiveComponent = tabComponents[activeTab];
   const { exit } = useApp();
   const [message, setMessage] = React.useState<string | null>(null);
+  const [textInputFocused, setTextInputFocused] = React.useState(false);
   const showMessage = (msg: string) => {
     setMessage(msg);
     setTimeout(() => setMessage(null), 3000);
@@ -49,7 +50,7 @@ export default function App() {
   }, []);
 
   useInput((input) => {
-    if (input === "q") {
+    if (input === "q" && !textInputFocused) {
       exit();
     }
   });
@@ -61,7 +62,7 @@ export default function App() {
           <Tabs tabs={TABS} selectedIndex={tabIndex} onChange={handleTabChange} />
         </Box>
         <Box flexDirection="column" flexGrow={1}>
-          <ActiveComponent message={message} showMessage={showMessage} />
+          <ActiveComponent message={message} showMessage={showMessage} setIsTextInputFocused={setTextInputFocused} />
         </Box>
         <Box>
           <StatusBar activeTab={activeTab} message={message} />

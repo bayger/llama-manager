@@ -58,7 +58,7 @@ function buildFieldList(config: ConfigData, collapsed: Set<number>) {
   return items;
 }
 
-export default function ServerTab({ message, showMessage }: { message: string | null; showMessage: (msg: string) => void }) {
+export default function ServerTab({ message, showMessage, setIsTextInputFocused }: { message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }) {
   const [config, setConfig] = React.useState<ConfigData | null>(null);
   const [serverState, setServerState] = React.useState<ServerState>("stopped");
   const [pid, setPid] = React.useState<number | null>(null);

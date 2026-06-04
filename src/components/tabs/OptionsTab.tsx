@@ -126,7 +126,7 @@ function setValue(config: ConfigData, field: OptionField, value: unknown): Confi
   return { ...config, [field.key]: value };
 }
 
-export default function OptionsTab() {
+export default function OptionsTab({ message: _propsMessage, showMessage: _propsShowMessage, setIsTextInputFocused: _propsSetTextInputFocused }: { message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }) {
   const [config, setConfig] = React.useState<ConfigData | null>(null);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [editMode, setEditMode] = React.useState(false);

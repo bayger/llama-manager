@@ -43,7 +43,7 @@ function TaskRow({ task }: { task: TaskMetrics }) {
   );
 }
 
-export default function TasksTab() {
+export default function TasksTab({ message, showMessage, setIsTextInputFocused }: { message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }) {
   const [tick, setTick] = React.useState(0);
   const [tasks, setTasks] = React.useState<TaskMetrics[]>([]);
 

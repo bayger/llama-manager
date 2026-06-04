@@ -4,7 +4,7 @@ import { spawn } from "child_process";
 import { onServerLog, serverLogLines, clearServerLogs, getStatus } from "../../lib/server.js";
 import { theme } from "../../lib/theme.js";
 
-export default function LiveLogsTab() {
+export default function LiveLogsTab({ message, showMessage, setIsTextInputFocused }: { message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }) {
   const [, setTick] = React.useState(0);
   const [running, setRunning] = React.useState(false);
   const [autoScroll, setAutoScroll] = React.useState(true);

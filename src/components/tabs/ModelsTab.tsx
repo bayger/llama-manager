@@ -226,7 +226,7 @@ function SortButton({ label, isActive, isCurrent, direction, onClick }: { label:
   );
 }
 
-export default function ModelsTab() {
+export default function ModelsTab({ setIsTextInputFocused }: { setIsTextInputFocused: (focused: boolean) => void }) {
   const [config, setConfig] = React.useState<ConfigData | null>(null);
   const [models, setModels] = React.useState<LocalModel[]>([]);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
@@ -258,6 +258,9 @@ export default function ModelsTab() {
   const [sortIndex, setSortIndex] = React.useState(0);
   const [modelCard, setModelCard] = React.useState<HFModelInfo | null>(null);
   const [fetchingCard, setFetchingCard] = React.useState(false);
+  const [browseSearchQuery, setBrowseSearchQuery] = React.useState("");
+  const [browseEditMode, setBrowseEditMode] = React.useState(false);
+  const [browseEditValue, setBrowseEditValue] = React.useState("");
 
   const actions: Action[] = ["setactive", "delete", "search", "browse"];
 
@@ -275,6 +278,10 @@ export default function ModelsTab() {
       }
     });
   }, []);
+
+  React.useEffect(() => {
+    setIsTextInputFocused(editMode || browseEditMode);
+  }, [editMode, browseEditMode, setIsTextInputFocused]);
 
   const showMessage = (msg: string) => {
     setMessage(msg);
@@ -397,10 +404,11 @@ export default function ModelsTab() {
     setSortIndex(0);
     setBrowseSort(0);
     setBrowseDirection(-1);
+    setBrowseSearchQuery("");
     executeBrowse();
   };
 
-  const executeBrowse = async () => {
+  const executeBrowse = async (searchOverride?: string) => {
     setSearching(true);
     const activeFilters = ALL_FILTERS
       .map((f, i) => browseFilters[i] ? f.filter : null)
@@ -410,6 +418,7 @@ export default function ModelsTab() {
       const results = await browseModels({
         sort: sortOption.value as any,
         direction: browseDirection as 1 | -1,
+        search: searchOverride !== undefined ? searchOverride : (browseSearchQuery || undefined),
         filters: activeFilters,
         limit: 20,
       }, config?.hfToken || undefined);
@@ -441,6 +450,7 @@ export default function ModelsTab() {
       const results = await browseModels({
         sort: sortOption.value as any,
         direction: browseDirection as 1 | -1,
+        search: browseSearchQuery || undefined,
         filters: activeFilters,
         limit: 20,
       }, config?.hfToken || undefined);
@@ -471,6 +481,14 @@ export default function ModelsTab() {
     if (downloading) return;
 
     if (focusArea === "browse" || focusArea === "browsefilters" || focusArea === "browsesort" || focusArea === "modelcard") {
+      if (browseEditMode) {
+        if (input === "\u0003" || key.escape) {
+          setBrowseEditMode(false);
+          setBrowseEditValue("");
+        }
+        return;
+      }
+
       if (focusArea === "modelcard") {
         if (input === "m" || key.escape || input === "g") {
           setFocusArea("browse");
@@ -540,6 +558,9 @@ export default function ModelsTab() {
         executeBrowse();
       } else if (input === "g") {
         setFocusArea("actions");
+      } else if (input === "e") {
+        setBrowseEditMode(true);
+        setBrowseEditValue(browseSearchQuery);
       }
       return;
     }
@@ -828,9 +849,15 @@ export default function ModelsTab() {
               <Text color={theme.text} bold>Browse HuggingFace</Text>
               <Text> {" │ "} </Text>
               <Text color={theme.textMuted}>{browseResults.length} results</Text>
+              {browseSearchQuery && (
+                <>
+                  <Text> {" │ "} </Text>
+                  <Text color={theme.warning}>"{browseSearchQuery}"</Text>
+                </>
+              )}
             </Box>
             <Box>
-              <Text color={theme.textMuted}>j/k navigate │ f filters │ s sort │ m card │ Enter open │ g back</Text>
+              <Text color={theme.textMuted}>j/k navigate │ e search │ f filters │ s sort │ m card │ Enter open │ g back</Text>
             </Box>
           </Box>
         </Box>
@@ -909,6 +936,18 @@ export default function ModelsTab() {
             ))
           )}
         </Box>
+
+        {browseEditMode && (
+          <Box marginTop={1}>
+            <Text color={theme.warning} bold>Search: </Text>
+            <TextInput value={browseEditValue} onChange={setBrowseEditValue} focus onSubmit={(val) => {
+          const query = val.trim();
+          setBrowseSearchQuery(query);
+          setBrowseEditMode(false);
+          executeBrowse(query);
+        }} />
+          </Box>
+        )}
 
         {downloading && (
           <Box marginTop={1}>

@@ -129,7 +129,7 @@ function BackendRow({ backend, isSelected, isInstalled, onClick }: { backend: Av
   );
 }
 
-export default function VersionsTab() {
+export default function VersionsTab({ message: _propsMessage, showMessage: _propsShowMessage, setIsTextInputFocused: _propsSetTextInputFocused }: { message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }) {
   const [config, setConfig] = React.useState<ConfigData | null>(null);
   const [versions, setVersions] = React.useState<VersionInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
