@@ -30,7 +30,7 @@ const tabComponents: Record<TabId, React.ComponentType<{ message: string | null;
 export default function App() {
   const [activeTab, setActiveTab] = React.useState<TabId>("Server");
   const tabIndex = TABS.indexOf(activeTab);
-  const handleTabChange = (index: number) => setActiveTab(TABS[index]);
+  const handleTabChange = React.useCallback((index: number) => setActiveTab(TABS[index]), []);
   const ActiveComponent = tabComponents[activeTab];
   const { exit } = useApp();
   const [message, setMessage] = React.useState<string | null>(null);

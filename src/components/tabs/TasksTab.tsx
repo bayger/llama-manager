@@ -59,10 +59,6 @@ export default function TasksTab({ message, showMessage, setIsTextInputFocused }
     };
   }, []);
 
-  React.useEffect(() => {
-    setTick((t) => t + 1);
-  }, [tick]);
-
   const stats = taskStore.getStats(tasks);
 
   const headerCells = ["Task", "Prompt", "Output", "P t/s", "O t/s", "Total", "Draft", "Context"];
