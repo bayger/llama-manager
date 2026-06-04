@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
-import { loadConfig, saveConfig, ConfigData, PRESET_CATEGORIES } from "../../lib/config.js";
+import { loadConfig, saveConfig, ConfigData, PRESET_CATEGORIES, getActivePresets, getActiveFreeFormArgs } from "../../lib/config.js";
 import { startServer, stopServer, getStatus } from "../../lib/server.js";
 import TextInput from "ink-text-input";
 import { useOnClick } from "@ink-tools/ink-mouse";
@@ -9,6 +9,22 @@ import { theme } from "../../lib/theme.js";
 
 type ServerState = "stopped" | "starting" | "running" | "stopping";
 type FocusArea = "controls" | "form";
+
+function ProfileButton({ name, isActive, onClick }: { name: string; isActive: boolean; onClick: () => void }) {
+  const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
+  useOnClick(ref, () => onClick());
+  return (
+    <Box ref={ref}>
+      <Text
+        color={isActive ? theme.selectedText : theme.accent}
+        bold={isActive}
+        backgroundColor={isActive ? theme.selected : undefined}
+      >
+        {" "}{name}{" "}
+      </Text>
+    </Box>
+  );
+}
 
 function formatUptime(ms: number): string {
   const s = Math.floor(ms / 1000);
@@ -56,12 +72,15 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
   const [editKey, setEditKey] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState("");
 
-  const hfTokenRef = React.useRef<React.ComponentRef<typeof Box>>(null);
+  const canStart = serverState === "stopped";
+  const canStop = serverState === "running";
+  const profileNames = config ? Object.keys(config.server.profiles) : [];
+
   const controlRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
   const headerRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
   const fieldRowRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
 
-  controlRefs.current = Array.from({ length: 3 }, (_, i) => controlRefs.current[i] || React.createRef());
+  controlRefs.current = Array.from({ length: 6 }, (_, i) => controlRefs.current[i] || React.createRef());
   headerRefs.current = PRESET_CATEGORIES.map((_, i) => headerRefs.current[i] || React.createRef());
   fieldRowRefs.current = Array.from({ length: PRESET_CATEGORIES.reduce((sum, c) => sum + c.fields.length, 0) }, (_, i) => fieldRowRefs.current[i] || React.createRef());
 
@@ -71,18 +90,13 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
       if (i === 0 && canStart) handleStart();
       else if (i === 1 && canStop) handleStop();
       else if (i === 2) { handleStop().then(() => handleStart()); }
+      else if (i === 3) handleCreateProfile();
+      else if (i === 4) handleRenameProfile();
+      else if (i === 5) handleDeleteProfile();
     });
   });
 
-  useOnClick(hfTokenRef, () => {
-    setFocusArea("form");
-    setSelectedIndex(-1);
-    if (config) {
-      setEditValue(config.hfToken || "");
-      setEditKey("hfToken");
-      setEditMode(true);
-    }
-  });
+ 
 
   headerRefs.current.forEach((ref, i) => {
     useOnClick(ref, () => {
@@ -103,10 +117,10 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
         const cat = PRESET_CATEGORIES[item.categoryIndex];
         const field = cat.fields[item.fieldIndex];
         if (field.type === "boolean") {
-          const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+          const current = (getActivePresets(config)[cat.presetKey] as Record<string, unknown>)[field.key];
           setValue(item.categoryIndex, field.key, field.type, String(!current));
         } else if (field.type === "enum" && field.options) {
-          const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+          const current = (getActivePresets(config)[cat.presetKey] as Record<string, unknown>)[field.key];
           const idx = field.options.indexOf(String(current));
           setValue(item.categoryIndex, field.key, field.type, field.options[(idx + 1) % field.options.length]);
         }
@@ -117,6 +131,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
   React.useEffect(() => {
     loadConfig().then((c) => {
       setConfig(c);
+      setSelectedIndex(0);
       setCollapsed(new Set([1, 2, 3, 4, 5, 6, 7]));
     });
   }, []);
@@ -164,9 +179,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
     }
   };
 
-  const controls = ["Start", "Stop", "Restart"];
-  const canStart = serverState === "stopped";
-  const canStop = serverState === "running";
+  const controls = ["Start", "Stop", "Restart", "Create", "Rename", "Delete"];
 
   const fieldList = config ? buildFieldList(config, collapsed) : [];
 
@@ -175,14 +188,18 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
   const setValue = (ci: number, key: string, type: string, raw: string) => {
     if (!config) return;
     const cat = PRESET_CATEGORIES[ci];
-    const presets = { ...config.server.presets };
+    const profileName = config.server.activeProfile;
+    const profile = config.server.profiles[profileName];
+    const presets = { ...profile.presets };
     const category = { ...(presets[cat.presetKey] as Record<string, unknown>) };
     let value: unknown = raw;
     if (type === "number") value = Number(raw);
     else if (type === "boolean") value = raw === "on";
     category[key] = value;
     presets[cat.presetKey] = category;
-    const newConfig = { ...config, server: { ...config.server, presets } };
+    const newProfile = { ...profile, presets, freeFormArgs: profile.freeFormArgs };
+    const newProfiles = { ...config.server.profiles, [profileName]: newProfile };
+    const newConfig = { ...config, server: { ...config.server, profiles: newProfiles } };
     setConfig(newConfig);
     saveConfig(newConfig);
   };
@@ -215,11 +232,49 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
   useInput((input, key) => {
     if (editMode) {
       if (key.return) {
-        if (editKey === "hfToken" && config) {
-          const newConfig = { ...config, hfToken: editValue || null };
+        if (editKey === "createProfile" && config && editValue.trim()) {
+          const newName = editValue.trim();
+          if (config.server.profiles[newName]) {
+            showMessage("Profile already exists");
+            setEditMode(false);
+            setEditKey(null);
+            return;
+          }
+          const activeProfile = config.server.activeProfile;
+          const sourceProfile = config.server.profiles[activeProfile];
+          const newProfiles = {
+            ...config.server.profiles,
+            [newName]: {
+              presets: JSON.parse(JSON.stringify(sourceProfile.presets)),
+              freeFormArgs: [...sourceProfile.freeFormArgs],
+            },
+          };
+          const newConfig = { ...config, server: { ...config.server, profiles: newProfiles, activeProfile: newName } };
           setConfig(newConfig);
           saveConfig(newConfig);
-          showMessage("HF token saved");
+          showMessage(`Created profile "${newName}"`);
+        } else if (editKey === "renameProfile" && config && editValue.trim()) {
+          const newName = editValue.trim();
+          if (newName === config.server.activeProfile) {
+            setEditMode(false);
+            setEditKey(null);
+            return;
+          }
+          if (config.server.profiles[newName]) {
+            showMessage("Profile already exists");
+            setEditMode(false);
+            setEditKey(null);
+            return;
+          }
+          const oldName = config.server.activeProfile;
+          const profile = config.server.profiles[oldName];
+          const newProfiles = { ...config.server.profiles };
+          delete newProfiles[oldName];
+          newProfiles[newName] = profile;
+          const newConfig = { ...config, server: { ...config.server, profiles: newProfiles, activeProfile: newName } };
+          setConfig(newConfig);
+          saveConfig(newConfig);
+          showMessage(`Renamed to "${newName}"`);
         } else if (currentItem && currentItem.type === "field" && config && currentItem.fieldIndex !== undefined) {
           const cat = PRESET_CATEGORIES[currentItem.categoryIndex];
           const field = cat.fields[currentItem.fieldIndex];
@@ -244,45 +299,40 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
         if (controlIndex === 0 && canStart) handleStart();
         else if (controlIndex === 1 && canStop) handleStop();
         else if (controlIndex === 2) { handleStop().then(() => handleStart()); }
+        else if (controlIndex === 3) handleCreateProfile();
+        else if (controlIndex === 4) handleRenameProfile();
+        else if (controlIndex === 5) handleDeleteProfile();
       } else if (input === "j" || key.downArrow) {
         setFocusArea("form");
-        setSelectedIndex(-1);
+        setSelectedIndex(0);
       }
     } else if (focusArea === "form") {
       if (input === "k" || key.upArrow) {
         if (selectedIndex > 0) {
           moveUp();
-        } else if (selectedIndex === 0) {
-          setSelectedIndex(-1);
         } else {
           setFocusArea("controls");
         }
       } else if (input === "j" || key.downArrow) {
-        if (selectedIndex === -1) {
-          setSelectedIndex(0);
-        } else if (selectedIndex < fieldList.length - 1) {
+        if (selectedIndex < fieldList.length - 1) {
           moveDown();
         }
       } else if (key.return) {
-        if (selectedIndex === -1 && config) {
-          setEditValue(config.hfToken || "");
-          setEditKey("hfToken");
-          setEditMode(true);
-        } else if (currentItem) {
+        if (currentItem) {
           if (currentItem.type === "header") {
             toggleGroup(currentItem.categoryIndex);
           } else if (config && currentItem.fieldIndex !== undefined) {
             const cat = PRESET_CATEGORIES[currentItem.categoryIndex];
             const field = cat.fields[currentItem.fieldIndex];
             if (field.type === "boolean") {
-              const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+              const current = (getActivePresets(config)[cat.presetKey] as Record<string, unknown>)[field.key];
               setValue(currentItem.categoryIndex, field.key, field.type, String(!current));
             } else if (field.type === "enum" && field.options) {
-              const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+              const current = (getActivePresets(config)[cat.presetKey] as Record<string, unknown>)[field.key];
               const idx = field.options.indexOf(String(current));
               setValue(currentItem.categoryIndex, field.key, field.type, field.options[(idx + 1) % field.options.length]);
             } else {
-              const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+              const current = (getActivePresets(config)[cat.presetKey] as Record<string, unknown>)[field.key];
               setEditValue(current !== null && current !== undefined ? String(current) : "");
               setEditMode(true);
             }
@@ -304,8 +354,46 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
     );
   }
 
-  const host = String(config.server.presets.server.host || "127.0.0.1");
-  const port = String(config.server.presets.server.port || 8080);
+  const host = String(getActivePresets(config).server.host || "127.0.0.1");
+  const port = String(getActivePresets(config).server.port || 8080);
+
+  const handleCreateProfile = () => {
+    setEditValue("");
+    setEditMode(true);
+    setEditKey("createProfile");
+  };
+
+  const handleRenameProfile = () => {
+    if (config) {
+      setEditValue(config.server.activeProfile);
+      setEditMode(true);
+      setEditKey("renameProfile");
+    }
+  };
+
+  const handleDeleteProfile = () => {
+    if (!config || profileNames.length <= 1) {
+      showMessage("Cannot delete last profile");
+      return;
+    }
+    const profileName = config.server.activeProfile;
+    const newProfiles = { ...config.server.profiles };
+    delete newProfiles[profileName];
+    const remainingNames = Object.keys(newProfiles);
+    const newActive = remainingNames[0];
+    const newConfig = { ...config, server: { ...config.server, profiles: newProfiles, activeProfile: newActive } };
+    setConfig(newConfig);
+    saveConfig(newConfig);
+    showMessage(`Deleted profile "${profileName}"`);
+  };
+
+  const handleSwitchProfile = (name: string) => {
+    if (!config) return;
+    const newConfig = { ...config, server: { ...config.server, activeProfile: name } };
+    setConfig(newConfig);
+    saveConfig(newConfig);
+    showMessage(`Switched to "${name}"`);
+  };
 
   return (
     <Box flexDirection="column" flexGrow={1}>
@@ -340,8 +428,21 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
       </Box>
 
       <Box marginTop={1}>
+        <Text color={theme.textMuted} bold>Profile: </Text>
+        {profileNames.map((name, i) => {
+          const isActive = name === config.server.activeProfile;
+          return (
+            <React.Fragment key={name}>
+              {i > 0 && <Text> {" │ "} </Text>}
+              <ProfileButton name={name} isActive={isActive} onClick={() => handleSwitchProfile(name)} />
+            </React.Fragment>
+          );
+        })}
+      </Box>
+
+      <Box marginTop={1}>
         <Box flexDirection="row">
-          {controls.map((label, i) => {
+          {["Start", "Stop", "Restart"].map((label, i) => {
             const isActive = focusArea === "controls" && controlIndex === i;
             const enabled = (i === 0 && canStart) || (i === 1 && canStop) || i === 2;
             return (
@@ -359,46 +460,58 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
         </Box>
       </Box>
 
+      <Box marginTop={1}>
+        <Box flexDirection="row">
+          {[
+            { label: "Create", action: "create" },
+            { label: "Rename", action: "rename" },
+            { label: "Delete", action: "delete" },
+          ].map((btn, i) => {
+            const isActive = focusArea === "controls" && controlIndex === 3 + i;
+            const enabled = btn.action !== "delete" || profileNames.length > 1;
+            return (
+              <Box key={btn.action} marginRight={1} ref={controlRefs.current[3 + i]}>
+                <Text
+                  bold={isActive}
+                  color={isActive ? theme.selectedText : enabled ? theme.accent : theme.textMuted}
+                  backgroundColor={isActive ? theme.selected : undefined}
+                >
+                  {` ${btn.label} `}
+                </Text>
+              </Box>
+            );
+          })}
+        </Box>
+      </Box>
+
       {message && (
         <Box marginTop={1}>
           <Text color={theme.success}>{` › ${message}`}</Text>
         </Box>
       )}
 
-      <Box flexDirection="column" flexGrow={1} marginTop={1}>
-        <Box marginBottom={1} ref={hfTokenRef}>
-          <Text color={theme.textMuted} bold>HF Token:</Text>
-          {editMode && editKey === "hfToken" ? (
-            <>
-              <Text> {" "} </Text>
-              <TextInput
-                value={editValue}
-                onChange={setEditValue}
-                focus
-              />
-            </>
-          ) : (
-            <>
-              <Text> {" "} </Text>
-              <Text color={config.hfToken ? theme.success : theme.textMuted}>
-                {config.hfToken ? `●●●●●●${config.hfToken.slice(-4)}` : "<not set>"}
-              </Text>
-              <Text> {" "} </Text>
-              <Text color={theme.textMuted}>[Enter to edit]</Text>
-            </>
-          )}
+      {editMode && editKey && (editKey === "createProfile" || editKey === "renameProfile") && (
+        <Box marginTop={1}>
+          <Text color={theme.warning} bold>{editKey === "createProfile" ? "New profile: " : "Rename to: "}</Text>
+          <TextInput
+            value={editValue}
+            onChange={setEditValue}
+            focus
+          />
         </Box>
+      )}
 
+      <Box flexDirection="column" flexGrow={1} marginTop={1}>
         <Box marginBottom={1}>
           <Text color={theme.textMuted} wrap="wrap">
-            j/k navigate │ Enter edit/toggle │ Space expand/collapse │ g controls │ Ctrl+C cancel edit
+            h/l controls │ j/k navigate │ Enter edit/toggle │ g controls │ Ctrl+C cancel edit
           </Text>
         </Box>
 
         <Box flexDirection="column" flexGrow={1}>
           {PRESET_CATEGORIES.map((cat, ci) => {
             const isCollapsed = collapsed.has(ci);
-            const preset = config.server.presets[cat.presetKey] as Record<string, unknown>;
+            const preset = getActivePresets(config)[cat.presetKey] as Record<string, unknown>;
 
             const headerIndex = fieldList.findIndex((item) => item.type === "header" && item.categoryIndex === ci);
             const isHeaderSelected = focusArea === "form" && selectedIndex === headerIndex && !editMode;
@@ -473,8 +586,8 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
             <Text color={theme.accent} bold>Free-form args</Text>
             <Text color={theme.textMuted}> (arbitrary flags)</Text>
           </Box>
-          {config.server.freeFormArgs.length > 0
-            ? config.server.freeFormArgs.map((arg, i) => (
+          {getActiveFreeFormArgs(config).length > 0
+            ? getActiveFreeFormArgs(config).map((arg: string, i: number) => (
                 <Box key={i} marginLeft={2}>
                   <Text color={theme.textMuted}>{`${i + 1}. `}</Text>
                   <Text color={theme.accent}>{arg}</Text>

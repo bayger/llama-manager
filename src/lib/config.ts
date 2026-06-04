@@ -40,6 +40,11 @@ export interface ServerPresets {
   logging: Record<string, unknown>;
 }
 
+export interface ServerProfile {
+  presets: ServerPresets;
+  freeFormArgs: string[];
+}
+
 export interface ConfigData {
   versionsDir: string | null;
   modelsDir: string | null;
@@ -49,8 +54,8 @@ export interface ConfigData {
   hfToken: string | null;
   server: {
     logFile: string | null;
-    freeFormArgs: string[];
-    presets: ServerPresets;
+    profiles: Record<string, ServerProfile>;
+    activeProfile: string;
   };
   dashboard: {
     pollIntervalMs: number;
@@ -254,8 +259,13 @@ const DEFAULT_CONFIG: ConfigData = {
   hfToken: null,
   server: {
     logFile: null,
-    freeFormArgs: [],
-    presets: DEFAULT_PRESETS,
+    profiles: {
+      Default: {
+        presets: DEFAULT_PRESETS,
+        freeFormArgs: [],
+      },
+    },
+    activeProfile: "Default",
   },
   dashboard: {
     pollIntervalMs: 2000,
@@ -291,29 +301,85 @@ export function getLogFile(config: ConfigData): string {
   return path.join(STATE_DIR, "server.log");
 }
 
+export function getActivePresets(config: ConfigData): ServerPresets {
+  return config.server.profiles[config.server.activeProfile]?.presets || DEFAULT_PRESETS;
+}
+
+export function getActiveFreeFormArgs(config: ConfigData): string[] {
+  return config.server.profiles[config.server.activeProfile]?.freeFormArgs || [];
+}
+
+function mergePresets(partial: ServerPresets): ServerPresets {
+  return {
+    ...(DEFAULT_PRESETS as unknown as ServerPresets),
+    ...partial,
+  };
+}
+
+function migrateLegacyConfig(data: any): ConfigData {
+  if (data.server && data.server.presets && !data.server.profiles) {
+    const activeProfile = data.server.activeProfile || "Default";
+    const profiles: Record<string, ServerProfile> = {
+      Default: {
+        presets: mergePresets(data.server.presets as ServerPresets),
+        freeFormArgs: data.server.freeFormArgs || [],
+      },
+    };
+    data.server = {
+      ...data.server,
+      profiles,
+      activeProfile,
+    };
+    delete data.server.presets;
+    delete data.server.freeFormArgs;
+    return data as ConfigData;
+  }
+  return data as ConfigData;
+}
+
 export async function loadConfig(): Promise<ConfigData> {
   try {
     const data = await fs.readJson(CONFIG_PATH, { throws: false });
     if (!data) return DEFAULT_CONFIG;
 
+    const migrated = migrateLegacyConfig(data);
+
+    const defaultProfiles = DEFAULT_CONFIG.server.profiles;
+    const userProfiles = migrated.server?.profiles || {};
+    const mergedProfiles: Record<string, ServerProfile> = {};
+
+    for (const key of [...new Set([...Object.keys(defaultProfiles), ...Object.keys(userProfiles)])]) {
+      if (userProfiles[key]) {
+        mergedProfiles[key] = {
+          presets: mergePresets(userProfiles[key].presets || (DEFAULT_PRESETS as ServerPresets)),
+          freeFormArgs: userProfiles[key].freeFormArgs || [],
+        };
+      } else {
+        mergedProfiles[key] = defaultProfiles[key];
+      }
+    }
+
+    const activeProfile = migrated.server?.activeProfile || "Default";
+    if (!mergedProfiles[activeProfile]) {
+      return DEFAULT_CONFIG;
+    }
+
     const merged: ConfigData = {
       ...DEFAULT_CONFIG,
-      ...data,
+      ...migrated,
       server: {
         ...DEFAULT_CONFIG.server,
-        ...data.server,
-        presets: {
-          ...DEFAULT_PRESETS,
-          ...(data.server?.presets || {}),
-        },
+        ...migrated.server,
+        profiles: mergedProfiles,
+        activeProfile,
       },
       dashboard: {
         ...DEFAULT_CONFIG.dashboard,
-        ...(data.dashboard || {}),
+        ...(migrated.dashboard || {}),
       },
       tasks: {
         ...DEFAULT_CONFIG.tasks,
-        ...(data.tasks || {}),
+        ...(migrated.tasks || {}),
       },
     };
     return merged;

@@ -1,8 +1,9 @@
-import { ConfigData } from "./config.js";
+import { ConfigData, getActivePresets } from "./config.js";
 
 function getBaseUrl(config: ConfigData): string {
-  const host = config.server.presets.server.host || "127.0.0.1";
-  const port = config.server.presets.server.port || 8080;
+  const p = getActivePresets(config);
+  const host = p.server.host || "127.0.0.1";
+  const port = p.server.port || 8080;
   return `http://${host}:${port}`;
 }
 

@@ -1,7 +1,7 @@
 import { spawn, ChildProcess } from "child_process";
 import path from "path";
 import fs from "fs-extra";
-import { ConfigData, getVersionsDir, getLogFile } from "./config.js";
+import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config.js";
 
 let serverProcess: ChildProcess | null = null;
 
@@ -91,7 +91,7 @@ export function getStatus(config: ConfigData): ServerStatus {
 
 export function buildArgs(config: ConfigData): string[] {
   const args: string[] = [];
-  const p = config.server.presets;
+  const p = getActivePresets(config);
 
   const push = (flag: string, value: unknown) => {
     if (value === null || value === undefined) return;
@@ -168,7 +168,7 @@ export function buildArgs(config: ConfigData): string[] {
   push("--log-colors", p.logging.logColors);
   if (p.logging.logTimestamps === false) args.push("--no-log-timestamps");
 
-  for (const arg of config.server.freeFormArgs) {
+  for (const arg of getActiveFreeFormArgs(config)) {
     if (arg.trim()) {
       args.push(...arg.trim().split(/\s+/));
     }

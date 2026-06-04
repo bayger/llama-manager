@@ -15,6 +15,10 @@ const FUNC_KEY_SEQS: Record<string, number> = {
   '\x1bOR': 2, '\x1b[R': 2, '\x1b[13~': 2, '\x1b[[C': 2,
   '\x1bOS': 3, '\x1b[S': 3, '\x1b[14~': 3, '\x1b[[D': 3,
   '\x1b[15~': 4, '\x1b[[E': 4,
+  '\x1b[17~': 5, '\x1b[[F': 5,
+  '\x1b[18~': 6, '\x1b[[G': 6,
+  '\x1b[19~': 7, '\x1b[[H': 7,
+  '\x1b[1A': 8, '\x1b[[I': 8,
 };
 
 const ESC = '\x1b';
