@@ -22,11 +22,22 @@ function formatDraftRate(rate: number): string {
   return rate > 0 ? `${(rate * 100).toFixed(1)}%` : "—";
 }
 
-const COL_W = [8, 12, 12, 9, 9, 9, 8, 8];
+const COL_W = [8, 9, 12, 12, 9, 9, 9, 8, 8];
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return [d.getMonth() + 1, d.getDate()].map((v) => String(v).padStart(2, "0")).join("/");
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  return [d.getHours(), d.getMinutes(), d.getSeconds()].map((v) => String(v).padStart(2, "0")).join(":");
+}
 
 function TaskRow({ task }: { task: TaskMetrics }) {
   const cells = [
-    String(task.taskId),
+    formatDate(task.timestamp),
+    formatTime(task.timestamp),
     `${task.promptTokens} tok`,
     `${task.outputTokens} tok`,
     `${task.promptSpeed.toFixed(1)}`,
@@ -61,20 +72,12 @@ export default function TasksTab({ message, showMessage, setIsTextInputFocused }
 
   const stats = taskStore.getStats(tasks);
 
-  const headerCells = ["Task", "Prompt", "Output", "P t/s", "O t/s", "Total", "Draft", "Context"];
+  const headerCells = ["Date", "Time", "Prompt", "Output", "P t/s", "O t/s", "Total", "Draft", "Context"];
   const headerRow = headerCells.map((h, i) => pad(h, COL_W[i])).join("");
   const sepRow = COL_W.map((w) => pad("─".repeat(w - 1), w)).join("");
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box flexDirection="row" justifyContent="space-between">
-        <Box>
-          <Text bold>Tasks</Text>
-          <Text> {" │ "} </Text>
-          <Text color={theme.textMuted}>{tasks.length} total</Text>
-        </Box>
-      </Box>
-
       {tasks.length === 0 ? (
         <Box marginTop={1}>
           <Text color={theme.textMuted}>No tasks yet. Start the server and run inference to see tasks here.</Text>

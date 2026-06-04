@@ -56,23 +56,53 @@ export default function Tabs({ tabs, selectedIndex, onChange }: Props) {
   }, [onChange]);
 
   return (
-    <Box>
-      {tabs.map((tab, i) => {
-        const isActive = i === selectedIndex;
-        const ref = useRef(null);
+    <Box flexDirection="column">
+      <Box>
+        {tabs.map((tab, i) => {
+          const isActive = i === selectedIndex;
+          const ref = useRef(null);
 
-        useOnClick(ref, () => {
-          onChange(i);
-        });
+          useOnClick(ref, () => {
+            onChange(i);
+          });
 
-        return (
-          <Box key={tab} ref={ref}>
-            <Text color={isActive ? theme.accent : theme.textMuted} bold={isActive}>
-              {isActive ? "▸ " : "  "}{`F${i + 1} ${tab}`}
-            </Text>
-          </Box>
-        );
-      })}
+          return (
+            <Box key={tab} ref={ref} marginRight={2}>
+              <Text color={isActive ? theme.textMuted : theme.border}>
+                {`F${i + 1}`}
+              </Text>
+              <Text color={isActive ? theme.accent : theme.textMuted} bold={isActive}>
+                {` ${tab}`}
+              </Text>
+            </Box>
+          );
+        })}
+      </Box>
+      <Box>
+        {(() => {
+          const parts: Array<{ len: number; idx: number }> = [];
+          let offset = 0;
+          for (let i = 0; i < tabs.length; i++) {
+            const label = `F${i + 1} ${tabs[i]}`;
+            parts.push({ len: label.length, idx: i });
+            offset += label.length;
+            if (i < tabs.length - 1) {
+              offset += 2;
+            }
+          }
+          const activePart = parts[selectedIndex];
+          const beforeLen = activePart.idx === 0 ? 0 : (parts.slice(0, activePart.idx).reduce((s, p) => s + p.len, 0) + (activePart.idx) * 2);
+          const activeLen = activePart.len;
+          const afterLen = offset - beforeLen - activeLen;
+          return (
+            <Box>
+              <Text color={theme.border}>{"─".repeat(beforeLen)}</Text>
+              <Text color={theme.accent}>{"═".repeat(activeLen)}</Text>
+              <Text color={theme.border}>{"─".repeat(afterLen)}</Text>
+            </Box>
+          );
+        })()}
+      </Box>
     </Box>
   );
 }
