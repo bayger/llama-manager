@@ -50,10 +50,12 @@ export default function ServerTab() {
   const [focusArea, setFocusArea] = React.useState<FocusArea>("controls");
   const [controlIndex, setControlIndex] = React.useState(0);
   const [collapsed, setCollapsed] = React.useState<Set<number>>(new Set());
-  const [selectedIndex, setSelectedIndex] = React.useState(0);
+const [selectedIndex, setSelectedIndex] = React.useState(-1);
   const [editMode, setEditMode] = React.useState(false);
+  const [editKey, setEditKey] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState("");
 
+  const hfTokenRef = React.useRef<React.ComponentRef<typeof Box>>(null);
   const controlRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
   const headerRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
   const fieldRowRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
@@ -69,6 +71,16 @@ export default function ServerTab() {
       else if (i === 1 && canStop) handleStop();
       else if (i === 2) { handleStop().then(() => handleStart()); }
     });
+  });
+
+  useOnClick(hfTokenRef, () => {
+    setFocusArea("form");
+    setSelectedIndex(-1);
+    if (config) {
+      setEditValue(config.hfToken || "");
+      setEditKey("hfToken");
+      setEditMode(true);
+    }
   });
 
   headerRefs.current.forEach((ref, i) => {
@@ -202,15 +214,22 @@ export default function ServerTab() {
   useInput((input, key) => {
     if (editMode) {
       if (key.return) {
-        if (currentItem && currentItem.type === "field" && config && currentItem.fieldIndex !== undefined) {
+        if (editKey === "hfToken" && config) {
+          const newConfig = { ...config, hfToken: editValue || null };
+          setConfig(newConfig);
+          saveConfig(newConfig);
+          showMessage("HF token saved");
+        } else if (currentItem && currentItem.type === "field" && config && currentItem.fieldIndex !== undefined) {
           const cat = PRESET_CATEGORIES[currentItem.categoryIndex];
           const field = cat.fields[currentItem.fieldIndex];
           setValue(currentItem.categoryIndex, field.key, field.type, editValue);
           showMessage(`${field.flag} = ${editValue}`);
         }
         setEditMode(false);
+        setEditKey(null);
       } else if (input === "\u0003") {
         setEditMode(false);
+        setEditKey(null);
       }
       return;
     }
@@ -225,39 +244,47 @@ export default function ServerTab() {
         else if (controlIndex === 1 && canStop) handleStop();
         else if (controlIndex === 2) { handleStop().then(() => handleStart()); }
       } else if (input === "j" || key.downArrow) {
-        if (fieldList.length > 0) {
-          setFocusArea("form");
-          setSelectedIndex(0);
-        }
+        setFocusArea("form");
+        setSelectedIndex(-1);
       }
     } else if (focusArea === "form") {
       if (input === "k" || key.upArrow) {
         if (selectedIndex > 0) {
           moveUp();
+        } else if (selectedIndex === 0) {
+          setSelectedIndex(-1);
         } else {
           setFocusArea("controls");
         }
       } else if (input === "j" || key.downArrow) {
-        if (selectedIndex < fieldList.length - 1) {
+        if (selectedIndex === -1) {
+          setSelectedIndex(0);
+        } else if (selectedIndex < fieldList.length - 1) {
           moveDown();
         }
-      } else if (key.return && currentItem) {
-        if (currentItem.type === "header") {
-          toggleGroup(currentItem.categoryIndex);
-        } else if (config && currentItem.fieldIndex !== undefined) {
-          const cat = PRESET_CATEGORIES[currentItem.categoryIndex];
-          const field = cat.fields[currentItem.fieldIndex];
-          if (field.type === "boolean") {
-            const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
-            setValue(currentItem.categoryIndex, field.key, field.type, String(!current));
-          } else if (field.type === "enum" && field.options) {
-            const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
-            const idx = field.options.indexOf(String(current));
-            setValue(currentItem.categoryIndex, field.key, field.type, field.options[(idx + 1) % field.options.length]);
-          } else {
-            const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
-            setEditValue(current !== null && current !== undefined ? String(current) : "");
-            setEditMode(true);
+      } else if (key.return) {
+        if (selectedIndex === -1 && config) {
+          setEditValue(config.hfToken || "");
+          setEditKey("hfToken");
+          setEditMode(true);
+        } else if (currentItem) {
+          if (currentItem.type === "header") {
+            toggleGroup(currentItem.categoryIndex);
+          } else if (config && currentItem.fieldIndex !== undefined) {
+            const cat = PRESET_CATEGORIES[currentItem.categoryIndex];
+            const field = cat.fields[currentItem.fieldIndex];
+            if (field.type === "boolean") {
+              const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+              setValue(currentItem.categoryIndex, field.key, field.type, String(!current));
+            } else if (field.type === "enum" && field.options) {
+              const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+              const idx = field.options.indexOf(String(current));
+              setValue(currentItem.categoryIndex, field.key, field.type, field.options[(idx + 1) % field.options.length]);
+            } else {
+              const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+              setEditValue(current !== null && current !== undefined ? String(current) : "");
+              setEditMode(true);
+            }
           }
         }
       } else if (input === "g") {
@@ -338,6 +365,29 @@ export default function ServerTab() {
       )}
 
       <Box flexDirection="column" flexGrow={1} marginTop={1}>
+        <Box marginBottom={1} ref={hfTokenRef}>
+          <Text color="gray" bold>HF Token:</Text>
+          {editMode && editKey === "hfToken" ? (
+            <>
+              <Text> {" "} </Text>
+              <TextInput
+                value={editValue}
+                onChange={setEditValue}
+                focus
+              />
+            </>
+          ) : (
+            <>
+              <Text> {" "} </Text>
+              <Text color={config.hfToken ? "green" : "gray"}>
+                {config.hfToken ? `●●●●●●${config.hfToken.slice(-4)}` : "<not set>"}
+              </Text>
+              <Text> {" "} </Text>
+              <Text color="gray">[Enter to edit]</Text>
+            </>
+          )}
+        </Box>
+
         <Box marginBottom={1}>
           <Text color="gray" wrap="wrap">
             j/k navigate │ Enter edit/toggle │ Space expand/collapse │ g controls │ Ctrl+C cancel edit
