@@ -130,8 +130,6 @@ export default function LiveLogsTab({ message, showMessage, setIsTextInputFocuse
         flexDirection="column"
         flexGrow={1}
         marginTop={1}
-        borderStyle="single"
-        borderColor={theme.border}
       >
         {lines.length === 0 ? (
           <Box>
