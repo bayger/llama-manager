@@ -682,8 +682,8 @@ export default function ModelsTab({ setIsTextInputFocused }: { setIsTextInputFoc
           </Box>
         </Box>
 
-        <Box flexDirection="column" flexGrow={1} marginTop={1}>
-          {fetchingFiles ? (
+       <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
+           {fetchingFiles ? (
             <Box>
               <Text color={theme.accent}><Spinner type="line" /></Text>
               <Text> {" "} </Text>
@@ -782,7 +782,7 @@ export default function ModelsTab({ setIsTextInputFocused }: { setIsTextInputFoc
             </Box>
           </Box>
 
-          <Box flexDirection="column" flexGrow={1} marginTop={1}>
+          <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
             {fetchingCard ? (
               <Box>
                 <Text color={theme.accent}><Spinner type="line" /></Text>
@@ -911,14 +911,14 @@ export default function ModelsTab({ setIsTextInputFocused }: { setIsTextInputFoc
           </Box>
         )}
 
-        <Box flexDirection="column" flexGrow={1} marginTop={1}>
-          {searching ? (
+       <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
+           {searching ? (
             <Box>
               <Text color={theme.accent}><Spinner type="line" /></Text>
               <Text> {" "} </Text>
               <Text color={theme.textMuted}>Fetching models...</Text>
             </Box>
-          ) : browseResults.length === 0 ? (
+           ) : browseResults.length === 0 ? (
             <Box>
               <Text color={theme.textMuted}>No results. Press f for filters or g to go back.</Text>
             </Box>
@@ -997,7 +997,7 @@ export default function ModelsTab({ setIsTextInputFocused }: { setIsTextInputFoc
         </Text>
       </Box>
 
-      <Box flexDirection="column" flexGrow={1} marginTop={1}>
+      <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
         {models.length === 0 ? (
           <Box>
             <Text color={theme.textMuted}>No models downloaded. Press g for actions → Search.</Text>

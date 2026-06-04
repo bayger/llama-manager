@@ -243,7 +243,7 @@ export default function OptionsTab({ message: _propsMessage, showMessage: _props
         </Box>
       </Box>
 
-      <Box flexDirection="column" flexGrow={1} marginTop={1}>
+      <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
         {FIELDS.map((field, i) => {
           const isSelected = selectedIndex === i && !editMode;
           const isEditing = editMode && selectedIndex === i;

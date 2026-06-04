@@ -428,8 +428,8 @@ export default function VersionsTab({ message: _propsMessage, showMessage: _prop
           </Box>
         </Box>
 
-        <Box flexDirection="column" flexGrow={1} marginTop={1}>
-          {availableBackends.length === 0 ? (
+       <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
+           {availableBackends.length === 0 ? (
             <Box>
               <Text color={theme.textMuted}>No backends available for this platform.</Text>
             </Box>
@@ -486,8 +486,8 @@ export default function VersionsTab({ message: _propsMessage, showMessage: _prop
           </Box>
         </Box>
 
-        <Box flexDirection="column" flexGrow={1} marginTop={1}>
-          {fetchingReleases ? (
+       <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
+           {fetchingReleases ? (
             <Box>
               <Text color={theme.accent}><Spinner type="line" /></Text>
               <Text> {" "} </Text>
@@ -568,7 +568,7 @@ export default function VersionsTab({ message: _propsMessage, showMessage: _prop
         </Text>
       </Box>
 
-      <Box flexDirection="column" flexGrow={1} marginTop={1}>
+      <Box flexDirection="column" flexGrow={1} marginTop={1} overflow="hidden">
         {versions.length === 0 ? (
           <Box>
             <Text color={theme.textMuted}>No versions installed. Press g for actions → Install.</Text>

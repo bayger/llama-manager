@@ -540,8 +540,8 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
           </Text>
         </Box>
 
-        <Box flexDirection="column" flexGrow={1}>
-          {PRESET_CATEGORIES.map((cat, ci) => {
+       <Box flexDirection="column" flexGrow={1} overflow="hidden">
+           {PRESET_CATEGORIES.map((cat, ci) => {
             const isCollapsed = collapsed.has(ci);
             const preset = getActivePresets(config)[cat.presetKey] as Record<string, unknown>;
 
