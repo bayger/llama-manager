@@ -158,8 +158,10 @@ function extractBackendFromAsset(assetName: string, version: string, platform: s
   if (!ext) return null;
 
   const base = assetName.slice(0, assetName.length - ext.length);
-  const prefix = `llama-${version}-bin-${platform}`;
-  const suffix = `-${getArch(platform)}`;
+  const osName = platform.split("-")[0];
+  const arch = getArch(platform);
+  const prefix = `llama-${version}-bin-${osName}`;
+  const suffix = `-${arch}`;
 
   if (!base.startsWith(prefix) || !base.endsWith(suffix)) return null;
 
@@ -171,7 +173,7 @@ function extractBackendFromAsset(assetName: string, version: string, platform: s
   const known = ["cuda", "vulkan", "rocm", "openvino", "opencl", "hip", "adreno"];
   if (!known.includes(key)) return null;
 
-  const versionPart = parts.slice(1).join(".").replace(/[^0-9]/g, "");
+  const versionPart = parts.slice(1).join(".").replace(/[^0-9.]/g, "");
   return versionPart ? `${key}${versionPart}` : key;
 }
 
@@ -186,10 +188,13 @@ export function getAvailableBackends(
 ): AvailableBackend[] {
   const backends: AvailableBackend[] = [];
   const seen = new Set<string>();
+  const osName = platform.split("-")[0].toLowerCase();
+  const arch = getArch(platform).toLowerCase();
 
   for (const asset of assets) {
     const nameLower = asset.name.toLowerCase();
-    if (!nameLower.includes(`bin-${platform.toLowerCase()}`)) continue;
+    if (!nameLower.includes(`bin-${osName}`)) continue;
+    if (!nameLower.endsWith(`${arch}.tar.gz`) && !nameLower.endsWith(`${arch}.zip`)) continue;
 
     const backend = extractBackendFromAsset(asset.name, version, platform);
     if (!backend || seen.has(backend)) continue;
