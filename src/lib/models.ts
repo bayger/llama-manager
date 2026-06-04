@@ -147,6 +147,7 @@ export async function downloadModel(
 
   if (!res.ok) {
     if (res.status === 401) throw new Error("Authentication required. Set HF token in config.");
+    if (res.status === 403) throw new Error(`Gated model. Accept terms at https://huggingface.co/${repoId}`);
     if (res.status === 404) throw new Error(`File not found: ${filename}`);
     throw new Error(`Download failed: ${res.status} ${res.statusText}`);
   }

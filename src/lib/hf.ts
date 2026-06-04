@@ -51,8 +51,9 @@ export async function listFiles(repoId: string, token?: string): Promise<HFFileI
     },
   });
 
-  if (!res.ok) {
+if (!res.ok) {
     if (res.status === 401) throw new Error("Authentication required. Set HF token in config.");
+    if (res.status === 403) throw new Error(`Gated repo. Accept terms at https://huggingface.co/${repoId}`);
     if (res.status === 404) throw new Error(`Repo not found: ${repoId}`);
     throw new Error(`HF files list failed: ${res.status}`);
   }
@@ -155,6 +156,7 @@ export async function getModelInfo(
 
   if (!res.ok) {
     if (res.status === 401) throw new Error("Authentication required. Set HF token in config.");
+    if (res.status === 403) throw new Error(`Gated model. Accept terms at https://huggingface.co/${repoId}`);
     if (res.status === 404) throw new Error(`Repo not found: ${repoId}`);
     throw new Error(`Failed to fetch model info: ${res.status}`);
   }
