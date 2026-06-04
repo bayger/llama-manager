@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
 import { loadConfig, saveConfig, ConfigData, PRESET_CATEGORIES, getActivePresets, getActiveFreeFormArgs } from "../../lib/config.js";
-import { startServer, stopServer, getStatus } from "../../lib/server.js";
+import { startServer, stopServer, getStatus, listDevices } from "../../lib/server.js";
 import TextInput from "ink-text-input";
 import { useOnClick } from "@ink-tools/ink-mouse";
 import { theme } from "../../lib/theme.js";
@@ -71,6 +71,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
   const [editMode, setEditMode] = React.useState(false);
   const [editKey, setEditKey] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState("");
+  const [devicesOutput, setDevicesOutput] = React.useState<string | null>(null);
 
   const canStart = serverState === "stopped";
   const canStop = serverState === "running";
@@ -80,7 +81,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
   const headerRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
   const fieldRowRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
 
-  controlRefs.current = Array.from({ length: 6 }, (_, i) => controlRefs.current[i] || React.createRef());
+  controlRefs.current = Array.from({ length: 7 }, (_, i) => controlRefs.current[i] || React.createRef());
   headerRefs.current = PRESET_CATEGORIES.map((_, i) => headerRefs.current[i] || React.createRef());
   fieldRowRefs.current = Array.from({ length: PRESET_CATEGORIES.reduce((sum, c) => sum + c.fields.length, 0) }, (_, i) => fieldRowRefs.current[i] || React.createRef());
 
@@ -93,6 +94,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
       else if (i === 3) handleCreateProfile();
       else if (i === 4) handleRenameProfile();
       else if (i === 5) handleDeleteProfile();
+      else if (i === 6) handleListDevices();
     });
   });
 
@@ -192,7 +194,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
     }
   };
 
-  const controls = ["Start", "Stop", "Restart", "Create", "Rename", "Delete"];
+  const controls = ["Start", "Stop", "Restart", "Create", "Rename", "Delete", "Devices"];
 
   const fieldList = config ? buildFieldList(config, collapsed) : [];
 
@@ -315,6 +317,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
         else if (controlIndex === 3) handleCreateProfile();
         else if (controlIndex === 4) handleRenameProfile();
         else if (controlIndex === 5) handleDeleteProfile();
+        else if (controlIndex === 6) handleListDevices();
       } else if (input === "j" || key.downArrow) {
         setFocusArea("form");
         setSelectedIndex(0);
@@ -408,6 +411,13 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
     showMessage(`Switched to "${name}"`);
   };
 
+  const handleListDevices = () => {
+    if (!config) return;
+    setDevicesOutput("Loading...");
+    const output = listDevices(config);
+    setDevicesOutput(output);
+  };
+
   return (
     <Box flexDirection="column" flexGrow={1}>
       <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
@@ -494,12 +504,34 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
               </Box>
             );
           })}
+          <Box marginLeft={1}>
+            <Text
+              bold={focusArea === "controls" && controlIndex === 6}
+              color={focusArea === "controls" && controlIndex === 6 ? theme.selectedText : theme.accent}
+              backgroundColor={focusArea === "controls" && controlIndex === 6 ? theme.selected : undefined}
+            >
+              {" Devices "}
+            </Text>
+          </Box>
         </Box>
       </Box>
 
       {message && (
         <Box marginTop={1}>
           <Text color={theme.success}>{` › ${message}`}</Text>
+        </Box>
+      )}
+
+      {devicesOutput && (
+        <Box marginTop={1} borderStyle="single" borderColor={theme.border}>
+          <Box>
+            <Text color={theme.text} bold>Devices</Text>
+          </Box>
+          {devicesOutput.split("\n").map((line, i) => (
+            <Box key={i}>
+              <Text color={theme.textMuted} wrap="wrap">{line}</Text>
+            </Box>
+          ))}
         </Box>
       )}
 

@@ -1,4 +1,4 @@
-import { spawn, ChildProcess } from "child_process";
+import { spawn, ChildProcess, spawnSync } from "child_process";
 import { EventEmitter } from "events";
 import path from "path";
 import fs from "fs-extra";
@@ -20,6 +20,27 @@ export function onServerLog(listener: (line: string) => void): () => void {
 
 export function clearServerLogs() {
   serverLogLines.length = 0;
+}
+
+export function listDevices(config: ConfigData): string {
+  const versionsDir = getVersionsDir(config);
+  const activeVersion = config.activeVersion;
+  if (!activeVersion) return "No active version selected";
+  const binary = path.join(versionsDir, activeVersion, "llama-server");
+  const exists = fs.pathExistsSync(binary);
+  if (!exists) return `Binary not found: ${binary}`;
+  try {
+    const result = spawnSync(binary, ["--list-devices"], {
+      encoding: "utf-8",
+      timeout: 10000,
+    });
+    const out = (result.stdout || "").trim();
+    const err = (result.stderr || "").trim();
+    const combined = [out, err].filter(Boolean).join("\n");
+    return combined || "No output from --list-devices";
+  } catch (err: any) {
+    return err.message || "Failed to list devices";
+  }
 }
 
 interface ServerStatus {
@@ -137,7 +158,9 @@ export function buildArgs(config: ConfigData): string[] {
       if (value) args.push(flag);
       return;
     }
-    args.push(flag, String(value));
+    const s = String(value);
+    if (s.length === 0) return;
+    args.push(flag, s);
   };
 
   push("--host", p.server.host);
