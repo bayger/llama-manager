@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, useInput, useApp } from "ink";
 import { FullScreenBox } from "fullscreen-ink";
+import { MouseProvider } from "@ink-tools/ink-mouse";
 import Tabs from "./Tabs.js";
 import StatusBar from "./StatusBar.js";
 import ServerTab from "./tabs/ServerTab.js";
@@ -34,16 +35,18 @@ export default function App() {
   });
 
   return (
-    <FullScreenBox flexDirection="column">
-      <Box>
-        <Tabs tabs={TABS} selectedIndex={tabIndex} onChange={handleTabChange} />
-      </Box>
-      <Box flexDirection="column" flexGrow={1}>
-        <ActiveComponent />
-      </Box>
-      <Box>
-        <StatusBar activeTab={activeTab} />
-      </Box>
-    </FullScreenBox>
+    <MouseProvider>
+      <FullScreenBox flexDirection="column">
+        <Box>
+          <Tabs tabs={TABS} selectedIndex={tabIndex} onChange={handleTabChange} />
+        </Box>
+        <Box flexDirection="column" flexGrow={1}>
+          <ActiveComponent />
+        </Box>
+        <Box>
+          <StatusBar activeTab={activeTab} />
+        </Box>
+      </FullScreenBox>
+    </MouseProvider>
   );
 }

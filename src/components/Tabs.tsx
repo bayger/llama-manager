@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useInput, Text, Box } from "ink";
+import { useOnClick } from "@ink-tools/ink-mouse";
 
 interface Props {
   tabs: readonly string[];
@@ -23,8 +24,14 @@ export default function Tabs({ tabs, selectedIndex, onChange }: Props) {
     <Box>
       {tabs.map((tab, i) => {
         const isActive = i === selectedIndex;
+        const ref = React.useRef(null);
+
+        useOnClick(ref, () => {
+          onChange(i);
+        });
+
         return (
-          <Box key={tab}>
+          <Box key={tab} ref={ref}>
             <Text color={isActive ? "cyan" : "gray"} bold={isActive}>
               {isActive ? "▸ " : "  "}{tab}
             </Text>

@@ -4,6 +4,7 @@ import Spinner from "ink-spinner";
 import { loadConfig, saveConfig, ConfigData, PRESET_CATEGORIES } from "../../lib/config.js";
 import { startServer, stopServer, getStatus } from "../../lib/server.js";
 import TextInput from "ink-text-input";
+import { useOnClick } from "@ink-tools/ink-mouse";
 
 type ServerState = "stopped" | "starting" | "running" | "stopping";
 type FocusArea = "controls" | "form";
@@ -52,6 +53,53 @@ export default function ServerTab() {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [editMode, setEditMode] = React.useState(false);
   const [editValue, setEditValue] = React.useState("");
+
+  const controlRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
+  const headerRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
+  const fieldRowRefs = React.useRef<React.RefObject<React.ComponentRef<typeof Box>>[]>([]);
+
+  controlRefs.current = Array.from({ length: 3 }, (_, i) => controlRefs.current[i] || React.createRef());
+  headerRefs.current = PRESET_CATEGORIES.map((_, i) => headerRefs.current[i] || React.createRef());
+  fieldRowRefs.current = Array.from({ length: PRESET_CATEGORIES.reduce((sum, c) => sum + c.fields.length, 0) }, (_, i) => fieldRowRefs.current[i] || React.createRef());
+
+  controlRefs.current.forEach((ref, i) => {
+    useOnClick(ref, () => {
+      setControlIndex(i);
+      if (i === 0 && canStart) handleStart();
+      else if (i === 1 && canStop) handleStop();
+      else if (i === 2) { handleStop().then(() => handleStart()); }
+    });
+  });
+
+  headerRefs.current.forEach((ref, i) => {
+    useOnClick(ref, () => {
+      const headerIndex = fieldList.findIndex((item) => item.type === "header" && item.categoryIndex === i);
+      setSelectedIndex(headerIndex);
+      setFocusArea("form");
+      toggleGroup(i);
+    });
+  });
+
+  fieldRowRefs.current.forEach((ref, i) => {
+    useOnClick(ref, () => {
+      const item = fieldOnlyList[i];
+      const pos = fieldList.findIndex((fl) => fl.type === "field" && fl.categoryIndex === item.categoryIndex && fl.fieldIndex === item.fieldIndex);
+      setSelectedIndex(pos);
+      setFocusArea("form");
+      if (config && item.fieldIndex !== undefined) {
+        const cat = PRESET_CATEGORIES[item.categoryIndex];
+        const field = cat.fields[item.fieldIndex];
+        if (field.type === "boolean") {
+          const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+          setValue(item.categoryIndex, field.key, field.type, String(!current));
+        } else if (field.type === "enum" && field.options) {
+          const current = (config.server.presets[cat.presetKey] as Record<string, unknown>)[field.key];
+          const idx = field.options.indexOf(String(current));
+          setValue(item.categoryIndex, field.key, field.type, field.options[(idx + 1) % field.options.length]);
+        }
+      }
+    });
+  });
 
   React.useEffect(() => {
     loadConfig().then((c) => {
@@ -269,7 +317,7 @@ export default function ServerTab() {
             const isActive = focusArea === "controls" && controlIndex === i;
             const enabled = (i === 0 && canStart) || (i === 1 && canStop) || i === 2;
             return (
-              <Box key={label} marginRight={1}>
+              <Box key={label} marginRight={1} ref={controlRefs.current[i]}>
                 <Text
                   bold={isActive}
                   color={isActive ? "white" : enabled ? "cyan" : "gray"}
@@ -306,7 +354,7 @@ export default function ServerTab() {
 
             return (
               <Box key={cat.name} flexDirection="column">
-                <Box>
+                <Box ref={headerRefs.current[ci]}>
                   <Text
                     color={isHeaderSelected ? "white" : "cyan"}
                     bold={isHeaderSelected}
@@ -322,11 +370,12 @@ export default function ServerTab() {
                       item.type === "field" && item.categoryIndex === ci && item.fieldIndex === fi
                     );
                     const isSelected = focusArea === "form" && selectedIndex === fieldPos && !editMode;
+                    const fieldOnlyIndex = fieldOnlyList.findIndex((item) => item.categoryIndex === ci && item.fieldIndex === fi);
                     const isEditing = editMode && selectedIndex === fieldPos;
 
                     if (isEditing && (field.type === "string" || field.type === "number")) {
                       return (
-                        <Box key={field.key} marginLeft={2}>
+                 <Box key={field.key} marginLeft={2} ref={fieldOnlyIndex !== -1 ? fieldRowRefs.current[fieldOnlyIndex] : undefined}>
                           <Text color="yellow" bold>{field.flag}</Text>
                           <Text> {" "} </Text>
                           <TextInput
