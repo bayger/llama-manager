@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text } from "ink";
+import { Box, Text, useStdout } from "ink";
 import { taskStore, TaskMetrics } from "../../lib/tasks.js";
 import { theme } from "../../lib/theme.js";
 
@@ -57,6 +57,7 @@ function TaskRow({ task }: { task: TaskMetrics }) {
 export default function TasksTab({ message, showMessage, setIsTextInputFocused }: { message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }) {
   const [tick, setTick] = React.useState(0);
   const [tasks, setTasks] = React.useState<TaskMetrics[]>([]);
+  const { stdout } = useStdout();
 
   React.useEffect(() => {
     setTasks(taskStore.getTasks());
@@ -71,6 +72,9 @@ export default function TasksTab({ message, showMessage, setIsTextInputFocused }
   }, []);
 
   const stats = taskStore.getStats(tasks);
+
+  const maxVisible = Math.max(0, stdout.rows - 8);
+  const visibleTasks = tasks.slice(-maxVisible);
 
   const headerCells = ["Date", "Time", "Prompt", "Output", "P t/s", "O t/s", "Total", "Draft", "Context"];
   const headerRow = headerCells.map((h, i) => pad(h, COL_W[i])).join("");
@@ -90,8 +94,13 @@ export default function TasksTab({ message, showMessage, setIsTextInputFocused }
           <Box>
             <Text color={theme.textMuted}>{sepRow}</Text>
           </Box>
-          <Box flexDirection="column" flexGrow={1} overflow="hidden">
-            {tasks.map((task) => (
+          <Box flexDirection="column">
+            {tasks.length > visibleTasks.length && (
+              <Box>
+                <Text color={theme.textMuted}>{`… showing last ${visibleTasks.length} of ${tasks.length} tasks`}</Text>
+              </Box>
+            )}
+            {visibleTasks.map((task) => (
               <TaskRow key={task.taskId + task.timestamp} task={task} />
             ))}
           </Box>
