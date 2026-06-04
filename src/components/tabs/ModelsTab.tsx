@@ -4,7 +4,7 @@ import { Box, Text, useInput } from "ink";
 import Spinner from "ink-spinner";
 import TextInput from "ink-text-input";
 import { useOnClick } from "@ink-tools/ink-mouse";
-import { loadConfig, saveConfig, ConfigData, getModelsDir } from "../../lib/config.js";
+import { loadConfig, saveConfig, ConfigData, getModelsDir, getActivePresets, getActiveFreeFormArgs } from "../../lib/config.js";
 import { listLocalModels, deleteModel, formatSize, getTotalModelsSize, downloadModel, setActiveModel, LocalModel, DownloadProgress } from "../../lib/models.js";
 import { searchRepos, listFiles, browseModels, getModelInfo, HFRepoInfo, HFFileInfo, HFModelInfo } from "../../lib/hf.js";
 import { theme } from "../../lib/theme.js";
@@ -287,7 +287,16 @@ export default function ModelsTab() {
     if (!config || selectedIndex >= models.length) return;
     const m = models[selectedIndex];
     try {
-      const newConfig = await setActiveModel(config, m.repoId, m.filename);
+      let newConfig = await setActiveModel(config, m.repoId, m.filename);
+      const profileName = newConfig.server.activeProfile;
+      const profile = newConfig.server.profiles[profileName];
+      const presets = { ...profile.presets };
+      const modelPreset = { ...(presets.model as Record<string, unknown>) };
+      modelPreset.model = m.path;
+      presets.model = modelPreset;
+      const newProfile = { ...profile, presets, freeFormArgs: profile.freeFormArgs };
+      const newProfiles = { ...newConfig.server.profiles, [profileName]: newProfile };
+      newConfig = { ...newConfig, server: { ...newConfig.server, profiles: newProfiles } };
       await saveConfig(newConfig);
       setConfig(newConfig);
       setModels((prev) => prev.map((x) => ({ ...x, active: x.path === m.path })));
