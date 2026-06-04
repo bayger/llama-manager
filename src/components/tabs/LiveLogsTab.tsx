@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text, useInput } from "ink";
+import { spawn } from "child_process";
 import { onServerLog, serverLogLines, clearServerLogs, getStatus } from "../../lib/server.js";
 import { theme } from "../../lib/theme.js";
 
@@ -7,6 +8,7 @@ export default function LiveLogsTab() {
   const [, setTick] = React.useState(0);
   const [running, setRunning] = React.useState(false);
   const [autoScroll, setAutoScroll] = React.useState(true);
+  const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
     const unsub = onServerLog(() => {
@@ -23,6 +25,16 @@ export default function LiveLogsTab() {
     return () => clearInterval(interval);
   }, []);
 
+  const copyToClipboard = () => {
+    if (serverLogLines.length === 0) return;
+    const text = serverLogLines.join("\n");
+    const xclip = spawn("xclip", ["-selection", "clipboard"]);
+    xclip.stdin.write(text + "\n");
+    xclip.stdin.end();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   useInput((input, key) => {
     if (key.upArrow || key.downArrow || key.pageUp || key.pageDown) {
       setAutoScroll(false);
@@ -36,6 +48,9 @@ export default function LiveLogsTab() {
     if (input === "u") {
       clearServerLogs();
       setTick((t) => t + 1);
+    }
+    if (input === "y") {
+      copyToClipboard();
     }
   });
 
@@ -62,8 +77,11 @@ export default function LiveLogsTab() {
 
       <Box marginTop={1}>
         <Text color={theme.textMuted} wrap="wrap">
-          g auto-scroll │ G top │ u clear │ arrows scroll
+          g auto-scroll │ G top │ u clear │ y copy │ arrows scroll
         </Text>
+        {copied && (
+          <Text color={theme.success}> {" │ Copied to clipboard!"}</Text>
+        )}
       </Box>
 
       <Box

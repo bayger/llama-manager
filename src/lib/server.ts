@@ -3,6 +3,7 @@ import { EventEmitter } from "events";
 import path from "path";
 import fs from "fs-extra";
 import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config.js";
+import { logParser } from "./logparser.js";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -98,6 +99,7 @@ export function startServer(config: ConfigData): Promise<number> {
               serverLogLines.splice(0, serverLogLines.length - MAX_LOG_LINES);
             }
             logEmitter.emit("log", part);
+            logParser.processLine(part);
           }
         }
       });

@@ -11,6 +11,8 @@ import ModelsTab from "./tabs/ModelsTab.js";
 import DashboardTab from "./tabs/DashboardTab.js";
 import OptionsTab from "./tabs/OptionsTab.js";
 import LiveLogsTab from "./tabs/LiveLogsTab.js";
+import { loadConfig } from "./../lib/config.js";
+import { taskStore } from "./../lib/tasks.js";
 
 const TABS = ["Server", "Tasks", "Versions", "Models", "Dashboard", "Logs", "Options"] as const;
 type TabId = (typeof TABS)[number];
@@ -36,6 +38,15 @@ export default function App() {
     setMessage(msg);
     setTimeout(() => setMessage(null), 3000);
   };
+
+  React.useEffect(() => {
+    loadConfig().then((config) => {
+      taskStore.init(config);
+    });
+    return () => {
+      taskStore.dispose();
+    };
+  }, []);
 
   useInput((input) => {
     if (input === "q") {

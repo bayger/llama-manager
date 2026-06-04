@@ -1,6 +1,8 @@
 import fs from "fs-extra";
-import { ConfigData, getTasksFile } from "./config.js";
+import path from "path";
+import { ConfigData, getTasksFile, getLogFile } from "./config.js";
 import { TaskMetrics, logParser } from "./logparser.js";
+export type { TaskMetrics } from "./logparser.js";
 import { EventEmitter } from "events";
 
 export interface TaskFilter {
@@ -20,24 +22,38 @@ export type TaskSortDir = "asc" | "desc";
 class TaskStore extends EventEmitter {
   private tasks: TaskMetrics[] = [];
   private config: ConfigData | null = null;
+  private stopTailer: (() => void) | null = null;
 
   async init(config: ConfigData) {
     this.config = config;
     const filePath = getTasksFile(config);
+
     if (await fs.pathExists(filePath)) {
       const content = await fs.readFile(filePath, "utf-8");
       const lines = content.trim().split("\n").filter(Boolean);
       this.tasks = lines.map((line) => JSON.parse(line) as TaskMetrics);
+      console.log(`[tasks] Loaded ${this.tasks.length} tasks from ${filePath}`);
     }
 
-    logParser.on("task", async (task: TaskMetrics) => {
-      this.tasks.unshift(task);
-      if (this.config && this.tasks.length > this.config.tasks.maxStored) {
-        this.tasks = this.tasks.slice(0, this.config.tasks.maxStored);
-      }
-      await this.persist();
-      this.emit("updated", this.getFiltered());
-    });
+    logParser.seedCompleted(this.tasks.map((t) => t.taskId));
+
+    const logFile = getLogFile(config);
+    console.log(`[tasks] Log file: ${logFile}`);
+    await logParser.parseExistingFile(logFile);
+    console.log(`[tasks] After file parse: ${this.tasks.length} tasks`);
+
+    this.stopTailer = logParser.startFileTailer(logFile);
+    console.log(`[tasks] File tailer started`);
+  }
+
+  async onTask(task: TaskMetrics) {
+    console.log(`[tasks] onTask: task ${task.taskId}`);
+    this.tasks.unshift(task);
+    if (this.config && this.tasks.length > this.config.tasks.maxStored) {
+      this.tasks = this.tasks.slice(0, this.config.tasks.maxStored);
+    }
+    await this.persist();
+    this.emit("updated");
   }
 
   async persist() {
@@ -46,6 +62,10 @@ class TaskStore extends EventEmitter {
     await fs.ensureDir(path.dirname(filePath));
     const content = this.tasks.map((t) => JSON.stringify(t)).join("\n") + "\n";
     await fs.writeFile(filePath, content);
+  }
+
+  getTasks(): TaskMetrics[] {
+    return [...this.tasks];
   }
 
   getFiltered(filter?: TaskFilter): TaskMetrics[] {
@@ -101,7 +121,15 @@ class TaskStore extends EventEmitter {
       count: tasks.length,
     };
   }
+
+  dispose() {
+    if (this.stopTailer) this.stopTailer();
+    logParser.stop();
+  }
 }
 
-import path from "path";
 export const taskStore = new TaskStore();
+
+logParser.on("task", async (task: TaskMetrics) => {
+  await taskStore.onTask(task);
+});
