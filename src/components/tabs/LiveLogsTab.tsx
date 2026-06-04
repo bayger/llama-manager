@@ -155,7 +155,7 @@ export default function LiveLogsTab({ message, showMessage, setIsTextInputFocuse
                   <Text color={theme.textMuted}>{component}</Text>
                 )}
                 {component && <Text>{" "}</Text>}
-                <Text color={theme.text} wrap="wrap">{message}</Text>
+                <Text color={theme.text} wrap="truncate">{message}</Text>
               </Box>
             );
           })
