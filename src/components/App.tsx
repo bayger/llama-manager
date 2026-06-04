@@ -10,8 +10,9 @@ import VersionsTab from "./tabs/VersionsTab.js";
 import ModelsTab from "./tabs/ModelsTab.js";
 import DashboardTab from "./tabs/DashboardTab.js";
 import OptionsTab from "./tabs/OptionsTab.js";
+import LiveLogsTab from "./tabs/LiveLogsTab.js";
 
-const TABS = ["Server", "Tasks", "Versions", "Models", "Dashboard", "Options"] as const;
+const TABS = ["Server", "Tasks", "Versions", "Models", "Dashboard", "Logs", "Options"] as const;
 type TabId = (typeof TABS)[number];
 
 const tabComponents: Record<TabId, React.ComponentType> = {
@@ -20,6 +21,7 @@ const tabComponents: Record<TabId, React.ComponentType> = {
   Versions: VersionsTab,
   Models: ModelsTab,
   Dashboard: DashboardTab,
+  Logs: LiveLogsTab,
   Options: OptionsTab,
 };
 

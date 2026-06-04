@@ -1,9 +1,26 @@
 import { spawn, ChildProcess } from "child_process";
+import { EventEmitter } from "events";
 import path from "path";
 import fs from "fs-extra";
 import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config.js";
 
 let serverProcess: ChildProcess | null = null;
+let serverStartTime: number | null = null;
+
+const logEmitter = new EventEmitter();
+logEmitter.setMaxListeners(10);
+
+const MAX_LOG_LINES = 2000;
+export const serverLogLines: string[] = [];
+
+export function onServerLog(listener: (line: string) => void): () => void {
+  logEmitter.on("log", listener);
+  return () => { logEmitter.off("log", listener); };
+}
+
+export function clearServerLogs() {
+  serverLogLines.length = 0;
+}
 
 interface ServerStatus {
   running: boolean;
@@ -11,7 +28,6 @@ interface ServerStatus {
   uptime: number;
 }
 
-const startTime = Date.now();
 
 export function startServer(config: ConfigData): Promise<number> {
   return new Promise(async (resolve, reject) => {
@@ -39,6 +55,7 @@ export function startServer(config: ConfigData): Promise<number> {
     const logStream = await fs.createWriteStream(logFile, { flags: "a" });
 
     const args = buildArgs(config);
+    serverStartTime = Date.now();
     serverProcess = spawn(binary, args, {
       stdio: ["ignore", "pipe", "pipe"],
       detached: false,
@@ -46,6 +63,26 @@ export function startServer(config: ConfigData): Promise<number> {
 
     serverProcess.stdout?.pipe(logStream);
     serverProcess.stderr?.pipe(logStream);
+
+    const relay = (stream: NodeJS.ReadableStream | null) => {
+      let buf = "";
+      stream?.on("data", (chunk: Buffer) => {
+        buf += chunk.toString();
+        const parts = buf.split("\n");
+        buf = parts.pop() || "";
+        for (const part of parts) {
+          if (part.length > 0) {
+            serverLogLines.push(part);
+            if (serverLogLines.length > MAX_LOG_LINES) {
+              serverLogLines.splice(0, serverLogLines.length - MAX_LOG_LINES);
+            }
+            logEmitter.emit("log", part);
+          }
+        }
+      });
+    };
+    relay(serverProcess.stdout);
+    relay(serverProcess.stderr);
 
     serverProcess.on("error", (err) => reject(err));
     serverProcess.on("exit", (code) => {
@@ -68,6 +105,7 @@ export function stopServer(): Promise<void> {
     const pid = serverProcess.pid;
     serverProcess.on("exit", () => {
       serverProcess = null;
+      serverStartTime = null;
       resolve();
     });
 
@@ -81,11 +119,11 @@ export function stopServer(): Promise<void> {
   });
 }
 
-export function getStatus(config: ConfigData): ServerStatus {
+export function getStatus(): ServerStatus {
   return {
     running: !!(serverProcess?.pid && !serverProcess.killed),
     pid: serverProcess?.pid || null,
-    uptime: serverProcess?.pid ? Date.now() - startTime : 0,
+    uptime: serverProcess?.pid && serverStartTime ? Date.now() - serverStartTime : 0,
   };
 }
 

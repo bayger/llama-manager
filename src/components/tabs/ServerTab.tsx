@@ -134,18 +134,31 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
       setSelectedIndex(0);
       setCollapsed(new Set([1, 2, 3, 4, 5, 6, 7]));
     });
+    const status = getStatus();
+    if (status.running) {
+      setServerState("running");
+      setPid(status.pid);
+      setUptime(status.uptime);
+    }
   }, []);
 
-  const uptimeRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const statusIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   React.useEffect(() => {
-    if (serverState === "running") {
-      const start = Date.now() - uptime;
-      uptimeRef.current = setInterval(() => setUptime(Date.now() - start), 1000);
-    } else {
-      if (uptimeRef.current) clearInterval(uptimeRef.current);
-      setUptime(0);
-    }
-    return () => { if (uptimeRef.current) clearInterval(uptimeRef.current); };
+    statusIntervalRef.current = setInterval(() => {
+      const status = getStatus();
+      if (status.running && serverState !== "running") {
+        setServerState("running");
+        setPid(status.pid);
+        setUptime(status.uptime);
+      } else if (!status.running && (serverState === "running" || serverState === "starting")) {
+        setServerState("stopped");
+        setPid(null);
+        setUptime(0);
+      } else if (status.running) {
+        setUptime(status.uptime);
+      }
+    }, 1000);
+    return () => { if (statusIntervalRef.current) clearInterval(statusIntervalRef.current); };
   }, [serverState]);
 
   const showMessage = (msg: string) => {

@@ -10,7 +10,7 @@ export default function StatusBar({ activeTab }: Props) {
   return (
     <Box width="100%">
       <Text color={theme.textMuted}>
-        {activeTab} | F1-F6 navigate | q quit | ? help
+        {activeTab} | F1-F7 navigate | q quit | ? help
       </Text>
     </Box>
   );
