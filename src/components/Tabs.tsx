@@ -1,6 +1,7 @@
 import React from "react";
 import { useInput, Text, Box } from "ink";
 import { useOnClick } from "@ink-tools/ink-mouse";
+import { theme } from "../lib/theme.js";
 
 interface Props {
   tabs: readonly string[];
@@ -32,7 +33,7 @@ export default function Tabs({ tabs, selectedIndex, onChange }: Props) {
 
         return (
           <Box key={tab} ref={ref}>
-            <Text color={isActive ? "cyan" : "gray"} bold={isActive}>
+            <Text color={isActive ? theme.accent : theme.textMuted} bold={isActive}>
               {isActive ? "▸ " : "  "}{tab}
             </Text>
           </Box>

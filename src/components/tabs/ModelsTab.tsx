@@ -7,6 +7,7 @@ import { useOnClick } from "@ink-tools/ink-mouse";
 import { loadConfig, saveConfig, ConfigData, getModelsDir } from "../../lib/config.js";
 import { listLocalModels, deleteModel, formatSize, getTotalModelsSize, downloadModel, setActiveModel, LocalModel, DownloadProgress } from "../../lib/models.js";
 import { searchRepos, listFiles, browseModels, getModelInfo, HFRepoInfo, HFFileInfo, HFModelInfo } from "../../lib/hf.js";
+import { theme } from "../../lib/theme.js";
 
 type FocusArea = "list" | "actions" | "search" | "files" | "browse" | "browsefilters" | "browsesort" | "modelcard";
 type Action = "setactive" | "delete" | "search" | "browse";
@@ -69,8 +70,8 @@ function ActionButton({ action, isActive, onClick }: { action: Action; isActive:
     <Box marginRight={1} ref={ref}>
       <Text
         bold={isActive}
-        color={isActive ? "white" : "cyan"}
-        backgroundColor={isActive ? "white" : undefined}
+        color={isActive ? theme.selectedText : theme.accent}
+        backgroundColor={isActive ? theme.selected : undefined}
       >
         {` ${label} `}
       </Text>
@@ -82,24 +83,30 @@ function ModelRow({ model, isSelected, onClick }: { model: LocalModel; isSelecte
   const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
   useOnClick(ref, onClick);
   return (
-    <Box ref={ref}>
-      <Text color={isSelected ? "white" : model.active ? "green" : "gray"} bold={isSelected || model.active}>
+    <Box ref={ref} backgroundColor={isSelected ? theme.selected : undefined}>
+      <Text color={isSelected ? theme.selectedText : model.active ? theme.success : theme.textMuted} bold={isSelected || model.active}>
         {model.active ? "● " : "  "}
       </Text>
-      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+      <Text color={isSelected ? theme.selectedText : theme.accent} bold={isSelected}>
         {model.repoId}
       </Text>
-      <Text color={isSelected ? "white" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         /{model.filename}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         ({formatSize(model.sizeBytes)})
       </Text>
-      {model.active && (
+      {model.active && !isSelected && (
         <>
           <Text> {" "} </Text>
-          <Text color="green">(active)</Text>
+          <Text color={theme.success}>(active)</Text>
+        </>
+      )}
+      {model.active && isSelected && (
+        <>
+          <Text> {" "} </Text>
+          <Text color={theme.selectedText}>(active)</Text>
         </>
       )}
     </Box>
@@ -110,23 +117,23 @@ function BrowseRepoRow({ repo, isSelected, onClick }: { repo: HFRepoInfo; isSele
   const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
   useOnClick(ref, onClick);
   return (
-    <Box ref={ref}>
-      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+    <Box ref={ref} backgroundColor={isSelected ? theme.selected : undefined}>
+      <Text color={isSelected ? theme.selectedText : theme.accent} bold={isSelected}>
         {isSelected ? "▸ " : "  "}
       </Text>
-      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+      <Text color={isSelected ? theme.selectedText : theme.text} bold={isSelected}>
         {repo.id}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         ♥ {formatLikes(repo.likes)}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         ↓ {formatDownloads(repo.downloads)}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         {formatDate(repo.lastModified)}
       </Text>
     </Box>
@@ -137,19 +144,19 @@ function SearchRepoRow({ repo, isSelected, onClick }: { repo: HFRepoInfo; isSele
   const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
   useOnClick(ref, onClick);
   return (
-    <Box ref={ref}>
-      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+    <Box ref={ref} backgroundColor={isSelected ? theme.selected : undefined}>
+      <Text color={isSelected ? theme.selectedText : theme.accent} bold={isSelected}>
         {isSelected ? "▸ " : "  "}
       </Text>
-      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+      <Text color={isSelected ? theme.selectedText : theme.text} bold={isSelected}>
         {repo.id}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         ♥ {formatLikes(repo.likes)}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         {formatDate(repo.lastModified)}
       </Text>
     </Box>
@@ -160,21 +167,27 @@ function FileRow({ file, isSelected, isDownloaded, onClick }: { file: HFFileInfo
   const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
   useOnClick(ref, onClick);
   return (
-    <Box ref={ref}>
-      <Text color={isSelected ? "white" : isDownloaded ? "green" : "cyan"} bold={isSelected}>
+    <Box ref={ref} backgroundColor={isSelected ? theme.selected : undefined}>
+      <Text color={isSelected ? theme.selectedText : isDownloaded ? theme.success : theme.accent} bold={isSelected}>
         {isSelected ? "▸ " : "  "}
       </Text>
-      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+      <Text color={isSelected ? theme.selectedText : theme.text} bold={isSelected}>
         {file.rfpath}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         ({formatSize(file.size)})
       </Text>
-      {isDownloaded && (
+      {isDownloaded && !isSelected && (
         <>
           <Text> {" "} </Text>
-          <Text color="green">[downloaded]</Text>
+          <Text color={theme.success}>[downloaded]</Text>
+        </>
+      )}
+      {isDownloaded && isSelected && (
+        <>
+          <Text> {" "} </Text>
+          <Text color={theme.selectedText}>[downloaded]</Text>
         </>
       )}
     </Box>
@@ -188,8 +201,8 @@ function FilterButton({ label, isActive, isOn, onClick }: { label: string; isAct
     <Box marginRight={1} ref={ref}>
       <Text
         bold={isActive}
-        color={isActive ? "white" : isOn ? "green" : "gray"}
-        backgroundColor={isActive ? "white" : undefined}
+        color={isActive ? theme.selectedText : isOn ? theme.success : theme.textMuted}
+        backgroundColor={isActive ? theme.selected : undefined}
       >
         {` ${isOn ? "● " : "○ "}${label} `}
       </Text>
@@ -204,8 +217,8 @@ function SortButton({ label, isActive, isCurrent, direction, onClick }: { label:
     <Box marginRight={1} ref={ref}>
       <Text
         bold={isActive}
-        color={isActive ? "white" : isCurrent ? "green" : "gray"}
-        backgroundColor={isActive ? "white" : undefined}
+        color={isActive ? theme.selectedText : isCurrent ? theme.success : theme.textMuted}
+        backgroundColor={isActive ? theme.selected : undefined}
       >
         {` ${direction === -1 ? "↓" : "↑"}${label} `}
       </Text>
@@ -235,7 +248,7 @@ export default function ModelsTab() {
   const [fetchingFiles, setFetchingFiles] = React.useState(false);
   const [editMode, setEditMode] = React.useState(false);
   const [editValue, setEditValue] = React.useState("");
-  
+
   const [browseResults, setBrowseResults] = React.useState<HFRepoInfo[]>([]);
   const [browseIndex, setBrowseIndex] = React.useState(0);
   const [browseSort, setBrowseSort] = React.useState(0);
@@ -618,7 +631,7 @@ export default function ModelsTab() {
     return (
       <Box flexDirection="column" flexGrow={1}>
         <Box paddingTop={1}>
-          <Text color="gray">Loading models...</Text>
+          <Text color={theme.textMuted}>Loading models...</Text>
         </Box>
       </Box>
     );
@@ -628,13 +641,13 @@ export default function ModelsTab() {
     const isFiles = focusArea === "files";
     return (
       <Box flexDirection="column" flexGrow={1}>
-        <Box flexDirection="column" borderStyle="single" borderColor="gray">
+        <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
           <Box flexDirection="row" justifyContent="space-between">
             <Box>
-              <Text bold>{isFiles ? `Files in ${repoId}` : `Search: "${searchQuery}"`}</Text>
+              <Text color={theme.text} bold>{isFiles ? `Files in ${repoId}` : `Search: "${searchQuery}"`}</Text>
             </Box>
             <Box>
-              <Text color="gray">j/k navigate │ Enter {isFiles ? "download" : "open"} │ g {isFiles ? "back to search" : "back"} │ e new search</Text>
+              <Text color={theme.textMuted}>j/k navigate │ Enter {isFiles ? "download" : "open"} │ g {isFiles ? "back to search" : "back"} │ e new search</Text>
             </Box>
           </Box>
         </Box>
@@ -642,14 +655,14 @@ export default function ModelsTab() {
         <Box flexDirection="column" flexGrow={1} marginTop={1}>
           {fetchingFiles ? (
             <Box>
-              <Text color="cyan"><Spinner type="line" /></Text>
+              <Text color={theme.accent}><Spinner type="line" /></Text>
               <Text> {" "} </Text>
-              <Text color="gray">Fetching files...</Text>
+              <Text color={theme.textMuted}>Fetching files...</Text>
             </Box>
           ) : isFiles ? (
             repoFiles.length === 0 ? (
               <Box>
-                <Text color="gray">No GGUF files found. Press g to go back.</Text>
+                <Text color={theme.textMuted}>No GGUF files found. Press g to go back.</Text>
               </Box>
             ) : (
               repoFiles.map((f, i) => (
@@ -667,13 +680,13 @@ export default function ModelsTab() {
             )
           ) : searching ? (
             <Box>
-              <Text color="cyan"><Spinner type="line" /></Text>
+              <Text color={theme.accent}><Spinner type="line" /></Text>
               <Text> {" "} </Text>
-              <Text color="gray">Searching...</Text>
+              <Text color={theme.textMuted}>Searching...</Text>
             </Box>
           ) : searchResults.length === 0 ? (
             <Box>
-              <Text color="gray">No results. Press e for new search or g to go back.</Text>
+              <Text color={theme.textMuted}>No results. Press e for new search or g to go back.</Text>
             </Box>
           ) : (
             searchResults.map((r, i) => (
@@ -692,28 +705,28 @@ export default function ModelsTab() {
 
         {editMode && (
           <Box marginTop={1}>
-            <Text color="yellow" bold>Search: </Text>
+            <Text color={theme.warning} bold>Search: </Text>
             <TextInput value={editValue} onChange={setEditValue} focus />
           </Box>
         )}
 
         {downloading && (
           <Box marginTop={1}>
-            <Text color="cyan"><Spinner type="line" /></Text>
+            <Text color={theme.accent}><Spinner type="line" /></Text>
             <Text> {" "} </Text>
-            <Text color="gray">{dlLabel}</Text>
+            <Text color={theme.textMuted}>{dlLabel}</Text>
             <Text> {" "} </Text>
-            <Text color="gray">({dlProgress}%)</Text>
+            <Text color={theme.textMuted}>({dlProgress}%)</Text>
             <Box>
-              <Text color="gray">{"█".repeat(Math.round(dlProgress / 5))}</Text>
-              <Text color="gray">{"░".repeat(20 - Math.round(dlProgress / 5))}</Text>
+              <Text color={theme.accent}>{"█".repeat(Math.round(dlProgress / 5))}</Text>
+              <Text color={theme.textMuted}>{"░".repeat(20 - Math.round(dlProgress / 5))}</Text>
             </Box>
           </Box>
         )}
 
         {message && (
           <Box marginTop={1}>
-            <Text color="green">{` › ${message}`}</Text>
+            <Text color={theme.success}>{` › ${message}`}</Text>
           </Box>
         )}
       </Box>
@@ -728,13 +741,13 @@ export default function ModelsTab() {
     if (isCard) {
       return (
         <Box flexDirection="column" flexGrow={1}>
-          <Box flexDirection="column" borderStyle="single" borderColor="gray">
+          <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
             <Box flexDirection="row" justifyContent="space-between">
               <Box>
-                <Text bold>Model Card</Text>
+                <Text color={theme.text} bold>Model Card</Text>
               </Box>
               <Box>
-                <Text color="gray">m/g close │ Enter open files</Text>
+                <Text color={theme.textMuted}>m/g close │ Enter open files</Text>
               </Box>
             </Box>
           </Box>
@@ -742,56 +755,56 @@ export default function ModelsTab() {
           <Box flexDirection="column" flexGrow={1} marginTop={1}>
             {fetchingCard ? (
               <Box>
-                <Text color="cyan"><Spinner type="line" /></Text>
+                <Text color={theme.accent}><Spinner type="line" /></Text>
                 <Text> {" "} </Text>
-                <Text color="gray">Fetching model info...</Text>
+                <Text color={theme.textMuted}>Fetching model info...</Text>
               </Box>
             ) : modelCard ? (
               <Box flexDirection="column">
                 <Box>
-                  <Text color="cyan" bold>{modelCard.id}</Text>
+                  <Text color={theme.accent} bold>{modelCard.id}</Text>
                 </Box>
                 <Box marginTop={1}>
-                  <Text color="gray">Author:     </Text>
+                  <Text color={theme.textMuted}>Author:     </Text>
                   <Text>{modelCard.author}</Text>
                 </Box>
                 <Box>
-                  <Text color="gray">Likes:      </Text>
+                  <Text color={theme.textMuted}>Likes:      </Text>
                   <Text>{modelCard.likes.toLocaleString()}</Text>
                 </Box>
                 <Box>
-                  <Text color="gray">Downloads:  </Text>
+                  <Text color={theme.textMuted}>Downloads:  </Text>
                   <Text>{modelCard.downloads?.toLocaleString() || "—"}</Text>
                 </Box>
                 <Box>
-                  <Text color="gray">Tags:       </Text>
+                  <Text color={theme.textMuted}>Tags:       </Text>
                   <Text>{modelCard.tags.join(", ")}</Text>
                 </Box>
                 {modelCard.pipelineTag && (
                   <Box>
-                    <Text color="gray">Pipeline:   </Text>
+                    <Text color={theme.textMuted}>Pipeline:   </Text>
                     <Text>{modelCard.pipelineTag}</Text>
                   </Box>
                 )}
                 <Box>
-                  <Text color="gray">Created:    </Text>
+                  <Text color={theme.textMuted}>Created:    </Text>
                   <Text>{formatDate(modelCard.createdAt)}</Text>
                 </Box>
                 <Box>
-                  <Text color="gray">Modified:   </Text>
+                  <Text color={theme.textMuted}>Modified:   </Text>
                   <Text>{formatDate(modelCard.lastModified)}</Text>
                 </Box>
               </Box>
             ) : (
               <Box>
-                <Text color="gray">Failed to load model card.</Text>
+                <Text color={theme.textMuted}>Failed to load model card.</Text>
               </Box>
             )}
           </Box>
 
           {message && (
             <Box marginTop={1}>
-              <Text color="green">{` › ${message}`}</Text>
+              <Text color={theme.success}>{` › ${message}`}</Text>
             </Box>
           )}
         </Box>
@@ -800,26 +813,26 @@ export default function ModelsTab() {
 
     return (
       <Box flexDirection="column" flexGrow={1}>
-        <Box flexDirection="column" borderStyle="single" borderColor="gray">
+        <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
           <Box flexDirection="row" justifyContent="space-between">
             <Box>
-              <Text bold>Browse HuggingFace</Text>
+              <Text color={theme.text} bold>Browse HuggingFace</Text>
               <Text> {" │ "} </Text>
-              <Text color="gray">{browseResults.length} results</Text>
+              <Text color={theme.textMuted}>{browseResults.length} results</Text>
             </Box>
             <Box>
-              <Text color="gray">j/k navigate │ f filters │ s sort │ m card │ Enter open │ g back</Text>
+              <Text color={theme.textMuted}>j/k navigate │ f filters │ s sort │ m card │ Enter open │ g back</Text>
             </Box>
           </Box>
         </Box>
 
         {(isFilters || isSort) && (
-          <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
+          <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor={theme.border}>
             {isFilters && (
               <Box flexDirection="column">
                 <Box>
-                  <Text color="gray" bold>Filters:</Text>
-                  <Text color="gray"> (h/l navigate │ Enter toggle │ s sort │ g back)</Text>
+                  <Text color={theme.textMuted} bold>Filters:</Text>
+                  <Text color={theme.textMuted}> (h/l navigate │ Enter toggle │ s sort │ g back)</Text>
                 </Box>
                 <Box flexDirection="row" marginTop={1}>
                   {ALL_FILTERS.map((f, i) => (
@@ -837,8 +850,8 @@ export default function ModelsTab() {
             {isSort && (
               <Box flexDirection="column">
                 <Box>
-                  <Text color="gray" bold>Sort:</Text>
-                  <Text color="gray"> (h/l navigate │ Enter apply │ R reverse │ g back)</Text>
+                  <Text color={theme.textMuted} bold>Sort:</Text>
+                  <Text color={theme.textMuted}> (h/l navigate │ Enter apply │ R reverse │ g back)</Text>
                 </Box>
                 <Box flexDirection="row" marginTop={1}>
                   {SORT_OPTIONS.map((s, i) => (
@@ -865,13 +878,13 @@ export default function ModelsTab() {
         <Box flexDirection="column" flexGrow={1} marginTop={1}>
           {searching ? (
             <Box>
-              <Text color="cyan"><Spinner type="line" /></Text>
+              <Text color={theme.accent}><Spinner type="line" /></Text>
               <Text> {" "} </Text>
-              <Text color="gray">Fetching models...</Text>
+              <Text color={theme.textMuted}>Fetching models...</Text>
             </Box>
           ) : browseResults.length === 0 ? (
             <Box>
-              <Text color="gray">No results. Press f for filters or g to go back.</Text>
+              <Text color={theme.textMuted}>No results. Press f for filters or g to go back.</Text>
             </Box>
           ) : (
             browseResults.map((r, i) => (
@@ -890,21 +903,21 @@ export default function ModelsTab() {
 
         {downloading && (
           <Box marginTop={1}>
-            <Text color="cyan"><Spinner type="line" /></Text>
+            <Text color={theme.accent}><Spinner type="line" /></Text>
             <Text> {" "} </Text>
-            <Text color="gray">{dlLabel}</Text>
+            <Text color={theme.textMuted}>{dlLabel}</Text>
             <Text> {" "} </Text>
-            <Text color="gray">({dlProgress}%)</Text>
+            <Text color={theme.textMuted}>({dlProgress}%)</Text>
             <Box>
-              <Text color="gray">{"█".repeat(Math.round(dlProgress / 5))}</Text>
-              <Text color="gray">{"░".repeat(20 - Math.round(dlProgress / 5))}</Text>
+              <Text color={theme.accent}>{"█".repeat(Math.round(dlProgress / 5))}</Text>
+              <Text color={theme.textMuted}>{"░".repeat(20 - Math.round(dlProgress / 5))}</Text>
             </Box>
           </Box>
         )}
 
         {message && (
           <Box marginTop={1}>
-            <Text color="green">{` › ${message}`}</Text>
+            <Text color={theme.success}>{` › ${message}`}</Text>
           </Box>
         )}
       </Box>
@@ -913,25 +926,25 @@ export default function ModelsTab() {
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box flexDirection="column" borderStyle="single" borderColor="gray">
+      <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
         <Box flexDirection="row" justifyContent="space-between">
           <Box>
-            <Text bold>Models</Text>
+            <Text color={theme.text} bold>Models</Text>
             <Text> {" │ "} </Text>
-            <Text color="gray">{models.length} local</Text>
+            <Text color={theme.textMuted}>{models.length} local</Text>
           </Box>
           <Box>
-            <Text color="gray">{formatSize(totalSize)} used</Text>
+            <Text color={theme.textMuted}>{formatSize(totalSize)} used</Text>
           </Box>
         </Box>
         <Box>
-          <Text color="gray">Dir: </Text>
-          <Text color="blue">{config ? getModelsDir(config) : "<unknown>"}</Text>
+          <Text color={theme.textMuted}>Dir: </Text>
+          <Text color={theme.textLink}>{config ? getModelsDir(config) : "<unknown>"}</Text>
         </Box>
       </Box>
 
       <Box marginTop={1}>
-        <Text color="gray" wrap="wrap">
+        <Text color={theme.textMuted} wrap="wrap">
           j/k navigate │ g actions │ h/l action select │ Enter execute │ Ctrl+C cancel
         </Text>
       </Box>
@@ -939,7 +952,7 @@ export default function ModelsTab() {
       <Box flexDirection="column" flexGrow={1} marginTop={1}>
         {models.length === 0 ? (
           <Box>
-            <Text color="gray">No models downloaded. Press g for actions → Search.</Text>
+            <Text color={theme.textMuted}>No models downloaded. Press g for actions → Search.</Text>
           </Box>
         ) : (
           models.map((m, i) => (
@@ -957,9 +970,9 @@ export default function ModelsTab() {
         )}
       </Box>
 
-      <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
+      <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor={theme.border}>
         <Box>
-          <Text color="gray" bold>Actions:</Text>
+          <Text color={theme.textMuted} bold>Actions:</Text>
         </Box>
       <Box flexDirection="row">
           {actions.map((action, i) => (
@@ -987,28 +1000,28 @@ export default function ModelsTab() {
 
       {editMode && (
         <Box marginTop={1}>
-          <Text color="yellow" bold>Search HF: </Text>
+          <Text color={theme.warning} bold>Search HF: </Text>
           <TextInput value={editValue} onChange={setEditValue} focus />
         </Box>
       )}
 
       {downloading && (
         <Box marginTop={1}>
-          <Text color="cyan"><Spinner type="line" /></Text>
+          <Text color={theme.accent}><Spinner type="line" /></Text>
           <Text> {" "} </Text>
-          <Text color="gray">{dlLabel}</Text>
+          <Text color={theme.textMuted}>{dlLabel}</Text>
           <Text> {" "} </Text>
-          <Text color="gray">({dlProgress}%)</Text>
-          <Box>
-            <Text color="gray">{"█".repeat(Math.round(dlProgress / 5))}</Text>
-            <Text color="gray">{"░".repeat(20 - Math.round(dlProgress / 5))}</Text>
-          </Box>
-        </Box>
-      )}
+          <Text color={theme.textMuted}>({dlProgress}%)</Text>
+           <Box>
+             <Text color={theme.accent}>{"█".repeat(Math.round(dlProgress / 5))}</Text>
+             <Text color={theme.textMuted}>{"░".repeat(20 - Math.round(dlProgress / 5))}</Text>
+           </Box>
+         </Box>
+       )}
 
       {message && (
         <Box marginTop={1}>
-          <Text color="green">{` › ${message}`}</Text>
+          <Text color={theme.success}>{` › ${message}`}</Text>
         </Box>
       )}
     </Box>

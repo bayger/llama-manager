@@ -5,6 +5,7 @@ import { loadConfig, saveConfig, ConfigData, PRESET_CATEGORIES } from "../../lib
 import { startServer, stopServer, getStatus } from "../../lib/server.js";
 import TextInput from "ink-text-input";
 import { useOnClick } from "@ink-tools/ink-mouse";
+import { theme } from "../../lib/theme.js";
 
 type ServerState = "stopped" | "starting" | "running" | "stopping";
 type FocusArea = "controls" | "form";
@@ -297,7 +298,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
     return (
       <Box flexDirection="column" flexGrow={1}>
         <Box paddingTop={1}>
-          <Text color="gray">Loading config...</Text>
+          <Text color={theme.textMuted}>Loading config...</Text>
         </Box>
       </Box>
     );
@@ -308,33 +309,33 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box flexDirection="column" borderStyle="single" borderColor="gray">
+      <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
         <Box flexDirection="row" justifyContent="space-between">
           <Box>
-            <Text bold>Server</Text>
+            <Text color={theme.text} bold>Server</Text>
             <Text> {" │ "} </Text>
-            <Text color={serverState === "running" ? "green" : serverState === "starting" || serverState === "stopping" ? "yellow" : "red"}>
+            <Text color={serverState === "running" ? theme.success : serverState === "starting" || serverState === "stopping" ? theme.warning : theme.danger}>
               {serverState === "starting" || serverState === "stopping"
-                ? <><Text color="cyan"><Spinner type="line" /></Text> {serverState}</>
+                ? <><Text color={theme.accent}><Spinner type="line" /></Text> {serverState}</>
                 : serverState}
             </Text>
           </Box>
           <Box>
-            {pid && <Text color="gray">PID: {pid}</Text>}
+            {pid && <Text color={theme.textMuted}>PID: {pid}</Text>}
             {serverState === "running" && (
               <>
                 <Text> {" │ "} </Text>
-                <Text color="gray">Uptime: {formatUptime(uptime)}</Text>
+                <Text color={theme.textMuted}>Uptime: {formatUptime(uptime)}</Text>
               </>
             )}
           </Box>
         </Box>
         <Box>
-          <Text color="gray">Version: </Text>
+          <Text color={theme.textMuted}>Version: </Text>
           <Text>{config.activeVersion || "<none>"}</Text>
           <Text> {" │ "} </Text>
-          <Text color="gray">URL: </Text>
-          <Text color="blue">{`http://${host}:${port}`}</Text>
+          <Text color={theme.textMuted}>URL: </Text>
+          <Text color={theme.textLink}>{`http://${host}:${port}`}</Text>
         </Box>
       </Box>
 
@@ -347,8 +348,8 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
               <Box key={label} marginRight={1} ref={controlRefs.current[i]}>
                 <Text
                   bold={isActive}
-                  color={isActive ? "white" : enabled ? "cyan" : "gray"}
-                  backgroundColor={isActive ? "white" : undefined}
+                  color={isActive ? theme.selectedText : enabled ? theme.accent : theme.textMuted}
+                  backgroundColor={isActive ? theme.selected : undefined}
                 >
                   {` ${label} `}
                 </Text>
@@ -360,13 +361,13 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
 
       {message && (
         <Box marginTop={1}>
-          <Text color="green">{` › ${message}`}</Text>
+          <Text color={theme.success}>{` › ${message}`}</Text>
         </Box>
       )}
 
       <Box flexDirection="column" flexGrow={1} marginTop={1}>
         <Box marginBottom={1} ref={hfTokenRef}>
-          <Text color="gray" bold>HF Token:</Text>
+          <Text color={theme.textMuted} bold>HF Token:</Text>
           {editMode && editKey === "hfToken" ? (
             <>
               <Text> {" "} </Text>
@@ -379,17 +380,17 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
           ) : (
             <>
               <Text> {" "} </Text>
-              <Text color={config.hfToken ? "green" : "gray"}>
+              <Text color={config.hfToken ? theme.success : theme.textMuted}>
                 {config.hfToken ? `●●●●●●${config.hfToken.slice(-4)}` : "<not set>"}
               </Text>
               <Text> {" "} </Text>
-              <Text color="gray">[Enter to edit]</Text>
+              <Text color={theme.textMuted}>[Enter to edit]</Text>
             </>
           )}
         </Box>
 
         <Box marginBottom={1}>
-          <Text color="gray" wrap="wrap">
+          <Text color={theme.textMuted} wrap="wrap">
             j/k navigate │ Enter edit/toggle │ Space expand/collapse │ g controls │ Ctrl+C cancel edit
           </Text>
         </Box>
@@ -406,9 +407,9 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
               <Box key={cat.name} flexDirection="column">
                 <Box ref={headerRefs.current[ci]}>
                   <Text
-                    color={isHeaderSelected ? "white" : "cyan"}
+                    color={isHeaderSelected ? theme.selectedText : theme.accent}
                     bold={isHeaderSelected}
-                    backgroundColor={isHeaderSelected ? "white" : undefined}
+                    backgroundColor={isHeaderSelected ? theme.selected : undefined}
                   >
                     {isCollapsed ? "▶" : "▼"} {cat.name} ({cat.fields.length})
                   </Text>
@@ -425,8 +426,8 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
 
                     if (isEditing && (field.type === "string" || field.type === "number")) {
                       return (
-                 <Box key={field.key} marginLeft={2} ref={fieldOnlyIndex !== -1 ? fieldRowRefs.current[fieldOnlyIndex] : undefined}>
-                          <Text color="yellow" bold>{field.flag}</Text>
+                  <Box key={field.key} marginLeft={2} ref={fieldOnlyIndex !== -1 ? fieldRowRefs.current[fieldOnlyIndex] : undefined}>
+                          <Text color={theme.warning} bold>{field.flag}</Text>
                           <Text> {" "} </Text>
                           <TextInput
                             value={editValue}
@@ -438,24 +439,24 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
                     }
 
                     return (
-                      <Box key={field.key} marginLeft={2}>
-                        <Text color={isSelected ? "white" : "gray"} bold={isSelected}>
+                      <Box key={field.key} marginLeft={2} backgroundColor={isSelected ? theme.selected : undefined}>
+                        <Text color={isSelected ? theme.selectedText : theme.textMuted} bold={isSelected}>
                           {field.flag}
                         </Text>
                         <Text> {" "} </Text>
-                        <Text color={isSelected ? "white" : value !== field.default ? "green" : "gray"}>
-                          {formatValue(value, field.type) || <Text color="gray">&lt;default&gt;</Text>}
+                        <Text color={isSelected ? theme.selectedText : value !== field.default ? theme.success : theme.textMuted}>
+                          {formatValue(value, field.type) || <Text color={isSelected ? theme.selectedText : theme.textMuted}>&lt;default&gt;</Text>}
                         </Text>
                         {field.type === "enum" && field.options && (
                           <>
                             <Text> {" "} </Text>
-                            <Text color="gray">{`[${field.options.join("/")}]`}</Text>
+                            <Text color={isSelected ? theme.selectedText : theme.textMuted}>{`[${field.options.join("/")}]`}</Text>
                           </>
                         )}
                         {isSelected && (
                           <>
                             <Text> {" "} </Text>
-                            <Text color="gray">
+                            <Text color={theme.selectedText}>
                               {field.type === "boolean" ? "[toggle]"
                                 : field.type === "enum" ? "[cycle]" : "[edit]"}
                             </Text>
@@ -469,19 +470,19 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
           })}
 
           <Box marginTop={1}>
-            <Text color="white" bold>Free-form args</Text>
-            <Text color="gray"> (arbitrary flags)</Text>
+            <Text color={theme.accent} bold>Free-form args</Text>
+            <Text color={theme.textMuted}> (arbitrary flags)</Text>
           </Box>
           {config.server.freeFormArgs.length > 0
             ? config.server.freeFormArgs.map((arg, i) => (
                 <Box key={i} marginLeft={2}>
-                  <Text color="gray">{`${i + 1}. `}</Text>
-                  <Text color="cyan">{arg}</Text>
+                  <Text color={theme.textMuted}>{`${i + 1}. `}</Text>
+                  <Text color={theme.accent}>{arg}</Text>
                 </Box>
               ))
             : (
                 <Box marginLeft={2}>
-                  <Text color="gray">None configured</Text>
+                  <Text color={theme.textMuted}>None configured</Text>
                 </Box>
               )}
         </Box>

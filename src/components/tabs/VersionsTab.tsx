@@ -6,6 +6,7 @@ import { loadConfig, saveConfig, ConfigData, getVersionsDir } from "../../lib/co
 import { listVersions, switchVersion, uninstallVersion, checkLatestVersion, installVersion, listRecentVersions, getTotalVersionsSize, VersionInfo, RemoteVersion } from "../../lib/versions.js";
 import { formatSize } from "../../lib/models.js";
 import { useOnClick } from "@ink-tools/ink-mouse";
+import { theme } from "../../lib/theme.js";
 
 type FocusArea = "list" | "actions" | "releases";
 type Action = "switch" | "uninstall" | "check" | "install";
@@ -27,8 +28,8 @@ function ActionButton({ action, isActive, onClick }: { action: Action; isActive:
     <Box marginRight={1} ref={ref}>
       <Text
         bold={isActive}
-        color={isActive ? "white" : "cyan"}
-        backgroundColor={isActive ? "white" : undefined}
+        color={isActive ? theme.selectedText : theme.accent}
+        backgroundColor={isActive ? theme.selected : undefined}
       >
         {` ${label} `}
       </Text>
@@ -40,17 +41,23 @@ function VersionRow({ version, isSelected, onClick }: { version: VersionInfo; is
   const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
   useOnClick(ref, onClick);
   return (
-    <Box ref={ref}>
-      <Text color={isSelected ? "white" : version.active ? "green" : "gray"} bold={isSelected || version.active}>
+    <Box ref={ref} backgroundColor={isSelected ? theme.selected : undefined}>
+      <Text color={isSelected ? theme.selectedText : version.active ? theme.success : theme.textMuted} bold={isSelected || version.active}>
         {version.active ? "● " : "  "}
       </Text>
-      <Text color={isSelected ? "white" : "cyan"} bold={isSelected}>
+      <Text color={isSelected ? theme.selectedText : theme.accent} bold={isSelected}>
         {version.version}
       </Text>
-      {version.active && (
+      {version.active && !isSelected && (
         <>
           <Text> {" "} </Text>
-          <Text color="green">(active)</Text>
+          <Text color={theme.success}>(active)</Text>
+        </>
+      )}
+      {version.active && isSelected && (
+        <>
+          <Text> {" "} </Text>
+          <Text color={theme.selectedText}>(active)</Text>
         </>
       )}
     </Box>
@@ -61,21 +68,27 @@ function ReleaseRow({ release, isSelected, isInstalled, onClick }: { release: Re
   const ref = React.useRef<React.ComponentRef<typeof Box>>(null);
   useOnClick(ref, onClick);
   return (
-    <Box ref={ref}>
-      <Text color={isSelected ? "white" : isInstalled ? "green" : "cyan"} bold={isSelected}>
+    <Box ref={ref} backgroundColor={isSelected ? theme.selected : undefined}>
+      <Text color={isSelected ? theme.selectedText : isInstalled ? theme.success : theme.accent} bold={isSelected}>
         {isSelected ? "▸ " : "  "}
       </Text>
-      <Text color={isSelected ? "white" : "white"} bold={isSelected}>
+      <Text color={isSelected ? theme.selectedText : theme.text} bold={isSelected}>
         {release.tag}
       </Text>
       <Text> {" "} </Text>
-      <Text color={isSelected ? "gray" : "gray"}>
+      <Text color={isSelected ? theme.selectedText : theme.textMuted}>
         ({formatDate(release.publishedAt)})
       </Text>
-      {isInstalled && (
+      {isInstalled && !isSelected && (
         <>
           <Text> {" "} </Text>
-          <Text color="green">[installed]</Text>
+          <Text color={theme.success}>[installed]</Text>
+        </>
+      )}
+      {isInstalled && isSelected && (
+        <>
+          <Text> {" "} </Text>
+          <Text color={theme.selectedText}>[installed]</Text>
         </>
       )}
     </Box>
@@ -293,7 +306,7 @@ export default function VersionsTab() {
     return (
       <Box flexDirection="column" flexGrow={1}>
         <Box paddingTop={1}>
-          <Text color="gray">Loading versions...</Text>
+          <Text color={theme.textMuted}>Loading versions...</Text>
         </Box>
       </Box>
     );
@@ -302,13 +315,13 @@ export default function VersionsTab() {
   if (focusArea === "releases") {
     return (
       <Box flexDirection="column" flexGrow={1}>
-        <Box flexDirection="column" borderStyle="single" borderColor="gray">
+        <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
           <Box flexDirection="row" justifyContent="space-between">
             <Box>
-              <Text bold>Install version</Text>
+              <Text color={theme.text} bold>Install version</Text>
             </Box>
             <Box>
-              <Text color="gray">j/k navigate │ Enter install │ g back │ e custom tag</Text>
+              <Text color={theme.textMuted}>j/k navigate │ Enter install │ g back │ e custom tag</Text>
             </Box>
           </Box>
         </Box>
@@ -316,13 +329,13 @@ export default function VersionsTab() {
         <Box flexDirection="column" flexGrow={1} marginTop={1}>
           {fetchingReleases ? (
             <Box>
-              <Text color="cyan"><Spinner type="line" /></Text>
+              <Text color={theme.accent}><Spinner type="line" /></Text>
               <Text> {" "} </Text>
-              <Text color="gray">Fetching releases...</Text>
+              <Text color={theme.textMuted}>Fetching releases...</Text>
             </Box>
           ) : releases.length === 0 ? (
             <Box>
-              <Text color="gray">Failed to fetch releases. Press e for custom tag or g to go back.</Text>
+              <Text color={theme.textMuted}>Failed to fetch releases. Press e for custom tag or g to go back.</Text>
             </Box>
           ) : (
             releases.map((r, i) => (
@@ -342,28 +355,28 @@ export default function VersionsTab() {
 
         {editMode && (
           <Box marginTop={1}>
-            <Text color="yellow" bold>Custom tag: </Text>
+            <Text color={theme.warning} bold>Custom tag: </Text>
             <TextInput value={editValue} onChange={setEditValue} focus />
           </Box>
         )}
 
         {installing && (
           <Box marginTop={1}>
-            <Text color="cyan"><Spinner type="line" /></Text>
+            <Text color={theme.accent}><Spinner type="line" /></Text>
             <Text> {" "} </Text>
-            <Text color="gray">{installLabel}</Text>
+            <Text color={theme.textMuted}>{installLabel}</Text>
             <Text> {" "} </Text>
-            <Text color="gray">({installProgress}%)</Text>
+            <Text color={theme.textMuted}>({installProgress}%)</Text>
             <Box>
-              <Text color="gray">{"█".repeat(Math.round(installProgress / 5))}</Text>
-              <Text color="gray">{"░".repeat(20 - Math.round(installProgress / 5))}</Text>
+              <Text color={theme.accent}>{"█".repeat(Math.round(installProgress / 5))}</Text>
+              <Text color={theme.textMuted}>{"░".repeat(20 - Math.round(installProgress / 5))}</Text>
             </Box>
           </Box>
         )}
 
         {message && (
           <Box marginTop={1}>
-            <Text color="green">{` › ${message}`}</Text>
+            <Text color={theme.success}>{` › ${message}`}</Text>
           </Box>
         )}
       </Box>
@@ -372,25 +385,25 @@ export default function VersionsTab() {
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <Box flexDirection="column" borderStyle="single" borderColor="gray">
+      <Box flexDirection="column" borderStyle="single" borderColor={theme.border}>
         <Box flexDirection="row" justifyContent="space-between">
           <Box>
-            <Text bold>Versions</Text>
+            <Text color={theme.text} bold>Versions</Text>
             <Text> {" │ "} </Text>
-            <Text color="gray">{versions.length} installed</Text>
+            <Text color={theme.textMuted}>{versions.length} installed</Text>
           </Box>
           <Box>
-            <Text color="gray">{formatSize(totalSize)} used</Text>
+            <Text color={theme.textMuted}>{formatSize(totalSize)} used</Text>
           </Box>
         </Box>
         <Box>
-          <Text color="gray">Dir: </Text>
-          <Text color="blue">{config ? getVersionsDir(config) : "<unknown>"}</Text>
+          <Text color={theme.textMuted}>Dir: </Text>
+          <Text color={theme.textLink}>{config ? getVersionsDir(config) : "<unknown>"}</Text>
         </Box>
       </Box>
 
       <Box marginTop={1}>
-        <Text color="gray" wrap="wrap">
+        <Text color={theme.textMuted} wrap="wrap">
           j/k navigate │ g actions │ h/l action select │ Enter execute │ Ctrl+C cancel
         </Text>
       </Box>
@@ -398,7 +411,7 @@ export default function VersionsTab() {
       <Box flexDirection="column" flexGrow={1} marginTop={1}>
         {versions.length === 0 ? (
           <Box>
-            <Text color="gray">No versions installed. Press g for actions → Install.</Text>
+            <Text color={theme.textMuted}>No versions installed. Press g for actions → Install.</Text>
           </Box>
         ) : (
           versions.map((v, i) => (
@@ -416,9 +429,9 @@ export default function VersionsTab() {
         )}
       </Box>
 
-      <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
+      <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor={theme.border}>
         <Box>
-          <Text color="gray" bold>Actions:</Text>
+          <Text color={theme.textMuted} bold>Actions:</Text>
         </Box>
         <Box flexDirection="row">
           {actions.map((action, i) => (
@@ -441,21 +454,21 @@ export default function VersionsTab() {
 
       {installing && (
         <Box marginTop={1}>
-          <Text color="cyan"><Spinner type="line" /></Text>
+          <Text color={theme.accent}><Spinner type="line" /></Text>
           <Text> {" "} </Text>
-          <Text color="gray">{installLabel}</Text>
+          <Text color={theme.textMuted}>{installLabel}</Text>
           <Text> {" "} </Text>
-          <Text color="gray">({installProgress}%)</Text>
-          <Box>
-            <Text color="gray">{"█".repeat(Math.round(installProgress / 5))}</Text>
-            <Text color="gray">{"░".repeat(20 - Math.round(installProgress / 5))}</Text>
-          </Box>
-        </Box>
-      )}
+       <Text color={theme.textMuted}>({installProgress}%)</Text>
+           <Box>
+             <Text color={theme.accent}>{"█".repeat(Math.round(installProgress / 5))}</Text>
+             <Text color={theme.textMuted}>{"░".repeat(20 - Math.round(installProgress / 5))}</Text>
+           </Box>
+         </Box>
+       )}
 
       {message && (
         <Box marginTop={1}>
-          <Text color="green">{` › ${message}`}</Text>
+          <Text color={theme.success}>{` › ${message}`}</Text>
         </Box>
       )}
     </Box>

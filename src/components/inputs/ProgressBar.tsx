@@ -1,5 +1,6 @@
 import React from "react";
 import { Text, Box } from "ink";
+import { theme } from "../../lib/theme.js";
 
 interface Props {
   progress: number;
@@ -13,9 +14,9 @@ export default function ProgressBar({ progress, label }: Props) {
 
   return (
     <Box>
-      {label && <Text color="cyan">{label}: </Text>}
-      <Text color="cyan">{bar}</Text>
-      <Text color="gray"> {Math.round(progress)}%</Text>
+      {label && <Text color={theme.accent}>{label}: </Text>}
+      <Text color={theme.accent}>{bar}</Text>
+      <Text color={theme.textMuted}> {Math.round(progress)}%</Text>
     </Box>
   );
 }

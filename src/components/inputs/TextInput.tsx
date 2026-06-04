@@ -1,6 +1,7 @@
 import React from "react";
 import TextInput from "ink-text-input";
 import { Box, Text } from "ink";
+import { theme } from "../../lib/theme.js";
 
 interface Props {
   label: string;
@@ -12,7 +13,7 @@ export default function TextInputField({ label, value, onChange }: Props) {
   return (
     <Box flexDirection="column">
       <Box>
-        <Text color="cyan">{label}</Text>
+        <Text color={theme.accent}>{label}</Text>
       </Box>
       <Box>
         <TextInput value={value} onChange={onChange} />

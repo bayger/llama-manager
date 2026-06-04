@@ -1,5 +1,6 @@
 import React from "react";
 import { Box, Text } from "ink";
+import { theme } from "../../lib/theme.js";
 
 export default function DashboardTab() {
   return (
@@ -8,7 +9,7 @@ export default function DashboardTab() {
         <Text bold>Dashboard</Text>
       </Box>
       <Box>
-        <Text color="gray">(coming soon)</Text>
+        <Text color={theme.textMuted}>(coming soon)</Text>
       </Box>
     </Box>
   );
