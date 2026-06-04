@@ -4,6 +4,34 @@ import { spawn } from "child_process";
 import { onServerLog, serverLogLines, clearServerLogs, getStatus } from "../../lib/server.js";
 import { theme } from "../../lib/theme.js";
 
+const severityColor = (level: string): string => {
+  const l = level.toUpperCase();
+  if (l === "E" || l === "F") return theme.danger;
+  if (l === "W") return theme.warning;
+  if (l === "I") return theme.accent;
+  if (l === "D" || l === "T") return theme.textMuted;
+  return theme.text;
+};
+
+const parseLogLine = (line: string) => {
+  // Format: "2.23.304.800 I slot print_timing: ..."
+  const match = line.match(/^([\d.]+)\s+([A-Z])\s+(\S+)\s+(.*)$/);
+  if (match) {
+    return {
+      timestamp: match[1],
+      level: match[2],
+      component: match[3],
+      message: match[4],
+    };
+  }
+  return {
+    timestamp: null,
+    level: null,
+    component: null,
+    message: line,
+  };
+};
+
 export default function LiveLogsTab({ message, showMessage, setIsTextInputFocused }: { message: string | null; showMessage: (msg: string) => void; setIsTextInputFocused: (focused: boolean) => void }) {
   const [, setTick] = React.useState(0);
   const [running, setRunning] = React.useState(false);
@@ -97,11 +125,27 @@ export default function LiveLogsTab({ message, showMessage, setIsTextInputFocuse
             <Text color={theme.textMuted}>Waiting for server output...</Text>
           </Box>
         ) : (
-          lines.map((line, i) => (
-            <Box key={i}>
-              <Text color={theme.textMuted} wrap="wrap">{`› ${line}`}</Text>
-            </Box>
-          ))
+          lines.map((line, i) => {
+            const { timestamp, level, component, message } = parseLogLine(line);
+            return (
+              <Box key={i}>
+                <Text color={theme.textMuted}>{"› "}</Text>
+                {timestamp && (
+                  <Text color={theme.textMuted}>{timestamp}</Text>
+                )}
+                {timestamp && <Text>{" "}</Text>}
+                {level && (
+                  <Text color={severityColor(level)} bold>{level}</Text>
+                )}
+                {level && <Text>{" "}</Text>}
+                {component && (
+                  <Text color={theme.textMuted}>{component}</Text>
+                )}
+                {component && <Text>{" "}</Text>}
+                <Text color={theme.text} wrap="wrap">{message}</Text>
+              </Box>
+            );
+          })
         )}
       </Box>
     </Box>
