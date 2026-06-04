@@ -203,7 +203,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
     const category = { ...(presets[cat.presetKey] as Record<string, unknown>) };
     let value: unknown = raw;
     if (type === "number") value = Number(raw);
-    else if (type === "boolean") value = raw === "on";
+    else if (type === "boolean") value = raw === "on" || raw === "true";
     category[key] = value;
     presets[cat.presetKey] = category;
     const newProfile = { ...profile, presets, freeFormArgs: profile.freeFormArgs };
