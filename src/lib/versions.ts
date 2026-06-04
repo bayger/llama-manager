@@ -4,8 +4,22 @@ import os from "os";
 import { getVersionsDir } from "./config.js";
 import { ConfigData } from "./config.js";
 
+export const BACKEND_LABELS: Record<string, string> = {
+  cpu: "CPU",
+  metal: "Metal",
+  cuda12: "CUDA 12",
+  cuda13: "CUDA 13",
+  vulkan: "Vulkan",
+  rocm: "ROCm",
+  openvino: "OpenVINO",
+  opencl: "OpenCL",
+  hip: "HIP/Radeon",
+};
+
 export interface VersionInfo {
   version: string;
+  tag: string;
+  backend: string;
   path: string;
   active: boolean;
 }
@@ -15,6 +29,12 @@ export interface RemoteVersion {
   name: string;
   publishedAt: string;
   assets: Array<{ name: string; size: number }>;
+}
+
+export interface AvailableBackend {
+  id: string;
+  label: string;
+  assetName: string;
 }
 
 const GITHUB_REPO = "ggml-org/llama.cpp";
@@ -39,6 +59,24 @@ export async function listRecentVersions(limit = 20): Promise<RemoteVersion[]> {
 
 export type InstallProgress = (pct: number, label: string) => void;
 
+function parseFolderName(name: string): { tag: string; backend: string } {
+  const match = name.match(/^(b\d+)(-.+)?$/);
+  if (match) {
+    return { tag: match[1], backend: match[2] ? match[2].slice(1) : "cpu" };
+  }
+  return { tag: name, backend: "cpu" };
+}
+
+function getBackendLabel(backend: string): string {
+  if (BACKEND_LABELS[backend]) return BACKEND_LABELS[backend];
+  const base = Object.keys(BACKEND_LABELS).find((k) => backend.startsWith(k));
+  if (base) {
+    const suffix = backend.slice(base.length);
+    return BACKEND_LABELS[base] + (suffix ? ` ${suffix}` : "");
+  }
+  return backend;
+}
+
 export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
   const dir = getVersionsDir(config);
   if (!(await fs.pathExists(dir))) return [];
@@ -51,15 +89,22 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
     const versionPath = path.join(dir, entry.name);
     const binary = path.join(versionPath, "llama-server");
     if (await fs.pathExists(binary)) {
+      const { tag, backend } = parseFolderName(entry.name);
       versions.push({
         version: entry.name,
+        tag,
+        backend,
         path: versionPath,
         active: entry.name === config.activeVersion,
       });
     }
   }
 
-  return versions.sort((a, b) => b.version.localeCompare(a.version));
+  return versions.sort((a, b) => {
+    const tagCmp = b.tag.localeCompare(a.tag);
+    if (tagCmp !== 0) return tagCmp;
+    return a.backend.localeCompare(b.backend);
+  });
 }
 
 export async function switchVersion(config: ConfigData, version: string): Promise<ConfigData> {
@@ -98,7 +143,7 @@ export async function checkLatestVersion(): Promise<string> {
   return data.tag_name;
 }
 
-function getPlatformKey(): string {
+export function getPlatformKey(): string {
   const platform = os.platform();
   const arch = os.arch();
   if (platform === "linux" && arch === "x64") return "ubuntu-x64";
@@ -108,36 +153,96 @@ function getPlatformKey(): string {
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
 }
 
-function resolveAssetName(version: string, platform: string, assets: Array<{ name: string }>): string | null {
-  const expected = `llama-${version}-bin-${platform}.tar.gz`;
-  const exact = assets.find((a) => a.name === expected);
-  if (exact) return exact.name;
+function extractBackendFromAsset(assetName: string, version: string, platform: string): string | null {
+  const ext = assetName.endsWith(".tar.gz") ? ".tar.gz" : assetName.endsWith(".zip") ? ".zip" : null;
+  if (!ext) return null;
+
+  const base = assetName.slice(0, assetName.length - ext.length);
+  const prefix = `llama-${version}-bin-${platform}`;
+  const suffix = `-${getArch(platform)}`;
+
+  if (!base.startsWith(prefix) || !base.endsWith(suffix)) return null;
+
+  const between = base.slice(prefix.length, base.length - suffix.length);
+  if (!between || between === "") return "cpu";
+
+  const parts = between.slice(1).split("-");
+  const key = parts[0].toLowerCase();
+  const known = ["cuda", "vulkan", "rocm", "openvino", "opencl", "hip", "adreno"];
+  if (!known.includes(key)) return null;
+
+  const versionPart = parts.slice(1).join(".").replace(/[^0-9]/g, "");
+  return versionPart ? `${key}${versionPart}` : key;
+}
+
+function getArch(platform: string): string {
+  return platform.split("-").pop() || "x64";
+}
+
+export function getAvailableBackends(
+  version: string,
+  platform: string,
+  assets: Array<{ name: string }>,
+): AvailableBackend[] {
+  const backends: AvailableBackend[] = [];
+  const seen = new Set<string>();
 
   for (const asset of assets) {
-    const name = asset.name.toLowerCase();
-    if (name === expected.toLowerCase()) return asset.name;
+    const nameLower = asset.name.toLowerCase();
+    if (!nameLower.includes(`bin-${platform.toLowerCase()}`)) continue;
+
+    const backend = extractBackendFromAsset(asset.name, version, platform);
+    if (!backend || seen.has(backend)) continue;
+    seen.add(backend);
+
+    backends.push({
+      id: backend,
+      label: getBackendLabel(backend),
+      assetName: asset.name,
+    });
   }
 
-  const patterns = [`bin-${platform}`];
+  return backends.sort((a, b) => {
+    if (a.id === "cpu") return -1;
+    if (b.id === "cpu") return 1;
+    if (a.id === "metal") return -1;
+    if (b.id === "metal") return 1;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+function resolveAssetName(
+  version: string,
+  platform: string,
+  backend: string,
+  assets: Array<{ name: string; browser_download_url?: string }>,
+): { name: string; url: string } | null {
   for (const asset of assets) {
-    const name = asset.name.toLowerCase();
-    for (const p of patterns) {
-      if (name.includes(p)) return asset.name;
+    const detected = extractBackendFromAsset(asset.name, version, platform);
+    if (detected === backend && asset.browser_download_url) {
+      return { name: asset.name, url: asset.browser_download_url };
     }
   }
   return null;
 }
 
+function getFolderName(tag: string, backend: string): string {
+  if (backend === "cpu" || backend === "metal") return tag;
+  return `${tag}-${backend}`;
+}
+
 export async function installVersion(
   config: ConfigData,
   version: string,
+  backend: string,
   onProgress: InstallProgress,
-): Promise<void> {
+): Promise<string> {
   const dir = getVersionsDir(config);
-  const versionPath = path.join(dir, version);
+  const folderName = getFolderName(version, backend);
+  const versionPath = path.join(dir, folderName);
 
   if (await fs.pathExists(versionPath)) {
-    throw new Error(`Version already installed: ${version}`);
+    throw new Error(`Version already installed: ${folderName}`);
   }
 
   const platform = getPlatformKey();
@@ -157,14 +262,14 @@ export async function installVersion(
 
   const releaseData = await res.json();
   const assets = releaseData.assets || [];
-  const assetName = resolveAssetName(version, platform, assets);
+  const assetInfo = resolveAssetName(version, platform, backend, assets);
 
-  if (!assetName) {
-    throw new Error(`No prebuilt binary found for ${platform}. Available: ${assets.map((a: any) => a.name).join(", ")}`);
+  if (!assetInfo) {
+    const available = getAvailableBackends(version, platform, assets.map((a: any) => ({ name: a.name })));
+    throw new Error(`Backend "${backend}" not available. Available: ${available.map((b) => b.label).join(", ")}`);
   }
 
-  const downloadUrl = assets.find((a: any) => a.name === assetName)?.browser_download_url;
-  if (!downloadUrl) throw new Error("Download URL not found");
+  const { name: assetName, url: downloadUrl } = assetInfo;
 
   onProgress(5, `Downloading ${assetName}...`);
   const dlRes = await fetch(downloadUrl);
@@ -236,7 +341,8 @@ export async function installVersion(
     await fs.chmod(binary, "755");
   }
 
-  onProgress(100, `Installed ${version}`);
+  onProgress(100, `Installed ${folderName}`);
+  return folderName;
 }
 
 export async function getTotalVersionsSize(config: ConfigData): Promise<number> {
