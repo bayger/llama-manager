@@ -15,7 +15,7 @@ import LiveLogsTab from "./tabs/LiveLogsTab.js";
 const TABS = ["Server", "Tasks", "Versions", "Models", "Dashboard", "Logs", "Options"] as const;
 type TabId = (typeof TABS)[number];
 
-const tabComponents: Record<TabId, React.ComponentType> = {
+const tabComponents: Record<TabId, React.ComponentType<{ message: string | null; showMessage: (msg: string) => void }>> = {
   Server: ServerTab,
   Tasks: TasksTab,
   Versions: VersionsTab,
@@ -31,6 +31,11 @@ export default function App() {
   const handleTabChange = (index: number) => setActiveTab(TABS[index]);
   const ActiveComponent = tabComponents[activeTab];
   const { exit } = useApp();
+  const [message, setMessage] = React.useState<string | null>(null);
+  const showMessage = (msg: string) => {
+    setMessage(msg);
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   useInput((input) => {
     if (input === "q") {
@@ -45,10 +50,10 @@ export default function App() {
           <Tabs tabs={TABS} selectedIndex={tabIndex} onChange={handleTabChange} />
         </Box>
         <Box flexDirection="column" flexGrow={1}>
-          <ActiveComponent />
+          <ActiveComponent message={message} showMessage={showMessage} />
         </Box>
         <Box>
-          <StatusBar activeTab={activeTab} />
+          <StatusBar activeTab={activeTab} message={message} />
         </Box>
       </FullScreenBox>
     </MouseProvider>

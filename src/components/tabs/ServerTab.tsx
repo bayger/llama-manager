@@ -58,12 +58,11 @@ function buildFieldList(config: ConfigData, collapsed: Set<number>) {
   return items;
 }
 
-export default function ServerTab() {
+export default function ServerTab({ message, showMessage }: { message: string | null; showMessage: (msg: string) => void }) {
   const [config, setConfig] = React.useState<ConfigData | null>(null);
   const [serverState, setServerState] = React.useState<ServerState>("stopped");
   const [pid, setPid] = React.useState<number | null>(null);
   const [uptime, setUptime] = React.useState(0);
-  const [message, setMessage] = React.useState<string | null>(null);
   const [focusArea, setFocusArea] = React.useState<FocusArea>("controls");
   const [controlIndex, setControlIndex] = React.useState(0);
   const [collapsed, setCollapsed] = React.useState<Set<number>>(new Set());
@@ -162,11 +161,6 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
     }, 1000);
     return () => { if (statusIntervalRef.current) clearInterval(statusIntervalRef.current); };
   }, [serverState]);
-
-  const showMessage = (msg: string) => {
-    setMessage(msg);
-    setTimeout(() => setMessage(null), 3000);
-  };
 
   const handleStart = async () => {
     if (!config) { showMessage("No config loaded"); return; }
@@ -430,6 +424,25 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
                 ? <><Text color={theme.accent}><Spinner type="line" /></Text> {serverState}</>
                 : serverState}
             </Text>
+            <Text> {" │ "} </Text>
+            {["Start", "Stop", "Restart"].map((label, i) => {
+              const isActive = focusArea === "controls" && controlIndex === i;
+              const enabled = (i === 0 && canStart) || (i === 1 && canStop) || i === 2;
+              return (
+                <React.Fragment key={label}>
+                  {i > 0 && <Text> {" │ "} </Text>}
+                  <Box ref={controlRefs.current[i]}>
+                    <Text
+                      bold={isActive}
+                      color={isActive ? theme.selectedText : enabled ? theme.accent : theme.textMuted}
+                      backgroundColor={isActive ? theme.selected : undefined}
+                    >
+                      {` ${label} `}
+                    </Text>
+                  </Box>
+                </React.Fragment>
+              );
+            })}
           </Box>
           <Box>
             {pid && <Text color={theme.textMuted}>PID: {pid}</Text>}
@@ -450,7 +463,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
         </Box>
       </Box>
 
-      <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="row">
         <Text color={theme.textMuted} bold>Profile: </Text>
         {profileNames.map((name, i) => {
           const isActive = name === config.server.activeProfile;
@@ -461,39 +474,18 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
             </React.Fragment>
           );
         })}
-      </Box>
-
-      <Box marginTop={1}>
-        <Box flexDirection="row">
-          {["Start", "Stop", "Restart"].map((label, i) => {
-            const isActive = focusArea === "controls" && controlIndex === i;
-            const enabled = (i === 0 && canStart) || (i === 1 && canStop) || i === 2;
-            return (
-              <Box key={label} marginRight={1} ref={controlRefs.current[i]}>
-                <Text
-                  bold={isActive}
-                  color={isActive ? theme.selectedText : enabled ? theme.accent : theme.textMuted}
-                  backgroundColor={isActive ? theme.selected : undefined}
-                >
-                  {` ${label} `}
-                </Text>
-              </Box>
-            );
-          })}
-        </Box>
-      </Box>
-
-      <Box marginTop={1}>
-        <Box flexDirection="row">
-          {[
-            { label: "Create", action: "create" },
-            { label: "Rename", action: "rename" },
-            { label: "Delete", action: "delete" },
-          ].map((btn, i) => {
-            const isActive = focusArea === "controls" && controlIndex === 3 + i;
-            const enabled = btn.action !== "delete" || profileNames.length > 1;
-            return (
-              <Box key={btn.action} marginRight={1} ref={controlRefs.current[3 + i]}>
+        <Text> {" │ "} </Text>
+        {[
+          { label: "Create", action: "create" },
+          { label: "Rename", action: "rename" },
+          { label: "Delete", action: "delete" },
+        ].map((btn, i) => {
+          const isActive = focusArea === "controls" && controlIndex === 3 + i;
+          const enabled = btn.action !== "delete" || profileNames.length > 1;
+          return (
+            <React.Fragment key={btn.action}>
+              {i > 0 && <Text> {" │ "} </Text>}
+              <Box ref={controlRefs.current[3 + i]}>
                 <Text
                   bold={isActive}
                   color={isActive ? theme.selectedText : enabled ? theme.accent : theme.textMuted}
@@ -502,25 +494,20 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
                   {` ${btn.label} `}
                 </Text>
               </Box>
-            );
-          })}
-          <Box marginLeft={1}>
-            <Text
-              bold={focusArea === "controls" && controlIndex === 6}
-              color={focusArea === "controls" && controlIndex === 6 ? theme.selectedText : theme.accent}
-              backgroundColor={focusArea === "controls" && controlIndex === 6 ? theme.selected : undefined}
-            >
-              {" Devices "}
-            </Text>
-          </Box>
+            </React.Fragment>
+          );
+        })}
+        <Text> {" │ "} </Text>
+        <Box>
+          <Text
+            bold={focusArea === "controls" && controlIndex === 6}
+            color={focusArea === "controls" && controlIndex === 6 ? theme.selectedText : theme.accent}
+            backgroundColor={focusArea === "controls" && controlIndex === 6 ? theme.selected : undefined}
+          >
+            {" Devices "}
+          </Text>
         </Box>
       </Box>
-
-      {message && (
-        <Box marginTop={1}>
-          <Text color={theme.success}>{` › ${message}`}</Text>
-        </Box>
-      )}
 
       {devicesOutput && (
         <Box marginTop={1} borderStyle="single" borderColor={theme.border}>
@@ -584,7 +571,7 @@ const [selectedIndex, setSelectedIndex] = React.useState(-1);
 
                     if (isEditing && (field.type === "string" || field.type === "number")) {
                       return (
-                  <Box key={field.key} marginLeft={2} ref={fieldOnlyIndex !== -1 ? fieldRowRefs.current[fieldOnlyIndex] : undefined}>
+                        <Box key={field.key} marginLeft={2} ref={fieldOnlyIndex !== -1 ? fieldRowRefs.current[fieldOnlyIndex] : undefined}>
                           <Text color={theme.warning} bold>{field.flag}</Text>
                           <Text> {" "} </Text>
                           <TextInput
