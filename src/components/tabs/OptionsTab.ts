@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, fg, termWidth } from "../../lib/theme.js";
+import { themeColors, fg, termWidth, renderBox, renderLine } from "../../lib/theme.js";
 import { saveConfig } from "../../lib/config.js";
 import type { ConfigData } from "../../lib/config.js";
 
@@ -142,41 +142,24 @@ function getOrCreateState(): OptionsState {
   return state;
 }
 
-function renderLine(term: Terminal, y: number, fn: () => void): void {
-  term.moveTo(1, y);
-  term.eraseLine();
-  fn();
-}
-
 function renderHeader(term: Terminal, startY: number): number {
   const w = termWidth(term);
+  const innerW = w - 2;
   const left = " Options ";
   const mid = ` ${FIELDS.length} settings `;
   const right = " j/k navigate | Enter edit/toggle ";
   const sep = " ";
   const contentLen = left.length + mid.length + right.length + sep.length * 2;
-  const pad = Math.max(0, w - contentLen);
+  const pad = Math.max(0, innerW - contentLen + 2);
 
-  let y = startY;
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "┌");
-    fg(term, themeColors.border, "─".repeat(w - 2));
-    fg(term, themeColors.border, "┐");
-  });
-
-  const line = left + mid + sep + right + " ".repeat(pad);
-  renderLine(term, y++, () => {
-    fg(term, themeColors.text, line);
-  });
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "└");
-    fg(term, themeColors.border, "─".repeat(w - 2));
-    fg(term, themeColors.border, "┘");
-  });
-
-  return y;
+  return renderBox({ term, width: w, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.text, left + mid + sep + right);
+        term(" ".repeat(pad));
+      },
+    },
+  ]);
 }
 
 function renderField(term: Terminal, field: OptionField, config: ConfigData, index: number, selectedIndex: number, startY: number): number {

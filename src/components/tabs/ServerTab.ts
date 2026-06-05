@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, fg, termWidth, termHeight } from "../../lib/theme.js";
+import { themeColors, fg, termWidth, termHeight, renderBox, renderLine } from "../../lib/theme.js";
 import {
   loadConfig,
   saveConfig,
@@ -217,23 +217,9 @@ function stopStatusPolling(): void {
   }
 }
 
-function renderLine(term: Terminal, y: number, fn: () => void): void {
-  term.moveTo(1, y);
-  term.eraseLine();
-  fn();
-}
-
 function renderHeader(term: Terminal, startY: number): number {
   const width = termWidth(term);
-  const sep = "\u2500".repeat(Math.max(0, width - 2));
-
-  renderLine(term, startY, () => {
-    term.bold();
-    fg(term, themeColors.accent, "\u250c");
-    fg(term, themeColors.accent, sep);
-    fg(term, themeColors.accent, "\u2510");
-    term.styleReset();
-  });
+  const innerW = width - 2;
 
   const statusDot = state.serverState === "starting" || state.serverState === "stopping"
     ? ["-", "\\", "|", "/"][state.spinnerIndex % 4]
@@ -251,15 +237,6 @@ function renderHeader(term: Terminal, startY: number): number {
   if (pidText) headerLine += ` │ ${pidText}`;
   if (uptimeText) headerLine += ` │ ${uptimeText}`;
 
-  renderLine(term, startY + 1, () => {
-    fg(term, themeColors.accent, "\u2502");
-    term(" ");
-    fg(term, themeColors.text, headerLine.trim());
-    const headerPad = Math.max(0, width - 4 - headerLine.trim().length);
-    term(" ".repeat(headerPad));
-    fg(term, themeColors.accent, "\u2502");
-  });
-
   const version = state.config?.activeVersion || "none";
   let host = "127.0.0.1";
   let port = 8080;
@@ -271,22 +248,24 @@ function renderHeader(term: Terminal, startY: number): number {
   const url = `http://${host}:${port}`;
   const infoLine = ` Version: ${version} │ URL: ${url} `;
 
-  renderLine(term, startY + 2, () => {
-    fg(term, themeColors.accent, "\u2502");
-    fg(term, themeColors.textMuted, infoLine);
-    const infoPad = Math.max(0, width - 4 - infoLine.length);
-    term(" ".repeat(infoPad));
-    fg(term, themeColors.accent, "\u2502");
-  });
-
-  renderLine(term, startY + 3, () => {
-    fg(term, themeColors.accent, "\u2514");
-    fg(term, themeColors.accent, sep);
-    fg(term, themeColors.accent, "\u2518");
-    term.styleReset();
-  });
-
-  return startY + 4;
+  return renderBox({ term, width, borderColor: themeColors.accent, startY }, [
+    {
+      render: () => {
+        term.bold();
+        fg(term, themeColors.text, headerLine.trim());
+        term.styleReset();
+        const pad = Math.max(0, innerW - headerLine.trim().length);
+        term(" ".repeat(pad));
+      },
+    },
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, infoLine);
+        const pad = Math.max(0, innerW - infoLine.length);
+        term(" ".repeat(pad));
+      },
+    },
+  ]);
 }
 
 function renderControlsBar(term: Terminal, startY: number): number {

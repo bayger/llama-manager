@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, fg, termWidth } from "../../lib/theme.js";
+import { themeColors, fg, termWidth, renderBox, renderBoxWithSeparator, renderLine } from "../../lib/theme.js";
 import { loadConfig, saveConfig, getVersionsDir, ConfigData } from "../../lib/config.js";
 import {
   listVersions,
@@ -100,59 +100,39 @@ function scheduleRender(app: any): void {
   app.scheduleRender();
 }
 
-function renderLine(term: Terminal, y: number, fn: () => void): void {
-  term.moveTo(1, y);
-  term.eraseLine();
-  fn();
-}
-
 function renderHeader(term: Terminal, config: ConfigData, startY: number): number {
-  let y = startY;
   const width = termWidth(term);
-  const sep = "─".repeat(Math.max(0, width - 2));
-
-  renderLine(term, y++, () => {
-    term.bold();
-    fg(term, themeColors.accent, "┌");
-    fg(term, themeColors.accent, sep);
-    fg(term, themeColors.accent, "┐");
-    term.styleReset();
-  });
+  const innerW = width - 2;
 
   const installedCount = state.versions.length;
   const sizeStr = formatSize(state.totalSize);
   const title = ` Versions | ${installedCount} installed | ${sizeStr} used `;
-  const padding = Math.max(0, width - 4 - title.length);
+  const padding = Math.max(0, innerW - title.length);
   const leftPad = Math.floor(padding / 2);
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.accent, "│");
-    term(" ".repeat(leftPad));
-    fg(term, themeColors.text, title);
-    term(" ".repeat(Math.ceil(padding / 2)));
-    fg(term, themeColors.accent, "│");
-  });
 
   const dir = getVersionsDir(config);
   const dirLine = ` Dir: ${dir} `;
-  const dirPad = Math.max(0, width - 4 - dirLine.length);
+  const dirPad = Math.max(0, innerW - dirLine.length);
   const dirLeft = Math.floor(dirPad / 2);
 
-  renderLine(term, y++, () => {
-    fg(term, themeColors.accent, "│");
-    term(" ".repeat(dirLeft));
-    fg(term, themeColors.textMuted, dirLine);
-    term(" ".repeat(Math.ceil(dirPad / 2)));
-    fg(term, themeColors.accent, "│");
-  });
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.accent, "└");
-    fg(term, themeColors.accent, sep);
-    fg(term, themeColors.accent, "┘");
-  });
-
-  return y;
+  return renderBox({ term, width, borderColor: themeColors.accent, startY }, [
+    {
+      render: () => {
+        term.bold();
+        term(" ".repeat(leftPad));
+        fg(term, themeColors.text, title);
+        term.styleReset();
+        term(" ".repeat(Math.ceil(padding / 2)));
+      },
+    },
+    {
+      render: () => {
+        term(" ".repeat(dirLeft));
+        fg(term, themeColors.textMuted, dirLine);
+        term(" ".repeat(Math.ceil(dirPad / 2)));
+      },
+    },
+  ]);
 }
 
 function renderHelp(term: Terminal, startY: number): number {
@@ -257,16 +237,8 @@ function renderVersionList(term: Terminal, startY: number): number {
 }
 
 function renderActionBar(term: Terminal, startY: number): number {
-  let y = startY;
   const width = termWidth(term);
-  const sep = "─".repeat(Math.max(0, width - 2));
-
-  renderLine(term, y++, () => {});
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "┌");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┐");
-  });
+  const innerW = width - 2;
 
   const actionParts = ACTIONS.map((action, i) => {
     const selected = i === state.actionIndex && state.focusArea === "actions";
@@ -277,184 +249,129 @@ function renderActionBar(term: Terminal, startY: number): number {
     return { bold: false, color: themeColors.text, text: label };
   });
 
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "│");
-    fg(term, themeColors.textMuted, " Actions:");
-    term(" ");
-
-    for (let i = 0; i < actionParts.length; i++) {
-      const part = actionParts[i];
-      if (part.bold) term.bold();
-      fg(term, part.color, part.text);
-      if (part.bold) term.styleReset();
-      if (i < actionParts.length - 1) {
-        fg(term, themeColors.textMuted, " │");
+  return renderBox({ term, width, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, " Actions:");
         term(" ");
-      }
-    }
-
-    const usedWidth = 4 + 10 + actionParts.reduce((acc, p) => acc + p.text.length + 3, 0) - 3;
-    const remaining = Math.max(0, width - usedWidth - 2);
-    term(" ".repeat(remaining));
-    fg(term, themeColors.border, "│");
-  });
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "└");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┘");
-  });
-
-  return y;
+        for (let i = 0; i < actionParts.length; i++) {
+          const part = actionParts[i];
+          if (part.bold) term.bold();
+          fg(term, part.color, part.text);
+          if (part.bold) term.styleReset();
+          if (i < actionParts.length - 1) {
+            fg(term, themeColors.textMuted, " │");
+            term(" ");
+          }
+        }
+        const used = " Actions:".length + 1 + actionParts.reduce((acc, p) => acc + p.text.length + 3, 0) - 3;
+        term(" ".repeat(Math.max(0, innerW - used)));
+      },
+    },
+  ]);
 }
 
 function renderReleases(term: Terminal, startY: number): number {
-  let y = startY;
   const width = termWidth(term);
-  const sep = "─".repeat(Math.max(0, width - 2));
+  const innerW = width - 2;
+  const headerText = " Available releases │ j/k navigate │ Enter select │ g back │ e custom tag";
 
-  renderLine(term, y++, () => {});
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "┌");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┐");
-  });
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "│");
-    fg(term, themeColors.textMuted, " Available releases │ j/k navigate │ Enter select │ g back │ e custom tag");
-    const headerLen = 4 + " Available releases │ j/k navigate │ Enter select │ g back │ e custom tag".length;
-    const headerPad = Math.max(0, width - headerLen - 2);
-    term(" ".repeat(headerPad));
-    fg(term, themeColors.border, "│");
-  });
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "├");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┤");
-  });
-
+  let bodyLines: { render: () => void }[];
   if (state.fetchingReleases) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.border, "│");
-      fg(term, themeColors.textMuted, " Fetching releases...");
-      term(" ".repeat(Math.max(0, width - 24)));
-      fg(term, themeColors.border, "│");
-    });
+    bodyLines = [{
+      render: () => {
+        fg(term, themeColors.textMuted, " Fetching releases...");
+        term(" ".repeat(Math.max(0, innerW - " Fetching releases...".length)));
+      },
+    }];
   } else if (state.releases.length === 0) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.border, "│");
-      fg(term, themeColors.textMuted, " No releases found.");
-      term(" ".repeat(Math.max(0, width - 24)));
-      fg(term, themeColors.border, "│");
-    });
+    bodyLines = [{
+      render: () => {
+        fg(term, themeColors.textMuted, " No releases found.");
+        term(" ".repeat(Math.max(0, innerW - " No releases found.".length)));
+      },
+    }];
   } else {
-    for (let i = 0; i < state.releases.length; i++) {
-      const r = state.releases[i];
+    bodyLines = state.releases.map((r, i) => {
       const selected = i === state.releaseIndex;
       const date = new Date(r.publishedAt).toISOString().split("T")[0];
       const line = ` ${r.tag.padEnd(12)} ${date}  ${r.assets.length} assets`;
-
-      renderLine(term, y++, () => {
-        fg(term, themeColors.border, "│");
-        if (selected) {
-          term.bold();
-          fg(term, themeColors.accent, line);
-          term.styleReset();
-        } else {
-          fg(term, themeColors.text, line);
-        }
-        const pad = Math.max(0, width - line.length - 4);
-        term(" ".repeat(pad));
-        fg(term, themeColors.border, "│");
-      });
-    }
+      return {
+        render: () => {
+          if (selected) {
+            term.bold();
+            fg(term, themeColors.accent, line);
+            term.styleReset();
+          } else {
+            fg(term, themeColors.text, line);
+          }
+          term(" ".repeat(Math.max(0, innerW - line.length)));
+        },
+      };
+    });
   }
 
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "└");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┘");
-  });
-
-  return y;
+  return renderBoxWithSeparator({ term, width, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, headerText);
+        term(" ".repeat(Math.max(0, innerW - headerText.length)));
+      },
+    },
+  ], bodyLines);
 }
 
 function renderBackends(term: Terminal, startY: number): number {
-  let y = startY;
   const width = termWidth(term);
-  const sep = "─".repeat(Math.max(0, width - 2));
+  const innerW = width - 2;
   const currentRelease = state.releases[state.releaseIndex];
   const tag = currentRelease ? currentRelease.tag : state.pendingTag || "";
 
-  renderLine(term, y++, () => {});
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "┌");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┐");
-  });
-
   const header = ` Select backend ${tag} │ j/k navigate │ Enter install │ g back `;
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "│");
-    fg(term, themeColors.textMuted, header);
-    const hPad = Math.max(0, width - header.length - 4);
-    term(" ".repeat(hPad));
-    fg(term, themeColors.border, "│");
-  });
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "├");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┤");
-  });
 
   const backends = state.availableBackends;
   const installedForTag = state.installedBackends[tag];
 
-  for (let i = 0; i < backends.length; i++) {
-    const b = backends[i];
+  const bodyLines: { render: () => void }[] = backends.map((b, i) => {
     const selected = i === state.backendIndex;
     const alreadyInstalled = installedForTag && installedForTag.has(b.id);
     let line = ` ${b.label}`;
     if (alreadyInstalled) {
       line += " [installed]";
     }
-
-    renderLine(term, y++, () => {
-      fg(term, themeColors.border, "│");
-      if (selected) {
-        term.bold();
-        fg(term, themeColors.accent, line);
-        term.styleReset();
-      } else if (alreadyInstalled) {
-        fg(term, themeColors.textMuted, line);
-      } else {
-        fg(term, themeColors.text, line);
-      }
-      const pad = Math.max(0, width - line.length - 4);
-      term(" ".repeat(pad));
-      fg(term, themeColors.border, "│");
-    });
-  }
-
-  if (backends.length === 0) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.border, "│");
-      fg(term, themeColors.textMuted, " No backends available for this platform.");
-      term(" ".repeat(Math.max(0, width - 54)));
-      fg(term, themeColors.border, "│");
-    });
-  }
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.border, "└");
-    fg(term, themeColors.border, sep);
-    fg(term, themeColors.border, "┘");
+    return {
+      render: () => {
+        if (selected) {
+          term.bold();
+          fg(term, themeColors.accent, line);
+          term.styleReset();
+        } else if (alreadyInstalled) {
+          fg(term, themeColors.textMuted, line);
+        } else {
+          fg(term, themeColors.text, line);
+        }
+        term(" ".repeat(Math.max(0, innerW - line.length)));
+      },
+    };
   });
 
-  return y;
+  if (backends.length === 0) {
+    bodyLines.push({
+      render: () => {
+        fg(term, themeColors.textMuted, " No backends available for this platform.");
+        term(" ".repeat(Math.max(0, innerW - " No backends available for this platform.".length)));
+      },
+    });
+  }
+
+  return renderBoxWithSeparator({ term, width, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, header);
+        term(" ".repeat(Math.max(0, innerW - header.length)));
+      },
+    },
+  ], bodyLines);
 }
 
 function renderProgressBar(term: Terminal, startY: number): number {
@@ -482,32 +399,20 @@ function renderProgressBar(term: Terminal, startY: number): number {
 }
 
 function renderEditMode(term: Terminal, startY: number): number {
-  let y = startY;
   const width = termWidth(term);
+  const innerW = width - 2;
   const prompt = ` Tag: ${state.editValue}`;
 
-  renderLine(term, y++, () => {});
-  renderLine(term, y++, () => {
-    fg(term, themeColors.accent, "┌");
-    fg(term, themeColors.accent, "─".repeat(Math.max(0, width - 2)));
-    fg(term, themeColors.accent, "┐");
-  });
-  renderLine(term, y++, () => {
-    fg(term, themeColors.accent, "│");
-    term.bold();
-    fg(term, themeColors.text, prompt);
-    term.styleReset();
-    const pad = Math.max(0, width - prompt.length - 4);
-    term(" ".repeat(pad));
-    fg(term, themeColors.accent, "│");
-  });
-  renderLine(term, y++, () => {
-    fg(term, themeColors.accent, "└");
-    fg(term, themeColors.accent, "─".repeat(Math.max(0, width - 2)));
-    fg(term, themeColors.accent, "┘");
-  });
-
-  return y;
+  return renderBox({ term, width, borderColor: themeColors.accent, startY }, [
+    {
+      render: () => {
+        term.bold();
+        fg(term, themeColors.text, prompt);
+        term.styleReset();
+        term(" ".repeat(Math.max(0, innerW - prompt.length)));
+      },
+    },
+  ]);
 }
 
 function initIfNeeded(app: any): void {

@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, fg, termWidth, termHeight } from "../../lib/theme.js";
+import { themeColors, fg, termWidth, termHeight, renderBox, renderLine } from "../../lib/theme.js";
 import { loadConfig, saveConfig, getModelsDir, ConfigData } from "../../lib/config.js";
 import {
   listLocalModels,
@@ -20,12 +20,6 @@ import {
   HFModelInfo,
 } from "../../lib/hf.js";
 import path from "path";
-
-function renderLine(term: Terminal, y: number, fn: () => void): void {
-  term.moveTo(1, y);
-  term.eraseLine();
-  fn();
-}
 
 const ACTIONS = ["setactive", "delete", "search", "browse"];
 
@@ -163,49 +157,25 @@ async function refreshModels(s: ModelsState): Promise<void> {
   s.loading = false;
 }
 
-function drawBorderBox(
-  term: Terminal,
-  width: number,
-  lines: string[],
-  startY: number,
-): number {
-  const pad = width - 2;
-  let y = startY;
-
-  const topBorder = "┌" + "-".repeat(pad) + "┐";
-  renderLine(term, y++, () => {
-    term.colorRgbHex(themeColors.border)(topBorder);
-  });
-
-  const bottomBorder = "└" + "-".repeat(pad) + "┘";
-
-  for (const line of lines) {
-    renderLine(term, y, () => {
-      term.colorRgbHex(themeColors.border)("│");
-      if (line.length <= pad) {
-        term(line);
-        for (let i = 0; i < pad - line.length; i++) term(" ");
-      } else {
-        term(line.substring(0, pad));
-      }
-      term.colorRgbHex(themeColors.border)("│");
-    });
-    y++;
-  }
-
-  renderLine(term, y++, () => {
-    term.colorRgbHex(themeColors.border)(bottomBorder);
-  });
-
-  return y;
-}
-
 function renderHeader(s: ModelsState, term: Terminal, width: number, startY: number): number {
+  const innerW = width - 2;
   const titleLine = ` Models │ ${s.models.length} local │ ${formatSize(s.totalSize)} used`;
   const dirLine = ` Dir: ${s.config ? getModelsDir(s.config) : "N/A"}`;
 
-  const headerLines = [titleLine, dirLine];
-  let y = drawBorderBox(term, width, headerLines, startY);
+  let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.text, titleLine);
+        term(" ".repeat(Math.max(0, innerW - titleLine.length)));
+      },
+    },
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, dirLine);
+        term(" ".repeat(Math.max(0, innerW - dirLine.length)));
+      },
+    },
+  ]);
   renderLine(term, y++, () => {});
   return y;
 }
@@ -252,6 +222,7 @@ function renderModelList(s: ModelsState, term: Terminal, width: number, startY: 
 }
 
 function renderActions(s: ModelsState, term: Terminal, width: number, startY: number): number {
+  const innerW = width - 2;
   const actionLabels = [
     "Set Active",
     "Delete",
@@ -269,8 +240,30 @@ function renderActions(s: ModelsState, term: Terminal, width: number, startY: nu
   }
   const bar = parts.join(" │ ");
 
-  const lines = [` Actions:`, bar];
-  let y = drawBorderBox(term, width, lines, startY);
+  let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, " Actions:");
+        term(" ".repeat(Math.max(0, innerW - " Actions:".length)));
+      },
+    },
+    {
+      render: () => {
+        for (let i = 0; i < actionLabels.length; i++) {
+          if (i > 0) fg(term, themeColors.textMuted, " │");
+          if (i === s.actionIndex) {
+            term.bold();
+            fg(term, themeColors.selected, ` ${actionLabels[i]} `);
+            term.styleReset();
+          } else {
+            fg(term, themeColors.text, actionLabels[i]);
+          }
+        }
+        const used = bar.length;
+        term(" ".repeat(Math.max(0, innerW - used)));
+      },
+    },
+  ]);
   renderLine(term, y++, () => {});
   return y;
 }
@@ -377,6 +370,7 @@ function renderBrowseResults(s: ModelsState, term: Terminal, width: number, star
 }
 
 function renderBrowseFilters(s: ModelsState, term: Terminal, width: number, startY: number): number {
+  const innerW = width - 2;
   const parts: string[] = [];
   for (let i = 0; i < ALL_FILTERS.length; i++) {
     const f = ALL_FILTERS[i];
@@ -389,13 +383,37 @@ function renderBrowseFilters(s: ModelsState, term: Terminal, width: number, star
     }
   }
   const bar = parts.join(" │ ");
-  const lines = [` Filters:`, bar];
-  let y = drawBorderBox(term, width, lines, startY);
+
+  let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, " Filters:");
+        term(" ".repeat(Math.max(0, innerW - " Filters:".length)));
+      },
+    },
+    {
+      render: () => {
+        for (let i = 0; i < ALL_FILTERS.length; i++) {
+          if (i > 0) fg(term, themeColors.textMuted, " │");
+          const prefix = s.browseFilters[i] ? "●" : "○";
+          if (i === s.filterIndex) {
+            term.bold();
+            fg(term, themeColors.selected, ` ${prefix} ${ALL_FILTERS[i].label} `);
+            term.styleReset();
+          } else {
+            fg(term, themeColors.text, `${prefix} ${ALL_FILTERS[i].label}`);
+          }
+        }
+        term(" ".repeat(Math.max(0, innerW - bar.length)));
+      },
+    },
+  ]);
   renderLine(term, y++, () => {});
   return y;
 }
 
 function renderBrowseSort(s: ModelsState, term: Terminal, width: number, startY: number): number {
+  const innerW = width - 2;
   const parts: string[] = [];
   for (let i = 0; i < SORT_OPTIONS.length; i++) {
     const opt = SORT_OPTIONS[i];
@@ -407,13 +425,38 @@ function renderBrowseSort(s: ModelsState, term: Terminal, width: number, startY:
     }
   }
   const bar = parts.join(" │ ");
-  const lines = [` Sort:`, bar];
-  let y = drawBorderBox(term, width, lines, startY);
+
+  let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
+    {
+      render: () => {
+        fg(term, themeColors.textMuted, " Sort:");
+        term(" ".repeat(Math.max(0, innerW - " Sort:".length)));
+      },
+    },
+    {
+      render: () => {
+        for (let i = 0; i < SORT_OPTIONS.length; i++) {
+          if (i > 0) fg(term, themeColors.textMuted, " │");
+          const opt = SORT_OPTIONS[i];
+          const arrow = s.browseDirection === -1 && i === s.sortIndex ? " ▼" : "";
+          if (i === s.sortIndex) {
+            term.bold();
+            fg(term, themeColors.selected, ` ${opt.label}${arrow} `);
+            term.styleReset();
+          } else {
+            fg(term, themeColors.text, opt.label);
+          }
+        }
+        term(" ".repeat(Math.max(0, innerW - bar.length)));
+      },
+    },
+  ]);
   renderLine(term, y++, () => {});
   return y;
 }
 
 function renderModelCard(s: ModelsState, term: Terminal, width: number, startY: number): number {
+  const innerW = width - 2;
   let y = startY;
 
   if (!s.modelCard) {
@@ -424,7 +467,7 @@ function renderModelCard(s: ModelsState, term: Terminal, width: number, startY: 
     return y;
   }
   const c = s.modelCard;
-  const lines = [
+  const cardLines = [
     ` ID: ${c.id}`,
     ` Author: ${c.author}`,
     ` Likes: ${c.likes}  Downloads: ${c.downloads}`,
@@ -433,9 +476,14 @@ function renderModelCard(s: ModelsState, term: Terminal, width: number, startY: 
     ` Created: ${c.createdAt}`,
     ` Modified: ${c.lastModified}`,
   ];
-  const endY = drawBorderBox(term, width, lines, y);
-  renderLine(term, endY, () => {});
-  return endY + 1;
+  y = renderBox({ term, width, borderColor: themeColors.border, startY: y }, cardLines.map(line => ({
+    render: () => {
+      fg(term, themeColors.text, line);
+      term(" ".repeat(Math.max(0, innerW - line.length)));
+    },
+  })));
+  renderLine(term, y++, () => {});
+  return y;
 }
 
 function renderDownloadProgress(s: ModelsState, term: Terminal, width: number, startY: number): number {

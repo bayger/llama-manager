@@ -79,3 +79,109 @@ export function termHeight(term: Terminal): number {
   if (typeof h === 'number' && isFinite(h) && h > 0) return h;
   return process.stdout.rows || 24;
 }
+
+/**
+ * Renders a single line at (1, y) with erase, then runs fn.
+ */
+export function renderLine(term: Terminal, y: number, fn: () => void): void {
+  term.moveTo(1, y);
+  term.eraseLine();
+  fn();
+}
+
+/**
+ * Box-drawing characters.
+ */
+const TL = "\u250c"; // ┌
+const TR = "\u2510"; // ┐
+const BL = "\u2514"; // └
+const BR = "\u2518"; // ┘
+const H = "\u2500";  // ─
+const V = "\u2502";  // │
+const L = "\u251c";  // ├
+const R = "\u2524";  // ┤
+
+export interface BoxLine {
+  /** Content renderer — outputs between the side borders. */
+  render: () => void;
+}
+
+export interface BoxOptions {
+  term: Terminal;
+  width: number;
+  borderColor: string;
+  startY: number;
+}
+
+function hBorder(term: Terminal, width: number, color: string, left: string, right: string): void {
+  const inner = Math.max(0, width - 2);
+  fg(term, color, left);
+  fg(term, color, H.repeat(inner));
+  fg(term, color, right);
+}
+
+function vBorder(term: Terminal, color: string): void {
+  fg(term, color, V);
+}
+
+/**
+ * Render a simple bordered box: top border, content lines, bottom border.
+ * Each content line is wrapped with side borders (│).
+ * Returns the next available Y position.
+ */
+export function renderBox(opts: BoxOptions, lines: BoxLine[]): number {
+  const { term, width, borderColor, startY } = opts;
+  let y = startY;
+
+  renderLine(term, y++, () => hBorder(term, width, borderColor, TL, TR));
+
+  for (const line of lines) {
+    renderLine(term, y, () => {
+      vBorder(term, borderColor);
+      line.render();
+      // Pad remaining space to right border
+      // (content renderers should handle their own padding, but we ensure right border draws)
+      vBorder(term, borderColor);
+    });
+    y++;
+  }
+
+  renderLine(term, y++, () => hBorder(term, width, borderColor, BL, BR));
+
+  return y;
+}
+
+/**
+ * Render a bordered box with a header section and a body section separated by ├─────┤.
+ * Returns the next available Y position.
+ */
+export function renderBoxWithSeparator(opts: BoxOptions, headerLines: BoxLine[], bodyLines: BoxLine[]): number {
+  const { term, width, borderColor } = opts;
+  let y = opts.startY;
+
+  renderLine(term, y++, () => hBorder(term, width, borderColor, TL, TR));
+
+  for (const line of headerLines) {
+    renderLine(term, y, () => {
+      vBorder(term, borderColor);
+      line.render();
+      vBorder(term, borderColor);
+    });
+    y++;
+  }
+
+  renderLine(term, y++, () => hBorder(term, width, borderColor, L, R));
+
+  for (const line of bodyLines) {
+    renderLine(term, y, () => {
+      vBorder(term, borderColor);
+      line.render();
+      vBorder(term, borderColor);
+    });
+    y++;
+  }
+
+  renderLine(term, y++, () => hBorder(term, width, borderColor, BL, BR));
+
+  return y;
+}
