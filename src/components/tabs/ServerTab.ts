@@ -1,7 +1,7 @@
 import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, termHeight, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
 import { renderHelpBar } from "../shared/HelpBar.js";
-import { renderButtonBar } from "../shared/Button.js";
+import { renderButtonBar, moveButtonIndex, ButtonItem } from "../shared/Button.js";
 import {
   loadConfig,
   saveConfig,
@@ -188,11 +188,22 @@ export function createServerTab(ctx: TabContext) {
     return y;
   }
 
+  function getProfileButtonItems(): ButtonItem[] {
+    const isDefault = state.config?.server?.activeProfile === "Default";
+    const profileCount = state.config ? Object.keys(state.config.server.profiles).length : 0;
+    const canDelete = !isDefault && profileCount > 1;
+    return [
+      { label: "Create" },
+      { label: "Rename" },
+      { label: "Delete", disabled: !canDelete },
+    ];
+  }
+
   function renderProfileButtons(term: Terminal, startY: number): number {
     return renderButtonBar({
       term,
       startY,
-      items: PROFILE_ACTIONS.map(label => ({ label })),
+      items: getProfileButtonItems(),
       selectedIndex: state.focusArea === "buttons" ? state.buttonIndex : -1,
     });
   }
@@ -649,17 +660,20 @@ export function createServerTab(ctx: TabContext) {
 
     if (state.focusArea === "buttons") {
       if (key === "h" || key === "LEFT" || key === "k") {
-        state.buttonIndex = Math.max(0, state.buttonIndex - 1);
+        state.buttonIndex = moveButtonIndex(getProfileButtonItems(), state.buttonIndex, -1);
         ctx.scheduleRender();
         return true;
       }
       if (key === "l" || key === "RIGHT" || key === "j") {
-        state.buttonIndex = Math.min(PROFILE_ACTIONS.length - 1, state.buttonIndex + 1);
+        state.buttonIndex = moveButtonIndex(getProfileButtonItems(), state.buttonIndex, 1);
         ctx.scheduleRender();
         return true;
       }
       if (key === "RETURN" || key === "ENTER") {
-        executeProfileAction(state.buttonIndex);
+        const items = getProfileButtonItems();
+        if (!items[state.buttonIndex]?.disabled) {
+          executeProfileAction(state.buttonIndex);
+        }
         ctx.scheduleRender();
         return true;
       }

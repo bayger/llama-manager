@@ -2,7 +2,7 @@ import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, termHeight, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
 import { renderProgressBar as renderSharedProgressBar } from "../shared/ProgressBar.js";
 import { renderHelpBar } from "../shared/HelpBar.js";
-import { renderButtonBar } from "../shared/Button.js";
+import { renderButtonBar, moveButtonIndex, ButtonItem } from "../shared/Button.js";
 import { loadConfig, saveConfig, getModelsDir, ConfigData } from "../../lib/config.js";
 import {
   listLocalModels,
@@ -464,6 +464,16 @@ export function createModelsTab(ctx: TabContext) {
   const showMessage = ctx.showMessage.bind(ctx);
   const setTextInputFocused = ctx.setTextInputFocused.bind(ctx);
 
+  function getModelButtonItems(): ButtonItem[] {
+    const hasSelection = state.models.length > 0 && state.selectedIndex < state.models.length;
+    return [
+      { label: "Set Active", disabled: !hasSelection },
+      { label: "Delete", disabled: !hasSelection },
+      { label: "Search" },
+      { label: "Browse" },
+    ];
+  }
+
   async function refreshModels(): Promise<void> {
     if (!state.config) return;
     state.loading = true;
@@ -715,9 +725,8 @@ export function createModelsTab(ctx: TabContext) {
         y = renderButtonBar({
           term,
           startY: y,
-          items: ACTION_LABELS.map(label => ({ label })),
+          items: getModelButtonItems(),
           selectedIndex: state.actionIndex,
-          label: "Actions:",
         });
         renderLine(term, y++, () => {});
         y = renderHelp(state, term, y);
@@ -873,12 +882,14 @@ export function createModelsTab(ctx: TabContext) {
             return true;
           case "g":
             state.focusArea = "actions";
-            state.actionIndex = 0;
+            const items = getModelButtonItems();
+            state.actionIndex = items[0]?.disabled ? 1 : 0;
             return true;
           case "\r":
           case "Return":
             state.focusArea = "actions";
-            state.actionIndex = 0;
+            const items2 = getModelButtonItems();
+            state.actionIndex = items2[0]?.disabled ? 1 : 0;
             return true;
         }
         break;
@@ -888,11 +899,11 @@ export function createModelsTab(ctx: TabContext) {
         switch (key) {
           case "h":
           case "left":
-            state.actionIndex = clampIndex(state.actionIndex - 1, ACTIONS.length);
+            state.actionIndex = moveButtonIndex(getModelButtonItems(), state.actionIndex, -1);
             return true;
           case "l":
           case "right":
-            state.actionIndex = clampIndex(state.actionIndex + 1, ACTIONS.length);
+            state.actionIndex = moveButtonIndex(getModelButtonItems(), state.actionIndex, 1);
             return true;
           case "j":
           case "k":
@@ -901,9 +912,13 @@ export function createModelsTab(ctx: TabContext) {
             state.focusArea = "list";
             return true;
           case "\r":
-          case "Return":
-            executeAction(state.actionIndex);
+          case "Return": {
+            const items = getModelButtonItems();
+            if (!items[state.actionIndex]?.disabled) {
+              executeAction(state.actionIndex);
+            }
             return true;
+          }
           case "g":
             state.focusArea = "list";
             return true;

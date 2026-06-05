@@ -1,6 +1,6 @@
 import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, termHeight, renderDivider, renderLine } from "../../lib/theme.js";
-import { renderButtonBar } from "../shared/Button.js";
+import { renderButtonBar, moveButtonIndex, ButtonItem } from "../shared/Button.js";
 import { loadConfig, ConfigData, getActivePresets } from "../../lib/config.js";
 import { getServerMetrics } from "../../lib/api.js";
 import { getStatus, startServer, stopServer } from "../../lib/server.js";
@@ -140,11 +140,22 @@ export function createDashboardTab(ctx: TabContext) {
     return y;
   }
 
+  function getControlItems(): ButtonItem[] {
+    const running = state.serverState === "running";
+    const starting = state.serverState === "starting";
+    const stopping = state.serverState === "stopping";
+    return [
+      { label: "Start", disabled: running || starting },
+      { label: "Stop", disabled: !running },
+      { label: "Restart", disabled: !running || stopping },
+    ];
+  }
+
   function renderControlsBar(term: Terminal, startY: number): number {
     return renderButtonBar({
       term,
       startY,
-      items: CONTROLS.map(label => ({ label })),
+      items: getControlItems(),
       selectedIndex: state.focusArea === "controls" ? state.controlIndex : -1,
     });
   }
@@ -376,21 +387,24 @@ export function createDashboardTab(ctx: TabContext) {
 
   function handleKey(key: string): boolean {
     if (state.focusArea === "controls") {
-      if (key === "h" || key === "LEFT") {
-        state.controlIndex = Math.max(0, state.controlIndex - 1);
-        scheduleRender();
-        return true;
-      }
-      if (key === "l" || key === "RIGHT") {
-        state.controlIndex = Math.min(CONTROLS.length - 1, state.controlIndex + 1);
-        scheduleRender();
-        return true;
-      }
-      if (key === "RETURN" || key === "ENTER") {
-        executeControl(state.controlIndex);
-        scheduleRender();
-        return true;
-      }
+     if (key === "h" || key === "LEFT") {
+          state.controlIndex = moveButtonIndex(getControlItems(), state.controlIndex, -1);
+          scheduleRender();
+          return true;
+        }
+        if (key === "l" || key === "RIGHT") {
+          state.controlIndex = moveButtonIndex(getControlItems(), state.controlIndex, 1);
+          scheduleRender();
+          return true;
+        }
+        if (key === "RETURN" || key === "ENTER") {
+          const items = getControlItems();
+          if (!items[state.controlIndex]?.disabled) {
+            executeControl(state.controlIndex);
+          }
+          scheduleRender();
+          return true;
+        }
     }
     return false;
   }

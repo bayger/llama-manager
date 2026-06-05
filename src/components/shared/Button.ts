@@ -1,8 +1,9 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, fg, fgBg, termWidth, renderBox, renderLine } from "../../lib/theme.js";
+import { themeColors, fg, fgBg, renderLine } from "../../lib/theme.js";
 
 export interface ButtonItem {
   label: string;
+  disabled?: boolean;
 }
 
 export interface ButtonBarOptions {
@@ -10,8 +11,6 @@ export interface ButtonBarOptions {
   startY: number;
   items: ButtonItem[];
   selectedIndex: number;
-  label?: string;
-  bordered?: boolean;
 }
 
 function formatButton(label: string): string {
@@ -19,53 +18,44 @@ function formatButton(label: string): string {
 }
 
 function renderButtonsInline(term: Terminal, items: ButtonItem[], selectedIndex: number): void {
-  const formatted = items.map(item => formatButton(item.label));
   const separator = "  ";
 
-  for (let i = 0; i < formatted.length; i++) {
+  for (let i = 0; i < items.length; i++) {
     if (i > 0) {
       fg(term, themeColors.textMuted, separator);
     }
-    if (i === selectedIndex) {
+    const item = items[i]!;
+    const text = formatButton(item.label);
+
+    if (item.disabled) {
+      fg(term, themeColors.borderMuted, text);
+    } else if (i === selectedIndex) {
       term.bold();
-      fgBg(term, themeColors.selectedText, themeColors.selectedBg, formatted[i]);
+      fgBg(term, themeColors.selectedText, themeColors.selectedBg, text);
       term.styleReset();
     } else {
-      fg(term, themeColors.border, formatted[i]);
+      fg(term, themeColors.border, text);
     }
   }
 }
 
 export function renderButtonBar(opts: ButtonBarOptions): number {
-  const { term, startY, items, selectedIndex, label, bordered } = {
-    ...opts,
-    bordered: opts.bordered !== false,
-  };
+  const { term, startY, items, selectedIndex } = opts;
 
-  if (!bordered) {
-    renderLine(term, startY, () => {
-      renderButtonsInline(term, items, selectedIndex);
-    });
-    return startY + 1;
+  renderLine(term, startY, () => {
+    renderButtonsInline(term, items, selectedIndex);
+  });
+
+  return startY + 1;
+}
+
+export function moveButtonIndex(items: ButtonItem[], currentIndex: number, direction: -1 | 1): number {
+  const next = currentIndex + direction;
+  if (next < 0 || next >= items.length) return currentIndex;
+  if (!items[next]?.disabled) return next;
+  const step = direction > 0 ? 1 : -1;
+  for (let i = currentIndex + step; i >= 0 && i < items.length; i += step) {
+    if (!items[i]?.disabled) return i;
   }
-
-  const width = termWidth(term);
-  const labelText = label ? ` ${label}` : "";
-
-  return renderBox({ term, width, borderColor: themeColors.border, startY }, [
-    {
-      render: () => {
-        fg(term, themeColors.textMuted, labelText);
-        if (label) term(" ");
-        renderButtonsInline(term, items, selectedIndex);
-        const btnLen = items.reduce((acc, item, idx) => {
-          const formatted = formatButton(item.label);
-          return acc + formatted.length + (idx < items.length - 1 ? 2 : 0);
-        }, 0);
-        const prefixLen = labelText.length + (label ? 1 : 0);
-        const used = prefixLen + btnLen;
-        term(" ".repeat(Math.max(0, width - 2 - used)));
-      },
-    },
-  ]);
+  return currentIndex;
 }
