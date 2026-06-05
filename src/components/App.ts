@@ -4,20 +4,21 @@ import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
 
 // Tab imports
-import { render as renderServerTab, handleKey as handleServerTabKey, dispose as disposeServerTab } from "./tabs/ServerTab.js";
-import { render as renderTasksTab, handleKey as handleTasksTabKey, dispose as disposeTasksTab } from "./tabs/TasksTab.js";
-import { render as renderVersionsTab, handleKey as handleVersionsTabKey, dispose as disposeVersionsTab } from "./tabs/VersionsTab.js";
-import { render as renderModelsTab, handleKey as handleModelsTabKey, dispose as disposeModelsTab } from "./tabs/ModelsTab.js";
-import { render as renderDashboardTab, handleKey as handleDashboardTabKey, dispose as disposeDashboardTab } from "./tabs/DashboardTab.js";
-import { render as renderLiveLogsTab, handleKey as handleLiveLogsTabKey, dispose as disposeLiveLogsTab } from "./tabs/LiveLogsTab.js";
-import { render as renderOptionsTab, handleKey as handleOptionsTabKey, dispose as disposeOptionsTab } from "./tabs/OptionsTab.js";
+import { createServerTab } from "./tabs/ServerTab.js";
+import { createTasksTab } from "./tabs/TasksTab.js";
+import { createVersionsTab } from "./tabs/VersionsTab.js";
+import { createDashboardTab } from "./tabs/DashboardTab.js";
+import { createModelsTab } from "./tabs/ModelsTab.js";
+import { createLiveLogsTab } from "./tabs/LiveLogsTab.js";
+import { createOptionsTab } from "./tabs/OptionsTab.js";
+import type { TabContext } from "../lib/tabcontext.js";
 
-const TABS = ["Server", "Tasks", "Versions", "Models", "Dashboard", "Logs", "Options"] as const;
+const TABS = ["Dashboard", "Profiles", "Tasks", "Versions", "Models", "Logs", "Options"] as const;
 type TabId = (typeof TABS)[number];
 
 interface TabModule {
-  render(app: App): void;
-  handleKey(app: App, key: string): boolean;
+  render(): void;
+  handleKey(key: string): boolean;
   dispose?(): void;
 }
 
@@ -29,26 +30,19 @@ interface AppState {
   config: any;
 }
 
-const tabModules: Record<TabId, TabModule> = {
-  Server: { render: renderServerTab, handleKey: handleServerTabKey, dispose: disposeServerTab },
-  Tasks: { render: renderTasksTab, handleKey: handleTasksTabKey, dispose: disposeTasksTab },
-  Versions: { render: renderVersionsTab, handleKey: handleVersionsTabKey, dispose: disposeVersionsTab },
-  Models: { render: renderModelsTab, handleKey: handleModelsTabKey, dispose: disposeModelsTab },
-  Dashboard: { render: renderDashboardTab, handleKey: handleDashboardTabKey, dispose: disposeDashboardTab },
-  Logs: { render: renderLiveLogsTab, handleKey: handleLiveLogsTabKey, dispose: disposeLiveLogsTab },
-  Options: { render: renderOptionsTab, handleKey: handleOptionsTabKey, dispose: disposeOptionsTab },
-};
-
 export class App {
   term: Terminal;
   state: AppState;
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
   private renderTimer: ReturnType<typeof setTimeout> | null = null;
+  private _ctx: TabContext | null = null;
+  private _tabModules: Record<TabId, TabModule> | null = null;
+  private dirty = { tabbar: false, content: false, statusbar: false };
 
   constructor(term: Terminal) {
     this.term = term;
     this.state = {
-      activeTab: "Server",
+      activeTab: "Dashboard",
       message: null,
       messageTimer: null,
       textInputFocused: false,
@@ -56,17 +50,44 @@ export class App {
     };
   }
 
+  private get tabModules(): Record<TabId, TabModule> {
+    if (!this._tabModules) throw new Error("tabModules not initialized");
+    return this._tabModules;
+  }
+
   async start(): Promise<void> {
     await loadConfig().then((config) => {
       this.state.config = config;
       taskStore.init(config);
     });
+
+    this._ctx = {
+      term: this.term,
+      scheduleRender: () => this.scheduleRender(),
+      showMessage: (msg: string) => this.showMessage(msg),
+      setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
+      getConfig: () => this.state.config,
+    };
+
+    this._tabModules = {
+      Profiles: createServerTab(this._ctx),
+      Tasks: createTasksTab(this._ctx),
+      Versions: createVersionsTab(this._ctx),
+      Models: createModelsTab(this._ctx),
+      Dashboard: createDashboardTab(this._ctx),
+      Logs: createLiveLogsTab(this._ctx),
+      Options: createOptionsTab(this._ctx),
+    };
+
     this.setupKeyHandler();
     this.render();
   }
 
   setActiveTab(tab: TabId): void {
     this.state.activeTab = tab;
+    this.dirty.tabbar = true;
+    this.dirty.content = true;
+    this.dirty.statusbar = true;
     this.render();
   }
 
@@ -78,8 +99,10 @@ export class App {
     this.state.messageTimer = setTimeout(() => {
       this.state.message = null;
       this.state.messageTimer = null;
+      this.dirty.statusbar = true;
       this.render();
     }, 3000);
+    this.dirty.statusbar = true;
     this.render();
   }
 
@@ -88,7 +111,8 @@ export class App {
   }
 
   scheduleRender(): void {
-    if (this.renderTimer) return; // Already scheduled
+    this.dirty.content = true;
+    if (this.renderTimer) return;
     this.renderTimer = setTimeout(() => {
       this.renderTimer = null;
       this.render();
@@ -98,29 +122,50 @@ export class App {
   render(): void {
     const { term } = this;
     const { activeTab, message } = this.state;
-    const tabIndex = TABS.indexOf(activeTab);
     const width = termWidth(term);
+    const height = termHeight(term);
 
-    term.moveTo(1, 1);
-    term('\x1b[0J'); // Clear screen from cursor to end
-
-    // --- Tab bar ---
-    this.renderTabs(tabIndex, width);
-
-    // --- Content area ---
-    term.down(1);
-    tabModules[activeTab].render(this);
-
-    // --- Status bar ---
-    const statusBarY = termHeight(term);
-    term.moveTo(1, statusBarY);
-    term.eraseLine();
-    if (message) {
-      fg(term, themeColors.success, message);
-      fg(term, themeColors.textMuted, ` | ? help`);
-    } else {
-      fg(term, themeColors.textMuted, `${activeTab} | F1-F7 navigate | q quit | ? help`);
+    // First render: clear full screen
+    if (!this.dirty.tabbar && !this.dirty.content && !this.dirty.statusbar) {
+      term.moveTo(1, 1);
+      term('\x1b[0J');
+      this.dirty.tabbar = true;
+      this.dirty.content = true;
+      this.dirty.statusbar = true;
     }
+
+    // --- Tab bar (row 1-2) ---
+    if (this.dirty.tabbar) {
+      this.renderTabs(TABS.indexOf(activeTab), width);
+    }
+
+    // --- Content area (row 3 to height-1) ---
+    if (this.dirty.content) {
+      if (this.dirty.tabbar) {
+        for (let y = 3; y < height; y++) {
+          term.moveTo(1, y);
+          term.eraseLine();
+        }
+      }
+      term.moveTo(1, 3);
+      this.tabModules[activeTab].render();
+    }
+
+    // --- Status bar (last row) ---
+    if (this.dirty.statusbar) {
+      term.moveTo(1, height);
+      term.eraseLine();
+      if (message) {
+        fg(term, themeColors.success, message);
+        fg(term, themeColors.textMuted, ` | ? help`);
+      } else {
+        fg(term, themeColors.textMuted, `${activeTab} | F1-F7 navigate | q quit | ? help`);
+      }
+    }
+
+    this.dirty.tabbar = false;
+    this.dirty.content = false;
+    this.dirty.statusbar = false;
   }
 
   private renderTabs(selectedIndex: number, width: number): void {
@@ -128,7 +173,6 @@ export class App {
     term.moveTo(1, 1);
     term.eraseLine();
 
-    // Build tab labels
     const labels: string[] = [];
     const positions: { start: number; end: number }[] = [];
     let offset = 0;
@@ -140,7 +184,6 @@ export class App {
       offset += label.length + 2;
     }
 
-    // Render tab labels
     for (let i = 0; i < labels.length; i++) {
       if (i === selectedIndex) {
         fg(term, themeColors.textMuted, `F${i + 1}`);
@@ -156,10 +199,8 @@ export class App {
       }
     }
 
-    // Render underline
     term.moveTo(1, 2);
     term.eraseLine();
-    let underline = '';
     let activeStart = 0;
     let activeEnd = 0;
     let pos = 0;
@@ -172,7 +213,7 @@ export class App {
       pos += label.length + 2;
     }
 
-    for (let i = 0; i < pos - 1; i++) {
+    for (let i = 0; i < width; i++) {
       if (i >= activeStart && i < activeEnd) {
         fg(term, themeColors.accent, '\u2550');
       } else {
@@ -182,7 +223,6 @@ export class App {
   }
 
   private setupKeyHandler(): void {
-    const self = this;
     this.keyHandler = (name: string, _matches: string[], data: any) => {
       if (name === 'CTRL_C') {
         this.dispose();
@@ -202,7 +242,6 @@ export class App {
         return;
       }
 
-      // F1-F7 tab switching
       if (name.startsWith('F') && !name.startsWith('F1')) {
         const num = parseInt(name.slice(1), 10);
         if (num >= 1 && num <= 7) {
@@ -215,13 +254,11 @@ export class App {
         return;
       }
 
-      // ? help
       if (name === '?' && !this.state.textInputFocused) {
         this.showMessage(`${this.state.activeTab} | F1-F7 navigate | q quit`);
         return;
       }
 
-      // Arrow keys for tab navigation when not in text input
       if (!this.state.textInputFocused) {
         if (name === 'RIGHT' || name === 'TAB') {
           const idx = TABS.indexOf(this.state.activeTab);
@@ -239,10 +276,8 @@ export class App {
         }
       }
 
-      // Pass to active tab
-      const handled = tabModules[this.state.activeTab].handleKey(this, name);
+      const handled = this.tabModules[this.state.activeTab].handleKey(name);
       if (!handled && !this.state.textInputFocused) {
-        // Tab-level fallback: arrow keys for tab switching
       }
     };
 
@@ -262,8 +297,10 @@ export class App {
       clearTimeout(this.renderTimer);
       this.renderTimer = null;
     }
-    for (const tab of Object.values(tabModules)) {
-      if (tab.dispose) tab.dispose();
+    if (this._tabModules) {
+      for (const tab of Object.values(this._tabModules)) {
+        if (tab.dispose) tab.dispose();
+      }
     }
     taskStore.dispose();
   }

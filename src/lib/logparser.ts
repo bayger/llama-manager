@@ -177,12 +177,10 @@ export class LogParser extends EventEmitter {
 
   async parseExistingFile(filePath: string): Promise<void> {
     if (!(await fs.pathExists(filePath))) {
-      console.log(`[logparser] File not found: ${filePath}`);
       return;
     }
     const content = await fs.readFile(filePath, "utf-8");
     const lines = content.split("\n");
-    console.log(`[logparser] Parsing ${lines.length} lines from ${filePath}`);
     for (const line of lines) {
       if (line.trim()) {
         this.processLine(line);

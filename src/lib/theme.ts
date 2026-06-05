@@ -90,6 +90,16 @@ export function renderLine(term: Terminal, y: number, fn: () => void): void {
 }
 
 /**
+ * Render a full-width horizontal divider line.
+ */
+export function renderDivider(term: Terminal, y: number, color: string): void {
+  const width = termWidth(term);
+  renderLine(term, y, () => {
+    fg(term, color, "\u2500".repeat(width));
+  });
+}
+
+/**
  * Box-drawing characters.
  */
 const TL = "\u250c"; // ┌

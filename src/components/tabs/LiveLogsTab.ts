@@ -1,13 +1,9 @@
 import type { Terminal } from "terminal-kit";
 import { spawn } from "child_process";
-import { themeColors, fg, termHeight } from "../../lib/theme.js";
+import { themeColors, fg, termHeight, renderDivider, renderLine } from "../../lib/theme.js";
+import { renderHelpBar } from "../shared/HelpBar.js";
 import { onServerLog, serverLogLines, clearServerLogs, getStatus } from "../../lib/server.js";
-
-function renderLine(term: Terminal, y: number, fn: () => void): void {
-  term.moveTo(1, y);
-  term.eraseLine();
-  fn();
-}
+import type { TabContext } from "../../lib/tabcontext.js";
 
 interface LogEntry {
   timestamp: string | null;
@@ -24,15 +20,6 @@ interface LiveLogsState {
   logUnsub: (() => void) | null;
   statusInterval: ReturnType<typeof setInterval> | null;
 }
-
-const state: LiveLogsState = {
-  autoScroll: true,
-  scrollOffset: 0,
-  copied: false,
-  running: false,
-  logUnsub: null,
-  statusInterval: null,
-};
 
 function severityColor(level: string): string {
   const l = level.toUpperCase();
@@ -83,117 +70,134 @@ function renderLogLine(term: Terminal, y: number, entry: LogEntry): number {
   return y + 1;
 }
 
-state.logUnsub = onServerLog(() => {
-  if (state.autoScroll) {
-    state.scrollOffset = 0;
-  }
-});
+export function createLiveLogsTab(ctx: TabContext) {
+  const state: LiveLogsState = {
+    autoScroll: true,
+    scrollOffset: 0,
+    copied: false,
+    running: false,
+    logUnsub: null,
+    statusInterval: null,
+  };
 
-state.statusInterval = setInterval(() => {
-  state.running = getStatus().running;
-}, 2000);
-
-export function render(app: any): void {
-  const term = app.term as Terminal;
-  const lines = serverLogLines;
-  const maxVisible = Math.max(1, termHeight(term) - 5);
-
-  let y = 3;
-
-  renderLine(term, y, () => {
-    fg(term, themeColors.text, "Live Logs");
-    term('  ');
-    fg(term, themeColors.textMuted, "|");
-    term('  ');
-    fg(term, state.running ? themeColors.success : themeColors.danger, state.running ? "\u25cf Running" : "\u25d0 Stopped");
-    term('  ');
-    fg(term, themeColors.textMuted, "|");
-    term('  ');
-    fg(term, themeColors.textMuted, `${lines.length} lines`);
-    term('  ');
-    fg(term, themeColors.textMuted, "|");
-    term('  ');
-    fg(term, state.autoScroll ? themeColors.success : themeColors.textMuted, state.autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF");
-  });
-  y++;
-
-  renderLine(term, y, () => {
-    fg(term, themeColors.textMuted, "g auto-scroll | G top | u clear | y copy | arrows scroll");
-    if (state.copied) {
-      fg(term, themeColors.success, " | Copied to clipboard!");
+  state.logUnsub = onServerLog(() => {
+    if (state.autoScroll) {
+      state.scrollOffset = 0;
     }
+    ctx.scheduleRender();
   });
-  y++;
 
-  if (lines.length === 0) {
+  state.statusInterval = setInterval(() => {
+    state.running = getStatus().running;
+    ctx.scheduleRender();
+  }, 2000);
+
+  function render(): void {
+    const term = ctx.term;
+    const lines = serverLogLines;
+    const maxVisible = Math.max(1, termHeight(term) - 5);
+
+    let y = 3;
+
     renderLine(term, y, () => {
-      fg(term, themeColors.textMuted, "Waiting for server output...");
+      fg(term, themeColors.text, "Live Logs");
+      term('  ');
+      fg(term, themeColors.textMuted, "|");
+      term('  ');
+      fg(term, state.running ? themeColors.success : themeColors.danger, state.running ? "\u25cf Running" : "\u25d0 Stopped");
+      term('  ');
+      fg(term, themeColors.textMuted, "|");
+      term('  ');
+      fg(term, themeColors.textMuted, `${lines.length} lines`);
+      term('  ');
+      fg(term, themeColors.textMuted, "|");
+      term('  ');
+      fg(term, state.autoScroll ? themeColors.success : themeColors.textMuted, state.autoScroll ? "Auto-scroll ON" : "Auto-scroll OFF");
     });
-    return;
-  }
+    y++;
 
-  const visibleStart = state.autoScroll ? Math.max(0, lines.length - maxVisible) : state.scrollOffset;
-  const visibleLines = lines.slice(visibleStart, visibleStart + maxVisible);
+    y = renderHelpBar({
+      term,
+      y,
+      text: "g auto-scroll | G top | u clear | y copy | arrows scroll",
+      prefix: state.copied ? " | Copied to clipboard!" : undefined,
+      blankLineBefore: false,
+    });
+    renderDivider(term, y, themeColors.border);
+    y++;
 
-  for (const line of visibleLines) {
-    const entry = parseLogLine(line);
-    y = renderLogLine(term, y, entry);
-  }
-}
-
-export function handleKey(_app: any, key: string): boolean {
-  const lines = serverLogLines;
-  const maxVisible = Math.max(1, (_app.term as Terminal).height - 5);
-
-  if (key === 'UP' || key === 'PAGE_UP') {
-    state.autoScroll = false;
-    state.scrollOffset = Math.max(0, state.scrollOffset - (key === 'PAGE_UP' ? maxVisible : 1));
-    return true;
-  }
-  if (key === 'DOWN' || key === 'PAGE_DOWN') {
-    state.autoScroll = false;
-    state.scrollOffset = Math.min(lines.length - maxVisible, state.scrollOffset + (key === 'PAGE_DOWN' ? maxVisible : 1));
-    return true;
-  }
-  if (key === 'G') {
-    state.autoScroll = false;
-    state.scrollOffset = 0;
-    return true;
-  }
-  if (key === 'g') {
-    state.autoScroll = true;
-    state.scrollOffset = 0;
-    return true;
-  }
-  if (key === 'u') {
-    clearServerLogs();
-    state.scrollOffset = 0;
-    return true;
-  }
-  if (key === 'y') {
-    if (lines.length === 0) return true;
-    const text = lines.join("\n");
-    try {
-      const xclip = spawn("xclip", ["-selection", "clipboard"]);
-      xclip.stdin.write(text + "\n");
-      xclip.stdin.end();
-    } catch {
-      // xclip not available
+    if (lines.length === 0) {
+      renderLine(term, y, () => {
+        fg(term, themeColors.textMuted, "Waiting for server output...");
+      });
+      return;
     }
-    state.copied = true;
-    setTimeout(() => { state.copied = false; }, 2000);
-    return true;
-  }
-  return false;
-}
 
-export function dispose(): void {
-  if (state.logUnsub) {
-    state.logUnsub();
-    state.logUnsub = null;
+    const visibleStart = state.autoScroll ? Math.max(0, lines.length - maxVisible) : state.scrollOffset;
+    const visibleLines = lines.slice(visibleStart, visibleStart + maxVisible);
+
+    for (const line of visibleLines) {
+      const entry = parseLogLine(line);
+      y = renderLogLine(term, y, entry);
+    }
   }
-  if (state.statusInterval) {
-    clearInterval(state.statusInterval);
-    state.statusInterval = null;
+
+  function handleKey(key: string): boolean {
+    const lines = serverLogLines;
+    const maxVisible = Math.max(1, ctx.term.height - 5);
+
+    if (key === 'UP' || key === 'PAGE_UP') {
+      state.autoScroll = false;
+      state.scrollOffset = Math.max(0, state.scrollOffset - (key === 'PAGE_UP' ? maxVisible : 1));
+      return true;
+    }
+    if (key === 'DOWN' || key === 'PAGE_DOWN') {
+      state.autoScroll = false;
+      state.scrollOffset = Math.min(lines.length - maxVisible, state.scrollOffset + (key === 'PAGE_DOWN' ? maxVisible : 1));
+      return true;
+    }
+    if (key === 'G') {
+      state.autoScroll = false;
+      state.scrollOffset = 0;
+      return true;
+    }
+    if (key === 'g') {
+      state.autoScroll = true;
+      state.scrollOffset = 0;
+      return true;
+    }
+    if (key === 'u') {
+      clearServerLogs();
+      state.scrollOffset = 0;
+      return true;
+    }
+    if (key === 'y') {
+      if (lines.length === 0) return true;
+      const text = lines.join("\n");
+      try {
+        const xclip = spawn("xclip", ["-selection", "clipboard"]);
+        xclip.stdin.write(text + "\n");
+        xclip.stdin.end();
+      } catch {
+        // xclip not available
+      }
+      state.copied = true;
+      setTimeout(() => { state.copied = false; }, 2000);
+      return true;
+    }
+    return false;
   }
+
+  function dispose(): void {
+    if (state.logUnsub) {
+      state.logUnsub();
+      state.logUnsub = null;
+    }
+    if (state.statusInterval) {
+      clearInterval(state.statusInterval);
+      state.statusInterval = null;
+    }
+  }
+
+  return { render, handleKey, dispose };
 }
