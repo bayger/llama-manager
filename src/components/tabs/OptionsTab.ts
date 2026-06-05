@@ -1,0 +1,372 @@
+import type { Terminal } from "terminal-kit";
+import { themeColors, fg, termWidth } from "../../lib/theme.js";
+import { saveConfig } from "../../lib/config.js";
+import type { ConfigData } from "../../lib/config.js";
+
+type FieldType = "string" | "number" | "boolean" | "password";
+
+interface OptionField {
+  key: string;
+  label: string;
+  type: FieldType;
+  section: string;
+  configPath?: string[];
+  default?: unknown;
+  description: string;
+}
+
+const FIELDS: OptionField[] = [
+  {
+    key: "hfToken",
+    label: "HF Token",
+    type: "password",
+    section: "Credentials",
+    default: null,
+    description: "HuggingFace API token for model downloads",
+  },
+  {
+    key: "versionsDir",
+    label: "Versions Dir",
+    type: "string",
+    section: "Paths",
+    default: null,
+    description: "Custom directory for llama.cpp version binaries",
+  },
+  {
+    key: "modelsDir",
+    label: "Models Dir",
+    type: "string",
+    section: "Paths",
+    default: null,
+    description: "Custom directory for downloaded models",
+  },
+  {
+    key: "tasksFile",
+    label: "Tasks File",
+    type: "string",
+    section: "Paths",
+    default: null,
+    description: "Custom path for tasks JSONL file",
+  },
+  {
+    key: "pollIntervalMs",
+    label: "Poll Interval",
+    type: "number",
+    section: "Dashboard",
+    configPath: ["dashboard", "pollIntervalMs"],
+    default: 2000,
+    description: "Dashboard polling interval in milliseconds",
+  },
+  {
+    key: "killServerOnExit",
+    label: "Kill Server on Exit",
+    type: "boolean",
+    section: "Dashboard",
+    configPath: ["dashboard", "killServerOnExit"],
+    default: false,
+    description: "Automatically kill server when exiting the app",
+  },
+  {
+    key: "maxStored",
+    label: "Max Stored Tasks",
+    type: "number",
+    section: "Tasks",
+    configPath: ["tasks", "maxStored"],
+    default: 10000,
+    description: "Maximum number of tasks to store in history",
+  },
+  {
+    key: "autoParse",
+    label: "Auto Parse Tasks",
+    type: "boolean",
+    section: "Tasks",
+    configPath: ["tasks", "autoParse"],
+    default: true,
+    description: "Automatically parse task results on completion",
+  },
+];
+
+function formatValue(value: unknown, type: FieldType): string {
+  if (value === null || value === undefined) return "";
+  if (type === "boolean") return value ? "on" : "off";
+  if (type === "password" && value) return `●●●●●●${String(value).slice(-4)}`;
+  return String(value);
+}
+
+function getValue(config: ConfigData, field: OptionField): unknown {
+  if (field.configPath && field.configPath.length > 0) {
+    let obj: unknown = config;
+    for (const key of field.configPath) {
+      if (obj && typeof obj === "object" && key in obj) {
+        obj = (obj as Record<string, unknown>)[key];
+      }
+      else {
+        return field.default;
+      }
+    }
+    return obj;
+  }
+  return (config as unknown as Record<string, unknown>)[field.key] ?? field.default;
+}
+
+function setValue(config: ConfigData, field: OptionField, value: unknown): ConfigData {
+  if (field.configPath && field.configPath.length > 0) {
+    const newConfig = JSON.parse(JSON.stringify(config));
+    let obj: Record<string, unknown> = newConfig;
+    for (let i = 0; i < field.configPath.length - 1; i++) {
+      obj[field.configPath[i]] = obj[field.configPath[i]] || {};
+      obj = obj[field.configPath[i]] as Record<string, unknown>;
+    }
+    obj[field.configPath[field.configPath.length - 1]] = value;
+    return newConfig;
+  }
+  return { ...config, [field.key]: value };
+}
+
+interface OptionsState {
+  selectedIndex: number;
+  editMode: boolean;
+  editValue: string;
+}
+
+let state: OptionsState | null = null;
+
+function getOrCreateState(): OptionsState {
+  if (!state) {
+    state = {
+      selectedIndex: 0,
+      editMode: false,
+      editValue: "",
+    };
+  }
+  return state;
+}
+
+function renderLine(term: Terminal, y: number, fn: () => void): void {
+  term.moveTo(1, y);
+  term.eraseLine();
+  fn();
+}
+
+function renderHeader(term: Terminal, startY: number): number {
+  const w = termWidth(term);
+  const left = " Options ";
+  const mid = ` ${FIELDS.length} settings `;
+  const right = " j/k navigate | Enter edit/toggle ";
+  const sep = " ";
+  const contentLen = left.length + mid.length + right.length + sep.length * 2;
+  const pad = Math.max(0, w - contentLen);
+
+  let y = startY;
+
+  renderLine(term, y++, () => {
+    fg(term, themeColors.border, "┌");
+    fg(term, themeColors.border, "─".repeat(w - 2));
+    fg(term, themeColors.border, "┐");
+  });
+
+  const line = left + mid + sep + right + " ".repeat(pad);
+  renderLine(term, y++, () => {
+    fg(term, themeColors.text, line);
+  });
+
+  renderLine(term, y++, () => {
+    fg(term, themeColors.border, "└");
+    fg(term, themeColors.border, "─".repeat(w - 2));
+    fg(term, themeColors.border, "┘");
+  });
+
+  return y;
+}
+
+function renderField(term: Terminal, field: OptionField, config: ConfigData, index: number, selectedIndex: number, startY: number): number {
+  const isSelected = index === selectedIndex;
+  const value = getValue(config, field);
+  const formatted = formatValue(value, field.type);
+  const isDefault = value === field.default;
+  const actionLabel = field.type === "boolean" ? "[toggle]" : "[edit]";
+
+  let y = startY;
+
+  renderLine(term, y++, () => {
+    if (isSelected) {
+      term.bold();
+      fg(term, themeColors.selected, "▸ ");
+    }
+    else {
+      fg(term, themeColors.text, "  ");
+    }
+
+    fg(term, themeColors.text, field.label);
+    term(" ");
+
+    if (isDefault) {
+      fg(term, themeColors.textMuted, formatted || `<${field.default === null ? "null" : String(field.default)}> `);
+    }
+    else {
+      fg(term, themeColors.success, formatted + " ");
+    }
+
+    fg(term, themeColors.textMuted, actionLabel);
+
+    if (isSelected) {
+      term.styleReset();
+    }
+  });
+
+  if (isSelected) {
+    renderLine(term, y++, () => {
+      fg(term, themeColors.textMuted, "    ");
+      fg(term, themeColors.textMuted, field.description);
+      term(" | default: ");
+      fg(term, themeColors.textMuted, String(field.default ?? "<none>"));
+    });
+  }
+
+  return y;
+}
+
+function renderEditMode(term: Terminal, field: OptionField, editValue: string, startY: number): number {
+  renderLine(term, startY, () => {
+    fg(term, themeColors.warning, `  Editing ${field.label}: `);
+    fg(term, themeColors.text, editValue);
+  });
+  return startY + 1;
+}
+
+function saveCurrentConfig(app: any, field: OptionField, value: unknown): void {
+  const config = app.state.config as ConfigData;
+  if (!config) return;
+
+  const updated = setValue(config, field, value);
+  app.state.config = updated;
+
+  saveConfig(updated).then(() => {
+    app.showMessage(`Saved ${field.label}`);
+  }).catch((e) => {
+    app.showMessage(`Failed to save: ${e}`);
+  });
+}
+
+export function render(app: any): void {
+  const term = app.term as Terminal;
+  const s = getOrCreateState();
+  const config = app.state.config as ConfigData | null;
+
+  if (!config) {
+    fg(term, themeColors.textMuted, "Loading config...\n");
+    return;
+  }
+
+  let y = 3;
+
+  y = renderHeader(term, y);
+  y++;
+
+  let lastSection = "";
+  for (let i = 0; i < FIELDS.length; i++) {
+    const field = FIELDS[i];
+
+    if (field.section !== lastSection) {
+      if (lastSection !== "") {
+        y++;
+      }
+      renderLine(term, y++, () => {
+        term.bold();
+        fg(term, themeColors.accent, field.section);
+        term.styleReset();
+      });
+      lastSection = field.section;
+    }
+
+    y = renderField(term, field, config, i, s.selectedIndex, y);
+  }
+
+  if (s.editMode) {
+    y++;
+    const field = FIELDS[s.selectedIndex];
+    if (field) {
+      y = renderEditMode(term, field, s.editValue, y);
+    }
+  }
+}
+
+export function handleKey(app: any, key: string): boolean {
+  const s = getOrCreateState();
+  const config = app.state.config as ConfigData | null;
+
+  if (s.editMode) {
+    if (key === "RETURN") {
+      const field = FIELDS[s.selectedIndex];
+      if (!field || !config) {
+        s.editMode = false;
+        s.editValue = "";
+        app.setTextInputFocused(false);
+        return true;
+      }
+
+      let parsed: unknown = s.editValue;
+      if (field.type === "number") {
+        const num = Number(s.editValue);
+        if (isNaN(num)) {
+          app.showMessage("Invalid number");
+          return true;
+        }
+        parsed = num;
+      }
+
+      saveCurrentConfig(app, field, parsed);
+      s.editMode = false;
+      s.editValue = "";
+      app.setTextInputFocused(false);
+      return true;
+    }
+    else if (key === "CTRL_C" || key === "ESC") {
+      s.editMode = false;
+      s.editValue = "";
+      app.setTextInputFocused(false);
+      return true;
+    }
+    else if (key === "BACKSPACE" || key === "DEL") {
+      s.editValue = s.editValue.slice(0, -1);
+      return true;
+    }
+    else if (key.length === 1) {
+      s.editValue += key;
+      return true;
+    }
+    return true;
+  }
+
+  if (key === "j" || key === "DOWN") {
+    s.selectedIndex = Math.min(s.selectedIndex + 1, FIELDS.length - 1);
+    return true;
+  }
+  if (key === "k" || key === "UP") {
+    s.selectedIndex = Math.max(s.selectedIndex - 1, 0);
+    return true;
+  }
+  if (key === "RETURN") {
+    const field = FIELDS[s.selectedIndex];
+    if (!field || !config) return false;
+
+    if (field.type === "boolean") {
+      const current = getValue(config, field) as boolean;
+      saveCurrentConfig(app, field, !current);
+      return true;
+    }
+    else {
+      s.editMode = true;
+      const current = getValue(config, field);
+      s.editValue = current !== null && current !== undefined ? String(current) : "";
+      app.setTextInputFocused(true);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+export function dispose(): void {
+  state = null;
+}
