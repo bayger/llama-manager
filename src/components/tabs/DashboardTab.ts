@@ -1,6 +1,6 @@
 import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, termHeight, renderDivider, renderLine } from "../../lib/theme.js";
-import { renderActionBar as renderSharedActionBar } from "../shared/ActionBar.js";
+import { renderButtonBar } from "../shared/Button.js";
 import { loadConfig, ConfigData, getActivePresets } from "../../lib/config.js";
 import { getServerMetrics } from "../../lib/api.js";
 import { getStatus, startServer, stopServer } from "../../lib/server.js";
@@ -141,12 +141,11 @@ export function createDashboardTab(ctx: TabContext) {
   }
 
   function renderControlsBar(term: Terminal, startY: number): number {
-    return renderSharedActionBar({
+    return renderButtonBar({
       term,
       startY,
-      items: CONTROLS,
+      items: CONTROLS.map(label => ({ label })),
       selectedIndex: state.focusArea === "controls" ? state.controlIndex : -1,
-      bordered: false,
     });
   }
 

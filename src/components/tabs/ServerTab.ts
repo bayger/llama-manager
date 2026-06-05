@@ -1,6 +1,7 @@
 import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, termHeight, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
 import { renderHelpBar } from "../shared/HelpBar.js";
+import { renderButtonBar } from "../shared/Button.js";
 import {
   loadConfig,
   saveConfig,
@@ -14,6 +15,8 @@ import { listDevices } from "../../lib/server.js";
 import { fireAsync } from "../../lib/utils.js";
 import { TabContext } from "../../lib/tabcontext.js";
 
+const PROFILE_ACTIONS = ["Create", "Rename", "Delete"] as const;
+
 interface ServerTabState {
   config: ConfigData | null;
   collapsed: Set<number>;
@@ -26,6 +29,8 @@ interface ServerTabState {
   editValue: string;
   devicesOutput: string | null;
   loading: boolean;
+  focusArea: "buttons" | "form";
+  buttonIndex: number;
 }
 
 type FormRowType = "catHeader" | "field" | "spacer" | "freeHeader" | "freeArg" | "freeNone";
@@ -54,6 +59,8 @@ export function createServerTab(ctx: TabContext) {
     editValue: "",
     devicesOutput: null,
     loading: false,
+    focusArea: "buttons",
+    buttonIndex: 0,
   };
 
   function buildFormRows(config: ConfigData): FormRow[] {
@@ -140,7 +147,7 @@ export function createServerTab(ctx: TabContext) {
   }
 
   function getFormViewportHeight(term: Terminal): number {
-    const availableLines = Math.max(2, termHeight(term) - 3 - 3);
+    const availableLines = Math.max(2, termHeight(term) - 3 - 5);
     return availableLines;
   }
 
@@ -181,6 +188,59 @@ export function createServerTab(ctx: TabContext) {
     return y;
   }
 
+  function renderProfileButtons(term: Terminal, startY: number): number {
+    return renderButtonBar({
+      term,
+      startY,
+      items: PROFILE_ACTIONS.map(label => ({ label })),
+      selectedIndex: state.focusArea === "buttons" ? state.buttonIndex : -1,
+    });
+  }
+
+  function executeProfileAction(index: number): void {
+    if (!state.config) return;
+
+    const action = PROFILE_ACTIONS[index];
+
+    switch (action) {
+      case "Create": {
+        state.editMode = true;
+        state.editKey = "create";
+        state.editValue = "";
+        ctx.setTextInputFocused(true);
+        break;
+      }
+
+      case "Rename": {
+        state.editMode = true;
+        state.editKey = "rename";
+        state.editValue = state.config.server.activeProfile;
+        ctx.setTextInputFocused(true);
+        break;
+      }
+
+      case "Delete": {
+        const profileName = state.config.server.activeProfile;
+        if (profileName === "Default") {
+          ctx.showMessage("Cannot delete the Default profile");
+          return;
+        }
+        if (Object.keys(state.config.server.profiles).length <= 1) {
+          ctx.showMessage("Cannot delete the last profile");
+          return;
+        }
+        fireAsync(async () => {
+          const profiles = state.config!.server.profiles;
+          delete profiles[profileName];
+          state.config!.server.activeProfile = Object.keys(profiles)[0]!;
+          await saveConfig(state.config!);
+          ctx.showMessage(`Deleted profile "${profileName}"`);
+        }, ctx);
+        break;
+      }
+    }
+  }
+
   function renderHelp(term: Terminal, startY: number): number {
     let hint = "";
 
@@ -193,7 +253,7 @@ export function createServerTab(ctx: TabContext) {
         hint = ` Value: ${state.editValue} │ Enter confirm │ Ctrl+C cancel `;
       }
     } else {
-      hint = " j/k navigate │ Enter edit/toggle │ space collapse │ Ctrl+D/U pg │ Devices d ";
+      hint = " h/l buttons │ j/k navigate │ Enter edit │ space collapse │ Ctrl+D/U pg │ Devices d ";
     }
 
     return renderHelpBar({ term, y: startY, text: hint });
@@ -536,6 +596,8 @@ export function createServerTab(ctx: TabContext) {
 
     let y = 3;
     y = renderHeader(term, y);
+    y = renderProfileButtons(term, y);
+    renderDivider(term, y++, themeColors.border);
     y = renderForm(term, y);
     y = renderHelp(term, y);
     renderLine(term, y, () => {
@@ -583,6 +645,38 @@ export function createServerTab(ctx: TabContext) {
         return true;
       }
       return true;
+    }
+
+    if (state.focusArea === "buttons") {
+      if (key === "h" || key === "LEFT") {
+        state.buttonIndex = Math.max(0, state.buttonIndex - 1);
+        ctx.scheduleRender();
+        return true;
+      }
+      if (key === "l" || key === "RIGHT") {
+        state.buttonIndex = Math.min(PROFILE_ACTIONS.length - 1, state.buttonIndex + 1);
+        ctx.scheduleRender();
+        return true;
+      }
+      if (key === "RETURN" || key === "ENTER") {
+        executeProfileAction(state.buttonIndex);
+        ctx.scheduleRender();
+        return true;
+      }
+      if (key === "j" || key === "DOWN") {
+        state.focusArea = "form";
+        ctx.scheduleRender();
+        return true;
+      }
+    } else {
+      if (key === "k" || key === "UP") {
+        const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
+        if (rowIdx <= state.scrollOffset) {
+          state.focusArea = "buttons";
+          ctx.scheduleRender();
+          return true;
+        }
+      }
     }
 
     const total = state.config ? countVisibleFields(state.config) : 0;
@@ -690,6 +784,8 @@ export function createServerTab(ctx: TabContext) {
     state.editFieldIndex = null;
     state.devicesOutput = null;
     state.loading = false;
+    state.focusArea = "buttons";
+    state.buttonIndex = 0;
   }
 
   return { render, handleKey, dispose };

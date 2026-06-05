@@ -2,7 +2,7 @@ import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, termHeight, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
 import { renderProgressBar as renderSharedProgressBar } from "../shared/ProgressBar.js";
 import { renderHelpBar } from "../shared/HelpBar.js";
-import { renderActionBar as renderSharedActionBar } from "../shared/ActionBar.js";
+import { renderButtonBar } from "../shared/Button.js";
 import { loadConfig, saveConfig, getModelsDir, ConfigData } from "../../lib/config.js";
 import {
   listLocalModels,
@@ -712,10 +712,10 @@ export function createModelsTab(ctx: TabContext) {
       case "actions": {
         y = renderHeader(state, term, width, y);
         y = renderModelList(state, term, width, y);
-        y = renderSharedActionBar({
+        y = renderButtonBar({
           term,
           startY: y,
-          items: ACTION_LABELS,
+          items: ACTION_LABELS.map(label => ({ label })),
           selectedIndex: state.actionIndex,
           label: "Actions:",
         });

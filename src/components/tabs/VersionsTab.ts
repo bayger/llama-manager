@@ -2,7 +2,7 @@ import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, renderBox, renderBoxWithSeparator, renderLine, renderDivider } from "../../lib/theme.js";
 import { renderProgressBar as renderSharedProgressBar } from "../shared/ProgressBar.js";
 import { renderHelpBar } from "../shared/HelpBar.js";
-import { renderActionBar as renderSharedActionBar } from "../shared/ActionBar.js";
+import { renderButtonBar } from "../shared/Button.js";
 import { loadConfig, saveConfig, getVersionsDir, ConfigData } from "../../lib/config.js";
 import {
   listVersions,
@@ -561,19 +561,19 @@ export function createVersionsTab(ctx: TabContext) {
       y = renderEditMode(term, y);
     } else if (state.focusArea === "list") {
       y = renderVersionList(term, y);
-      y = renderSharedActionBar({
+      y = renderButtonBar({
         term,
         startY: y,
-        items: ACTION_LABELS,
+        items: ACTION_LABELS.map(label => ({ label })),
         selectedIndex: -1,
         label: "Actions:",
       });
     } else if (state.focusArea === "actions") {
       y = renderVersionList(term, y);
-      y = renderSharedActionBar({
+      y = renderButtonBar({
         term,
         startY: y,
-        items: ACTION_LABELS,
+        items: ACTION_LABELS.map(label => ({ label })),
         selectedIndex: state.actionIndex,
         label: "Actions:",
       });
