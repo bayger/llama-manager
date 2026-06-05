@@ -101,6 +101,7 @@ interface ModelsState {
   browseSearchQuery: string;
   browseEditMode: boolean;
   browseEditValue: string;
+  initPromise: Promise<void> | null;
 }
 
 let state: ModelsState | null = null;
@@ -142,6 +143,7 @@ function initState(): ModelsState {
     browseSearchQuery: "",
     browseEditMode: false,
     browseEditValue: "",
+    initPromise: null,
   };
   return state;
 }
@@ -200,7 +202,7 @@ function drawBorderBox(
 
 function renderHeader(s: ModelsState, term: Terminal, width: number, startY: number): number {
   const titleLine = ` Models │ ${s.models.length} local │ ${formatSize(s.totalSize)} used`;
-  const dirLine = ` Dir: ${getModelsDir(s.config!)}`;
+  const dirLine = ` Dir: ${s.config ? getModelsDir(s.config) : "N/A"}`;
 
   const headerLines = [titleLine, dirLine];
   let y = drawBorderBox(term, width, headerLines, startY);
@@ -492,6 +494,18 @@ function renderMessage(s: ModelsState, term: Terminal, startY: number): number {
 export function render(_app: any): void {
   const s = initState();
   const term = _app.term as Terminal;
+
+  if (!s.config && !s.initPromise) {
+    s.loading = true;
+    s.initPromise = (async () => {
+      s.config = await loadConfig();
+      if (s.config) {
+        await refreshModels(s);
+      }
+      s.loading = false;
+      _app.scheduleRender();
+    })();
+  }
 
   const width = termWidth(term);
   const height = termHeight(term);

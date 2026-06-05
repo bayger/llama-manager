@@ -97,7 +97,7 @@ function showMessage(msg: string, app: any): void {
 }
 
 function scheduleRender(app: any): void {
-  requestAnimationFrame(() => app.render());
+  app.scheduleRender();
 }
 
 function renderLine(term: Terminal, y: number, fn: () => void): void {
