@@ -141,11 +141,9 @@ export class App {
 
     // --- Content area (row 3 to height-1) ---
     if (this.dirty.content) {
-      if (this.dirty.tabbar) {
-        for (let y = 3; y < height; y++) {
-          term.moveTo(1, y);
-          term.eraseLine();
-        }
+      for (let y = 3; y < height; y++) {
+        term.moveTo(1, y);
+        term.eraseLine();
       }
       term.moveTo(1, 3);
       this.tabModules[activeTab].render();

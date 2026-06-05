@@ -2,7 +2,7 @@ import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termWidth, renderBox, renderBoxWithSeparator, renderLine, renderDivider } from "../../lib/theme.js";
 import { renderProgressBar as renderSharedProgressBar } from "../shared/ProgressBar.js";
 import { renderHelpBar } from "../shared/HelpBar.js";
-import { renderButtonBar } from "../shared/Button.js";
+import { renderButtonBar, moveButtonIndex, ButtonItem } from "../shared/Button.js";
 import { loadConfig, saveConfig, getVersionsDir, ConfigData } from "../../lib/config.js";
 import {
   listVersions,
@@ -28,8 +28,8 @@ interface State {
   config: ConfigData | null;
   versions: VersionInfo[];
   selectedIndex: number;
-  focusArea: "list" | "actions" | "releases" | "backends";
-  actionIndex: number;
+  focusArea: "buttons" | "list" | "releases" | "backends";
+  buttonIndex: number;
   loading: boolean;
   message: string | null;
   installing: boolean;
@@ -58,15 +58,13 @@ function buildInstalledBackends(versions: VersionInfo[]): Record<string, Set<str
   return map;
 }
 
-const ACTION_LABELS = ACTIONS.map(a => a.charAt(0).toUpperCase() + a.slice(1));
-
 function createInitialState(): State {
   return {
     config: null,
     versions: [],
     selectedIndex: 0,
-    focusArea: "list",
-    actionIndex: 0,
+    focusArea: "buttons",
+    buttonIndex: 0,
     loading: false,
     message: null,
     installing: false,
@@ -91,8 +89,8 @@ function resetState(state: State): void {
   state.config = null;
   state.versions = [];
   state.selectedIndex = 0;
-  state.focusArea = "list";
-  state.actionIndex = 0;
+  state.focusArea = "buttons";
+  state.buttonIndex = 0;
   state.loading = false;
   state.message = null;
   state.installing = false;
@@ -113,6 +111,16 @@ function resetState(state: State): void {
 
 export function createVersionsTab(ctx: TabContext) {
   const state = createInitialState();
+
+  function getVersionButtonItems(): ButtonItem[] {
+    const hasSelection = state.versions.length > 0 && state.selectedIndex < state.versions.length;
+    return [
+      { label: "Switch", disabled: !hasSelection },
+      { label: "Uninstall", disabled: !hasSelection },
+      { label: "Check" },
+      { label: "Install" },
+    ];
+  }
 
   function clearMessageTimer(): void {
     if (state.timer) {
@@ -156,16 +164,25 @@ export function createVersionsTab(ctx: TabContext) {
     return y;
   }
 
+  function renderButtons(term: Terminal, startY: number): number {
+    return renderButtonBar({
+      term,
+      startY,
+      items: getVersionButtonItems(),
+      selectedIndex: state.focusArea === "buttons" ? state.buttonIndex : -1,
+    });
+  }
+
   function renderHelp(term: Terminal, startY: number): number {
     let hint = "";
     if (state.installing) {
       hint = " Installing... please wait ";
     } else if (state.editMode) {
       hint = " Type tag │ Enter confirm │ Ctrl+C cancel ";
+    } else if (state.focusArea === "buttons") {
+      hint = " h/l navigate │ Enter execute │ DOWN to list ";
     } else if (state.focusArea === "list") {
-      hint = " j/k navigate │ g actions │ Enter execute ";
-    } else if (state.focusArea === "actions") {
-      hint = " h/l action select │ Enter execute │ j/k go to list ";
+      hint = " j/k navigate │ UP to actions │ Enter switch ";
     } else if (state.focusArea === "releases") {
       hint = " j/k navigate │ Enter select backend │ g back │ e custom tag ";
     } else if (state.focusArea === "backends") {
@@ -482,7 +499,7 @@ export function createVersionsTab(ctx: TabContext) {
           state.releases = await listRecentVersions(20);
         } catch (err: any) {
           showMessage(`Failed to fetch releases: ${err.message}`);
-          state.focusArea = "list";
+          state.focusArea = "buttons";
         }
         state.fetchingReleases = false;
         ctx.scheduleRender();
@@ -507,6 +524,7 @@ export function createVersionsTab(ctx: TabContext) {
     state.installing = true;
     state.installProgress = 0;
     state.installLabel = "";
+    state.message = null;
     ctx.setTextInputFocused(false);
     ctx.showMessage(`Installing ${tag} (${backend.label})...`);
     ctx.scheduleRender();
@@ -523,9 +541,10 @@ export function createVersionsTab(ctx: TabContext) {
       state.versions = await listVersions(state.config);
       state.totalSize = await getTotalVersionsSize(state.config);
       state.installedBackends = buildInstalledBackends(state.versions);
-      showMessage(`Installed and activated ${result}`);
-      state.focusArea = "list";
+      state.focusArea = "buttons";
       state.selectedIndex = 0;
+      state.message = null;
+      showMessage(`Installed and activated ${result}`);
     } catch (err: any) {
       showMessage(`Install failed: ${err.message}`);
     } finally {
@@ -556,27 +575,13 @@ export function createVersionsTab(ctx: TabContext) {
 
     let y = 3;
     y = renderHeader(term, state.config, y);
+    y = renderButtons(term, y);
+    renderDivider(term, y++, themeColors.border);
 
     if (state.editMode) {
       y = renderEditMode(term, y);
-    } else if (state.focusArea === "list") {
+    } else if (state.focusArea === "list" || state.focusArea === "buttons") {
       y = renderVersionList(term, y);
-      y = renderButtonBar({
-        term,
-        startY: y,
-        items: ACTION_LABELS.map(label => ({ label })),
-        selectedIndex: -1,
-        label: "Actions:",
-      });
-    } else if (state.focusArea === "actions") {
-      y = renderVersionList(term, y);
-      y = renderButtonBar({
-        term,
-        startY: y,
-        items: ACTION_LABELS.map(label => ({ label })),
-        selectedIndex: state.actionIndex,
-        label: "Actions:",
-      });
     } else if (state.focusArea === "releases") {
       y = renderReleases(term, y);
     } else if (state.focusArea === "backends") {
@@ -600,7 +605,7 @@ export function createVersionsTab(ctx: TabContext) {
     }
 
     if (state.editMode) {
-      if (key === "return" || key === "enter") {
+      if (key === "RETURN" || key === "ENTER") {
         const tag = state.editValue.trim();
         if (tag) {
           state.pendingTag = tag;
@@ -636,7 +641,7 @@ export function createVersionsTab(ctx: TabContext) {
           })();
         }
         return true;
-      } else if (key === "escape" || key === "CTRL_C") {
+      } else if (key === "ESC" || key === "CTRL_C") {
         state.editMode = false;
         state.editValue = "";
         state.pendingTag = null;
@@ -644,7 +649,7 @@ export function createVersionsTab(ctx: TabContext) {
         state.focusArea = "releases";
         ctx.scheduleRender();
         return true;
-      } else if (key === "BACKSPACE" || key === "DELETE") {
+      } else if (key === "BACKSPACE" || key === "DEL") {
         state.editValue = state.editValue.slice(0, -1);
         ctx.scheduleRender();
         return true;
@@ -656,10 +661,37 @@ export function createVersionsTab(ctx: TabContext) {
       return true;
     }
 
-    const focus = state.focusArea;
-
-    if (focus === "list") {
+    if (state.focusArea === "buttons") {
+      if (key === "h" || key === "LEFT" || key === "k") {
+        state.buttonIndex = moveButtonIndex(getVersionButtonItems(), state.buttonIndex, -1);
+        ctx.scheduleRender();
+        return true;
+      }
+      if (key === "l" || key === "RIGHT" || key === "j") {
+        state.buttonIndex = moveButtonIndex(getVersionButtonItems(), state.buttonIndex, 1);
+        ctx.scheduleRender();
+        return true;
+      }
+      if (key === "RETURN" || key === "ENTER") {
+        const items = getVersionButtonItems();
+        if (!items[state.buttonIndex]?.disabled) {
+          const action = ACTIONS[state.buttonIndex];
+          executeAction(action).catch(() => {});
+        }
+        return true;
+      }
+      if (key === "DOWN") {
+        state.focusArea = "list";
+        ctx.scheduleRender();
+        return true;
+      }
+    } else if (state.focusArea === "list") {
       if (key === "k" || key === "UP") {
+        if (state.selectedIndex === 0) {
+          state.focusArea = "buttons";
+          ctx.scheduleRender();
+          return true;
+        }
         state.selectedIndex = Math.max(0, state.selectedIndex - 1);
         ctx.scheduleRender();
         return true;
@@ -669,49 +701,13 @@ export function createVersionsTab(ctx: TabContext) {
         ctx.scheduleRender();
         return true;
       }
-      if (key === "g") {
-        state.focusArea = "actions";
-        state.actionIndex = 0;
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "return" || key === "enter") {
+      if (key === "RETURN" || key === "ENTER") {
         if (state.versions.length > 0) {
           executeAction("switch").catch(() => {});
         }
         return true;
       }
-    } else if (focus === "actions") {
-      if (key === "h" || key === "LEFT") {
-        state.actionIndex = Math.max(0, state.actionIndex - 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "l" || key === "RIGHT") {
-        state.actionIndex = Math.min(ACTIONS.length - 1, state.actionIndex + 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "j" || key === "k" || key === "UP" || key === "DOWN") {
-        state.focusArea = "list";
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "return" || key === "enter") {
-        const action = ACTIONS[state.actionIndex];
-        executeAction(action).catch(() => {});
-        if (state.focusArea === "actions") {
-          state.focusArea = "list";
-          ctx.scheduleRender();
-        }
-        return true;
-      }
-      if (key === "escape") {
-        state.focusArea = "list";
-        ctx.scheduleRender();
-        return true;
-      }
-    } else if (focus === "releases") {
+    } else if (state.focusArea === "releases") {
       if (key === "k" || key === "UP") {
         state.releaseIndex = Math.max(0, state.releaseIndex - 1);
         ctx.scheduleRender();
@@ -722,8 +718,8 @@ export function createVersionsTab(ctx: TabContext) {
         ctx.scheduleRender();
         return true;
       }
-      if (key === "g" || key === "escape") {
-        state.focusArea = "list";
+      if (key === "g" || key === "ESC") {
+        state.focusArea = "buttons";
         ctx.scheduleRender();
         return true;
       }
@@ -734,7 +730,7 @@ export function createVersionsTab(ctx: TabContext) {
         ctx.scheduleRender();
         return true;
       }
-      if (key === "return" || key === "enter") {
+      if (key === "RETURN" || key === "ENTER") {
         const currentRelease = state.releases[state.releaseIndex];
         if (!currentRelease) return true;
 
@@ -750,7 +746,7 @@ export function createVersionsTab(ctx: TabContext) {
         ctx.scheduleRender();
         return true;
       }
-    } else if (focus === "backends") {
+    } else if (state.focusArea === "backends") {
       if (key === "k" || key === "UP") {
         state.backendIndex = Math.max(0, state.backendIndex - 1);
         ctx.scheduleRender();
@@ -761,12 +757,12 @@ export function createVersionsTab(ctx: TabContext) {
         ctx.scheduleRender();
         return true;
       }
-      if (key === "g" || key === "escape") {
+      if (key === "g" || key === "ESC") {
         state.focusArea = "releases";
         ctx.scheduleRender();
         return true;
       }
-      if (key === "return" || key === "enter") {
+      if (key === "RETURN" || key === "ENTER") {
         if (state.availableBackends.length > 0) {
           const backend = state.availableBackends[state.backendIndex];
           const currentTag = state.pendingTag || (state.releases[state.releaseIndex]?.tag || "");
