@@ -253,7 +253,7 @@ export function createServerTab(ctx: TabContext) {
         hint = ` Value: ${state.editValue} │ Enter confirm │ Ctrl+C cancel `;
       }
     } else {
-      hint = " h/l buttons │ j/k navigate │ Enter edit │ space collapse │ Ctrl+D/U pg │ Devices d ";
+      hint = " h/l/j/k buttons │ UP/DOWN sections │ j/k fields │ Enter edit │ space collapse │ Ctrl+D/U pg │ Devices d ";
     }
 
     return renderHelpBar({ term, y: startY, text: hint });
@@ -648,12 +648,12 @@ export function createServerTab(ctx: TabContext) {
     }
 
     if (state.focusArea === "buttons") {
-      if (key === "h" || key === "LEFT") {
+      if (key === "h" || key === "LEFT" || key === "k") {
         state.buttonIndex = Math.max(0, state.buttonIndex - 1);
         ctx.scheduleRender();
         return true;
       }
-      if (key === "l" || key === "RIGHT") {
+      if (key === "l" || key === "RIGHT" || key === "j") {
         state.buttonIndex = Math.min(PROFILE_ACTIONS.length - 1, state.buttonIndex + 1);
         ctx.scheduleRender();
         return true;
@@ -663,19 +663,25 @@ export function createServerTab(ctx: TabContext) {
         ctx.scheduleRender();
         return true;
       }
-      if (key === "j" || key === "DOWN") {
+      if (key === "DOWN") {
         state.focusArea = "form";
         ctx.scheduleRender();
         return true;
       }
     } else {
-      if (key === "k" || key === "UP") {
-        const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
-        if (rowIdx <= state.scrollOffset) {
+      if (key === "UP") {
+        if (state.selectedIndex === 0) {
           state.focusArea = "buttons";
           ctx.scheduleRender();
           return true;
         }
+        state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+        const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
+        if (rowIdx >= 0 && rowIdx < state.scrollOffset) {
+          state.scrollOffset = rowIdx;
+        }
+        ctx.scheduleRender();
+        return true;
       }
     }
 
@@ -700,7 +706,7 @@ export function createServerTab(ctx: TabContext) {
       return true;
     }
 
-    if (key === "k" || key === "UP") {
+    if (key === "k") {
       state.selectedIndex = Math.max(0, state.selectedIndex - 1);
       const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
       if (rowIdx >= 0 && rowIdx < state.scrollOffset) {
