@@ -138,6 +138,14 @@ function countVisibleFields(config: ConfigData): number {
   return buildFormRows(config).filter(r => r.isFieldSelectable).length;
 }
 
+function getRowIndexOfField(config: ConfigData, fieldIndex: number): number {
+  const rows = buildFormRows(config);
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].isFieldSelectable && rows[i].globalFieldIndex === fieldIndex) return i;
+  }
+  return -1;
+}
+
 function getFormRowsCount(config: ConfigData): number {
   return buildFormRows(config).length;
 }
@@ -906,8 +914,9 @@ export function handleKey(app: any, key: string): boolean {
 
     if (key === "k" || key === "UP") {
       state.selectedIndex = Math.max(0, state.selectedIndex - 1);
-      if (state.selectedIndex < state.scrollOffset) {
-        state.scrollOffset = state.selectedIndex;
+      const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
+      if (rowIdx >= 0 && rowIdx < state.scrollOffset) {
+        state.scrollOffset = rowIdx;
       }
       app.scheduleRender();
       return true;
@@ -915,8 +924,9 @@ export function handleKey(app: any, key: string): boolean {
     if (key === "j" || key === "DOWN") {
       state.selectedIndex = Math.min(total - 1, state.selectedIndex + 1);
       const vh = getFormViewportHeight(app.term) - 2;
-      if (state.selectedIndex >= state.scrollOffset + vh) {
-        state.scrollOffset = state.selectedIndex - vh + 1;
+      const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
+      if (rowIdx >= 0 && rowIdx >= state.scrollOffset + vh) {
+        state.scrollOffset = rowIdx - vh + 1;
       }
       app.scheduleRender();
       return true;
@@ -926,7 +936,10 @@ export function handleKey(app: any, key: string): boolean {
       const vh = getFormViewportHeight(app.term) - 2;
       const pageStep = Math.floor(vh / 2);
       state.selectedIndex = Math.min(total - 1, state.selectedIndex + pageStep);
-      state.scrollOffset = Math.max(0, state.selectedIndex - vh + 1);
+      const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
+      if (rowIdx >= 0) {
+        state.scrollOffset = Math.max(0, rowIdx - vh + 1);
+      }
       app.scheduleRender();
       return true;
     }
@@ -934,8 +947,9 @@ export function handleKey(app: any, key: string): boolean {
       const vh = getFormViewportHeight(app.term) - 2;
       const pageStep = Math.floor(vh / 2);
       state.selectedIndex = Math.max(0, state.selectedIndex - pageStep);
-      if (state.selectedIndex < state.scrollOffset) {
-        state.scrollOffset = state.selectedIndex;
+      const rowIdx = getRowIndexOfField(state.config, state.selectedIndex);
+      if (rowIdx >= 0 && rowIdx < state.scrollOffset) {
+        state.scrollOffset = rowIdx;
       }
       app.scheduleRender();
       return true;
