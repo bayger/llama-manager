@@ -157,7 +157,13 @@ export class Control {
   onDetach(): void {}
   onFocus(): void {}
   onBlur(): void {}
-  onLayout(): void {}
+  onLayout(): void {
+    for (const child of this.children) {
+      if (child.visible) {
+        child.layout(this.rect);
+      }
+    }
+  }
 
   // — Utilities —
 
