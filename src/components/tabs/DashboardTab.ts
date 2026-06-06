@@ -2,6 +2,7 @@ import { Control } from "../ui/Control.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
+import { LogsViewer } from "../specialized/LogsViewer.js";
 import { themeColors, fg } from "../../lib/theme.js";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog } from "../../lib/server.js";
 import { getServerMetrics, MetricsData } from "../../lib/api.js";
@@ -76,43 +77,6 @@ class StatusControl extends Control {
   }
 }
 
-class LogsControl extends Control {
-  render(): void {
-    if (!this.visible || !this.needsRender) return;
-    const term = this.term;
-    const { x, y, width, height } = this.rect;
-
-    if (height <= 0) {
-      this.needsRender = false;
-      return;
-    }
-
-    const totalLines = serverLogLines.length;
-    const startIdx = Math.max(0, totalLines - height);
-    const visibleLines = serverLogLines.slice(startIdx);
-
-    for (let i = 0; i < height; i++) {
-      term.moveTo(x, y + i);
-      if (i < visibleLines.length) {
-        const line = visibleLines[i]!;
-        const truncated = line.substring(0, width);
-        fg(term, this.getLineColor(line), truncated);
-      } else {
-        fg(term, themeColors.canvas, " ".repeat(width));
-      }
-    }
-
-    this.needsRender = false;
-  }
-
-  protected getLineColor(line: string): string {
-    if (line.includes("ERROR") || line.includes("FATAL") || line.includes("[E]")) return themeColors.danger;
-    if (line.includes("WARN") || line.includes("[W]")) return themeColors.warning;
-    if (line.includes("DEBUG") || line.includes("[D]")) return themeColors.textMuted;
-    return themeColors.text;
-  }
-}
-
 export class DashboardControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
@@ -120,7 +84,7 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _metricsControl: MetricsControl;
   protected _statusControl: StatusControl;
-  protected _logsControl: LogsControl;
+  protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
   protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
   protected _metricsTimer: ReturnType<typeof setInterval> | null = null;
@@ -142,7 +106,9 @@ export class DashboardControl extends Control {
 
     this._metricsControl = new MetricsControl();
     this._statusControl = new StatusControl();
-    this._logsControl = new LogsControl();
+    this._logsControl = new LogsViewer({
+      getLines: () => serverLogLines,
+    });
     this._logsControl.flex = 1;
 
     this._column = new Column();
