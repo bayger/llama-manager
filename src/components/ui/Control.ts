@@ -112,10 +112,6 @@ export class Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term } = this;
-    const { x, y, width } = this.rect;
-    term.moveTo(x, y);
-    term.colorRgbHex(this._renderContext!.term.width ? "#c9d1d9" : "#c9d1d9");
     for (const child of this.children) {
       child.render();
     }

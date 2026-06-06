@@ -17,7 +17,7 @@ export class Column extends Control {
       } else {
         fixedHeight += childSize.height;
       }
-      totalHeight = Math.max(totalHeight, childSize.width);
+      totalHeight = Math.max(totalHeight, childSize.height);
     }
 
     return {
