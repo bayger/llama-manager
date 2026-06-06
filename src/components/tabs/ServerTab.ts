@@ -4,7 +4,8 @@ import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { HelpBar } from "../ui/widgets/HelpBar.js";
 import { Label } from "../ui/widgets/Label.js";
-import { themeColors, fg, termWidth, termHeight, renderLine, renderDivider } from "../../lib/theme.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
+import { themeColors, fg, termWidth, termHeight, renderLine } from "../../lib/theme.js";
 import {
   loadConfig,
   saveConfig,
@@ -47,8 +48,11 @@ export class ServerControl extends Column {
   protected _devicesOutput: string | null = null;
   protected _focusArea: "buttons" | "form" = "buttons";
   protected _buttonBar: ButtonBar;
-  protected _helpBar: HelpBar | null = null;
-  protected _headerLabel: Label | null = null;
+  protected _headerLabel: Label;
+  protected _headerDivider: Divider;
+  protected _formDivider: Divider;
+  protected _helpSpacer: Spacer;
+  protected _helpBar: HelpBar;
 
   constructor(ctx: TabContext) {
     super();
@@ -57,6 +61,12 @@ export class ServerControl extends Column {
     this._buttonBar.add(new Button({ label: "Create", action: () => this._onCreateProfile() }));
     this._buttonBar.add(new Button({ label: "Rename", action: () => this._onRenameProfile() }));
     this._buttonBar.add(new Button({ label: "Delete", action: () => this._onDeleteProfile() }));
+    this._headerLabel = new Label();
+    this._headerLabel.bold = true;
+    this._headerDivider = new Divider();
+    this._formDivider = new Divider();
+    this._helpSpacer = new Spacer();
+    this._helpBar = new HelpBar();
   }
 
   measure(_parentSize?: Size): Size {
@@ -66,10 +76,20 @@ export class ServerControl extends Column {
   attach(renderContext: RenderContext): void {
     super.attach(renderContext);
     this._buttonBar.attach(renderContext);
+    this._headerLabel.attach(renderContext);
+    this._headerDivider.attach(renderContext);
+    this._formDivider.attach(renderContext);
+    this._helpSpacer.attach(renderContext);
+    this._helpBar.attach(renderContext);
   }
 
   detach(): void {
     this._buttonBar.detach();
+    this._headerLabel.detach();
+    this._headerDivider.detach();
+    this._formDivider.detach();
+    this._helpSpacer.detach();
+    this._helpBar.detach();
     super.detach();
   }
 
@@ -97,12 +117,12 @@ export class ServerControl extends Column {
 
     let y = this.rect.y;
 
-    y = this._renderHeader(term, y);
+    y = this._renderHeader(y);
     y = this._renderProfileButtons(term, y);
-    renderDivider(term, y++, themeColors.border);
+    y = this._renderDividerAt(this._formDivider, y, this.rect.width);
     y = this._renderForm(term, y);
 
-    y = this._renderHelp(term, y);
+    y = this._renderHelp(y);
 
     renderLine(term, y, () => {
       fg(term, themeColors.textMuted, " ");
@@ -623,18 +643,24 @@ export class ServerControl extends Column {
 
   // — Rendering —
 
-  _renderHeader(term: any, startY: number): number {
+  _renderDividerAt(divider: Divider, y: number, width: number): number {
+    divider.rect = { x: 0, y, width, height: 1 };
+    divider.needsRender = true;
+    divider.render();
+    return y + 1;
+  }
+
+  _renderHeader(startY: number): number {
     const version = this._config?.activeVersion || "none";
     const activeProfile = this._config?.server?.activeProfile || "Default";
 
-    let y = startY;
-    renderLine(term, y++, () => {
-      term.bold();
-      fg(term, themeColors.text, `  Profiles │ ${activeProfile} │ Version: ${version}`);
-      term.styleReset();
-    });
-    renderDivider(term, y++, themeColors.border);
-    return y;
+    this._headerLabel.text = `  Profiles │ ${activeProfile} │ Version: ${version}`;
+    this._headerLabel.color = themeColors.text;
+    this._headerLabel.rect = { x: 0, y: startY, width: this.rect.width, height: 1 };
+    this._headerLabel.needsRender = true;
+    this._headerLabel.render();
+
+    return this._renderDividerAt(this._headerDivider, startY + 1, this.rect.width);
   }
 
   _renderProfileButtons(term: any, startY: number): number {
@@ -782,7 +808,7 @@ export class ServerControl extends Column {
     return y;
   }
 
-  _renderHelp(term: any, startY: number): number {
+  _renderHelp(startY: number): number {
     let hint = "";
 
     if (this._editMode) {
@@ -797,17 +823,16 @@ export class ServerControl extends Column {
       hint = " h/l/j/k buttons │ UP/DOWN sections │ j/k fields │ Enter edit │ space collapse │ Ctrl+D/U pg │ Devices d ";
     }
 
-    renderLine(term, startY++, () => {});
+    this._helpSpacer.rect = { x: 0, y: startY, width: this.rect.width, height: 1 };
+    this._helpSpacer.needsRender = true;
+    this._helpSpacer.render();
 
-    const width = termWidth(term);
-    const left = Math.floor((width - 2 - hint.length) / 2);
+    this._helpBar.text = hint;
+    this._helpBar.rect = { x: 0, y: startY + 1, width: this.rect.width, height: 2 };
+    this._helpBar.needsRender = true;
+    this._helpBar.render();
 
-    renderLine(term, startY, () => {
-      term(" ".repeat(left));
-      fg(term, themeColors.textMuted, hint);
-    });
-
-    return startY + 1;
+    return startY + 3;
   }
 
   _renderDevicesOverlay(term: any): void {
