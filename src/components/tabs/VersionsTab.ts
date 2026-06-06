@@ -3,7 +3,7 @@ import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { List, ListItem } from "../ui/widgets/List.js";
-import { themeColors, fg } from "../../lib/theme.js";
+import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { listVersions, uninstallVersion, switchVersion, getTotalVersionsSize, VersionInfo, BACKEND_LABELS } from "../../lib/versions.js";
 import { saveConfig } from "../../lib/config.js";
 import { fireAsync } from "../../lib/utils.js";
@@ -61,6 +61,19 @@ export class VersionsControl extends Control {
     this._list = new List();
     this._list.focusable = true;
     this._list.tabIndex = 0;
+    this._list.setRenderer((term, item, _index, isSelected, _x, rowY, width) => {
+      const v = (item as any).data as VersionInfo;
+      const prefix = v.active ? "● " : "  ";
+      const line = ` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`;
+
+      if (isSelected) {
+        fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
+        term.styleReset();
+      } else {
+        term.moveTo(_x, rowY);
+        fg(term, v.active ? themeColors.success : themeColors.text, line);
+      }
+    });
 
     this._btnInstall = new Button({ label: "Install" });
     this._btnDelete = new Button({ label: "Delete" });
