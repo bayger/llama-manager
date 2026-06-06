@@ -140,7 +140,7 @@ export async function downloadModel(
   onProgress(0, "Starting download...");
   const res = await fetch(downloadUrl, {
     headers: {
-      "User-Agent": "llama-dashboard",
+      "User-Agent": "llama-manager",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
   });

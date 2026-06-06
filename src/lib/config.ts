@@ -3,11 +3,11 @@ import path from "path";
 import os from "os";
 
 const CONFIG_DIR =
-  process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config", "llama-dashboard");
+  process.env.XDG_CONFIG_HOME || path.join(os.homedir(), ".config", "llama-manager");
 const DATA_DIR =
-  process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share", "llama-dashboard");
+  process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share", "llama-manager");
 const STATE_DIR =
-  process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state", "llama-dashboard");
+  process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state", "llama-manager");
 const HF_HOME = process.env.HF_HOME || path.join(os.homedir(), ".cache", "huggingface");
 
 const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
@@ -288,7 +288,7 @@ export function getVersionsDir(config: ConfigData): string {
 
 export function getModelsDir(config: ConfigData): string {
   if (config.modelsDir) return config.modelsDir;
-  return path.join(HF_HOME, "llama-dashboard");
+  return path.join(HF_HOME, "llama-manager");
 }
 
 export function getTasksFile(config: ConfigData): string {

@@ -2,7 +2,9 @@
 
 ## Overview
 
-A terminal UI application built with TypeScript and Ink that provides a unified interface for managing llama.cpp installations, controlling the llama-server process, downloading HuggingFace GGUF models, monitoring server performance in real time, and reviewing historical task statistics.
+A terminal UI application built with TypeScript and terminal-kit that provides a unified interface for managing llama.cpp installations, controlling the llama-server process, downloading HuggingFace GGUF models, monitoring server performance in real time, and reviewing historical task statistics.
+
+Uses a custom Control-based UI framework with composable widgets, flex-based layouts, and a singleton focus manager — no React or Ink dependency.
 
 ---
 
@@ -11,12 +13,13 @@ A terminal UI application built with TypeScript and Ink that provides a unified 
 | Layer | Choice |
 |---|---|
 | Language | TypeScript |
-| TUI Framework | Ink |
-| HTTP Client | node-fetch / undici |
+| TUI Framework | terminal-kit (imperative rendering) |
+| UI Architecture | Custom Control tree with Column/Row layouts |
+| HTTP Client | undici |
 | Process Management | child_process (spawn) |
-| State Management | Ink's built-in hooks (`useState`, `useEffect`) |
-| Config Storage | JSON file at `$XDG_CONFIG_HOME/llama-dashboard/config.json` |
-| Package Manager | npm or pnpm |
+| State Management | Control-owned presentation state + TabContext services |
+| Config Storage | JSON file at `$XDG_CONFIG_HOME/llama-manager/config.json` |
+| Package Manager | npm |
 
 ---
 
@@ -26,23 +29,80 @@ All paths follow XDG Base Directory spec and respect environment variable overri
 
 | What | Default Path | Env Override |
 |---|---|---|
-| Config | `$XDG_CONFIG_HOME/llama-dashboard/config.json` | — |
-| Versions (builds) | `$XDG_DATA_HOME/llama-dashboard/versions/` | — |
-| Models (GGUF) | `$HF_HOME/llama-dashboard/` | `HF_HOME` |
-| Tasks log | `$XDG_DATA_HOME/llama-dashboard/tasks.jsonl` | — |
-| Server log | `$XDG_STATE_HOME/llama-dashboard/server.log` | — |
+| Config | `$XDG_CONFIG_HOME/llama-manager/config.json` | — |
+| Versions (builds) | `$XDG_DATA_HOME/llama-manager/versions/` | — |
+| Models (GGUF) | `$HF_HOME/llama-manager/` | `HF_HOME` |
+| Tasks log | `$XDG_DATA_HOME/llama-manager/tasks.jsonl` | — |
+| Server log | `$XDG_STATE_HOME/llama-manager/server.log` | — |
 
 **Resolved defaults** (when env vars are unset):
 
 | What | Resolved Path |
 |---|---|
-| Config | `~/.config/llama-dashboard/config.json` |
-| Versions | `~/.local/share/llama-dashboard/versions/` |
-| Models | `~/.cache/huggingface/llama-dashboard/` |
-| Tasks | `~/.local/share/llama-dashboard/tasks.jsonl` |
-| Server log | `~/.local/state/llama-dashboard/server.log` |
+| Config | `~/.config/llama-manager/config.json` |
+| Versions | `~/.local/share/llama-manager/versions/` |
+| Models | `~/.cache/huggingface/llama-manager/` |
+| Tasks | `~/.local/share/llama-manager/tasks.jsonl` |
+| Server log | `~/.local/state/llama-manager/server.log` |
 
 Models live under `HF_HOME` so users who already set `HF_HOME` to a large disk get the benefit automatically. All paths are configurable in `config.json`.
+
+---
+
+## UI Architecture
+
+### Control Tree
+
+The UI is built from a hierarchy of `Control` instances. Each control manages its own presentation state (selected index, scroll offset, edit value) and renders itself to a terminal-kit `Terminal` object.
+
+```
+App
+├─ Column (flex layout)
+│  ├─ Label (tab bar)
+│  ├─ Control (active tab)
+│  │  ├─ Column / Row (nested layouts)
+│  │  ├─ Button, TextInput, List, ...
+│  │  └─ ...
+│  └─ HelpBar
+└─ FocusManager (singleton, tracks single focus point)
+```
+
+### Layout System
+
+Two-pass layout with flex-based space distribution:
+
+1. **`measure()`** — each control reports its desired size
+2. **`onLayout()`** — parent distributes available space, assigns child `Rect`s
+
+`Column` distributes vertically (flex along Y), `Row` distributes horizontally (flex along X). Controls without `flex` get their measured size; remaining space goes to flexible children proportionally.
+
+### Focus Management
+
+`FocusManager` singleton tracks a single focus point. Tab/Shift+Tab navigates through focusable controls in tree order. Key events are delivered to the focused control. When a control has no focusable children, the manager falls back to the root for key delivery.
+
+### Rendering
+
+Dirty-flag based incremental rendering. Each control tracks `needsRender`; setting it propagates up to the root. The app's render loop only redraws dirty subtrees.
+
+### RenderContext
+
+Shared context object passed to controls, providing access to the `Terminal` and app services (config, server, tasks, versions, models, api, hf) without tight coupling.
+
+### Widgets
+
+| Widget | Purpose |
+|---|---|
+| `Label` | Static text display |
+| `Button` | Clickable/focusable action button |
+| `ButtonBar` | Horizontal row of buttons |
+| `TextInput` | Single-line text input with cursor |
+| `List` | Scrollable selectable list |
+| `Scrollable` | Scrollable content container |
+| `Box` | Bordered container (Unicode box-drawing) |
+| `Divider` | Horizontal line separator |
+| `Spacer` | Flexible space filler |
+| `ProgressBar` | Download/operation progress |
+| `HelpBar` | Bottom status bar with key hints |
 
 ---
 
@@ -67,6 +127,7 @@ Tab-based navigation with 5 persistent tabs across the top:
 | Input | Action |
 |---|---|
 | `←` / `→` | Switch tabs |
+| `Tab` / `Shift+Tab` | Move focus between controls |
 | `Enter` | Confirm / select |
 | `Esc` | Cancel / go back |
 | `q` | Quit application |
@@ -221,7 +282,7 @@ The final command line is assembled as:
 - Server process is spawned via `child_process.spawn`
 - PID is tracked and stored in memory
 - On dashboard quit, server is **not** killed by default (configurable)
-- Config is persisted to `$HOME/.llama-dashboard/config.json` after every change
+- Config is persisted to `$HOME/.llama-manager/config.json` after every change
 
 #### Server Log Viewer
 
@@ -293,7 +354,7 @@ Bottom panel shows summary stats:
 
 #### Persistence
 
-Completed tasks are appended to `$HOME/.llama-dashboard/tasks.jsonl` (one JSON object per line) for survival across dashboard restarts.
+Completed tasks are appended to `$HOME/.llama-manager/tasks.jsonl` (one JSON object per line) for survival across dashboard restarts.
 
 ```jsonl
 {"taskId":93514,"slotId":1,"promptTokens":688,"promptTimeMs":1326.58,"promptSpeed":518.63,"outputTokens":3209,"evalTimeMs":66824.14,"outputSpeed":48.02,"totalTimeMs":68150.72,"totalTokens":3897,"graphsReused":85103,"draftAcceptance":0.51429,"draftAccepted":2160,"draftGenerated":4200,"contextSize":12261,"truncated":false,"timestamp":"2025-01-15T14:36:04.248Z"}
@@ -315,18 +376,18 @@ Lists installed llama.cpp versions and provides install/switch/uninstall actions
 
 ```
 Installed versions:
-  ✓ b7405  (active)  ~/.local/share/llama-dashboard/versions/b7405/
-    b7389              ~/.local/share/llama-dashboard/versions/b7389/
-    b7201              ~/.local/share/llama-dashboard/versions/b7201/
+  ✓ b7405  (active)  ~/.local/share/llama-manager/versions/b7405/
+    b7389              ~/.local/share/llama-manager/versions/b7389/
+    b7201              ~/.local/share/llama-manager/versions/b7201/
 
-Storage: 245 MB used in ~/.local/share/llama-dashboard/versions/
+Storage: 245 MB used in ~/.local/share/llama-manager/versions/
 ```
 
 #### Actions
 
 - **Install** — download prebuilt binary from GitHub releases (`ggerganov/llama.cpp`)
   - Detect OS + architecture (Linux x86_64, Linux ARM64, macOS x86_64, macOS ARM64)
-  - Download ZIP, extract to `$HOME/.llama-dashboard/versions/<version>/`
+  - Download ZIP, extract to `$HOME/.llama-manager/versions/<version>/`
   - Show download progress bar
 - **Switch** — mark a version as active (updates config, restarts server if running)
 - **Uninstall** — remove version directory (blocked if version is active)
@@ -341,7 +402,7 @@ For each version, look for the appropriate build artifact in the GitHub release 
 
 #### Storage Path
 
-Default: `$HOME/.llama-dashboard/versions/`
+Default: `$HOME/.llama-manager/versions/`
 Configurable via settings.
 
 ---
@@ -357,10 +418,10 @@ Manages GGUF model downloads from HuggingFace Hub.
 ```
 Local models (3):
   ✓ TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf  (5.04 GB)  [active]
-   bartowski/Mistral-7B-Instruct-v0.3-GGUF/mistral-7b-instruct-v0.3.Q5_K_M.gguf  (5.33 GB)
-    Qwen/Qwen2.5-7B-Instruct-GGUF/qwen2.5-7b-instruct-q4_k_m.gguf  (4.92 GB)
+    bartowski/Mistral-7B-Instruct-v0.3-GGUF/mistral-7b-instruct-v0.3.Q5_K_M.gguf  (5.33 GB)
+     Qwen/Qwen2.5-7B-Instruct-GGUF/qwen2.5-7b-instruct-q4_k_m.gguf  (4.92 GB)
 
-Storage: 15.29 GB used in ~/.cache/huggingface/llama-dashboard/
+Storage: 15.29 GB used in ~/.cache/huggingface/llama-manager/
 ```
 
 #### Actions
@@ -383,7 +444,7 @@ Each downloaded model stores a sidecar JSON:
 {
   "repoId": "TheBloke/Llama-2-7B-Chat-GGUF",
   "filename": "llama-2-7b-chat.Q4_K_M.gguf",
-  "path": "~/.cache/huggingface/llama-dashboard/TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf",
+  "path": "~/.cache/huggingface/llama-manager/TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf",
   "sizeBytes": 5435284480,
   "downloadedAt": "2025-01-15T10:30:00Z",
   "sha256": "..."
@@ -392,7 +453,7 @@ Each downloaded model stores a sidecar JSON:
 
 #### Storage Path
 
-Default: `$HF_HOME/llama-dashboard/` (resolves to `~/.cache/huggingface/llama-dashboard/`)
+Default: `$HF_HOME/llama-manager/` (resolves to `~/.cache/huggingface/llama-manager/`)
 Configurable via settings. Respects `HF_HOME` env var so users who point it to a large disk get the benefit automatically.
 
 #### Search Interface
@@ -450,14 +511,14 @@ Real-time monitoring panel. Polls llama-server API endpoints at configurable int
 
 #### Historical Charts (Optional, Phase 2)
 
-- Token/s over time (sparkline in terminal using `ink-sparkline` or custom)
+- Token/s over time (sparkline in terminal using custom rendering)
 - Context usage over time
 
 ---
 
 ## Configuration File
 
-Path: `$XDG_CONFIG_HOME/llama-dashboard/config.json` (resolves to `~/.config/llama-dashboard/config.json`)
+Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama-manager/config.json`)
 
 ```json
 {
@@ -568,23 +629,37 @@ Path: `$XDG_CONFIG_HOME/llama-dashboard/config.json` (resolves to `~/.config/lla
 ## Directory Structure
 
 ```
-llama-dashboard/
+llama-manager/
 ├── src/
-│   ├── main.ts                 # Entry point, renders root component
+│   ├── main.ts                 # Entry point (shebang: #!/usr/bin/env node)
 │   ├── components/
-│   │   ├── App.tsx             # Root layout: tabs, status bar
-│   │   ├── Tabs.tsx            # Tab bar component
-│   │   ├── StatusBar.tsx       # Bottom status bar
-│   │   ├── tabs/
-│   │   │   ├── ServerTab.tsx
-│   │   │   ├── TasksTab.tsx
-│   │   │   ├── VersionsTab.tsx
-│   │   │   ├── ModelsTab.tsx
-│   │   │   └── DashboardTab.tsx
-│   │   ├── inputs/
-│   │   │   ├── TextInput.tsx   # Reusable text input
-│   │   │   ├── SelectList.tsx  # Scrollable selectable list
-│   │   │   └── ProgressBar.tsx # Download progress
+│   │   ├── App.ts              # Root app: tabs, terminal-kit render loop
+│   │   ├── ui/
+│   │   │   ├── Control.ts      # Base control: lifecycle, children, dirty flags
+│   │   │   ├── Layout.ts       # Column (vertical flex) and Row (horizontal flex)
+│   │   │   ├── FocusManager.ts # Singleton focus tracker, Tab navigation
+│   │   │   ├── Group.ts        # Control grouping
+│   │   │   ├── types.ts        # Rect, Size, RenderContext interfaces
+│   │   │   ├── widgets/
+│   │   │   │   ├── Label.ts
+│   │   │   │   ├── Button.ts
+│   │   │   │   ├── ButtonBar.ts
+│   │   │   │   ├── TextInput.ts
+│   │   │   │   ├── List.ts
+│   │   │   │   ├── Scrollable.ts
+│   │   │   │   ├── Box.ts
+│   │   │   │   ├── Divider.ts
+│   │   │   │   ├── Spacer.ts
+│   │   │   │   ├── ProgressBar.ts
+│   │   │   │   └── HelpBar.ts
+│   │   │   └── index.ts        # Re-exports
+│   │   └── tabs/
+│   │       ├── ServerTab.ts    # ServerControl (profile mgmt, preset editor)
+│   │       ├── TasksTab.ts     # TasksControl (task list, stats footer)
+│   │       ├── VersionsTab.ts  # VersionsControl (install/switch, releases)
+│   │       ├── ModelsTab.ts    # ModelsControl (model list, search, HF browse)
+│   │       ├── DashboardTab.ts # DashboardControl (metrics, status polling)
+│   │       └── LiveLogsTab.ts  # LiveLogsControl (scrollable log viewer)
 │   └── lib/
 │       ├── config.ts           # Config I/O, XDG path resolution, defaults
 │       ├── server.ts           # Server process management
@@ -593,10 +668,12 @@ llama-dashboard/
 │       ├── versions.ts         # Install/switch/uninstall versions
 │       ├── models.ts           # HF search, download, local mgmt
 │       ├── api.ts              # HTTP client for llama-server API
-│       └── hf.ts               # HuggingFace Hub API client
+│       ├── hf.ts               # HuggingFace Hub API client
+│       ├── theme.ts            # GitHub Dark palette, fg(), bg(), fgBg()
+│       └── tabcontext.ts       # Shared context: services + RenderContext
 ├── package.json
 ├── tsconfig.json
-└── README.md
+└── AGENTS.md
 ```
 
 ---
@@ -605,28 +682,22 @@ llama-dashboard/
 
 | Package | Purpose |
 |---|---|
-| `ink` | TUI framework |
-| `react` | Component rendering (required by Ink) |
-| `ink-select-input` | List selection component |
-| `ink-text-input` | Text input component |
-| `ink-spinner` | Loading spinner |
-| `chalk` | Terminal colors |
-| `node-fetch` or `undici` | HTTP requests |
-| `tar` | Extract tar.gz archives (if needed) |
-| `yargs` or `commander` | CLI argument parsing (for `--help`, `--version`) |
+| `terminal-kit` | Terminal rendering, input handling, colors |
+| `undici` | HTTP requests (llama-server API, GitHub, HuggingFace) |
 | `fs-extra` | File operations with promises |
+| `chalk` | Terminal colors (legacy, partial) |
 
 ---
 
 ## CLI Interface
 
 ```
-llama-dashboard              # Launch TUI
-llama-dashboard --help       # Show usage
-llama-dashboard --version    # Print version
-llama-dashboard server start # Headless: start server with config
-llama-dashboard server stop  # Headless: stop server
-llama-dashboard models list  # Headless: list local models
+llama-manager              # Launch TUI
+llama-manager --help       # Show usage
+llama-manager --version    # Print version
+llama-manager server start # Headless: start server with config
+llama-manager server stop  # Headless: stop server
+llama-manager models list  # Headless: list local models
 ```
 
 The TUI is the primary interface. Headless commands are convenience shortcuts that read/write the same config.

@@ -1,4 +1,4 @@
-# llama-dashboard — Agent Instructions
+# llama-manager — Agent Instructions
 
 ## Quick Start
 
@@ -12,29 +12,36 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 
 ## Important Quirks
 
-- **ESM with `.js` imports** — `package.json` has `"type": "module"`. All internal imports must use `.js` extension (e.g., `import App from "./components/App.js"`), even though the source files are `.tsx`. This is required by the `moduleResolution: "bundler"` tsconfig setting.
-- **Entry point is `src/main.tsx`**, not `main.ts`. Has shebang `#!/usr/bin/env node`.
+- **ESM with `.js` imports** — `package.json` has `"type": "module"`. All internal imports must use `.js` extension (e.g., `import { App } from "./components/App.js"`), even though the source files are `.ts`. This is required by the `moduleResolution: "bundler"` tsconfig setting.
+- **Entry point is `src/main.ts`**. Has shebang `#!/usr/bin/env node`.
 - **No tests exist.** No test framework is configured.
 - **No ESLint, no Prettier.** `npm run lint` only runs `tsc --noEmit`. That is the sole verification gate.
 - **`dist/` is gitignored.** Must run `npm run build` before `npm run start`.
-- **`npm run dev`** uses `tsx` which handles TS/TSX directly — no build step needed for development.
+- **`npm run dev`** uses `tsx` which handles TS directly — no build step needed for development.
 
 ## Architecture
 
-- Ink TUI with React 19. Root component `App.tsx` manages 5 tabs: Server, Tasks, Versions, Models, Dashboard.
-- Tab components live in `src/components/tabs/`. Shared inputs in `src/components/inputs/`.
-- Business logic in `src/lib/`: `config.ts`, `server.ts`, `logparser.ts`, `tasks.ts`, `versions.ts`, `models.ts`, `api.ts`, `hf.ts`, `theme.ts`.
+- terminal-kit TUI with a custom Control-based UI framework. Root app `App.ts` manages 7 tabs: Server, Tasks, Versions, Models, Dashboard, LiveLogs, Options.
+- Tab controls live in `src/components/tabs/`. UI framework in `src/components/ui/`.
+- Control tree: `Control` base class with lifecycle hooks, child management, and dirty-flag rendering. `Column`/`Row` layouts with flex-based space distribution. `FocusManager` singleton for Tab/Shift+Tab navigation.
+- Widget library in `src/components/ui/widgets/`: Label, Button, ButtonBar, TextInput, List, Scrollable, Box, Divider, Spacer, ProgressBar, HelpBar.
+- Business logic in `src/lib/`: `config.ts`, `server.ts`, `logparser.ts`, `tasks.ts`, `versions.ts`, `models.ts`, `api.ts`, `hf.ts`, `theme.ts`, `tabcontext.ts`.
 - `theme.ts` provides a GitHub Dark color palette — colors are hex strings, not chalk methods.
-- Uses `fullscreen-ink` for terminal fullscreen mode and `@ink-tools/ink-mouse` for mouse support.
+- `tabcontext.ts` provides shared context with app services and `RenderContext` for terminal access.
 - HTTP client is `undici` (not node-fetch).
-- Config stored at `$XDG_CONFIG_HOME/llama-dashboard/config.json`. See SPEC.md for full schema.
+- Config stored at `$XDG_CONFIG_HOME/llama-manager/config.json`. See SPEC.md for full schema.
 
 ## Dependencies
 
-Uses recent major versions of all libraries (Ink 7, React 19, TypeScript 5, undici 7, etc.). APIs may differ from older tutorials — check current documentation on the web before following stale examples.
+Uses terminal-kit 3, undici 7, TypeScript 5, fs-extra 11. No React, no Ink. APIs may differ from tutorials referencing older stacks — check current documentation on the web before following stale examples.
 
 ## Conventions
 
-- `jsx: "react-jsx"` — no `React` import needed for JSX, but `React` is imported where hooks are used.
+- No JSX. All rendering is imperative via terminal-kit `Terminal` object.
+- Controls own presentation state (selectedIndex, scrollOffset, editValue); business data passed via config/props.
+- Dirty flags (`needsRender`) enable incremental rendering without full-tree redraw.
+- Two-pass layout: `measure()` reports desired size, `onLayout()` assigns child rects.
+- `FocusManager` singleton tracks single focus point; Tab/Shift+Tab navigation through focusable controls.
+- Cursor visibility via ANSI escapes (`\x1b[?25h`/`\x1b[?25l`) — `terminal-kit`'s `Terminal` type lacks `showCursor`/`hideCursor`.
 - Strict TypeScript. No loose `any` patterns — follow existing typing.
 - Follow the directory structure from SPEC.md. New features go under `src/components/tabs/` or `src/lib/`.

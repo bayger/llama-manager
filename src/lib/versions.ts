@@ -43,7 +43,7 @@ export async function listRecentVersions(limit = 20): Promise<RemoteVersion[]> {
   const response = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=${limit}`,
     {
-      headers: { "User-Agent": "llama-dashboard" },
+      headers: { "User-Agent": "llama-manager" },
     },
   );
 
@@ -134,7 +134,7 @@ export async function checkLatestVersion(): Promise<string> {
   const response = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
     {
-      headers: { "User-Agent": "llama-dashboard" },
+      headers: { "User-Agent": "llama-manager" },
     },
   );
 
@@ -256,7 +256,7 @@ export async function installVersion(
   const res = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${version}`,
     {
-      headers: { "User-Agent": "llama-dashboard" },
+      headers: { "User-Agent": "llama-manager" },
     },
   );
 

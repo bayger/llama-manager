@@ -32,22 +32,17 @@ class TaskStore extends EventEmitter {
       const content = await fs.readFile(filePath, "utf-8");
       const lines = content.trim().split("\n").filter(Boolean);
       this.tasks = lines.map((line) => JSON.parse(line) as TaskMetrics);
-      console.log(`[tasks] Loaded ${this.tasks.length} tasks from ${filePath}`);
     }
 
     logParser.seedCompleted(this.tasks.map((t) => t.taskId));
 
     const logFile = getLogFile(config);
-    console.log(`[tasks] Log file: ${logFile}`);
     await logParser.parseExistingFile(logFile);
-    console.log(`[tasks] After file parse: ${this.tasks.length} tasks`);
 
     this.stopTailer = logParser.startFileTailer(logFile);
-    console.log(`[tasks] File tailer started`);
   }
 
   async onTask(task: TaskMetrics) {
-    console.log(`[tasks] onTask: task ${task.taskId}`);
     this.tasks.unshift(task);
     if (this.config && this.tasks.length > this.config.tasks.maxStored) {
       this.tasks = this.tasks.slice(0, this.config.tasks.maxStored);
