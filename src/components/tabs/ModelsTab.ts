@@ -65,7 +65,7 @@ export class ModelsControl extends Column {
   protected _config: ConfigData | null = null;
   protected _models: LocalModel[] = [];
   protected _selectedIndex = 0;
-  protected _focusArea: "list" | "actions" | "search" | "files" | "browse" | "browsefilters" | "browsesort" | "modelcard" = "list";
+  protected _focusArea: "list" | "buttons" | "search" | "files" | "browse" | "browsefilters" | "browsesort" | "modelcard" = "buttons";
   protected _actionIndex = 0;
   protected _loading = false;
   protected _message: string | null = null;
@@ -135,17 +135,12 @@ export class ModelsControl extends Column {
     }
 
     switch (this._focusArea) {
-      case "list": {
+      case "list":
+      case "buttons": {
         y = this._renderHeader(term, width, y);
+        y = this._renderButtons(term, y);
+        renderDivider(term, y++, themeColors.border);
         y = this._renderModelList(term, width, y);
-        y = this._renderHelp(term, y);
-        break;
-      }
-      case "actions": {
-        y = this._renderHeader(term, width, y);
-        y = this._renderModelList(term, width, y);
-        y = this._renderActions(term, y);
-        renderLine(term, y++, () => {});
         y = this._renderHelp(term, y);
         break;
       }
@@ -239,7 +234,7 @@ export class ModelsControl extends Column {
 
     switch (this._focusArea) {
       case "list": return this._handleListKey(key);
-      case "actions": return this._handleActionsKey(key);
+      case "buttons": return this._handleButtonsKey(key);
       case "search": return this._handleSearchKey(key);
       case "files": return this._handleFilesKey(key);
       case "browse": return this._handleBrowseKey(key);
@@ -566,6 +561,12 @@ export class ModelsControl extends Column {
 
   _handleListKey(key: string): boolean {
     if (key === "k" || key === "UP") {
+      if (this._selectedIndex === 0) {
+        this._focusArea = "buttons";
+        this.markDirty();
+        this._ctx?.scheduleRender();
+        return true;
+      }
       this._selectedIndex = clampIndex(this._selectedIndex - 1, this._models.length);
       this.markDirty();
       this._ctx?.scheduleRender();
@@ -577,8 +578,8 @@ export class ModelsControl extends Column {
       this._ctx?.scheduleRender();
       return true;
     }
-    if (key === "g" || key === "RETURN" || key === "ENTER") {
-      this._focusArea = "actions";
+    if (key === "RETURN" || key === "ENTER") {
+      this._focusArea = "buttons";
       const items = this._getModelButtonItems();
       this._actionIndex = items[0]?.disabled ? 1 : 0;
       this.markDirty();
@@ -588,20 +589,20 @@ export class ModelsControl extends Column {
     return false;
   }
 
-  _handleActionsKey(key: string): boolean {
-    if (key === "h" || key === "LEFT") {
+  _handleButtonsKey(key: string): boolean {
+    if (key === "h" || key === "LEFT" || key === "k") {
       this._actionIndex = this._moveButtonIndex(this._getModelButtonItems(), this._actionIndex, -1);
       this.markDirty();
       this._ctx?.scheduleRender();
       return true;
     }
-    if (key === "l" || key === "RIGHT") {
+    if (key === "l" || key === "RIGHT" || key === "j") {
       this._actionIndex = this._moveButtonIndex(this._getModelButtonItems(), this._actionIndex, 1);
       this.markDirty();
       this._ctx?.scheduleRender();
       return true;
     }
-    if (key === "j" || key === "k" || key === "UP" || key === "DOWN" || key === "g" || key === "ESC") {
+    if (key === "DOWN") {
       this._focusArea = "list";
       this.markDirty();
       this._ctx?.scheduleRender();
@@ -893,7 +894,7 @@ export class ModelsControl extends Column {
     return y;
   }
 
-  _renderActions(term: any, startY: number): number {
+  _renderButtons(term: any, startY: number): number {
     const items = this._getModelButtonItems();
 
     renderLine(term, startY, () => {
@@ -908,7 +909,7 @@ export class ModelsControl extends Column {
           fg(term, themeColors.borderMuted, text);
         } else if (i === this._actionIndex) {
           term.bold();
-          fg(term, themeColors.selectedText, text);
+          fg(term, themeColors.success, text);
           term.styleReset();
         } else {
           fg(term, themeColors.border, text);
@@ -1154,8 +1155,8 @@ export class ModelsControl extends Column {
 
   _renderHelp(term: any, startY: number): number {
     const helpTexts: Record<string, string> = {
-      list: "j/k navigate │ g actions │ Enter select",
-      actions: "h/l navigate │ Enter execute │ j/k list",
+      list: "j/k navigate │ UP to actions │ Enter select",
+      buttons: "h/l navigate │ Enter execute │ DOWN to list",
       search: "j/k navigate │ Enter open │ g back │ e new search",
       files: "j/k navigate │ Enter download │ g back",
       browse: "j/k navigate │ f filters │ s sort │ m card │ Enter open │ g back │ e search",
@@ -1183,7 +1184,7 @@ export class ModelsControl extends Column {
     this._config = null;
     this._models = [];
     this._selectedIndex = 0;
-    this._focusArea = "list";
+    this._focusArea = "buttons";
     this._actionIndex = 0;
     this._loading = false;
     this._message = null;

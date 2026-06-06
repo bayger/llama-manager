@@ -674,7 +674,7 @@ export class ServerControl extends Column {
           fg(term, themeColors.borderMuted, text);
         } else if (this._focusArea === "buttons" && i === this._buttonIndex) {
           term.bold();
-          fg(term, themeColors.selectedText, text);
+          fg(term, themeColors.success, text);
           term.styleReset();
         } else {
           fg(term, themeColors.border, text);
@@ -756,12 +756,12 @@ export class ServerControl extends Column {
         renderLine(term, y, () => {
           if (isEditing) {
             term.bold();
-            fg(term, themeColors.selectedText, `   ${flagPadded} `);
+            fg(term, themeColors.success, `   ${flagPadded} `);
             fg(term, themeColors.selected, this._editValue);
             term.styleReset();
           } else if (selected) {
             term.bold();
-            fg(term, themeColors.selectedText, `   ${flagPadded} `);
+            fg(term, themeColors.success, `   ${flagPadded} `);
             term.styleReset();
             fg(term, themeColors.selected, displayValue);
             if (field.type !== "boolean") {

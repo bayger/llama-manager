@@ -1,6 +1,5 @@
 import { Column } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { fg, fgBg, themeColors, termWidth, termHeight, renderDivider, renderLine } from "../../lib/theme.js";
+import { fg, themeColors, termWidth, renderDivider, renderLine } from "../../lib/theme.js";
 import { loadConfig, ConfigData, getActivePresets } from "../../lib/config.js";
 import { getServerMetrics } from "../../lib/api.js";
 import { getStatus, startServer, stopServer } from "../../lib/server.js";
@@ -42,9 +41,6 @@ export class DashboardControl extends Column {
   protected _spinnerIndex = 0;
   protected _controlIndex = 0;
   protected _configLoaded = false;
-  protected _startBtn: Button | null = null;
-  protected _stopBtn: Button | null = null;
-  protected _restartBtn: Button | null = null;
 
   constructor(ctx: TabContext) {
     super();
@@ -127,9 +123,7 @@ export class DashboardControl extends Column {
       return true;
     }
     if (key === "RETURN" || key === "ENTER") {
-      if (!items[this._controlIndex]?.disabled) {
-        this._executeControl(this._controlIndex);
-      }
+      this._executeControl(this._controlIndex);
       return true;
     }
     return false;
@@ -137,37 +131,22 @@ export class DashboardControl extends Column {
 
   // — Private methods —
 
-  _getControlItems(): Array<{ label: string; disabled: boolean }> {
-    const running = this._serverState === "running";
-    const starting = this._serverState === "starting";
-    const stopping = this._serverState === "stopping";
+  _getControlItems(): Array<{ label: string; warning?: string }> {
+    const noVersion = !this._config?.activeVersion;
     return [
-      { label: "Start", disabled: running || starting },
-      { label: "Stop", disabled: !running },
-      { label: "Restart", disabled: !running || stopping },
+      { label: "Start", warning: noVersion ? "No version installed" : undefined },
+      { label: "Stop" },
+      { label: "Restart", warning: noVersion ? "No version installed" : undefined },
     ];
   }
 
   _moveControlIndex(direction: -1 | 1): void {
-    const items = this._getControlItems();
     let next = this._controlIndex + direction;
-    if (next < 0) next = items.length - 1;
-    if (next >= items.length) next = 0;
-    while (items[next]?.disabled && next !== this._controlIndex) {
-      next += direction;
-      if (next < 0) next = items.length - 1;
-      if (next >= items.length) next = 0;
-    }
+    if (next < 0) next = CONTROLS.length - 1;
+    if (next >= CONTROLS.length) next = 0;
     this._controlIndex = next;
-    this._updateButtonFocus();
     this.needsRender = true;
     if (this._ctx) this._ctx.scheduleRender();
-  }
-
-  _updateButtonFocus(): void {
-    if (this._startBtn) this._startBtn.focused = this._controlIndex === 0;
-    if (this._stopBtn) this._stopBtn.focused = this._controlIndex === 1;
-    if (this._restartBtn) this._restartBtn.focused = this._controlIndex === 2;
   }
 
   _executeControl(index: number): void {
@@ -182,8 +161,12 @@ export class DashboardControl extends Column {
     const control = CONTROLS[index];
     switch (control) {
       case "Start": {
-        if (this._serverState === "running" || this._serverState === "starting") {
+        if (this._serverState === "running") {
           ctx.showMessage("Server already running");
+          return;
+        }
+        if (this._serverState === "starting") {
+          ctx.showMessage("Server already starting");
           return;
         }
         if (!cfg.activeVersion) {
@@ -300,8 +283,9 @@ export class DashboardControl extends Column {
   _renderControls(term: any, startY: number): number {
     const items = this._getControlItems();
     const separator = "  ";
+    let y = startY;
 
-    renderLine(term, startY, () => {
+    renderLine(term, y++, () => {
       for (let i = 0; i < items.length; i++) {
         if (i > 0) {
           fg(term, themeColors.textMuted, separator);
@@ -309,11 +293,9 @@ export class DashboardControl extends Column {
         const item = items[i]!;
         const text = `[ ${item.label} ]`;
 
-        if (item.disabled) {
-          fg(term, themeColors.borderMuted, text);
-        } else if (i === this._controlIndex) {
+        if (i === this._controlIndex) {
           term.bold();
-          fgBg(term, themeColors.selectedText, themeColors.selectedBg, text);
+          fg(term, themeColors.success, text);
           term.styleReset();
         } else {
           fg(term, themeColors.border, text);
@@ -321,7 +303,15 @@ export class DashboardControl extends Column {
       }
     });
 
-    return startY + 1;
+    const hasWarning = items.some(item => item.warning);
+    if (hasWarning) {
+      const warnings = items.filter(item => item.warning).map(item => item.warning);
+      renderLine(term, y++, () => {
+        fg(term, themeColors.warning, `  ${warnings.join(" │ ")}`);
+      });
+    }
+
+    return y;
   }
 
   _renderDashboard(term: any, startY: number): number {

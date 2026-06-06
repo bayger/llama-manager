@@ -610,7 +610,7 @@ export class VersionsControl extends Column {
           fg(term, themeColors.borderMuted, text);
         } else if (this._focusArea === "buttons" && i === this._buttonIndex) {
           term.bold();
-          fg(term, themeColors.selectedText, text);
+          fg(term, themeColors.success, text);
           term.styleReset();
         } else {
           fg(term, themeColors.border, text);
