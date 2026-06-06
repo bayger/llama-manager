@@ -105,6 +105,13 @@ export class ServerControl extends Column {
     }
   }
 
+  focus(): void {
+    super.focus();
+    if (this._focusArea === "buttons") {
+      this._buttonBar.focus();
+    }
+  }
+
   render(): void {
     if (!this.visible || !this.needsRender || !this._ctx) return;
     const term = this.term;

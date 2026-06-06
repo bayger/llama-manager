@@ -76,6 +76,13 @@ export class VersionsControl extends Column {
     this._initIfNeeded();
   }
 
+  focus(): void {
+    super.focus();
+    if (this._focusArea === "buttons") {
+      this._buttonBar.focus();
+    }
+  }
+
   render(): void {
     if (!this.visible || !this.needsRender || !this._ctx) return;
     const term = this.term;

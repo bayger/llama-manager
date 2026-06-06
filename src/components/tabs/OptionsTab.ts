@@ -157,6 +157,13 @@ export class OptionsControl extends Column {
     return { width: _parentSize?.width || 80, height: _parentSize?.height || 20 };
   }
 
+  focus(): void {
+    super.focus();
+    if (this._focusArea === "buttons") {
+      this._buttonBar.focus();
+    }
+  }
+
   render(): void {
     if (!this.visible || !this.needsRender || !this._ctx) return;
     const term = this.term;

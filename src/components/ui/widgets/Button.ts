@@ -47,7 +47,7 @@ export class Button extends Control {
 
   handleKey(key: string): boolean {
     if (this.disabled) return false;
-    if (key === "RETURN" || key === "SPACE") {
+    if (key === "RETURN" || key === "ENTER" || key === "SPACE") {
       if (this._action) this._action();
       return true;
     }

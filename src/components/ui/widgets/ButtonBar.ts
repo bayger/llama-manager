@@ -52,7 +52,7 @@ export class ButtonBar extends Row {
       this.moveSelection(dir);
       return true;
     }
-    if (key === "RETURN" || key === "SPACE") {
+    if (key === "RETURN" || key === "ENTER" || key === "SPACE") {
       if (this._selectedIndex >= 0 && this._selectedIndex < buttons.length) {
         const btn = buttons[this._selectedIndex]!;
         if (!btn.disabled) {

@@ -75,6 +75,11 @@ export class DashboardControl extends Column {
     this._ensureConfigLoaded();
   }
 
+  focus(): void {
+    super.focus();
+    this._buttonBar.focus();
+  }
+
   onDetach(): void {
     this._stopPolling();
     this._stopStatusPolling();
