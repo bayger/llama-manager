@@ -1,8 +1,5 @@
-import type { Terminal } from "terminal-kit";
-import { themeColors, fg, termWidth, renderBox, renderBoxWithSeparator, renderLine, renderDivider } from "../../lib/theme.js";
-import { renderProgressBar as renderSharedProgressBar } from "../shared/ProgressBar.js";
-import { renderHelpBar } from "../shared/HelpBar.js";
-import { renderButtonBar, moveButtonIndex, ButtonItem } from "../shared/Button.js";
+import { Column } from "../ui/Layout.js";
+import { themeColors, fg, termWidth, termHeight, renderBox, renderBoxWithSeparator, renderLine, renderDivider } from "../../lib/theme.js";
 import { loadConfig, saveConfig, getVersionsDir, ConfigData } from "../../lib/config.js";
 import {
   listVersions,
@@ -20,100 +17,185 @@ import {
   AvailableBackend,
 } from "../../lib/versions.js";
 import { formatSize } from "../../lib/models.js";
-import { TabContext } from "../../lib/tabcontext.js";
+import type { TabContext } from "../../lib/tabcontext.js";
+import type { Size } from "../ui/types.js";
 
-const ACTIONS = ["switch", "uninstall", "check", "install"];
+const ACTIONS = ["switch", "uninstall", "check", "install"] as const;
 
-interface State {
-  config: ConfigData | null;
-  versions: VersionInfo[];
-  selectedIndex: number;
-  focusArea: "buttons" | "list" | "releases" | "backends";
-  buttonIndex: number;
-  loading: boolean;
-  message: string | null;
-  installing: boolean;
-  installProgress: number;
-  installLabel: string;
-  editValue: string;
-  totalSize: number;
-  releases: RemoteVersion[];
-  releaseIndex: number;
-  fetchingReleases: boolean;
-  editMode: boolean;
-  pendingTag: string | null;
-  availableBackends: AvailableBackend[];
-  backendIndex: number;
-  installedBackends: Record<string, Set<string>>;
-  timer: ReturnType<typeof setInterval> | null;
-  initPromise: Promise<void> | null;
-}
+export class VersionsControl extends Column {
+  protected _ctx: TabContext | null = null;
+  protected _config: ConfigData | null = null;
+  protected _versions: VersionInfo[] = [];
+  protected _selectedIndex = 0;
+  protected _focusArea: "buttons" | "list" | "releases" | "backends" = "buttons";
+  protected _buttonIndex = 0;
+  protected _loading = false;
+  protected _message: string | null = null;
+  protected _installing = false;
+  protected _installProgress = 0;
+  protected _installLabel = "";
+  protected _editValue = "";
+  protected _totalSize = 0;
+  protected _releases: RemoteVersion[] = [];
+  protected _releaseIndex = 0;
+  protected _fetchingReleases = false;
+  protected _editMode = false;
+  protected _pendingTag: string | null = null;
+  protected _availableBackends: AvailableBackend[] = [];
+  protected _backendIndex = 0;
+  protected _installedBackends: Record<string, Set<string>> = {};
+  protected _timer: ReturnType<typeof setInterval> | null = null;
+  protected _initPromise: Promise<void> | null = null;
 
-function buildInstalledBackends(versions: VersionInfo[]): Record<string, Set<string>> {
-  const map: Record<string, Set<string>> = {};
-  for (const v of versions) {
-    if (!map[v.tag]) map[v.tag] = new Set();
-    map[v.tag].add(v.backend);
+  constructor(ctx: TabContext) {
+    super();
+    this._ctx = ctx;
   }
-  return map;
-}
 
-function createInitialState(): State {
-  return {
-    config: null,
-    versions: [],
-    selectedIndex: 0,
-    focusArea: "buttons",
-    buttonIndex: 0,
-    loading: false,
-    message: null,
-    installing: false,
-    installProgress: 0,
-    installLabel: "",
-    editValue: "",
-    totalSize: 0,
-    releases: [],
-    releaseIndex: 0,
-    fetchingReleases: false,
-    editMode: false,
-    pendingTag: null,
-    availableBackends: [],
-    backendIndex: 0,
-    installedBackends: {},
-    timer: null,
-    initPromise: null,
-  };
-}
+  measure(_parentSize?: Size): Size {
+    return { width: _parentSize?.width || 80, height: _parentSize?.height || 20 };
+  }
 
-function resetState(state: State): void {
-  state.config = null;
-  state.versions = [];
-  state.selectedIndex = 0;
-  state.focusArea = "buttons";
-  state.buttonIndex = 0;
-  state.loading = false;
-  state.message = null;
-  state.installing = false;
-  state.installProgress = 0;
-  state.installLabel = "";
-  state.editValue = "";
-  state.totalSize = 0;
-  state.releases = [];
-  state.releaseIndex = 0;
-  state.fetchingReleases = false;
-  state.editMode = false;
-  state.pendingTag = null;
-  state.availableBackends = [];
-  state.backendIndex = 0;
-  state.installedBackends = {};
-  state.initPromise = null;
-}
+  onAttach(): void {
+    this._initIfNeeded();
+  }
 
-export function createVersionsTab(ctx: TabContext) {
-  const state = createInitialState();
+  render(): void {
+    if (!this.visible || !this.needsRender || !this._ctx) return;
+    const term = this.term;
+    this._initIfNeeded();
 
-  function getVersionButtonItems(): ButtonItem[] {
-    const hasSelection = state.versions.length > 0 && state.selectedIndex < state.versions.length;
+    if (!this._config) {
+      renderLine(term, this.rect.y, () => {
+        fg(term, themeColors.textMuted, "Loading versions...");
+      });
+      this.needsRender = false;
+      return;
+    }
+
+    if (this._loading) {
+      renderLine(term, this.rect.y, () => {
+        fg(term, themeColors.textMuted, "Loading...");
+      });
+      this.needsRender = false;
+      return;
+    }
+
+    let y = this.rect.y;
+    y = this._renderHeader(term, y);
+    y = this._renderButtons(term, y);
+    renderDivider(term, y++, themeColors.border);
+
+    if (this._editMode) {
+      y = this._renderEditMode(term, y);
+    } else if (this._focusArea === "list" || this._focusArea === "buttons") {
+      y = this._renderVersionList(term, y);
+    } else if (this._focusArea === "releases") {
+      y = this._renderReleases(term, y);
+    } else if (this._focusArea === "backends") {
+      y = this._renderBackends(term, y);
+    }
+
+    y = this._renderProgressBar(term, y);
+    y = this._renderHelp(term, y);
+
+    if (this._message) {
+      renderLine(term, y++, () => {});
+      renderLine(term, y++, () => {
+        fg(term, themeColors.warning, ` ${this._message}`);
+      });
+    }
+
+    this.needsRender = false;
+  }
+
+  handleKey(key: string): boolean {
+    if (this._installing) {
+      return true;
+    }
+
+    if (this._editMode) {
+      return this._handleEditModeKey(key);
+    }
+
+    if (this._focusArea === "buttons") {
+      return this._handleButtonsKey(key);
+    } else if (this._focusArea === "list") {
+      return this._handleListKey(key);
+    } else if (this._focusArea === "releases") {
+      return this._handleReleasesKey(key);
+    } else if (this._focusArea === "backends") {
+      return this._handleBackendsKey(key);
+    }
+
+    return false;
+  }
+
+  handleChar(char: string): boolean {
+    if (this._editMode && char.length === 1) {
+      this._editValue += char;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    return false;
+  }
+
+  // — Init —
+
+  _initIfNeeded(): void {
+    if (!this._config && !this._initPromise) {
+      this._loading = true;
+      this._initPromise = (async () => {
+        this._config = await loadConfig();
+        if (this._config) {
+          const [versions, totalSize] = await Promise.all([
+            listVersions(this._config),
+            getTotalVersionsSize(this._config),
+          ]);
+          this._versions = versions;
+          this._totalSize = totalSize;
+          this._installedBackends = this._buildInstalledBackends(versions);
+        }
+        this._loading = false;
+        this.markDirty();
+        this._ctx?.scheduleRender();
+      })();
+    }
+  }
+
+  _buildInstalledBackends(versions: VersionInfo[]): Record<string, Set<string>> {
+    const map: Record<string, Set<string>> = {};
+    for (const v of versions) {
+      if (!map[v.tag]) map[v.tag] = new Set();
+      map[v.tag].add(v.backend);
+    }
+    return map;
+  }
+
+  // — Message —
+
+  _clearMessageTimer(): void {
+    if (this._timer) {
+      clearInterval(this._timer);
+      this._timer = null;
+    }
+  }
+
+  _showMessage(msg: string): void {
+    this._message = msg;
+    this._ctx?.showMessage(msg);
+    this._clearMessageTimer();
+    this._timer = setInterval(() => {
+      this._message = null;
+      this._clearMessageTimer();
+    }, 5000);
+  }
+
+  // — Buttons —
+
+  _getVersionButtonItems(): Array<{ label: string; disabled?: boolean }> {
+    const hasSelection = this._versions.length > 0 && this._selectedIndex < this._versions.length;
     return [
       { label: "Switch", disabled: !hasSelection },
       { label: "Uninstall", disabled: !hasSelection },
@@ -122,30 +204,378 @@ export function createVersionsTab(ctx: TabContext) {
     ];
   }
 
-  function clearMessageTimer(): void {
-    if (state.timer) {
-      clearInterval(state.timer);
-      state.timer = null;
+  _moveButtonIndex(items: Array<{ label: string; disabled?: boolean }>, currentIndex: number, direction: -1 | 1): number {
+    const next = currentIndex + direction;
+    if (next < 0 || next >= items.length) return currentIndex;
+    if (!items[next]?.disabled) return next;
+    const step = direction > 0 ? 1 : -1;
+    for (let i = currentIndex + step; i >= 0 && i < items.length; i += step) {
+      if (!items[i]?.disabled) return i;
+    }
+    return currentIndex;
+  }
+
+  _handleButtonsKey(key: string): boolean {
+    if (key === "h" || key === "LEFT" || key === "k") {
+      this._buttonIndex = this._moveButtonIndex(this._getVersionButtonItems(), this._buttonIndex, -1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "l" || key === "RIGHT" || key === "j") {
+      this._buttonIndex = this._moveButtonIndex(this._getVersionButtonItems(), this._buttonIndex, 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      const items = this._getVersionButtonItems();
+      if (!items[this._buttonIndex]?.disabled) {
+        const action = ACTIONS[this._buttonIndex];
+        this._executeAction(action).catch(() => {});
+      }
+      return true;
+    }
+    if (key === "DOWN") {
+      this._focusArea = "list";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    return false;
+  }
+
+  // — List —
+
+  _handleListKey(key: string): boolean {
+    if (key === "k" || key === "UP") {
+      if (this._selectedIndex === 0) {
+        this._focusArea = "buttons";
+        this.markDirty();
+        this._ctx?.scheduleRender();
+        return true;
+      }
+      this._selectedIndex = Math.max(0, this._selectedIndex - 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "j" || key === "DOWN") {
+      this._selectedIndex = Math.min(this._versions.length - 1, this._selectedIndex + 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      if (this._versions.length > 0) {
+        this._executeAction("switch").catch(() => {});
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // — Releases —
+
+  _handleReleasesKey(key: string): boolean {
+    if (key === "k" || key === "UP") {
+      this._releaseIndex = Math.max(0, this._releaseIndex - 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "j" || key === "DOWN") {
+      this._releaseIndex = Math.min(this._releases.length - 1, this._releaseIndex + 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "g" || key === "ESC") {
+      this._focusArea = "buttons";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "e") {
+      this._editMode = true;
+      this._editValue = "";
+      this._ctx?.setTextInputFocused(true);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      const currentRelease = this._releases[this._releaseIndex];
+      if (!currentRelease) return true;
+
+      const platform = getPlatformKey();
+      this._availableBackends = getAvailableBackends(
+        currentRelease.tag,
+        platform,
+        currentRelease.assets,
+      );
+      this._backendIndex = 0;
+      this._pendingTag = null;
+      this._focusArea = "backends";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    return false;
+  }
+
+  // — Backends —
+
+  _handleBackendsKey(key: string): boolean {
+    if (key === "k" || key === "UP") {
+      this._backendIndex = Math.max(0, this._backendIndex - 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "j" || key === "DOWN") {
+      this._backendIndex = Math.min(this._availableBackends.length - 1, this._backendIndex + 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "g" || key === "ESC") {
+      this._focusArea = "releases";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      if (this._availableBackends.length > 0) {
+        const backend = this._availableBackends[this._backendIndex];
+        const currentTag = this._pendingTag || (this._releases[this._releaseIndex]?.tag || "");
+        const installedForTag = this._installedBackends[currentTag];
+        if (installedForTag && installedForTag.has(backend.id)) {
+          this._showMessage("Backend already installed.");
+          return true;
+        }
+        this._installSelectedBackend().catch(() => {});
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // — Edit mode —
+
+  _handleEditModeKey(key: string): boolean {
+    if (key === "RETURN" || key === "ENTER") {
+      const tag = this._editValue.trim();
+      if (tag) {
+        this._pendingTag = tag;
+        this._editMode = false;
+        this._ctx?.setTextInputFocused(false);
+
+        const platform = getPlatformKey();
+        (async () => {
+          try {
+            const res = await fetch(
+              `https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/${tag}`,
+              { headers: { "User-Agent": "llama-dashboard" } },
+            );
+            if (res.ok) {
+              const data = await res.json();
+              const assets = (data.assets || []).map((a: any) => ({ name: a.name, size: a.size }));
+              this._availableBackends = getAvailableBackends(tag, platform, assets);
+              this._backendIndex = 0;
+              this._focusArea = "backends";
+            } else {
+              this._showMessage(`Tag not found: ${tag}`);
+              this._editMode = false;
+              this._pendingTag = null;
+              this._focusArea = "releases";
+            }
+          } catch (err: any) {
+            this._showMessage(`Failed to fetch tag: ${err.message}`);
+            this._editMode = false;
+            this._pendingTag = null;
+            this._focusArea = "releases";
+          }
+          this.markDirty();
+          this._ctx?.scheduleRender();
+        })();
+      }
+      return true;
+    }
+    if (key === "ESC" || key === "CTRL_C") {
+      this._editMode = false;
+      this._editValue = "";
+      this._pendingTag = null;
+      this._ctx?.setTextInputFocused(false);
+      this._focusArea = "releases";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "BACKSPACE" || key === "DEL") {
+      this._editValue = this._editValue.slice(0, -1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    return true;
+  }
+
+  // — Actions —
+
+  async _executeAction(action: string): Promise<void> {
+    if (!this._config) return;
+
+    switch (action) {
+      case "switch": {
+        if (this._versions.length === 0) {
+          this._showMessage("No versions installed.");
+          return;
+        }
+        const v = this._versions[this._selectedIndex];
+        if (!v) {
+          this._showMessage("No version selected.");
+          return;
+        }
+        try {
+          this._config = await switchVersion(this._config, v.version);
+          await saveConfig(this._config);
+          this._versions = await listVersions(this._config);
+          this._installedBackends = this._buildInstalledBackends(this._versions);
+          this._showMessage(`Switched to ${v.version}`);
+        } catch (err: any) {
+          this._showMessage(`Switch failed: ${err.message}`);
+        }
+        this.markDirty();
+        this._ctx?.scheduleRender();
+        break;
+      }
+
+      case "uninstall": {
+        if (this._versions.length === 0) {
+          this._showMessage("No versions installed.");
+          return;
+        }
+        const v = this._versions[this._selectedIndex];
+        if (!v) {
+          this._showMessage("No version selected.");
+          return;
+        }
+        if (v.active) {
+          this._showMessage("Cannot uninstall active version.");
+          return;
+        }
+        try {
+          await uninstallVersion(this._config, v.version);
+          this._versions = await listVersions(this._config);
+          this._totalSize = await getTotalVersionsSize(this._config);
+          this._installedBackends = this._buildInstalledBackends(this._versions);
+          if (this._selectedIndex >= this._versions.length) {
+            this._selectedIndex = Math.max(0, this._versions.length - 1);
+          }
+          this._showMessage(`Uninstalled ${v.version}`);
+        } catch (err: any) {
+          this._showMessage(`Uninstall failed: ${err.message}`);
+        }
+        this.markDirty();
+        this._ctx?.scheduleRender();
+        break;
+      }
+
+      case "check": {
+        try {
+          this._ctx?.showMessage("Checking for updates...");
+          const latest = await checkLatestVersion();
+          const activeVersion = this._config.activeVersion;
+          if (activeVersion && activeVersion.startsWith(latest.split("-")[0])) {
+            this._showMessage(`Already on latest: ${latest}`);
+          } else {
+            this._showMessage(`Latest version: ${latest} (current: ${activeVersion || "none"})`);
+          }
+        } catch (err: any) {
+          this._showMessage(`Check failed: ${err.message}`);
+        }
+        break;
+      }
+
+      case "install": {
+        this._focusArea = "releases";
+        this._releaseIndex = 0;
+        this._fetchingReleases = true;
+        this._ctx?.showMessage("Fetching releases...");
+        this.markDirty();
+        this._ctx?.scheduleRender();
+        try {
+          this._releases = await listRecentVersions(20);
+        } catch (err: any) {
+          this._showMessage(`Failed to fetch releases: ${err.message}`);
+          this._focusArea = "buttons";
+        }
+        this._fetchingReleases = false;
+        this.markDirty();
+        this._ctx?.scheduleRender();
+        break;
+      }
     }
   }
 
-  function showMessage(msg: string): void {
-    state.message = msg;
-    ctx.showMessage(msg);
-    clearMessageTimer();
-    state.timer = setInterval(() => {
-      state.message = null;
-      clearMessageTimer();
-    }, 5000);
+  async _installSelectedBackend(): Promise<void> {
+    const currentRelease = this._releases[this._releaseIndex];
+    const backend = this._availableBackends[this._backendIndex];
+
+    if (!currentRelease || !backend) {
+      this._showMessage("No release or backend selected.");
+      return;
+    }
+
+    if (!this._config) return;
+
+    const tag = this._pendingTag || currentRelease.tag;
+
+    this._installing = true;
+    this._installProgress = 0;
+    this._installLabel = "";
+    this._message = null;
+    this._ctx?.setTextInputFocused(false);
+    this._ctx?.showMessage(`Installing ${tag} (${backend.label})...`);
+    this.markDirty();
+    this._ctx?.scheduleRender();
+
+    try {
+      const result = await installVersion(this._config, tag, backend.id, (pct, label) => {
+        this._installProgress = pct;
+        this._installLabel = label;
+        this.markDirty();
+        this._ctx?.scheduleRender();
+      });
+
+      this._config.activeVersion = result;
+      await saveConfig(this._config);
+      this._versions = await listVersions(this._config);
+      this._totalSize = await getTotalVersionsSize(this._config);
+      this._installedBackends = this._buildInstalledBackends(this._versions);
+      this._focusArea = "buttons";
+      this._selectedIndex = 0;
+      this._message = null;
+      this._showMessage(`Installed and activated ${result}`);
+    } catch (err: any) {
+      this._showMessage(`Install failed: ${err.message}`);
+    } finally {
+      this._installing = false;
+      this._installProgress = 0;
+      this._installLabel = "";
+    }
+    this.markDirty();
+    this._ctx?.scheduleRender();
   }
 
-  function renderHeader(term: Terminal, config: ConfigData, startY: number): number {
-    const installedCount = state.versions.length;
-    const sizeStr = formatSize(state.totalSize);
-    const title = `  Versions │ ${installedCount} installed │ ${sizeStr} used`;
+  // — Rendering —
 
-    const dir = getVersionsDir(config);
-    const dirLine = ` Dir: ${dir}`;
+  _renderHeader(term: any, startY: number): number {
+    const installedCount = this._versions.length;
+    const sizeStr = formatSize(this._totalSize);
+    const title = `  Versions │ ${installedCount} installed │ ${sizeStr} used`;
+    const dir = getVersionsDir(this._config!);
 
     let y = startY;
 
@@ -156,7 +586,7 @@ export function createVersionsTab(ctx: TabContext) {
     });
 
     renderLine(term, y++, () => {
-      fg(term, themeColors.textMuted, dirLine);
+      fg(term, themeColors.textMuted, ` Dir: ${dir}`);
     });
 
     renderDivider(term, y++, themeColors.border);
@@ -164,37 +594,36 @@ export function createVersionsTab(ctx: TabContext) {
     return y;
   }
 
-  function renderButtons(term: Terminal, startY: number): number {
-    return renderButtonBar({
-      term,
-      startY,
-      items: getVersionButtonItems(),
-      selectedIndex: state.focusArea === "buttons" ? state.buttonIndex : -1,
+  _renderButtons(term: any, startY: number): number {
+    const items = this._getVersionButtonItems();
+    const y = startY;
+
+    renderLine(term, y, () => {
+      for (let i = 0; i < items.length; i++) {
+        if (i > 0) {
+          fg(term, themeColors.textMuted, "  ");
+        }
+        const item = items[i]!;
+        const text = `[ ${item.label} ]`;
+
+        if (item.disabled) {
+          fg(term, themeColors.borderMuted, text);
+        } else if (this._focusArea === "buttons" && i === this._buttonIndex) {
+          term.bold();
+          fg(term, themeColors.selectedText, text);
+          term.styleReset();
+        } else {
+          fg(term, themeColors.border, text);
+        }
+      }
     });
+
+    return y + 1;
   }
 
-  function renderHelp(term: Terminal, startY: number): number {
-    let hint = "";
-    if (state.installing) {
-      hint = " Installing... please wait ";
-    } else if (state.editMode) {
-      hint = " Type tag │ Enter confirm │ Ctrl+C cancel ";
-    } else if (state.focusArea === "buttons") {
-      hint = " h/l navigate │ Enter execute │ DOWN to list ";
-    } else if (state.focusArea === "list") {
-      hint = " j/k navigate │ UP to actions │ Enter switch ";
-    } else if (state.focusArea === "releases") {
-      hint = " j/k navigate │ Enter select backend │ g back │ e custom tag ";
-    } else if (state.focusArea === "backends") {
-      hint = " j/k navigate │ Enter install │ g back to releases ";
-    }
-
-    return renderHelpBar({ term, y: startY, text: hint });
-  }
-
-  function renderVersionList(term: Terminal, startY: number): number {
+  _renderVersionList(term: any, startY: number): number {
     let y = startY;
-    const versions = state.versions;
+    const versions = this._versions;
 
     if (versions.length === 0) {
       renderLine(term, y++, () => {});
@@ -210,7 +639,7 @@ export function createVersionsTab(ctx: TabContext) {
 
     for (let i = 0; i < versions.length; i++) {
       const v = versions[i];
-      const selected = i === state.selectedIndex && state.focusArea === "list";
+      const selected = i === this._selectedIndex && this._focusArea === "list";
       const isNewTag = v.tag !== lastTag;
 
       if (isNewTag && lastTag !== null) {
@@ -262,20 +691,20 @@ export function createVersionsTab(ctx: TabContext) {
     return y;
   }
 
-  function renderReleases(term: Terminal, startY: number): number {
+  _renderReleases(term: any, startY: number): number {
     const width = termWidth(term);
     const innerW = width - 2;
     const headerText = " Available releases │ j/k navigate │ Enter select │ g back │ e custom tag";
 
     let bodyLines: { render: () => void }[];
-    if (state.fetchingReleases) {
+    if (this._fetchingReleases) {
       bodyLines = [{
         render: () => {
           fg(term, themeColors.textMuted, " Fetching releases...");
           term(" ".repeat(Math.max(0, innerW - " Fetching releases...".length)));
         },
       }];
-    } else if (state.releases.length === 0) {
+    } else if (this._releases.length === 0) {
       bodyLines = [{
         render: () => {
           fg(term, themeColors.textMuted, " No releases found.");
@@ -283,8 +712,8 @@ export function createVersionsTab(ctx: TabContext) {
         },
       }];
     } else {
-      bodyLines = state.releases.map((r, i) => {
-        const selected = i === state.releaseIndex;
+      bodyLines = this._releases.map((r, i) => {
+        const selected = i === this._releaseIndex;
         const date = new Date(r.publishedAt).toISOString().split("T")[0];
         const line = ` ${r.tag.padEnd(12)} ${date}  ${r.assets.length} assets`;
         return {
@@ -312,19 +741,19 @@ export function createVersionsTab(ctx: TabContext) {
     ], bodyLines);
   }
 
-  function renderBackends(term: Terminal, startY: number): number {
+  _renderBackends(term: any, startY: number): number {
     const width = termWidth(term);
     const innerW = width - 2;
-    const currentRelease = state.releases[state.releaseIndex];
-    const tag = currentRelease ? currentRelease.tag : state.pendingTag || "";
+    const currentRelease = this._releases[this._releaseIndex];
+    const tag = currentRelease ? currentRelease.tag : this._pendingTag || "";
 
     const header = ` Select backend ${tag} │ j/k navigate │ Enter install │ g back `;
 
-    const backends = state.availableBackends;
-    const installedForTag = state.installedBackends[tag];
+    const backends = this._availableBackends;
+    const installedForTag = this._installedBackends[tag];
 
     const bodyLines: { render: () => void }[] = backends.map((b, i) => {
-      const selected = i === state.backendIndex;
+      const selected = i === this._backendIndex;
       const alreadyInstalled = installedForTag && installedForTag.has(b.id);
       let line = ` ${b.label}`;
       if (alreadyInstalled) {
@@ -365,24 +794,63 @@ export function createVersionsTab(ctx: TabContext) {
     ], bodyLines);
   }
 
-  function renderProgressBar(term: Terminal, startY: number): number {
-    if (!state.installing) return startY;
-    renderLine(term, startY, () => {});
-    return renderSharedProgressBar({
-      term,
-      startY: startY + 1,
-      progress: state.installProgress,
-      label: `Installing... ${state.installLabel}`,
-      filledColor: themeColors.success,
-      emptyColor: themeColors.textMuted,
-      labelColor: themeColors.text,
+  _renderProgressBar(term: any, startY: number): number {
+    if (!this._installing) return startY;
+
+    const width = termWidth(term);
+    renderLine(term, startY++, () => {});
+
+    const progress = this._installProgress;
+    const label = `Installing... ${this._installLabel}`;
+    const barWidth = Math.max(10, width - label.length - 8);
+    const filled = Math.floor((progress / 100) * barWidth);
+    const empty = barWidth - filled;
+
+    renderLine(term, startY, () => {
+      fg(term, themeColors.text, ` ${label} `);
+      fg(term, themeColors.border, "\u250c");
+      fg(term, themeColors.success, "\u2588".repeat(filled));
+      fg(term, themeColors.textMuted, "\u2591".repeat(empty));
+      fg(term, themeColors.border, "\u2510");
+      fg(term, themeColors.text, ` ${progress}%`);
     });
+
+    return startY + 1;
   }
 
-  function renderEditMode(term: Terminal, startY: number): number {
+  _renderHelp(term: any, startY: number): number {
+    let hint = "";
+    if (this._installing) {
+      hint = " Installing... please wait ";
+    } else if (this._editMode) {
+      hint = " Type tag │ Enter confirm │ Ctrl+C cancel ";
+    } else if (this._focusArea === "buttons") {
+      hint = " h/l navigate │ Enter execute │ DOWN to list ";
+    } else if (this._focusArea === "list") {
+      hint = " j/k navigate │ UP to actions │ Enter switch ";
+    } else if (this._focusArea === "releases") {
+      hint = " j/k navigate │ Enter select backend │ g back │ e custom tag ";
+    } else if (this._focusArea === "backends") {
+      hint = " j/k navigate │ Enter install │ g back to releases ";
+    }
+
+    renderLine(term, startY++, () => {});
+
+    const width = termWidth(term);
+    const left = Math.floor((width - 2 - hint.length) / 2);
+
+    renderLine(term, startY, () => {
+      term(" ".repeat(left));
+      fg(term, themeColors.textMuted, hint);
+    });
+
+    return startY + 1;
+  }
+
+  _renderEditMode(term: any, startY: number): number {
     const width = termWidth(term);
     const innerW = width - 2;
-    const prompt = ` Tag: ${state.editValue}`;
+    const prompt = ` Tag: ${this._editValue}`;
 
     return renderBox({ term, width, borderColor: themeColors.accent, startY }, [
       {
@@ -396,398 +864,32 @@ export function createVersionsTab(ctx: TabContext) {
     ]);
   }
 
-  function initIfNeeded(): void {
-    if (!state.config && !state.initPromise) {
-      state.loading = true;
-      state.initPromise = (async () => {
-        state.config = await loadConfig();
-        if (state.config) {
-          const [versions, totalSize] = await Promise.all([
-            listVersions(state.config),
-            getTotalVersionsSize(state.config),
-          ]);
-          state.versions = versions;
-          state.totalSize = totalSize;
-          state.installedBackends = buildInstalledBackends(versions);
-        }
-        state.loading = false;
-        ctx.scheduleRender();
-      })();
-    }
+  onDetach(): void {
+    this._clearMessageTimer();
+    this._config = null;
+    this._versions = [];
+    this._selectedIndex = 0;
+    this._focusArea = "buttons";
+    this._buttonIndex = 0;
+    this._loading = false;
+    this._message = null;
+    this._installing = false;
+    this._installProgress = 0;
+    this._installLabel = "";
+    this._editValue = "";
+    this._totalSize = 0;
+    this._releases = [];
+    this._releaseIndex = 0;
+    this._fetchingReleases = false;
+    this._editMode = false;
+    this._pendingTag = null;
+    this._availableBackends = [];
+    this._backendIndex = 0;
+    this._installedBackends = {};
+    this._initPromise = null;
   }
+}
 
-  async function executeAction(action: string): Promise<void> {
-    if (!state.config) return;
-
-    switch (action) {
-      case "switch": {
-        if (state.versions.length === 0) {
-          showMessage("No versions installed.");
-          return;
-        }
-        const v = state.versions[state.selectedIndex];
-        if (!v) {
-          showMessage("No version selected.");
-          return;
-        }
-        try {
-          state.config = await switchVersion(state.config, v.version);
-          await saveConfig(state.config);
-          state.versions = await listVersions(state.config);
-          state.installedBackends = buildInstalledBackends(state.versions);
-          showMessage(`Switched to ${v.version}`);
-        } catch (err: any) {
-          showMessage(`Switch failed: ${err.message}`);
-        }
-        ctx.scheduleRender();
-        break;
-      }
-
-      case "uninstall": {
-        if (state.versions.length === 0) {
-          showMessage("No versions installed.");
-          return;
-        }
-        const v = state.versions[state.selectedIndex];
-        if (!v) {
-          showMessage("No version selected.");
-          return;
-        }
-        if (v.active) {
-          showMessage("Cannot uninstall active version.");
-          return;
-        }
-        try {
-          await uninstallVersion(state.config, v.version);
-          state.versions = await listVersions(state.config);
-          state.totalSize = await getTotalVersionsSize(state.config);
-          state.installedBackends = buildInstalledBackends(state.versions);
-          if (state.selectedIndex >= state.versions.length) {
-            state.selectedIndex = Math.max(0, state.versions.length - 1);
-          }
-          showMessage(`Uninstalled ${v.version}`);
-        } catch (err: any) {
-          showMessage(`Uninstall failed: ${err.message}`);
-        }
-        ctx.scheduleRender();
-        break;
-      }
-
-      case "check": {
-        try {
-          ctx.showMessage("Checking for updates...");
-          const latest = await checkLatestVersion();
-          const activeVersion = state.config.activeVersion;
-          if (activeVersion && activeVersion.startsWith(latest.split("-")[0])) {
-            showMessage(`Already on latest: ${latest}`);
-          } else {
-            showMessage(`Latest version: ${latest} (current: ${activeVersion || "none"})`);
-          }
-        } catch (err: any) {
-          showMessage(`Check failed: ${err.message}`);
-        }
-        break;
-      }
-
-      case "install": {
-        state.focusArea = "releases";
-        state.releaseIndex = 0;
-        state.fetchingReleases = true;
-        ctx.showMessage("Fetching releases...");
-        ctx.scheduleRender();
-        try {
-          state.releases = await listRecentVersions(20);
-        } catch (err: any) {
-          showMessage(`Failed to fetch releases: ${err.message}`);
-          state.focusArea = "buttons";
-        }
-        state.fetchingReleases = false;
-        ctx.scheduleRender();
-        break;
-      }
-    }
-  }
-
-  async function installSelectedBackend(): Promise<void> {
-    const currentRelease = state.releases[state.releaseIndex];
-    const backend = state.availableBackends[state.backendIndex];
-
-    if (!currentRelease || !backend) {
-      showMessage("No release or backend selected.");
-      return;
-    }
-
-    if (!state.config) return;
-
-    const tag = state.pendingTag || currentRelease.tag;
-
-    state.installing = true;
-    state.installProgress = 0;
-    state.installLabel = "";
-    state.message = null;
-    ctx.setTextInputFocused(false);
-    ctx.showMessage(`Installing ${tag} (${backend.label})...`);
-    ctx.scheduleRender();
-
-    try {
-      const result = await installVersion(state.config, tag, backend.id, (pct, label) => {
-        state.installProgress = pct;
-        state.installLabel = label;
-        ctx.scheduleRender();
-      });
-
-      state.config.activeVersion = result;
-      await saveConfig(state.config);
-      state.versions = await listVersions(state.config);
-      state.totalSize = await getTotalVersionsSize(state.config);
-      state.installedBackends = buildInstalledBackends(state.versions);
-      state.focusArea = "buttons";
-      state.selectedIndex = 0;
-      state.message = null;
-      showMessage(`Installed and activated ${result}`);
-    } catch (err: any) {
-      showMessage(`Install failed: ${err.message}`);
-    } finally {
-      state.installing = false;
-      state.installProgress = 0;
-      state.installLabel = "";
-    }
-    ctx.scheduleRender();
-  }
-
-  function render(): void {
-    const term = ctx.term;
-    initIfNeeded();
-
-    if (!state.config) {
-      renderLine(term, 3, () => {
-        fg(term, themeColors.textMuted, "Loading versions...");
-      });
-      return;
-    }
-
-    if (state.loading) {
-      renderLine(term, 3, () => {
-        fg(term, themeColors.textMuted, "Loading...");
-      });
-      return;
-    }
-
-    let y = 3;
-    y = renderHeader(term, state.config, y);
-    y = renderButtons(term, y);
-    renderDivider(term, y++, themeColors.border);
-
-    if (state.editMode) {
-      y = renderEditMode(term, y);
-    } else if (state.focusArea === "list" || state.focusArea === "buttons") {
-      y = renderVersionList(term, y);
-    } else if (state.focusArea === "releases") {
-      y = renderReleases(term, y);
-    } else if (state.focusArea === "backends") {
-      y = renderBackends(term, y);
-    }
-
-    y = renderProgressBar(term, y);
-    y = renderHelp(term, y);
-
-    if (state.message) {
-      renderLine(term, y++, () => {});
-      renderLine(term, y++, () => {
-        fg(term, themeColors.warning, ` ${state.message}`);
-      });
-    }
-  }
-
-  function handleKey(key: string): boolean {
-    if (state.installing) {
-      return true;
-    }
-
-    if (state.editMode) {
-      if (key === "RETURN" || key === "ENTER") {
-        const tag = state.editValue.trim();
-        if (tag) {
-          state.pendingTag = tag;
-          state.editMode = false;
-          ctx.setTextInputFocused(false);
-
-          const platform = getPlatformKey();
-          (async () => {
-            try {
-              const res = await fetch(
-                `https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/${tag}`,
-                { headers: { "User-Agent": "llama-dashboard" } },
-              );
-              if (res.ok) {
-                const data = await res.json();
-                const assets = (data.assets || []).map((a: any) => ({ name: a.name, size: a.size }));
-                state.availableBackends = getAvailableBackends(tag, platform, assets);
-                state.backendIndex = 0;
-                state.focusArea = "backends";
-              } else {
-                showMessage(`Tag not found: ${tag}`);
-                state.editMode = false;
-                state.pendingTag = null;
-                state.focusArea = "releases";
-              }
-            } catch (err: any) {
-              showMessage(`Failed to fetch tag: ${err.message}`);
-              state.editMode = false;
-              state.pendingTag = null;
-              state.focusArea = "releases";
-            }
-            ctx.scheduleRender();
-          })();
-        }
-        return true;
-      } else if (key === "ESC" || key === "CTRL_C") {
-        state.editMode = false;
-        state.editValue = "";
-        state.pendingTag = null;
-        ctx.setTextInputFocused(false);
-        state.focusArea = "releases";
-        ctx.scheduleRender();
-        return true;
-      } else if (key === "BACKSPACE" || key === "DEL") {
-        state.editValue = state.editValue.slice(0, -1);
-        ctx.scheduleRender();
-        return true;
-      } else if (key.length === 1) {
-        state.editValue += key;
-        ctx.scheduleRender();
-        return true;
-      }
-      return true;
-    }
-
-    if (state.focusArea === "buttons") {
-      if (key === "h" || key === "LEFT" || key === "k") {
-        state.buttonIndex = moveButtonIndex(getVersionButtonItems(), state.buttonIndex, -1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "l" || key === "RIGHT" || key === "j") {
-        state.buttonIndex = moveButtonIndex(getVersionButtonItems(), state.buttonIndex, 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "RETURN" || key === "ENTER") {
-        const items = getVersionButtonItems();
-        if (!items[state.buttonIndex]?.disabled) {
-          const action = ACTIONS[state.buttonIndex];
-          executeAction(action).catch(() => {});
-        }
-        return true;
-      }
-      if (key === "DOWN") {
-        state.focusArea = "list";
-        ctx.scheduleRender();
-        return true;
-      }
-    } else if (state.focusArea === "list") {
-      if (key === "k" || key === "UP") {
-        if (state.selectedIndex === 0) {
-          state.focusArea = "buttons";
-          ctx.scheduleRender();
-          return true;
-        }
-        state.selectedIndex = Math.max(0, state.selectedIndex - 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "j" || key === "DOWN") {
-        state.selectedIndex = Math.min(state.versions.length - 1, state.selectedIndex + 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "RETURN" || key === "ENTER") {
-        if (state.versions.length > 0) {
-          executeAction("switch").catch(() => {});
-        }
-        return true;
-      }
-    } else if (state.focusArea === "releases") {
-      if (key === "k" || key === "UP") {
-        state.releaseIndex = Math.max(0, state.releaseIndex - 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "j" || key === "DOWN") {
-        state.releaseIndex = Math.min(state.releases.length - 1, state.releaseIndex + 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "g" || key === "ESC") {
-        state.focusArea = "buttons";
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "e") {
-        state.editMode = true;
-        state.editValue = "";
-        ctx.setTextInputFocused(true);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "RETURN" || key === "ENTER") {
-        const currentRelease = state.releases[state.releaseIndex];
-        if (!currentRelease) return true;
-
-        const platform = getPlatformKey();
-        state.availableBackends = getAvailableBackends(
-          currentRelease.tag,
-          platform,
-          currentRelease.assets,
-        );
-        state.backendIndex = 0;
-        state.pendingTag = null;
-        state.focusArea = "backends";
-        ctx.scheduleRender();
-        return true;
-      }
-    } else if (state.focusArea === "backends") {
-      if (key === "k" || key === "UP") {
-        state.backendIndex = Math.max(0, state.backendIndex - 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "j" || key === "DOWN") {
-        state.backendIndex = Math.min(state.availableBackends.length - 1, state.backendIndex + 1);
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "g" || key === "ESC") {
-        state.focusArea = "releases";
-        ctx.scheduleRender();
-        return true;
-      }
-      if (key === "RETURN" || key === "ENTER") {
-        if (state.availableBackends.length > 0) {
-          const backend = state.availableBackends[state.backendIndex];
-          const currentTag = state.pendingTag || (state.releases[state.releaseIndex]?.tag || "");
-          const installedForTag = state.installedBackends[currentTag];
-          if (installedForTag && installedForTag.has(backend.id)) {
-            showMessage("Backend already installed.");
-            return true;
-          }
-          installSelectedBackend().catch(() => {});
-        }
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  function dispose(): void {
-    clearMessageTimer();
-    resetState(state);
-  }
-
-  return {
-    render,
-    handleKey,
-    dispose,
-  };
+export function createVersionsTab(ctx: TabContext) {
+  return new VersionsControl(ctx);
 }

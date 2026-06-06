@@ -1,9 +1,6 @@
 import type { Terminal } from "terminal-kit";
+import type { RenderContext } from "../components/ui/types.js";
 
-export interface TabContext {
-  term: Terminal;
-  scheduleRender(): void;
-  showMessage(msg: string): void;
+export interface TabContext extends RenderContext {
   setTextInputFocused(focused: boolean): void;
-  getConfig(): any | null;
 }

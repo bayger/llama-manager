@@ -1,11 +1,12 @@
-import type { Terminal } from "terminal-kit";
-import { themeColors, fg, termWidth, termHeight, renderDivider, renderLine } from "../../lib/theme.js";
-import { renderButtonBar, moveButtonIndex, ButtonItem } from "../shared/Button.js";
+import { Column } from "../ui/Layout.js";
+import { Button } from "../ui/widgets/Button.js";
+import { fg, fgBg, themeColors, termWidth, termHeight, renderDivider, renderLine } from "../../lib/theme.js";
 import { loadConfig, ConfigData, getActivePresets } from "../../lib/config.js";
 import { getServerMetrics } from "../../lib/api.js";
 import { getStatus, startServer, stopServer } from "../../lib/server.js";
 import { fireAsync, formatDuration, formatUptime } from "../../lib/utils.js";
-import { TabContext } from "../../lib/tabcontext.js";
+import type { TabContext } from "../../lib/tabcontext.js";
+import type { Size } from "../ui/types.js";
 
 const CONTROLS = ["Start", "Stop", "Restart"];
 
@@ -21,92 +22,248 @@ interface DashboardMetrics {
   nTokensMax: number;
 }
 
-interface DashboardState {
-  metrics: DashboardMetrics | null;
-  connected: boolean;
-  lastPoll: number | null;
-  config: ConfigData | null;
-  pollInterval: ReturnType<typeof setInterval> | null;
-  serverState: "stopped" | "starting" | "running" | "stopping";
-  pid: number | null;
-  uptime: number;
-  statusInterval: ReturnType<typeof setInterval> | null;
-  spinnerIndex: number;
-  focusArea: "controls" | "none";
-  controlIndex: number;
-  configLoaded: boolean;
+interface ColSection {
+  x: number;
+  title: string;
+  rows: [string, string, string?][];
 }
 
-export function createDashboardTab(ctx: TabContext) {
-  let state: DashboardState = {
-    metrics: null,
-    connected: false,
-    lastPoll: null,
-    config: null,
-    pollInterval: null,
-    serverState: "stopped",
-    pid: null,
-    uptime: 0,
-    statusInterval: null,
-    spinnerIndex: 0,
-    focusArea: "controls",
-    controlIndex: 0,
-    configLoaded: false,
-  };
+export class DashboardControl extends Column {
+  protected _ctx: TabContext | null = null;
+  protected _metrics: DashboardMetrics | null = null;
+  protected _connected = false;
+  protected _lastPoll: number | null = null;
+  protected _config: ConfigData | null = null;
+  protected _pollInterval: ReturnType<typeof setInterval> | null = null;
+  protected _serverState: "stopped" | "starting" | "running" | "stopping" = "stopped";
+  protected _pid: number | null = null;
+  protected _uptime = 0;
+  protected _statusInterval: ReturnType<typeof setInterval> | null = null;
+  protected _spinnerIndex = 0;
+  protected _controlIndex = 0;
+  protected _configLoaded = false;
+  protected _startBtn: Button | null = null;
+  protected _stopBtn: Button | null = null;
+  protected _restartBtn: Button | null = null;
 
-  const scheduleRender = ctx.scheduleRender.bind(ctx);
-  const showMessage = ctx.showMessage.bind(ctx);
+  constructor(ctx: TabContext) {
+    super();
+    this._ctx = ctx;
+    this.enabled = true;
+  }
 
-  function updateServerStatus(): void {
-    const status = getStatus();
-    if (status.running) {
-      state.serverState = "running";
-      state.pid = status.pid;
-      state.uptime = status.uptime;
-    } else {
-      if (state.serverState === "starting" || state.serverState === "running") {
-        state.serverState = "stopped";
+  get metrics(): DashboardMetrics | null {
+    return this._metrics;
+  }
+
+  measure(_parentSize?: Size): Size {
+    return { width: _parentSize?.width || 80, height: _parentSize?.height || 20 };
+  }
+
+  onAttach(): void {
+    super.onAttach();
+    this._ensureConfigLoaded();
+  }
+
+  onDetach(): void {
+    this._stopPolling();
+    this._stopStatusPolling();
+    super.onDetach();
+  }
+
+  render(): void {
+    if (!this.visible || !this.needsRender || !this._ctx) return;
+    this._spinnerIndex = (this._spinnerIndex + 1) % 4;
+    const term = this.term;
+    const { x, y, width, height } = this.rect;
+
+    let cy = y;
+
+    cy = this._renderServerStatus(term, cy);
+    cy = this._renderControls(term, cy);
+    renderDivider(term, cy++, themeColors.border);
+    cy++;
+
+    if (this._serverState === "stopped") {
+      const midY = Math.floor((y + cy) / 2);
+      renderLine(term, midY, () => {
+        term.bold();
+        fg(term, themeColors.warning, "Server not running");
+        term.styleReset(true);
+      });
+      renderLine(term, midY + 1, () => {
+        fg(term, themeColors.textMuted, "Use Start above to launch the server.");
+      });
+      this.needsRender = false;
+      return;
+    }
+
+    if (!this._metrics) {
+      const midY = Math.floor((y + cy) / 2);
+      renderLine(term, midY, () => {
+        term.bold();
+        fg(term, themeColors.text, "Connecting to server...");
+        term.styleReset(true);
+      });
+      renderLine(term, midY + 1, () => {
+        fg(term, themeColors.textMuted, "Fetching initial stats");
+      });
+      this.needsRender = false;
+      return;
+    }
+
+    cy = this._renderDashboard(term, cy);
+    this.needsRender = false;
+  }
+
+  handleKey(key: string): boolean {
+    const items = this._getControlItems();
+    if (key === "h" || key === "LEFT") {
+      this._moveControlIndex(-1);
+      return true;
+    }
+    if (key === "l" || key === "RIGHT") {
+      this._moveControlIndex(1);
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      if (!items[this._controlIndex]?.disabled) {
+        this._executeControl(this._controlIndex);
       }
-      state.pid = null;
-      state.uptime = 0;
+      return true;
     }
-    scheduleRender();
+    return false;
   }
 
-  function startStatusPolling(): void {
-    if (state.statusInterval) clearInterval(state.statusInterval);
-    state.statusInterval = setInterval(updateServerStatus, 1000);
-    updateServerStatus();
+  // — Private methods —
+
+  _getControlItems(): Array<{ label: string; disabled: boolean }> {
+    const running = this._serverState === "running";
+    const starting = this._serverState === "starting";
+    const stopping = this._serverState === "stopping";
+    return [
+      { label: "Start", disabled: running || starting },
+      { label: "Stop", disabled: !running },
+      { label: "Restart", disabled: !running || stopping },
+    ];
   }
 
-  function stopStatusPolling(): void {
-    if (state.statusInterval) {
-      clearInterval(state.statusInterval);
-      state.statusInterval = null;
+  _moveControlIndex(direction: -1 | 1): void {
+    const items = this._getControlItems();
+    let next = this._controlIndex + direction;
+    if (next < 0) next = items.length - 1;
+    if (next >= items.length) next = 0;
+    while (items[next]?.disabled && next !== this._controlIndex) {
+      next += direction;
+      if (next < 0) next = items.length - 1;
+      if (next >= items.length) next = 0;
+    }
+    this._controlIndex = next;
+    this._updateButtonFocus();
+    this.needsRender = true;
+    if (this._ctx) this._ctx.scheduleRender();
+  }
+
+  _updateButtonFocus(): void {
+    if (this._startBtn) this._startBtn.focused = this._controlIndex === 0;
+    if (this._stopBtn) this._stopBtn.focused = this._controlIndex === 1;
+    if (this._restartBtn) this._restartBtn.focused = this._controlIndex === 2;
+  }
+
+  _executeControl(index: number): void {
+    if (!this._ctx) return;
+    const ctx = this._ctx;
+    const cfg = this._config;
+    if (!cfg) {
+      ctx.showMessage("No configuration loaded");
+      return;
+    }
+
+    const control = CONTROLS[index];
+    switch (control) {
+      case "Start": {
+        if (this._serverState === "running" || this._serverState === "starting") {
+          ctx.showMessage("Server already running");
+          return;
+        }
+        if (!cfg.activeVersion) {
+          ctx.showMessage("No active version selected. Install one from the Versions tab.");
+          return;
+        }
+        fireAsync(async () => {
+          this._serverState = "starting";
+          const pid = await startServer(cfg);
+          this._pid = pid;
+          this._uptime = 0;
+          this._serverState = "running";
+          this._startStatusPolling();
+          ctx.showMessage(`Server started (PID ${pid})`);
+        }, ctx);
+        break;
+      }
+      case "Stop": {
+        if (this._serverState !== "running") {
+          ctx.showMessage("Server not running");
+          return;
+        }
+        fireAsync(async () => {
+          this._serverState = "stopping";
+          await stopServer();
+          this._serverState = "stopped";
+          this._pid = null;
+          this._uptime = 0;
+          this._stopStatusPolling();
+          ctx.showMessage("Server stopped");
+        }, ctx);
+        break;
+      }
+      case "Restart": {
+        if (this._serverState !== "running") {
+          ctx.showMessage("Server not running");
+          return;
+        }
+        if (!cfg.activeVersion) {
+          ctx.showMessage("No active version selected");
+          return;
+        }
+        fireAsync(async () => {
+          this._serverState = "stopping";
+          await stopServer();
+          if (!this._config) return;
+          this._serverState = "starting";
+          const pid = await startServer(this._config);
+          this._pid = pid;
+          this._uptime = 0;
+          this._serverState = "running";
+          this._startStatusPolling();
+          ctx.showMessage(`Server restarted (PID ${pid})`);
+        }, ctx);
+        break;
+      }
     }
   }
 
-  function renderServerStatus(term: Terminal, startY: number): number {
+  _renderServerStatus(term: any, startY: number): number {
     const width = termWidth(term);
-    const statusDot = state.serverState === "starting" || state.serverState === "stopping"
-      ? ["-", "\\", "|", "/"][state.spinnerIndex % 4]
+    const statusDot = this._serverState === "starting" || this._serverState === "stopping"
+      ? ["-", "\\", "|", "/"][this._spinnerIndex % 4]
       : "\u25cf";
 
     const statusText =
-      state.serverState === "running" ? "running" :
-      state.serverState === "starting" ? "starting" :
-      state.serverState === "stopping" ? "stopping" : "stopped";
+      this._serverState === "running" ? "running" :
+      this._serverState === "starting" ? "starting" :
+      this._serverState === "stopping" ? "stopping" : "stopped";
 
-    const pidText = state.pid ? `PID: ${state.pid}` : "";
-    const uptimeText = state.uptime > 0 ? `Uptime: ${formatUptime(state.uptime)}` : "";
+    const pidText = this._pid ? `PID: ${this._pid}` : "";
+    const uptimeText = this._uptime > 0 ? `Uptime: ${formatUptime(this._uptime)}` : "";
 
     const statusColor =
-      state.serverState === "running" ? themeColors.success :
-      state.serverState === "stopped" ? themeColors.danger :
+      this._serverState === "running" ? themeColors.success :
+      this._serverState === "stopped" ? themeColors.danger :
       themeColors.warning;
 
-    let y = startY;
-    renderLine(term, y++, () => {
+    let cy = startY;
+    renderLine(term, cy++, () => {
       term.bold();
       fg(term, themeColors.text, `  Server │ `);
       fg(term, statusColor, `${statusDot} ${statusText}`);
@@ -119,121 +276,103 @@ export function createDashboardTab(ctx: TabContext) {
       term(" ".repeat(Math.max(0, width - used)));
     });
 
-    const version = state.config?.activeVersion || "none";
+    const version = this._config?.activeVersion || "none";
     let host = "127.0.0.1";
     let port = 8080;
-    if (state.config) {
-      const p = getActivePresets(state.config);
+    if (this._config) {
+      const p = getActivePresets(this._config);
       host = String(p.server?.host || "127.0.0.1");
       port = Number(p.server?.port || 8080);
     }
     const url = `http://${host}:${port}`;
     const infoLine = ` Version: ${version} │ URL: ${url} `;
 
-    renderLine(term, y++, () => {
+    renderLine(term, cy++, () => {
       fg(term, themeColors.textMuted, infoLine);
       const pad = Math.max(0, width - infoLine.length);
       term(" ".repeat(pad));
     });
 
-    renderDivider(term, y++, themeColors.border);
-    return y;
+    renderDivider(term, cy++, themeColors.border);
+    return cy;
   }
 
-  function getControlItems(): ButtonItem[] {
-    const running = state.serverState === "running";
-    const starting = state.serverState === "starting";
-    const stopping = state.serverState === "stopping";
-    return [
-      { label: "Start", disabled: running || starting },
-      { label: "Stop", disabled: !running },
-      { label: "Restart", disabled: !running || stopping },
-    ];
-  }
+  _renderControls(term: any, startY: number): number {
+    const items = this._getControlItems();
+    const separator = "  ";
 
-  function renderControlsBar(term: Terminal, startY: number): number {
-    return renderButtonBar({
-      term,
-      startY,
-      items: getControlItems(),
-      selectedIndex: state.focusArea === "controls" ? state.controlIndex : -1,
+    renderLine(term, startY, () => {
+      for (let i = 0; i < items.length; i++) {
+        if (i > 0) {
+          fg(term, themeColors.textMuted, separator);
+        }
+        const item = items[i]!;
+        const text = `[ ${item.label} ]`;
+
+        if (item.disabled) {
+          fg(term, themeColors.borderMuted, text);
+        } else if (i === this._controlIndex) {
+          term.bold();
+          fgBg(term, themeColors.selectedText, themeColors.selectedBg, text);
+          term.styleReset();
+        } else {
+          fg(term, themeColors.border, text);
+        }
+      }
     });
+
+    return startY + 1;
   }
 
-  function executeControl(index: number): void {
-    if (!state.config) {
-      showMessage("No configuration loaded");
-      return;
-    }
+  _renderDashboard(term: any, startY: number): number {
+    let cy = startY;
+    const { metrics, connected, _lastPoll } = { metrics: this._metrics, connected: this._connected, _lastPoll: this._lastPoll };
+    if (!metrics) return cy;
 
-    const control = CONTROLS[index];
+    renderLine(term, cy, () => {
+      fg(term, themeColors.text, "Dashboard");
+      term("  ");
+      fg(term, themeColors.textMuted, _lastPoll ? `Last update: ${new Date(_lastPoll).toLocaleTimeString()}` : "-");
+      term("  ");
+      fg(term, connected ? themeColors.success : themeColors.danger, connected ? "\u25cf Connected" : "\u25cf Disconnected");
+    });
+    cy++;
+    renderDivider(term, cy, themeColors.border);
+    cy++;
 
-    switch (control) {
-      case "Start": {
-        if (state.serverState === "running" || state.serverState === "starting") {
-          showMessage("Server already running");
-          return;
-        }
-        if (!state.config.activeVersion) {
-          showMessage("No active version selected. Install one from the Versions tab.");
-          return;
-        }
-        fireAsync(async () => {
-          state.serverState = "starting";
-          const pid = await startServer(state.config!);
-          state.pid = pid;
-          state.uptime = 0;
-          state.serverState = "running";
-          startStatusPolling();
-          showMessage(`Server started (PID ${pid})`);
-        }, ctx);
-        break;
-      }
+    const colWidth = Math.floor((termWidth(term) - 6) / 3);
+    const x1 = 1;
+    const x2 = 1 + colWidth + 3;
+    const x3 = 1 + 2 * (colWidth + 3);
 
-      case "Stop": {
-        if (state.serverState !== "running") {
-          showMessage("Server not running");
-          return;
-        }
-        fireAsync(async () => {
-          state.serverState = "stopping";
-          await stopServer();
-          state.serverState = "stopped";
-          state.pid = null;
-          state.uptime = 0;
-          stopStatusPolling();
-          showMessage("Server stopped");
-        }, ctx);
-        break;
-      }
+    const tokenRows: [string, string, string?][] = [
+      ["gen t/s", metrics.predictedTokensPerSec.toFixed(1), themeColors.success],
+      ["prompt t/s", metrics.promptTokensPerSec.toFixed(1)],
+      ["total tokens", metrics.totalTokens.toLocaleString()],
+      ["prompt time", formatDuration(metrics.promptSecondsTotal)],
+      ["gen time", formatDuration(metrics.tokensPredictedSecondsTotal)],
+    ];
 
-      case "Restart": {
-        if (state.serverState !== "running") {
-          showMessage("Server not running");
-          return;
-        }
-        if (!state.config.activeVersion) {
-          showMessage("No active version selected");
-          return;
-        }
-        fireAsync(async () => {
-          state.serverState = "stopping";
-          await stopServer();
-          if (!state.config) return;
-          state.serverState = "starting";
-          const pid = await startServer(state.config);
-          state.pid = pid;
-          state.uptime = 0;
-          state.serverState = "running";
-          startStatusPolling();
-          showMessage(`Server restarted (PID ${pid})`);
-        }, ctx);
-        break;
-      }
-    }
+    const procRows: [string, string, string?][] = [
+      ["n_decode", metrics.nDecodeTotal.toLocaleString()],
+      ["n_tokens_max", metrics.nTokensMax.toLocaleString()],
+    ];
+
+    const queueRows: [string, string, string?][] = [
+      ["Processing", String(metrics.requestsProcessing), metrics.requestsProcessing > 0 ? themeColors.success : themeColors.textMuted],
+      ["Deferred", String(metrics.requestsDeferred), metrics.requestsDeferred > 0 ? themeColors.warning : themeColors.textMuted],
+    ];
+
+    cy = this._renderMultiColumn(term, cy, [
+      { x: x1, title: "Token Stats", rows: tokenRows },
+      { x: x2, title: "Processing", rows: procRows },
+      { x: x3, title: "Queue", rows: queueRows },
+    ]);
+
+    return cy;
   }
 
-  function renderMultiColumn(term: Terminal, startY: number, sections: ColSection[]): number {
+  _renderMultiColumn(term: any, startY: number, sections: ColSection[]): number {
     const maxRows = Math.max(...sections.map(s => s.rows.length + 1));
 
     for (let i = 0; i < maxRows; i++) {
@@ -264,12 +403,73 @@ export function createDashboardTab(ctx: TabContext) {
     return startY + maxRows;
   }
 
-  async function poll(): Promise<void> {
-    const cfg = state.config;
+  // — Polling —
+
+  _ensureConfigLoaded(): void {
+    if (this._configLoaded) return;
+    this._configLoaded = true;
+    const ctx = this._ctx!;
+    loadConfig().then((cfg: ConfigData) => {
+      this._config = cfg;
+      this._startStatusPolling();
+      this._initPoll();
+    });
+  }
+
+  _startStatusPolling(): void {
+    if (this._statusInterval) clearInterval(this._statusInterval);
+    const ctx = this._ctx!;
+    this._updateServerStatus();
+    this._statusInterval = setInterval(() => {
+      this._updateServerStatus();
+    }, 1000);
+  }
+
+  _stopStatusPolling(): void {
+    if (this._statusInterval) {
+      clearInterval(this._statusInterval);
+      this._statusInterval = null;
+    }
+  }
+
+  _updateServerStatus(): void {
+    const status = getStatus();
+    if (status.running) {
+      this._serverState = "running";
+      this._pid = status.pid;
+      this._uptime = status.uptime;
+    } else {
+      if (this._serverState === "starting" || this._serverState === "running") {
+        this._serverState = "stopped";
+      }
+      this._pid = null;
+      this._uptime = 0;
+    }
+    this.needsRender = true;
+    if (this._ctx) this._ctx.scheduleRender();
+  }
+
+  _initPoll(): void {
+    if (this._pollInterval) clearInterval(this._pollInterval);
+    this._poll();
+    const interval = (this._config?.dashboard?.pollIntervalMs ?? 2000);
+    this._pollInterval = setInterval(() => this._poll(), interval);
+  }
+
+  _stopPolling(): void {
+    if (this._pollInterval) {
+      clearInterval(this._pollInterval);
+      this._pollInterval = null;
+    }
+  }
+
+  async _poll(): Promise<void> {
+    const cfg = this._config;
     if (!cfg) return;
+    const ctx = this._ctx!;
     try {
       const raw = await getServerMetrics(cfg);
-      state.metrics = {
+      this._metrics = {
         promptTokensPerSec: raw.promptTokensPerSec,
         predictedTokensPerSec: raw.predictedTokensPerSec,
         totalTokens: raw.promptTokensTotal + raw.tokensPredictedTotal,
@@ -280,161 +480,16 @@ export function createDashboardTab(ctx: TabContext) {
         nDecodeTotal: raw.nDecodeTotal,
         nTokensMax: raw.nTokensMax,
       };
-      state.connected = true;
-      state.lastPoll = Date.now();
+      this._connected = true;
+      this._lastPoll = Date.now();
     } catch {
-      state.connected = false;
+      this._connected = false;
     }
+    this.needsRender = true;
+    ctx.scheduleRender();
   }
-
-  function initPoll(): void {
-    if (state.pollInterval) clearInterval(state.pollInterval);
-    poll();
-    const interval = (state.config?.dashboard?.pollIntervalMs ?? 2000);
-    state.pollInterval = setInterval(poll, interval);
-  }
-
-  function ensureConfigLoaded(): void {
-    if (state.configLoaded) return;
-    state.configLoaded = true;
-    loadConfig().then((cfg: ConfigData) => {
-      state.config = cfg;
-      startStatusPolling();
-      initPoll();
-    });
-  }
-
-  function render(): void {
-    ensureConfigLoaded();
-
-    const term = ctx.term;
-    state.spinnerIndex = (state.spinnerIndex + 1) % 4;
-    const { metrics, connected, lastPoll } = state;
-
-    let y = 3;
-
-    y = renderServerStatus(term, y);
-    y = renderControlsBar(term, y);
-    renderDivider(term, y++, themeColors.border);
-    y++;
-
-    if (!state.serverState || state.serverState === "stopped") {
-      const midY = Math.floor(termHeight(term) / 2);
-      renderLine(term, midY, () => {
-        term.bold();
-        fg(term, themeColors.warning, "Server not running");
-        term.styleReset(true);
-      });
-      renderLine(term, midY + 1, () => {
-        fg(term, themeColors.textMuted, "Use Start above to launch the server.");
-      });
-      return;
-    }
-
-    if (!metrics) {
-      const midY = Math.floor(termHeight(term) / 2);
-      renderLine(term, midY, () => {
-        term.bold();
-        fg(term, themeColors.text, "Connecting to server...");
-        term.styleReset(true);
-      });
-      renderLine(term, midY + 1, () => {
-        fg(term, themeColors.textMuted, "Fetching initial stats");
-      });
-      return;
-    }
-
-    renderLine(term, y, () => {
-      fg(term, themeColors.text, "Dashboard");
-      term('  ');
-      fg(term, themeColors.textMuted, lastPoll ? `Last update: ${new Date(lastPoll).toLocaleTimeString()}` : "-");
-      term('  ');
-      fg(term, connected ? themeColors.success : themeColors.danger, connected ? "\u25cf Connected" : "\u25cf Disconnected");
-    });
-    y++;
-    renderDivider(term, y, themeColors.border);
-    y++;
-
-    const colWidth = Math.floor((termWidth(term) - 6) / 3);
-    const x1 = 1;
-    const x2 = 1 + colWidth + 3;
-    const x3 = 1 + 2 * (colWidth + 3);
-
-    const tokenRows: [string, string, string?][] = [
-      ["gen t/s", metrics.predictedTokensPerSec.toFixed(1), themeColors.success],
-      ["prompt t/s", metrics.promptTokensPerSec.toFixed(1)],
-      ["total tokens", metrics.totalTokens.toLocaleString()],
-      ["prompt time", formatDuration(metrics.promptSecondsTotal)],
-      ["gen time", formatDuration(metrics.tokensPredictedSecondsTotal)],
-    ];
-
-    const procRows: [string, string, string?][] = [
-      ["n_decode", metrics.nDecodeTotal.toLocaleString()],
-      ["n_tokens_max", metrics.nTokensMax.toLocaleString()],
-    ];
-
-    const queueRows: [string, string, string?][] = [
-      ["Processing", String(metrics.requestsProcessing), metrics.requestsProcessing > 0 ? themeColors.success : themeColors.textMuted],
-      ["Deferred", String(metrics.requestsDeferred), metrics.requestsDeferred > 0 ? themeColors.warning : themeColors.textMuted],
-    ];
-
-    renderMultiColumn(term, y, [
-      { x: x1, title: "Token Stats", rows: tokenRows },
-      { x: x2, title: "Processing", rows: procRows },
-      { x: x3, title: "Queue", rows: queueRows },
-    ]);
-  }
-
-  function handleKey(key: string): boolean {
-    if (state.focusArea === "controls") {
-     if (key === "h" || key === "LEFT") {
-          state.controlIndex = moveButtonIndex(getControlItems(), state.controlIndex, -1);
-          scheduleRender();
-          return true;
-        }
-        if (key === "l" || key === "RIGHT") {
-          state.controlIndex = moveButtonIndex(getControlItems(), state.controlIndex, 1);
-          scheduleRender();
-          return true;
-        }
-        if (key === "RETURN" || key === "ENTER") {
-          const items = getControlItems();
-          if (!items[state.controlIndex]?.disabled) {
-            executeControl(state.controlIndex);
-          }
-          scheduleRender();
-          return true;
-        }
-    }
-    return false;
-  }
-
-  function dispose(): void {
-    if (state.pollInterval) {
-      clearInterval(state.pollInterval);
-      state.pollInterval = null;
-    }
-    stopStatusPolling();
-    state.metrics = null;
-    state.connected = false;
-    state.config = null;
-    state.serverState = "stopped";
-    state.pid = null;
-    state.uptime = 0;
-    state.spinnerIndex = 0;
-    state.controlIndex = 0;
-    state.configLoaded = false;
-  }
-
-  return {
-    render,
-    handleKey,
-    dispose,
-  };
 }
 
-interface ColSection {
-  x: number;
-  title: string;
-  rows: [string, string, string?][];
+export function createDashboardTab(ctx: TabContext) {
+  return new DashboardControl(ctx);
 }

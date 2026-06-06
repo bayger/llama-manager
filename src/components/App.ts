@@ -2,6 +2,9 @@ import type { Terminal } from "terminal-kit";
 import { themeColors, fg, termHeight, termWidth } from "../lib/theme.js";
 import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
+import { Control } from "./ui/Control.js";
+import { focusManager } from "./ui/FocusManager.js";
+import type { RenderContext } from "./ui/types.js";
 
 // Tab imports
 import { createServerTab } from "./tabs/ServerTab.js";
@@ -22,6 +25,11 @@ interface TabModule {
   dispose?(): void;
 }
 
+interface TabEntry {
+  legacy: TabModule;
+  control: Control | null;
+}
+
 interface AppState {
   activeTab: TabId;
   message: string | null;
@@ -36,7 +44,8 @@ export class App {
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
   private renderTimer: ReturnType<typeof setTimeout> | null = null;
   private _ctx: TabContext | null = null;
-  private _tabModules: Record<TabId, TabModule> | null = null;
+  private _renderContext: RenderContext | null = null;
+  private _tabs: Record<TabId, TabEntry> | null = null;
   private dirty = { tabbar: false, content: false, statusbar: false };
 
   constructor(term: Terminal) {
@@ -50,9 +59,24 @@ export class App {
     };
   }
 
-  private get tabModules(): Record<TabId, TabModule> {
-    if (!this._tabModules) throw new Error("tabModules not initialized");
-    return this._tabModules;
+  private get tabs(): Record<TabId, TabEntry> {
+    if (!this._tabs) throw new Error("tabs not initialized");
+    return this._tabs;
+  }
+
+  private get renderContext(): RenderContext {
+    if (!this._renderContext) throw new Error("renderContext not initialized");
+    return this._renderContext;
+  }
+
+  private getActiveControl(): Control | null {
+    const entry = this.tabs[this.state.activeTab];
+    return entry.control || null;
+  }
+
+  private getActiveTabModule(): TabModule {
+    const entry = this.tabs[this.state.activeTab];
+    return entry.control ? entry.legacy : entry.legacy;
   }
 
   async start(): Promise<void> {
@@ -69,26 +93,62 @@ export class App {
       getConfig: () => this.state.config,
     };
 
-    this._tabModules = {
-      Profiles: createServerTab(this._ctx),
-      Tasks: createTasksTab(this._ctx),
-      Versions: createVersionsTab(this._ctx),
-      Models: createModelsTab(this._ctx),
-      Dashboard: createDashboardTab(this._ctx),
-      Logs: createLiveLogsTab(this._ctx),
-      Options: createOptionsTab(this._ctx),
+    this._renderContext = {
+      term: this.term,
+      scheduleRender: () => this.scheduleRender(),
+      showMessage: (msg: string) => this.showMessage(msg),
+      getConfig: () => this.state.config,
     };
+
+    const factoryFns: Record<TabId, (ctx: TabContext) => TabModule | Control> = {
+      Profiles: createServerTab,
+      Tasks: createTasksTab,
+      Versions: createVersionsTab,
+      Models: createModelsTab,
+      Dashboard: createDashboardTab,
+      Logs: createLiveLogsTab,
+      Options: createOptionsTab,
+    };
+
+    this._tabs = {} as Record<TabId, TabEntry>;
+    for (const tabId of TABS) {
+      const instance = factoryFns[tabId](this._ctx);
+      const isControl = instance instanceof Control;
+      this._tabs[tabId] = {
+        legacy: isControl ? this._wrapControl(instance) : instance,
+        control: isControl ? instance : null,
+      };
+    }
 
     this.setupKeyHandler();
     this.render();
   }
 
+  private _wrapControl(control: Control): TabModule {
+    return {
+      render: () => control.render(),
+      handleKey: (key: string) => focusManager.handleKey(key),
+      dispose: () => control.detach(),
+    };
+  }
+
   setActiveTab(tab: TabId): void {
+    const prevControl = this.getActiveControl();
+    if (prevControl) {
+      focusManager.clear();
+    }
+
     this.state.activeTab = tab;
     this.dirty.tabbar = true;
     this.dirty.content = true;
     this.dirty.statusbar = true;
     this.render();
+
+    const newControl = this.getActiveControl();
+    if (newControl) {
+      focusManager.setRoot(newControl);
+      focusManager.focusFirst();
+    }
   }
 
   showMessage(msg: string): void {
@@ -108,6 +168,7 @@ export class App {
 
   setTextInputFocused(focused: boolean): void {
     this.state.textInputFocused = focused;
+    focusManager.activateTextInput(focused);
   }
 
   scheduleRender(): void {
@@ -145,8 +206,17 @@ export class App {
         term.moveTo(1, y);
         term.eraseLine();
       }
-      term.moveTo(1, 3);
-      this.tabModules[activeTab].render();
+
+      const control = this.getActiveControl();
+      if (control) {
+        control.attach(this.renderContext);
+        control.layout({ x: 1, y: 3, width: width, height: height - 4 });
+        term.moveTo(1, 3);
+        control.render();
+      } else {
+        term.moveTo(1, 3);
+        this.tabs[activeTab].legacy.render();
+      }
     }
 
     // --- Status bar (last row) ---
@@ -274,8 +344,11 @@ export class App {
         }
       }
 
-      const handled = this.tabModules[this.state.activeTab].handleKey(name);
-      if (!handled && !this.state.textInputFocused) {
+      const control = this.getActiveControl();
+      if (control) {
+        focusManager.handleKey(name);
+      } else {
+        this.tabs[this.state.activeTab].legacy.handleKey(name);
       }
     };
 
@@ -295,11 +368,16 @@ export class App {
       clearTimeout(this.renderTimer);
       this.renderTimer = null;
     }
-    if (this._tabModules) {
-      for (const tab of Object.values(this._tabModules)) {
-        if (tab.dispose) tab.dispose();
+    if (this._tabs) {
+      for (const entry of Object.values(this._tabs)) {
+        if (entry.control) {
+          entry.control.detach();
+        } else if (entry.legacy.dispose) {
+          entry.legacy.dispose();
+        }
       }
     }
+    focusManager.clear();
     taskStore.dispose();
   }
 }

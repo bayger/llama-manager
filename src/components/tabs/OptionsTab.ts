@@ -1,8 +1,9 @@
-import type { Terminal } from "terminal-kit";
-import type { TabContext } from "../../lib/tabcontext.js";
-import { themeColors, fg, termWidth, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
+import { Column } from "../ui/Layout.js";
+import { themeColors, fg, termWidth, renderLine, renderDivider } from "../../lib/theme.js";
 import { saveConfig } from "../../lib/config.js";
 import type { ConfigData } from "../../lib/config.js";
+import type { TabContext } from "../../lib/tabcontext.js";
+import type { Size } from "../ui/types.js";
 
 type FieldType = "string" | "number" | "boolean" | "password";
 
@@ -124,227 +125,231 @@ function setValue(config: ConfigData, field: OptionField, value: unknown): Confi
   return { ...config, [field.key]: value };
 }
 
-interface OptionsState {
-  selectedIndex: number;
-  editMode: boolean;
-  editValue: string;
-}
+export class OptionsControl extends Column {
+  protected _ctx: TabContext | null = null;
+  protected _selectedIndex = 0;
+  protected _editMode = false;
+  protected _editValue = "";
 
-function renderHeader(term: Terminal, startY: number): number {
-  const w = termWidth(term);
-  const left = " Options ";
-  const mid = ` ${FIELDS.length} settings `;
-  const right = " j/k navigate | Enter edit/toggle ";
-  const sep = " ";
-  const contentLen = left.length + mid.length + right.length + sep.length * 2;
-  const pad = Math.max(0, w - contentLen + 2);
-
-  renderLine(term, startY, () => {
-    fg(term, themeColors.text, left + mid + sep + right);
-    term(" ".repeat(pad));
-  });
-
-  renderDivider(term, startY + 1, themeColors.border);
-
-  return startY + 2;
-}
-
-function renderField(term: Terminal, field: OptionField, config: ConfigData, index: number, selectedIndex: number, startY: number): number {
-  const isSelected = index === selectedIndex;
-  const value = getValue(config, field);
-  const formatted = formatValue(value, field.type);
-  const isDefault = value === field.default;
-  const actionLabel = field.type === "boolean" ? "[toggle]" : "[edit]";
-
-  let y = startY;
-
-  renderLine(term, y++, () => {
-    if (isSelected) {
-      term.bold();
-      fg(term, themeColors.selected, "▸ ");
-    }
-    else {
-      fg(term, themeColors.text, "  ");
-    }
-
-    fg(term, themeColors.text, field.label);
-    term(" ");
-
-    if (isDefault) {
-      fg(term, themeColors.textMuted, formatted || `<${field.default === null ? "null" : String(field.default)}> `);
-    }
-    else {
-      fg(term, themeColors.success, formatted + " ");
-    }
-
-    fg(term, themeColors.textMuted, actionLabel);
-
-    if (isSelected) {
-      term.styleReset();
-    }
-  });
-
-  if (isSelected) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.textMuted, "    ");
-      fg(term, themeColors.textMuted, field.description);
-      term(" | default: ");
-      fg(term, themeColors.textMuted, String(field.default ?? "<none>"));
-    });
+  constructor(ctx: TabContext) {
+    super();
+    this._ctx = ctx;
   }
 
-  return y;
-}
+  measure(_parentSize?: Size): Size {
+    return { width: _parentSize?.width || 80, height: _parentSize?.height || 20 };
+  }
 
-function renderEditMode(term: Terminal, field: OptionField, editValue: string, startY: number): number {
-  renderLine(term, startY, () => {
-    fg(term, themeColors.warning, `  Editing ${field.label}: `);
-    fg(term, themeColors.text, editValue);
-  });
-  return startY + 1;
-}
+  render(): void {
+    if (!this.visible || !this.needsRender || !this._ctx) return;
+    const term = this.term;
+    const config = this._ctx.getConfig();
 
-export function createOptionsTab(ctx: TabContext) {
-  const state: OptionsState = {
-    selectedIndex: 0,
-    editMode: false,
-    editValue: "",
-  };
+    if (!config) {
+      renderLine(term, this.rect.y, () => {
+        fg(term, themeColors.textMuted, "Loading config...");
+      });
+      this.needsRender = false;
+      return;
+    }
 
-  function saveCurrentConfig(field: OptionField, value: unknown): void {
+    let y = this.rect.y;
+    y = this._renderHeader(term, y);
+    y++;
+
+    let lastSection = "";
+    for (let i = 0; i < FIELDS.length; i++) {
+      const field = FIELDS[i];
+
+      if (field.section !== lastSection) {
+        if (lastSection !== "") {
+          y++;
+        }
+        renderLine(term, y++, () => {
+          term.bold();
+          fg(term, themeColors.accent, field.section);
+          term.styleReset();
+        });
+        lastSection = field.section;
+      }
+
+      y = this._renderField(term, field, config, i, y);
+    }
+
+    if (this._editMode) {
+      y++;
+      const field = FIELDS[this._selectedIndex];
+      if (field) {
+        y = this._renderEditMode(term, field, y);
+      }
+    }
+
+    this.needsRender = false;
+  }
+
+  handleKey(key: string): boolean {
+    const config = this._ctx?.getConfig();
+
+    if (this._editMode) {
+      if (key === "RETURN") {
+        const field = FIELDS[this._selectedIndex];
+        if (!field || !config) {
+          this._exitEditMode();
+          return true;
+        }
+
+        let parsed: unknown = this._editValue;
+        if (field.type === "number") {
+          const num = Number(this._editValue);
+          if (isNaN(num)) {
+            this._ctx?.showMessage("Invalid number");
+            return true;
+          }
+          parsed = num;
+        }
+
+        this._saveField(field, parsed);
+        this._exitEditMode();
+        return true;
+      }
+      if (key === "CTRL_C" || key === "ESC") {
+        this._exitEditMode();
+        return true;
+      }
+      if (key === "BACKSPACE" || key === "DEL") {
+        this._editValue = this._editValue.slice(0, -1);
+        return true;
+      }
+      if (key.length === 1) {
+        this._editValue += key;
+        return true;
+      }
+      return true;
+    }
+
+    if (key === "j" || key === "DOWN") {
+      this._selectedIndex = Math.min(this._selectedIndex + 1, FIELDS.length - 1);
+      return true;
+    }
+    if (key === "k" || key === "UP") {
+      this._selectedIndex = Math.max(this._selectedIndex - 1, 0);
+      return true;
+    }
+    if (key === "RETURN") {
+      const field = FIELDS[this._selectedIndex];
+      if (!field || !config) return false;
+
+      if (field.type === "boolean") {
+        const current = getValue(config, field) as boolean;
+        this._saveField(field, !current);
+        return true;
+      } else {
+        this._editMode = true;
+        const current = getValue(config, field);
+        this._editValue = current !== null && current !== undefined ? String(current) : "";
+        this._ctx?.setTextInputFocused(true);
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  _renderHeader(term: any, startY: number): number {
+    const w = termWidth(term);
+    const left = " Options ";
+    const mid = ` ${FIELDS.length} settings `;
+    const right = " j/k navigate | Enter edit/toggle ";
+    const sep = " ";
+    const contentLen = left.length + mid.length + right.length + sep.length * 2;
+    const pad = Math.max(0, w - contentLen + 2);
+
+    renderLine(term, startY, () => {
+      fg(term, themeColors.text, left + mid + sep + right);
+      term(" ".repeat(pad));
+    });
+
+    renderDivider(term, startY + 1, themeColors.border);
+
+    return startY + 2;
+  }
+
+  _renderField(term: any, field: OptionField, config: ConfigData, index: number, startY: number): number {
+    const configCtx = this._ctx!;
+    const isSelected = index === this._selectedIndex;
+    const value = getValue(config, field);
+    const formatted = formatValue(value, field.type);
+    const isDefault = value === field.default;
+    const actionLabel = field.type === "boolean" ? "[toggle]" : "[edit]";
+
+    let y = startY;
+
+    renderLine(term, y++, () => {
+      if (isSelected) {
+        term.bold();
+        fg(term, themeColors.selected, "\u25c8 ");
+      }
+      else {
+        fg(term, themeColors.text, "  ");
+      }
+
+      fg(term, themeColors.text, field.label);
+      term(" ");
+
+      if (isDefault) {
+        fg(term, themeColors.textMuted, formatted || `<${field.default === null ? "null" : String(field.default)}> `);
+      }
+      else {
+        fg(term, themeColors.success, formatted + " ");
+      }
+
+      fg(term, themeColors.textMuted, actionLabel);
+
+      if (isSelected) {
+        term.styleReset();
+      }
+    });
+
+    if (isSelected) {
+      renderLine(term, y++, () => {
+        fg(term, themeColors.textMuted, "    ");
+        fg(term, themeColors.textMuted, field.description);
+        term(" | default: ");
+        fg(term, themeColors.textMuted, String(field.default ?? "<none>"));
+      });
+    }
+
+    return y;
+  }
+
+  _renderEditMode(term: any, field: OptionField, startY: number): number {
+    renderLine(term, startY, () => {
+      fg(term, themeColors.warning, `  Editing ${field.label}: `);
+      fg(term, themeColors.text, this._editValue);
+    });
+    return startY + 1;
+  }
+
+  _saveField(field: OptionField, value: unknown): void {
+    const ctx = this._ctx!;
     const config = ctx.getConfig();
     if (!config) return;
 
     const updated = setValue(config, field, value);
     saveConfig(updated).then(() => {
       ctx.showMessage(`Saved ${field.label}`);
-    }).catch((e) => {
+    }).catch((e: any) => {
       ctx.showMessage(`Failed to save: ${e}`);
     });
   }
 
-  return {
-    render: (): void => {
-      const term = ctx.term;
-      const config = ctx.getConfig();
+  _exitEditMode(): void {
+    this._editMode = false;
+    this._editValue = "";
+    this._ctx?.setTextInputFocused(false);
+  }
+}
 
-      if (!config) {
-        fg(term, themeColors.textMuted, "Loading config...\n");
-        return;
-      }
-
-      let y = 3;
-
-      y = renderHeader(term, y);
-      y++;
-
-      let lastSection = "";
-      for (let i = 0; i < FIELDS.length; i++) {
-        const field = FIELDS[i];
-
-        if (field.section !== lastSection) {
-          if (lastSection !== "") {
-            y++;
-          }
-          renderLine(term, y++, () => {
-            term.bold();
-            fg(term, themeColors.accent, field.section);
-            term.styleReset();
-          });
-          lastSection = field.section;
-        }
-
-        y = renderField(term, field, config, i, state.selectedIndex, y);
-      }
-
-      if (state.editMode) {
-        y++;
-        const field = FIELDS[state.selectedIndex];
-        if (field) {
-          y = renderEditMode(term, field, state.editValue, y);
-        }
-      }
-    },
-
-    handleKey: (key: string): boolean => {
-      const config = ctx.getConfig();
-
-      if (state.editMode) {
-        if (key === "RETURN") {
-          const field = FIELDS[state.selectedIndex];
-          if (!field || !config) {
-            state.editMode = false;
-            state.editValue = "";
-            ctx.setTextInputFocused(false);
-            return true;
-          }
-
-          let parsed: unknown = state.editValue;
-          if (field.type === "number") {
-            const num = Number(state.editValue);
-            if (isNaN(num)) {
-              ctx.showMessage("Invalid number");
-              return true;
-            }
-            parsed = num;
-          }
-
-          saveCurrentConfig(field, parsed);
-          state.editMode = false;
-          state.editValue = "";
-          ctx.setTextInputFocused(false);
-          return true;
-        }
-        else if (key === "CTRL_C" || key === "ESC") {
-          state.editMode = false;
-          state.editValue = "";
-          ctx.setTextInputFocused(false);
-          return true;
-        }
-        else if (key === "BACKSPACE" || key === "DEL") {
-          state.editValue = state.editValue.slice(0, -1);
-          return true;
-        }
-        else if (key.length === 1) {
-          state.editValue += key;
-          return true;
-        }
-        return true;
-      }
-
-      if (key === "j" || key === "DOWN") {
-        state.selectedIndex = Math.min(state.selectedIndex + 1, FIELDS.length - 1);
-        return true;
-      }
-      if (key === "k" || key === "UP") {
-        state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
-        return true;
-      }
-      if (key === "RETURN") {
-        const field = FIELDS[state.selectedIndex];
-        if (!field || !config) return false;
-
-        if (field.type === "boolean") {
-          const current = getValue(config, field) as boolean;
-          saveCurrentConfig(field, !current);
-          return true;
-        }
-        else {
-          state.editMode = true;
-          const current = getValue(config, field);
-          state.editValue = current !== null && current !== undefined ? String(current) : "";
-          ctx.setTextInputFocused(true);
-          return true;
-        }
-      }
-
-      return false;
-    },
-
-    dispose: (): void => {
-      state.selectedIndex = 0;
-      state.editMode = false;
-      state.editValue = "";
-    },
-  };
+export function createOptionsTab(ctx: TabContext) {
+  return new OptionsControl(ctx);
 }

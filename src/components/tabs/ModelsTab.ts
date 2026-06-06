@@ -1,8 +1,5 @@
-import type { Terminal } from "terminal-kit";
+import { Column } from "../ui/Layout.js";
 import { themeColors, fg, termWidth, termHeight, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
-import { renderProgressBar as renderSharedProgressBar } from "../shared/ProgressBar.js";
-import { renderHelpBar } from "../shared/HelpBar.js";
-import { renderButtonBar, moveButtonIndex, ButtonItem } from "../shared/Button.js";
 import { loadConfig, saveConfig, getModelsDir, ConfigData } from "../../lib/config.js";
 import {
   listLocalModels,
@@ -22,9 +19,11 @@ import {
   HFFileInfo,
   HFModelInfo,
 } from "../../lib/hf.js";
-import { TabContext } from "../../lib/tabcontext.js";
+import type { TabContext } from "../../lib/tabcontext.js";
+import type { Size } from "../ui/types.js";
 
-const ACTIONS = ["setactive", "delete", "search", "browse"];
+const ACTIONS = ["setactive", "delete", "search", "browse"] as const;
+const ACTION_LABELS = ["Set Active", "Delete", "Search", "Browse"];
 
 const TASK_FILTERS = [
   { label: "All", filter: "" },
@@ -56,416 +55,254 @@ const SORT_OPTIONS = [
   { label: "Created", value: "created" },
 ];
 
-interface ModelsState {
-  config: ConfigData | null;
-  models: LocalModel[];
-  selectedIndex: number;
-  focusArea:
-    | "list"
-    | "actions"
-    | "search"
-    | "files"
-    | "browse"
-    | "browsefilters"
-    | "browsesort"
-    | "modelcard";
-  actionIndex: number;
-  loading: boolean;
-  message: string | null;
-  totalSize: number;
-  searching: boolean;
-  searchQuery: string;
-  searchResults: HFRepoInfo[];
-  searchIndex: number;
-  downloading: boolean;
-  dlProgress: number;
-  dlLabel: string;
-  repoFiles: HFFileInfo[];
-  repoId: string;
-  fileIndex: number;
-  fetchingFiles: boolean;
-  editMode: boolean;
-  editValue: string;
-  browseResults: HFRepoInfo[];
-  browseIndex: number;
-  browseSort: number;
-  browseDirection: number;
-  browseFilters: boolean[];
-  filterIndex: number;
-  sortIndex: number;
-  modelCard: HFModelInfo | null;
-  fetchingCard: boolean;
-  browseSearchQuery: string;
-  browseEditMode: boolean;
-  browseEditValue: string;
-  initPromise: Promise<void> | null;
-}
-
-const ACTION_LABELS = ["Set Active", "Delete", "Search", "Browse"];
-
 function clampIndex(value: number, max: number): number {
   if (max <= 0) return 0;
   return Math.max(0, Math.min(value, max - 1));
 }
 
-function renderHeader(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  const titleLine = ` Models │ ${s.models.length} local │ ${formatSize(s.totalSize)} used`;
-  const dirLine = ` Dir: ${s.config ? getModelsDir(s.config) : "N/A"}`;
+export class ModelsControl extends Column {
+  protected _ctx: TabContext | null = null;
+  protected _config: ConfigData | null = null;
+  protected _models: LocalModel[] = [];
+  protected _selectedIndex = 0;
+  protected _focusArea: "list" | "actions" | "search" | "files" | "browse" | "browsefilters" | "browsesort" | "modelcard" = "list";
+  protected _actionIndex = 0;
+  protected _loading = false;
+  protected _message: string | null = null;
+  protected _totalSize = 0;
+  protected _searching = false;
+  protected _searchQuery = "";
+  protected _searchResults: HFRepoInfo[] = [];
+  protected _searchIndex = 0;
+  protected _downloading = false;
+  protected _dlProgress = 0;
+  protected _dlLabel = "";
+  protected _repoFiles: HFFileInfo[] = [];
+  protected _repoId = "";
+  protected _fileIndex = 0;
+  protected _fetchingFiles = false;
+  protected _editMode = false;
+  protected _editValue = "";
+  protected _browseResults: HFRepoInfo[] = [];
+  protected _browseIndex = 0;
+  protected _browseSort = 0;
+  protected _browseDirection = -1;
+  protected _browseFilters: boolean[] = new Array(ALL_FILTERS.length).fill(false);
+  protected _filterIndex = 0;
+  protected _sortIndex = 0;
+  protected _modelCard: HFModelInfo | null = null;
+  protected _fetchingCard = false;
+  protected _browseSearchQuery = "";
+  protected _browseEditMode = false;
+  protected _browseEditValue = "";
+  protected _initPromise: Promise<void> | null = null;
 
-  let y = startY;
-  renderLine(term, y++, () => {
-    fg(term, themeColors.text, titleLine);
-    term(" ".repeat(Math.max(0, width - titleLine.length)));
-  });
-  renderLine(term, y++, () => {
-    fg(term, themeColors.textMuted, dirLine);
-    term(" ".repeat(Math.max(0, width - dirLine.length)));
-  });
-  renderDivider(term, y++, themeColors.border);
-  return y;
-}
-
-function renderModelList(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  let y = startY;
-
-  if (s.models.length === 0) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.textMuted, "  No models found.");
-    });
-    renderLine(term, y++, () => {});
-    return y;
+  constructor(ctx: TabContext) {
+    super();
+    this._ctx = ctx;
   }
 
-  for (let i = 0; i < s.models.length; i++) {
-    const m = s.models[i];
-    const label = `${m.repoId}/${m.filename}`;
-    const sizeLabel = ` (${formatSize(m.sizeBytes)})`;
-    const activeLabel = m.active ? " (active)" : "";
+  measure(_parentSize?: Size): Size {
+    return { width: _parentSize?.width || 80, height: _parentSize?.height || 20 };
+  }
 
-    if (i === s.selectedIndex) {
-      renderLine(term, y++, () => {
-        term.bold();
-        fg(term, themeColors.selectedText, "  ");
-        term.bgColorRgbHex(themeColors.selectedBg)(
-          `● ${label}${sizeLabel}${activeLabel}`,
-        );
-        term.styleReset();
+  onAttach(): void {
+    this._initIfNeeded();
+  }
+
+  render(): void {
+    if (!this.visible || !this.needsRender || !this._ctx) return;
+    const term = this.term;
+    this._initIfNeeded();
+
+    if (this._loading && this._models.length === 0) {
+      renderLine(term, this.rect.y, () => {
+        fg(term, themeColors.textMuted, "  Loading models...");
       });
-    } else {
-      renderLine(term, y++, () => {
-        fg(term, m.active ? themeColors.success : themeColors.text, "  ");
-        fg(
-          term,
-          m.active ? themeColors.success : themeColors.text,
-          `○ ${label}${sizeLabel}${activeLabel}`,
-        );
-      });
+      this.needsRender = false;
+      return;
     }
-  }
-  renderLine(term, y++, () => {});
-  return y;
-}
 
-function renderSearchResults(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  let y = startY;
+    const width = termWidth(term);
+    let y = this.rect.y;
 
-  if (s.searchResults.length === 0) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.textMuted, "  No results.");
-    });
-    renderLine(term, y++, () => {});
-    return y;
-  }
-
-  for (let i = 0; i < s.searchResults.length; i++) {
-    const r = s.searchResults[i];
-    const label = `${r.id} (${r.likes} likes)`;
-    if (i === s.searchIndex) {
-      renderLine(term, y++, () => {
-        term.bold();
-        fg(term, themeColors.selectedText, "  ");
-        term.bgColorRgbHex(themeColors.selectedBg)(`▸ ${label}`);
-        term.styleReset();
-      });
-    } else {
-      renderLine(term, y++, () => {
-        fg(term, themeColors.text, "  ");
-        fg(term, themeColors.text, `  ${label}`);
-      });
+    if (this._downloading) {
+      y = this._renderHeader(term, width, y);
+      y = this._renderModelList(term, width, y);
+      y = this._renderDownloadProgress(term, width, y);
+      this.needsRender = false;
+      return;
     }
-  }
-  renderLine(term, y++, () => {});
-  return y;
-}
 
-function renderRepoFiles(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  let y = startY;
-
-  renderLine(term, y++, () => {
-    fg(term, themeColors.textMuted, `  Repo: ${s.repoId}`);
-  });
-  renderLine(term, y++, () => {});
-
-  if (s.repoFiles.length === 0) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.textMuted, "  No GGUF files.");
-    });
-    renderLine(term, y++, () => {});
-    return y;
-  }
-
-  for (let i = 0; i < s.repoFiles.length; i++) {
-    const f = s.repoFiles[i];
-    const label = `${f.rfpath} (${formatSize(f.size)})`;
-    if (i === s.fileIndex) {
-      renderLine(term, y++, () => {
-        term.bold();
-        fg(term, themeColors.selectedText, "  ");
-        term.bgColorRgbHex(themeColors.selectedBg)(`▸ ${label}`);
-        term.styleReset();
-      });
-    } else {
-      renderLine(term, y++, () => {
-        fg(term, themeColors.text, "  ");
-        fg(term, themeColors.text, `  ${label}`);
-      });
-    }
-  }
-  renderLine(term, y++, () => {});
-  return y;
-}
-
-function renderBrowseResults(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  let y = startY;
-
-  if (s.browseResults.length === 0) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.textMuted, "  No results.");
-    });
-    renderLine(term, y++, () => {});
-    return y;
-  }
-
-  for (let i = 0; i < s.browseResults.length; i++) {
-    const r = s.browseResults[i];
-    const label = `${r.id} │ ${r.likes} ♥ │ ${r.downloads ?? 0} ↓`;
-    if (i === s.browseIndex) {
-      renderLine(term, y++, () => {
-        term.bold();
-        fg(term, themeColors.selectedText, "  ");
-        term.bgColorRgbHex(themeColors.selectedBg)(`▸ ${label}`);
-        term.styleReset();
-      });
-    } else {
-      renderLine(term, y++, () => {
-        fg(term, themeColors.text, "  ");
-        fg(term, themeColors.text, `  ${label}`);
-      });
-    }
-  }
-  renderLine(term, y++, () => {});
-  return y;
-}
-
-function renderBrowseFilters(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  const innerW = width - 2;
-  const parts: string[] = [];
-  for (let i = 0; i < ALL_FILTERS.length; i++) {
-    const f = ALL_FILTERS[i];
-    const active = s.browseFilters[i] ? f.label : f.label;
-    const prefix = s.browseFilters[i] ? "●" : "○";
-    if (i === s.filterIndex) {
-      parts.push(` ${prefix} ${active} `);
-    } else {
-      parts.push(`${prefix} ${active}`);
-    }
-  }
-  const bar = parts.join(" │ ");
-
-  let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
-    {
-      render: () => {
-        fg(term, themeColors.textMuted, " Filters:");
-        term(" ".repeat(Math.max(0, innerW - " Filters:".length)));
-      },
-    },
-    {
-      render: () => {
-        for (let i = 0; i < ALL_FILTERS.length; i++) {
-          if (i > 0) fg(term, themeColors.textMuted, " │");
-          const prefix = s.browseFilters[i] ? "●" : "○";
-          if (i === s.filterIndex) {
+    switch (this._focusArea) {
+      case "list": {
+        y = this._renderHeader(term, width, y);
+        y = this._renderModelList(term, width, y);
+        y = this._renderHelp(term, y);
+        break;
+      }
+      case "actions": {
+        y = this._renderHeader(term, width, y);
+        y = this._renderModelList(term, width, y);
+        y = this._renderActions(term, y);
+        renderLine(term, y++, () => {});
+        y = this._renderHelp(term, y);
+        break;
+      }
+      case "search": {
+        if (this._editMode) {
+          y = this._renderHeader(term, width, y);
+          renderLine(term, y++, () => {
             term.bold();
-            fg(term, themeColors.selected, ` ${prefix} ${ALL_FILTERS[i].label} `);
+            fg(term, themeColors.accent, `  Search: ${this._editValue}`);
             term.styleReset();
-          } else {
-            fg(term, themeColors.text, `${prefix} ${ALL_FILTERS[i].label}`);
-          }
+          });
+          y = this._renderHelp(term, y);
+        } else {
+          y = this._renderHeader(term, width, y);
+          renderLine(term, y++, () => {
+            fg(term, themeColors.textMuted, `  Query: ${this._searchQuery}`);
+          });
+          renderLine(term, y++, () => {});
+          y = this._renderSearchResults(term, width, y);
+          y = this._renderHelp(term, y);
         }
-        term(" ".repeat(Math.max(0, innerW - bar.length)));
-      },
-    },
-  ]);
-  renderLine(term, y++, () => {});
-  return y;
-}
+        break;
+      }
+      case "files": {
+        y = this._renderHeader(term, width, y);
+        y = this._renderRepoFiles(term, width, y);
+        y = this._renderHelp(term, y);
+        break;
+      }
+      case "browse": {
+        if (this._browseEditMode) {
+          y = this._renderHeader(term, width, y);
+          renderLine(term, y++, () => {
+            term.bold();
+            fg(term, themeColors.accent, `  Browse search: ${this._browseEditValue}`);
+            term.styleReset();
+          });
+          y = this._renderHelp(term, y);
+        } else {
+          y = this._renderHeader(term, width, y);
+          renderLine(term, y++, () => {
+            fg(term, themeColors.textMuted, `  Browse (${SORT_OPTIONS[this._browseSort]?.label})`);
+          });
+          renderLine(term, y++, () => {});
+          y = this._renderBrowseResults(term, width, y);
+          y = this._renderHelp(term, y);
+        }
+        break;
+      }
+      case "browsefilters": {
+        y = this._renderHeader(term, width, y);
+        y = this._renderBrowseResults(term, width, y);
+        y = this._renderBrowseFilters(term, width, y);
+        y = this._renderHelp(term, y);
+        break;
+      }
+      case "browsesort": {
+        y = this._renderHeader(term, width, y);
+        y = this._renderBrowseResults(term, width, y);
+        y = this._renderBrowseSort(term, width, y);
+        y = this._renderHelp(term, y);
+        break;
+      }
+      case "modelcard": {
+        y = this._renderHeader(term, width, y);
+        y = this._renderModelCard(term, width, y);
+        y = this._renderHelp(term, y);
+        break;
+      }
+    }
 
-function renderBrowseSort(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  const innerW = width - 2;
-  const parts: string[] = [];
-  for (let i = 0; i < SORT_OPTIONS.length; i++) {
-    const opt = SORT_OPTIONS[i];
-    const arrow = s.browseDirection === -1 && i === s.sortIndex ? " ▼" : "";
-    if (i === s.sortIndex) {
-      parts.push(` ${opt.label}${arrow} `);
-    } else {
-      parts.push(opt.label);
+    if (this._message) {
+      renderLine(term, y++, () => {
+        fg(term, themeColors.warning, `  ${this._message}`);
+      });
+    }
+
+    this.needsRender = false;
+  }
+
+  handleKey(key: string): boolean {
+    if (this._downloading) return true;
+    if (this._searching || this._loading || this._fetchingFiles || this._fetchingCard) return true;
+
+    if (this._editMode) {
+      return this._handleSearchEditModeKey(key);
+    }
+    if (this._browseEditMode) {
+      return this._handleBrowseEditModeKey(key);
+    }
+
+    switch (this._focusArea) {
+      case "list": return this._handleListKey(key);
+      case "actions": return this._handleActionsKey(key);
+      case "search": return this._handleSearchKey(key);
+      case "files": return this._handleFilesKey(key);
+      case "browse": return this._handleBrowseKey(key);
+      case "browsefilters": return this._handleBrowseFiltersKey(key);
+      case "browsesort": return this._handleBrowseSortKey(key);
+      case "modelcard": return this._handleModelCardKey(key);
+    }
+
+    return false;
+  }
+
+  handleChar(char: string): boolean {
+    if (this._editMode && char.length === 1) {
+      this._editValue += char;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (this._browseEditMode && char.length === 1) {
+      this._browseEditValue += char;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    return false;
+  }
+
+  // — Init —
+
+  _initIfNeeded(): void {
+    if (!this._config && !this._initPromise) {
+      this._loading = true;
+      this._initPromise = (async () => {
+        this._config = await loadConfig();
+        if (this._config) {
+          await this._refreshModels();
+        }
+        this._loading = false;
+        this.markDirty();
+        this._ctx?.scheduleRender();
+      })();
     }
   }
-  const bar = parts.join(" │ ");
 
-  let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
-    {
-      render: () => {
-        fg(term, themeColors.textMuted, " Sort:");
-        term(" ".repeat(Math.max(0, innerW - " Sort:".length)));
-      },
-    },
-    {
-      render: () => {
-        for (let i = 0; i < SORT_OPTIONS.length; i++) {
-          if (i > 0) fg(term, themeColors.textMuted, " │");
-          const opt = SORT_OPTIONS[i];
-          const arrow = s.browseDirection === -1 && i === s.sortIndex ? " ▼" : "";
-          if (i === s.sortIndex) {
-            term.bold();
-            fg(term, themeColors.selected, ` ${opt.label}${arrow} `);
-            term.styleReset();
-          } else {
-            fg(term, themeColors.text, opt.label);
-          }
-        }
-        term(" ".repeat(Math.max(0, innerW - bar.length)));
-      },
-    },
-  ]);
-  renderLine(term, y++, () => {});
-  return y;
-}
-
-function renderModelCard(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  const innerW = width - 2;
-  let y = startY;
-
-  if (!s.modelCard) {
-    renderLine(term, y++, () => {
-      fg(term, themeColors.textMuted, "  No model info.");
-    });
-    renderLine(term, y++, () => {});
-    return y;
+  async _refreshModels(): Promise<void> {
+    if (!this._config) return;
+    this._loading = true;
+    try {
+      this._models = await listLocalModels(this._config);
+      this._totalSize = await getTotalModelsSize(this._config);
+      if (this._selectedIndex >= this._models.length) {
+        this._selectedIndex = Math.max(0, this._models.length - 1);
+      }
+    } catch {
+      this._message = "Failed to load models";
+    }
+    this._loading = false;
   }
-  const c = s.modelCard;
-  const cardLines = [
-    ` ID: ${c.id}`,
-    ` Author: ${c.author}`,
-    ` Likes: ${c.likes}  Downloads: ${c.downloads}`,
-    ` Tags: ${(c.tags || []).join(", ")}`,
-    ` Pipeline: ${c.pipelineTag || "N/A"}`,
-    ` Created: ${c.createdAt}`,
-    ` Modified: ${c.lastModified}`,
-  ];
-  y = renderBox({ term, width, borderColor: themeColors.border, startY: y }, cardLines.map(line => ({
-    render: () => {
-      fg(term, themeColors.text, line);
-      term(" ".repeat(Math.max(0, innerW - line.length)));
-    },
-  })));
-  renderLine(term, y++, () => {});
-  return y;
-}
 
-function renderDownloadProgress(s: ModelsState, term: Terminal, width: number, startY: number): number {
-  if (!s.downloading) return startY;
-  return renderSharedProgressBar({
-    term,
-    startY,
-    progress: s.dlProgress,
-    label: "Downloading...",
-    extraLabel: s.dlLabel,
-    barWidth: Math.min(40, width - 10),
-  });
-}
+  // — Actions —
 
-function renderHelp(s: ModelsState, term: Terminal, startY: number): number {
-  const helpTexts: Record<string, string> = {
-    list: "j/k navigate │ g actions │ Enter select",
-    actions: "h/l navigate │ Enter execute │ j/k list",
-    search: "j/k navigate │ Enter open │ g back │ e new search",
-    files: "j/k navigate │ Enter download │ g back",
-    browse: "j/k navigate │ f filters │ s sort │ m card │ Enter open │ g back │ e search",
-    browsefilters: "h/l navigate │ Enter toggle │ g back",
-    browsesort: "h/l navigate │ Enter apply │ R reverse │ g back",
-    modelcard: "m/g close │ Enter open repo",
-  };
-  return renderHelpBar({ term, y: startY, text: helpTexts[s.focusArea] || "" });
-}
-
-function renderMessage(s: ModelsState, term: Terminal, startY: number): number {
-  if (s.message) {
-    renderLine(term, startY, () => {
-      fg(term, themeColors.warning, `  ${s.message}`);
-    });
-    return startY + 1;
-  }
-  return startY;
-}
-
-export function createModelsTab(ctx: TabContext) {
-  const state: ModelsState = {
-    config: null,
-    models: [],
-    selectedIndex: 0,
-    focusArea: "list",
-    actionIndex: 0,
-    loading: false,
-    message: null,
-    totalSize: 0,
-    searching: false,
-    searchQuery: "",
-    searchResults: [],
-    searchIndex: 0,
-    downloading: false,
-    dlProgress: 0,
-    dlLabel: "",
-    repoFiles: [],
-    repoId: "",
-    fileIndex: 0,
-    fetchingFiles: false,
-    editMode: false,
-    editValue: "",
-    browseResults: [],
-    browseIndex: 0,
-    browseSort: 0,
-    browseDirection: -1,
-    browseFilters: new Array(ALL_FILTERS.length).fill(false),
-    filterIndex: 0,
-    sortIndex: 0,
-    modelCard: null,
-    fetchingCard: false,
-    browseSearchQuery: "",
-    browseEditMode: false,
-    browseEditValue: "",
-    initPromise: null,
-  };
-
-  let downloadTimer: ReturnType<typeof setInterval> | null = null;
-
-  const scheduleRender = ctx.scheduleRender.bind(ctx);
-  const showMessage = ctx.showMessage.bind(ctx);
-  const setTextInputFocused = ctx.setTextInputFocused.bind(ctx);
-
-  function getModelButtonItems(): ButtonItem[] {
-    const hasSelection = state.models.length > 0 && state.selectedIndex < state.models.length;
+  _getModelButtonItems(): Array<{ label: string; disabled?: boolean }> {
+    const hasSelection = this._models.length > 0 && this._selectedIndex < this._models.length;
     return [
       { label: "Set Active", disabled: !hasSelection },
       { label: "Delete", disabled: !hasSelection },
@@ -474,668 +311,912 @@ export function createModelsTab(ctx: TabContext) {
     ];
   }
 
-  async function refreshModels(): Promise<void> {
-    if (!state.config) return;
-    state.loading = true;
-    try {
-      state.models = await listLocalModels(state.config);
-      state.totalSize = await getTotalModelsSize(state.config);
-      if (state.selectedIndex >= state.models.length) {
-        state.selectedIndex = Math.max(0, state.models.length - 1);
-      }
-    } catch {
-      state.message = "Failed to load models";
+  _moveButtonIndex(items: Array<{ label: string; disabled?: boolean }>, currentIndex: number, direction: -1 | 1): number {
+    const next = currentIndex + direction;
+    if (next < 0 || next >= items.length) return currentIndex;
+    if (!items[next]?.disabled) return next;
+    const step = direction > 0 ? 1 : -1;
+    for (let i = currentIndex + step; i >= 0 && i < items.length; i += step) {
+      if (!items[i]?.disabled) return i;
     }
-    state.loading = false;
+    return currentIndex;
   }
 
-  async function executeAction(actionIndex: number): Promise<void> {
+  async _executeAction(actionIndex: number): Promise<void> {
     const action = ACTIONS[actionIndex];
-    if (!state.config) return;
+    if (!this._config) return;
 
     switch (action) {
       case "setactive": {
-        if (state.models.length === 0 || state.selectedIndex >= state.models.length) {
-          state.message = "No model selected";
+        if (this._models.length === 0 || this._selectedIndex >= this._models.length) {
+          this._message = "No model selected";
           return;
         }
-        const m = state.models[state.selectedIndex];
+        const m = this._models[this._selectedIndex];
         try {
-          const updated = await setActiveModel(state.config, m.repoId, m.filename);
+          const updated = await setActiveModel(this._config, m.repoId, m.filename);
           await saveConfig(updated);
-          state.config = updated;
-          await refreshModels();
-          state.message = `Set active: ${m.repoId}/${m.filename}`;
-          showMessage(state.message!);
+          this._config = updated;
+          await this._refreshModels();
+          this._message = `Set active: ${m.repoId}/${m.filename}`;
+          this._ctx?.showMessage(this._message!);
         } catch (err: any) {
-          state.message = `Error: ${err.message}`;
+          this._message = `Error: ${err.message}`;
         }
+        this.markDirty();
+        this._ctx?.scheduleRender();
         break;
       }
-
       case "delete": {
-        if (state.models.length === 0 || state.selectedIndex >= state.models.length) {
-          state.message = "No model selected";
+        if (this._models.length === 0 || this._selectedIndex >= this._models.length) {
+          this._message = "No model selected";
           return;
         }
-        const m = state.models[state.selectedIndex];
+        const m = this._models[this._selectedIndex];
         try {
-          const updated = await deleteModel(state.config, m.path);
+          const updated = await deleteModel(this._config, m.path);
           await saveConfig(updated);
-          state.config = updated;
-          await refreshModels();
-          state.message = `Deleted: ${m.filename}`;
-          showMessage(state.message!);
+          this._config = updated;
+          await this._refreshModels();
+          this._message = `Deleted: ${m.filename}`;
+          this._ctx?.showMessage(this._message!);
         } catch (err: any) {
-          state.message = `Error: ${err.message}`;
+          this._message = `Error: ${err.message}`;
         }
+        this.markDirty();
+        this._ctx?.scheduleRender();
         break;
       }
-
       case "search": {
-        state.focusArea = "search";
-        state.editMode = true;
-        state.editValue = "";
-        state.searchResults = [];
-        state.searchIndex = 0;
-        setTextInputFocused(true);
-        scheduleRender();
+        this._focusArea = "search";
+        this._editMode = true;
+        this._editValue = "";
+        this._searchResults = [];
+        this._searchIndex = 0;
+        this._ctx?.setTextInputFocused(true);
+        this.markDirty();
+        this._ctx?.scheduleRender();
         break;
       }
-
       case "browse": {
-        state.focusArea = "browse";
-        state.browseResults = [];
-        state.browseIndex = 0;
-        await fetchBrowse();
+        this._focusArea = "browse";
+        this._browseResults = [];
+        this._browseIndex = 0;
+        await this._fetchBrowse();
         break;
       }
     }
   }
 
-  async function fetchBrowse(): Promise<void> {
-    if (!state.config) return;
-    state.loading = true;
-    state.message = null;
+  async _fetchBrowse(): Promise<void> {
+    if (!this._config) return;
+    this._loading = true;
+    this._message = null;
     try {
       const activeFilters: string[] = [];
       for (let i = 0; i < ALL_FILTERS.length; i++) {
-        if (state.browseFilters[i] && ALL_FILTERS[i].filter) {
+        if (this._browseFilters[i] && ALL_FILTERS[i].filter) {
           activeFilters.push(ALL_FILTERS[i].filter);
         }
       }
-
-      const sortValue = SORT_OPTIONS[state.sortIndex]?.value || "likes";
-      const direction = state.browseDirection as 1 | -1;
-
+      const sortValue = SORT_OPTIONS[this._sortIndex]?.value || "likes";
+      const direction = this._browseDirection as 1 | -1;
       const results = await browseModels(
         {
           sort: sortValue as any,
           direction,
           filters: activeFilters,
-          search: state.browseSearchQuery || undefined,
+          search: this._browseSearchQuery || undefined,
         },
-        state.config.hfToken || undefined,
+        this._config.hfToken || undefined,
       );
-      state.browseResults = results;
-      state.browseIndex = 0;
+      this._browseResults = results;
+      this._browseIndex = 0;
     } catch (err: any) {
-      state.message = `Browse error: ${err.message}`;
+      this._message = `Browse error: ${err.message}`;
     }
-    state.loading = false;
-    scheduleRender();
+    this._loading = false;
+    this.markDirty();
+    this._ctx?.scheduleRender();
   }
 
-  async function submitSearch(): Promise<void> {
-    if (!state.config || !state.editValue.trim()) {
-      state.editMode = false;
-      setTextInputFocused(false);
-      scheduleRender();
+  async _submitSearch(): Promise<void> {
+    if (!this._config || !this._editValue.trim()) {
+      this._editMode = false;
+      this._ctx?.setTextInputFocused(false);
+      this.markDirty();
+      this._ctx?.scheduleRender();
       return;
     }
-    state.searchQuery = state.editValue.trim();
-    state.editMode = false;
-    state.searching = true;
-    state.message = null;
-    setTextInputFocused(false);
+    this._searchQuery = this._editValue.trim();
+    this._editMode = false;
+    this._searching = true;
+    this._message = null;
+    this._ctx?.setTextInputFocused(false);
     try {
       const results = await searchRepos(
-        state.searchQuery,
-        state.config.hfToken || undefined,
+        this._searchQuery,
+        this._config.hfToken || undefined,
       );
-      state.searchResults = results;
-      state.searchIndex = 0;
+      this._searchResults = results;
+      this._searchIndex = 0;
     } catch (err: any) {
-      state.message = `Search error: ${err.message}`;
+      this._message = `Search error: ${err.message}`;
     }
-    state.searching = false;
-    scheduleRender();
+    this._searching = false;
+    this.markDirty();
+    this._ctx?.scheduleRender();
   }
 
-  async function downloadSelectedFile(): Promise<void> {
-    if (!state.config || state.fileIndex >= state.repoFiles.length) return;
-    const file = state.repoFiles[state.fileIndex];
-    state.downloading = true;
-    state.dlProgress = 0;
-    state.dlLabel = "";
-    state.message = null;
+  async _downloadSelectedFile(): Promise<void> {
+    if (!this._config || this._fileIndex >= this._repoFiles.length) return;
+    const file = this._repoFiles[this._fileIndex];
+    this._downloading = true;
+    this._dlProgress = 0;
+    this._dlLabel = "";
+    this._message = null;
     try {
       await downloadModel(
-        state.config,
-        state.repoId,
+        this._config,
+        this._repoId,
         file.rfpath,
         file.size,
         (pct, label) => {
-          state.dlProgress = pct;
-          state.dlLabel = label;
-          scheduleRender();
+          this._dlProgress = pct;
+          this._dlLabel = label;
+          this.markDirty();
+          this._ctx?.scheduleRender();
         },
-        state.config.hfToken || undefined,
+        this._config.hfToken || undefined,
       );
-      state.message = `Downloaded: ${file.rfpath}`;
-      showMessage(state.message!);
-      await refreshModels();
+      this._message = `Downloaded: ${file.rfpath}`;
+      this._ctx?.showMessage(this._message!);
+      await this._refreshModels();
     } catch (err: any) {
-      state.message = `Download error: ${err.message}`;
+      this._message = `Download error: ${err.message}`;
     }
-    state.downloading = false;
-    scheduleRender();
+    this._downloading = false;
+    this.markDirty();
+    this._ctx?.scheduleRender();
   }
 
-  async function openRepoFiles(repoId: string): Promise<void> {
-    if (!state.config) return;
-    state.focusArea = "files";
-    state.repoId = repoId;
-    state.repoFiles = [];
-    state.fileIndex = 0;
-    state.fetchingFiles = true;
-    state.message = null;
+  async _openRepoFiles(repoId: string): Promise<void> {
+    if (!this._config) return;
+    this._focusArea = "files";
+    this._repoId = repoId;
+    this._repoFiles = [];
+    this._fileIndex = 0;
+    this._fetchingFiles = true;
+    this._message = null;
     try {
-      const files = await listFiles(repoId, state.config.hfToken || undefined);
-      state.repoFiles = files;
-      state.fileIndex = 0;
+      const files = await listFiles(repoId, this._config.hfToken || undefined);
+      this._repoFiles = files;
+      this._fileIndex = 0;
     } catch (err: any) {
-      state.message = `Files error: ${err.message}`;
+      this._message = `Files error: ${err.message}`;
     }
-    state.fetchingFiles = false;
-    scheduleRender();
+    this._fetchingFiles = false;
+    this.markDirty();
+    this._ctx?.scheduleRender();
   }
 
-  async function fetchModelCard(repoId: string): Promise<void> {
-    if (!state.config) return;
-    state.focusArea = "modelcard";
-    state.fetchingCard = true;
-    state.message = null;
+  async _fetchModelCard(repoId: string): Promise<void> {
+    if (!this._config) return;
+    this._focusArea = "modelcard";
+    this._fetchingCard = true;
+    this._message = null;
     try {
-      const info = await getModelInfo(repoId, state.config.hfToken || undefined);
-      state.modelCard = info;
+      const info = await getModelInfo(repoId, this._config.hfToken || undefined);
+      this._modelCard = info;
     } catch (err: any) {
-      state.message = `Card error: ${err.message}`;
+      this._message = `Card error: ${err.message}`;
     }
-    state.fetchingCard = false;
-    scheduleRender();
+    this._fetchingCard = false;
+    this.markDirty();
+    this._ctx?.scheduleRender();
   }
 
-  function render(): void {
-    const term = ctx.term;
+  // — Key handlers —
 
-    if (!state.config && !state.initPromise) {
-      state.loading = true;
-      state.initPromise = (async () => {
-        state.config = await loadConfig();
-        if (state.config) {
-          await refreshModels();
-        }
-        state.loading = false;
-        scheduleRender();
-      })();
+  _handleSearchEditModeKey(key: string): boolean {
+    if (key === "RETURN" || key === "ENTER") {
+      this._submitSearch();
+      return true;
     }
-
-    const width = termWidth(term);
-
-    if (state.loading && state.models.length === 0) {
-      let y = 3;
-      renderLine(term, y++, () => {
-        fg(term, themeColors.textMuted, "  Loading models...");
-      });
-      return;
+    if (key === "ESC" || key === "CTRL_C") {
+      this._editMode = false;
+      this._editValue = "";
+      this._ctx?.setTextInputFocused(false);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
     }
-
-    if (state.downloading) {
-      let y = 3;
-      y = renderHeader(state, term, width, y);
-      y = renderModelList(state, term, width, y);
-      y = renderDownloadProgress(state, term, width, y);
-      return;
+    if (key === "BACKSPACE" || key === "DEL") {
+      this._editValue = this._editValue.slice(0, -1);
+      return true;
     }
-
-    let y = 3;
-
-    switch (state.focusArea) {
-      case "list": {
-        y = renderHeader(state, term, width, y);
-        y = renderModelList(state, term, width, y);
-        y = renderHelp(state, term, y);
-        break;
-      }
-
-      case "actions": {
-        y = renderHeader(state, term, width, y);
-        y = renderModelList(state, term, width, y);
-        y = renderButtonBar({
-          term,
-          startY: y,
-          items: getModelButtonItems(),
-          selectedIndex: state.actionIndex,
-        });
-        renderLine(term, y++, () => {});
-        y = renderHelp(state, term, y);
-        break;
-      }
-
-      case "search": {
-        if (state.editMode) {
-          y = renderHeader(state, term, width, y);
-          renderLine(term, y++, () => {
-            term.bold();
-            fg(term, themeColors.accent, `  Search: ${state.editValue}`);
-            term.styleReset();
-          });
-          y = renderHelp(state, term, y);
-        } else {
-          y = renderHeader(state, term, width, y);
-          renderLine(term, y++, () => {
-            fg(term, themeColors.textMuted, `  Query: ${state.searchQuery}`);
-          });
-          renderLine(term, y++, () => {});
-          y = renderSearchResults(state, term, width, y);
-          y = renderHelp(state, term, y);
-        }
-        break;
-      }
-
-      case "files": {
-        y = renderHeader(state, term, width, y);
-        y = renderRepoFiles(state, term, width, y);
-        y = renderHelp(state, term, y);
-        break;
-      }
-
-      case "browse": {
-        if (state.browseEditMode) {
-          y = renderHeader(state, term, width, y);
-          renderLine(term, y++, () => {
-            term.bold();
-            fg(term, themeColors.accent, `  Browse search: ${state.browseEditValue}`);
-            term.styleReset();
-          });
-          y = renderHelp(state, term, y);
-        } else {
-          y = renderHeader(state, term, width, y);
-          renderLine(term, y++, () => {
-            fg(term, themeColors.textMuted, `  Browse (${SORT_OPTIONS[state.browseSort]?.label})`);
-          });
-          renderLine(term, y++, () => {});
-          y = renderBrowseResults(state, term, width, y);
-          y = renderHelp(state, term, y);
-        }
-        break;
-      }
-
-      case "browsefilters": {
-        y = renderHeader(state, term, width, y);
-        y = renderBrowseResults(state, term, width, y);
-        y = renderBrowseFilters(state, term, width, y);
-        y = renderHelp(state, term, y);
-        break;
-      }
-
-      case "browsesort": {
-        y = renderHeader(state, term, width, y);
-        y = renderBrowseResults(state, term, width, y);
-        y = renderBrowseSort(state, term, width, y);
-        y = renderHelp(state, term, y);
-        break;
-      }
-
-      case "modelcard": {
-        y = renderHeader(state, term, width, y);
-        y = renderModelCard(state, term, width, y);
-        y = renderHelp(state, term, y);
-        break;
-      }
-    }
-
-    renderMessage(state, term, y);
+    return true;
   }
 
-  function handleKey(key: string): boolean {
-    if (state.downloading) {
+  _handleBrowseEditModeKey(key: string): boolean {
+    if (key === "RETURN" || key === "ENTER") {
+      this._browseSearchQuery = this._browseEditValue.trim();
+      this._browseEditMode = false;
+      this._browseEditValue = "";
+      this._ctx?.setTextInputFocused(false);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      this._fetchBrowse();
       return true;
     }
-
-    if (state.searching || state.loading || state.fetchingFiles || state.fetchingCard) {
+    if (key === "ESC" || key === "CTRL_C") {
+      this._browseEditMode = false;
+      this._browseEditValue = "";
+      this._ctx?.setTextInputFocused(false);
+      this.markDirty();
+      this._ctx?.scheduleRender();
       return true;
     }
-
-    if (state.editMode) {
-      if (key === "\r" || key === "Return") {
-        submitSearch();
-        return true;
-      }
-      if (key === "\u0003" || key === "Escape" || key === "Ctrl+C") {
-        state.editMode = false;
-        state.editValue = "";
-        setTextInputFocused(false);
-        scheduleRender();
-        return true;
-      }
-      if (key === "\u007f" || key === "Backspace") {
-        state.editValue = state.editValue.slice(0, -1);
-        return true;
-      }
-      if (key.length === 1) {
-        state.editValue += key;
-        return true;
-      }
+    if (key === "BACKSPACE" || key === "DEL") {
+      this._browseEditValue = this._browseEditValue.slice(0, -1);
       return true;
     }
+    return true;
+  }
 
-    if (state.browseEditMode) {
-      if (key === "\r" || key === "Return") {
-        state.browseSearchQuery = state.browseEditValue.trim();
-        state.browseEditMode = false;
-        state.browseEditValue = "";
-        setTextInputFocused(false);
-        scheduleRender();
-        fetchBrowse();
-        return true;
-      }
-      if (key === "\u0003" || key === "Escape" || key === "Ctrl+C") {
-        state.browseEditMode = false;
-        state.browseEditValue = "";
-        setTextInputFocused(false);
-        scheduleRender();
-        return true;
-      }
-      if (key === "\u007f" || key === "Backspace") {
-        state.browseEditValue = state.browseEditValue.slice(0, -1);
-        return true;
-      }
-      if (key.length === 1) {
-        state.browseEditValue += key;
-        return true;
-      }
+  _handleListKey(key: string): boolean {
+    if (key === "k" || key === "UP") {
+      this._selectedIndex = clampIndex(this._selectedIndex - 1, this._models.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
       return true;
     }
-
-    switch (state.focusArea) {
-      case "list": {
-        switch (key) {
-          case "k":
-          case "up":
-            state.selectedIndex = clampIndex(state.selectedIndex - 1, state.models.length);
-            return true;
-          case "j":
-          case "down":
-            state.selectedIndex = clampIndex(state.selectedIndex + 1, state.models.length);
-            return true;
-          case "g":
-            state.focusArea = "actions";
-            const items = getModelButtonItems();
-            state.actionIndex = items[0]?.disabled ? 1 : 0;
-            return true;
-          case "\r":
-          case "Return":
-            state.focusArea = "actions";
-            const items2 = getModelButtonItems();
-            state.actionIndex = items2[0]?.disabled ? 1 : 0;
-            return true;
-        }
-        break;
-      }
-
-      case "actions": {
-        switch (key) {
-          case "h":
-          case "left":
-            state.actionIndex = moveButtonIndex(getModelButtonItems(), state.actionIndex, -1);
-            return true;
-          case "l":
-          case "right":
-            state.actionIndex = moveButtonIndex(getModelButtonItems(), state.actionIndex, 1);
-            return true;
-          case "j":
-          case "k":
-          case "up":
-          case "down":
-            state.focusArea = "list";
-            return true;
-          case "\r":
-          case "Return": {
-            const items = getModelButtonItems();
-            if (!items[state.actionIndex]?.disabled) {
-              executeAction(state.actionIndex);
-            }
-            return true;
-          }
-          case "g":
-            state.focusArea = "list";
-            return true;
-          case "Escape":
-            state.focusArea = "list";
-            return true;
-        }
-        break;
-      }
-
-      case "search": {
-        switch (key) {
-          case "k":
-          case "up":
-            state.searchIndex = clampIndex(state.searchIndex - 1, state.searchResults.length);
-            return true;
-          case "j":
-          case "down":
-            state.searchIndex = clampIndex(state.searchIndex + 1, state.searchResults.length);
-            return true;
-          case "g":
-            state.focusArea = "list";
-            return true;
-          case "Escape":
-            state.focusArea = "list";
-            return true;
-          case "e":
-            state.editMode = true;
-            state.editValue = state.searchQuery;
-            setTextInputFocused(true);
-            scheduleRender();
-            return true;
-          case "\r":
-          case "Return":
-            if (state.searchResults.length > 0 && state.searchIndex < state.searchResults.length) {
-              openRepoFiles(state.searchResults[state.searchIndex].id);
-            }
-            return true;
-        }
-        break;
-      }
-
-      case "files": {
-        switch (key) {
-          case "k":
-          case "up":
-            state.fileIndex = clampIndex(state.fileIndex - 1, state.repoFiles.length);
-            return true;
-          case "j":
-          case "down":
-            state.fileIndex = clampIndex(state.fileIndex + 1, state.repoFiles.length);
-            return true;
-          case "g":
-            state.focusArea = "search";
-            return true;
-          case "Escape":
-            state.focusArea = "search";
-            return true;
-          case "\r":
-          case "Return":
-            if (state.repoFiles.length > 0 && state.fileIndex < state.repoFiles.length) {
-              downloadSelectedFile();
-            }
-            return true;
-        }
-        break;
-      }
-
-      case "browse": {
-        switch (key) {
-          case "k":
-          case "up":
-            state.browseIndex = clampIndex(state.browseIndex - 1, state.browseResults.length);
-            return true;
-          case "j":
-          case "down":
-            state.browseIndex = clampIndex(state.browseIndex + 1, state.browseResults.length);
-            return true;
-          case "g":
-            state.focusArea = "list";
-            return true;
-          case "Escape":
-            state.focusArea = "list";
-            return true;
-          case "f":
-            state.focusArea = "browsefilters";
-            state.filterIndex = 0;
-            return true;
-          case "s":
-            state.focusArea = "browsesort";
-            state.sortIndex = state.browseSort;
-            return true;
-          case "m":
-            if (state.browseResults.length > 0 && state.browseIndex < state.browseResults.length) {
-              fetchModelCard(state.browseResults[state.browseIndex].id);
-            }
-            return true;
-          case "e":
-            state.browseEditMode = true;
-            state.browseEditValue = state.browseSearchQuery;
-            setTextInputFocused(true);
-            scheduleRender();
-            return true;
-          case "\r":
-          case "Return":
-            if (state.browseResults.length > 0 && state.browseIndex < state.browseResults.length) {
-              openRepoFiles(state.browseResults[state.browseIndex].id);
-            }
-            return true;
-        }
-        break;
-      }
-
-      case "browsefilters": {
-        switch (key) {
-          case "h":
-          case "left":
-            state.filterIndex = clampIndex(state.filterIndex - 1, ALL_FILTERS.length);
-            return true;
-          case "l":
-          case "right":
-            state.filterIndex = clampIndex(state.filterIndex + 1, ALL_FILTERS.length);
-            return true;
-          case "\r":
-          case "Return": {
-            const filterGroup = ALL_FILTERS[state.filterIndex];
-            if (TASK_FILTERS.includes(filterGroup)) {
-              for (let i = 0; i < TASK_FILTERS.length; i++) {
-                state.browseFilters[i] = false;
-              }
-              const taskIdx = TASK_FILTERS.indexOf(filterGroup);
-              if (taskIdx >= 0) {
-                state.browseFilters[taskIdx] = true;
-              }
-            } else {
-              state.browseFilters[state.filterIndex] = !state.browseFilters[state.filterIndex];
-            }
-            fetchBrowse();
-            return true;
-          }
-          case "g":
-            state.focusArea = "browse";
-            return true;
-          case "Escape":
-            state.focusArea = "browse";
-            return true;
-          case "s":
-            state.focusArea = "browsesort";
-            state.sortIndex = state.browseSort;
-            return true;
-        }
-        break;
-      }
-
-      case "browsesort": {
-        switch (key) {
-          case "h":
-          case "left":
-            state.sortIndex = clampIndex(state.sortIndex - 1, SORT_OPTIONS.length);
-            return true;
-          case "l":
-          case "right":
-            state.sortIndex = clampIndex(state.sortIndex + 1, SORT_OPTIONS.length);
-            return true;
-          case "R":
-            state.browseDirection = state.browseDirection === -1 ? 1 : -1;
-            fetchBrowse();
-            return true;
-          case "\r":
-          case "Return":
-            state.browseSort = state.sortIndex;
-            fetchBrowse();
-            state.focusArea = "browse";
-            return true;
-          case "g":
-            state.focusArea = "browse";
-            return true;
-          case "Escape":
-            state.focusArea = "browse";
-            return true;
-        }
-        break;
-      }
-
-      case "modelcard": {
-        switch (key) {
-          case "g":
-          case "m":
-            state.focusArea = "browse";
-            return true;
-          case "Escape":
-            state.focusArea = "browse";
-            return true;
-          case "\r":
-          case "Return":
-            if (state.modelCard) {
-              openRepoFiles(state.modelCard.id);
-            }
-            return true;
-        }
-        break;
-      }
+    if (key === "j" || key === "DOWN") {
+      this._selectedIndex = clampIndex(this._selectedIndex + 1, this._models.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
     }
-
+    if (key === "g" || key === "RETURN" || key === "ENTER") {
+      this._focusArea = "actions";
+      const items = this._getModelButtonItems();
+      this._actionIndex = items[0]?.disabled ? 1 : 0;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
     return false;
   }
 
-  function dispose(): void {
-    if (downloadTimer) {
-      clearInterval(downloadTimer);
-      downloadTimer = null;
+  _handleActionsKey(key: string): boolean {
+    if (key === "h" || key === "LEFT") {
+      this._actionIndex = this._moveButtonIndex(this._getModelButtonItems(), this._actionIndex, -1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
     }
+    if (key === "l" || key === "RIGHT") {
+      this._actionIndex = this._moveButtonIndex(this._getModelButtonItems(), this._actionIndex, 1);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "j" || key === "k" || key === "UP" || key === "DOWN" || key === "g" || key === "ESC") {
+      this._focusArea = "list";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      const items = this._getModelButtonItems();
+      if (!items[this._actionIndex]?.disabled) {
+        this._executeAction(this._actionIndex).catch(() => {});
+      }
+      return true;
+    }
+    return false;
   }
 
-  return {
-    render,
-    handleKey,
-    dispose,
-  };
+  _handleSearchKey(key: string): boolean {
+    if (key === "k" || key === "UP") {
+      this._searchIndex = clampIndex(this._searchIndex - 1, this._searchResults.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "j" || key === "DOWN") {
+      this._searchIndex = clampIndex(this._searchIndex + 1, this._searchResults.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "g" || key === "ESC") {
+      this._focusArea = "list";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "e") {
+      this._editMode = true;
+      this._editValue = this._searchQuery;
+      this._ctx?.setTextInputFocused(true);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      if (this._searchResults.length > 0 && this._searchIndex < this._searchResults.length) {
+        this._openRepoFiles(this._searchResults[this._searchIndex].id);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  _handleFilesKey(key: string): boolean {
+    if (key === "k" || key === "UP") {
+      this._fileIndex = clampIndex(this._fileIndex - 1, this._repoFiles.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "j" || key === "DOWN") {
+      this._fileIndex = clampIndex(this._fileIndex + 1, this._repoFiles.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "g" || key === "ESC") {
+      this._focusArea = "search";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      if (this._repoFiles.length > 0 && this._fileIndex < this._repoFiles.length) {
+        this._downloadSelectedFile().catch(() => {});
+      }
+      return true;
+    }
+    return false;
+  }
+
+  _handleBrowseKey(key: string): boolean {
+    if (key === "k" || key === "UP") {
+      this._browseIndex = clampIndex(this._browseIndex - 1, this._browseResults.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "j" || key === "DOWN") {
+      this._browseIndex = clampIndex(this._browseIndex + 1, this._browseResults.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "g" || key === "ESC") {
+      this._focusArea = "list";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "f") {
+      this._focusArea = "browsefilters";
+      this._filterIndex = 0;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "s") {
+      this._focusArea = "browsesort";
+      this._sortIndex = this._browseSort;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "m") {
+      if (this._browseResults.length > 0 && this._browseIndex < this._browseResults.length) {
+        this._fetchModelCard(this._browseResults[this._browseIndex].id).catch(() => {});
+      }
+      return true;
+    }
+    if (key === "e") {
+      this._browseEditMode = true;
+      this._browseEditValue = this._browseSearchQuery;
+      this._ctx?.setTextInputFocused(true);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      if (this._browseResults.length > 0 && this._browseIndex < this._browseResults.length) {
+        this._openRepoFiles(this._browseResults[this._browseIndex].id);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  _handleBrowseFiltersKey(key: string): boolean {
+    if (key === "h" || key === "LEFT") {
+      this._filterIndex = clampIndex(this._filterIndex - 1, ALL_FILTERS.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "l" || key === "RIGHT") {
+      this._filterIndex = clampIndex(this._filterIndex + 1, ALL_FILTERS.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      const filterGroup = ALL_FILTERS[this._filterIndex];
+      if (TASK_FILTERS.includes(filterGroup)) {
+        for (let i = 0; i < TASK_FILTERS.length; i++) {
+          this._browseFilters[i] = false;
+        }
+        const taskIdx = TASK_FILTERS.indexOf(filterGroup);
+        if (taskIdx >= 0) {
+          this._browseFilters[taskIdx] = true;
+        }
+      } else {
+        this._browseFilters[this._filterIndex] = !this._browseFilters[this._filterIndex];
+      }
+      this._fetchBrowse().catch(() => {});
+      return true;
+    }
+    if (key === "g" || key === "ESC") {
+      this._focusArea = "browse";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "s") {
+      this._focusArea = "browsesort";
+      this._sortIndex = this._browseSort;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    return false;
+  }
+
+  _handleBrowseSortKey(key: string): boolean {
+    if (key === "h" || key === "LEFT") {
+      this._sortIndex = clampIndex(this._sortIndex - 1, SORT_OPTIONS.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "l" || key === "RIGHT") {
+      this._sortIndex = clampIndex(this._sortIndex + 1, SORT_OPTIONS.length);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "R") {
+      this._browseDirection = this._browseDirection === -1 ? 1 : -1;
+      this._fetchBrowse().catch(() => {});
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      this._browseSort = this._sortIndex;
+      this._fetchBrowse().catch(() => {});
+      this._focusArea = "browse";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "g" || key === "ESC") {
+      this._focusArea = "browse";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    return false;
+  }
+
+  _handleModelCardKey(key: string): boolean {
+    if (key === "g" || key === "m" || key === "ESC") {
+      this._focusArea = "browse";
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      if (this._modelCard) {
+        this._openRepoFiles(this._modelCard.id);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  // — Rendering —
+
+  _renderHeader(term: any, width: number, startY: number): number {
+    const titleLine = ` Models │ ${this._models.length} local │ ${formatSize(this._totalSize)} used`;
+    const dirLine = ` Dir: ${this._config ? getModelsDir(this._config) : "N/A"}`;
+
+    let y = startY;
+    renderLine(term, y++, () => {
+      fg(term, themeColors.text, titleLine);
+      term(" ".repeat(Math.max(0, width - titleLine.length)));
+    });
+    renderLine(term, y++, () => {
+      fg(term, themeColors.textMuted, dirLine);
+      term(" ".repeat(Math.max(0, width - dirLine.length)));
+    });
+    renderDivider(term, y++, themeColors.border);
+    return y;
+  }
+
+  _renderModelList(term: any, width: number, startY: number): number {
+    let y = startY;
+
+    if (this._models.length === 0) {
+      renderLine(term, y++, () => {
+        fg(term, themeColors.textMuted, "  No models found.");
+      });
+      renderLine(term, y++, () => {});
+      return y;
+    }
+
+    for (let i = 0; i < this._models.length; i++) {
+      const m = this._models[i];
+      const label = `${m.repoId}/${m.filename}`;
+      const sizeLabel = ` (${formatSize(m.sizeBytes)})`;
+      const activeLabel = m.active ? " (active)" : "";
+
+      if (i === this._selectedIndex) {
+        renderLine(term, y++, () => {
+          term.bold();
+          fg(term, themeColors.selectedText, "  ");
+          term.bgColorRgbHex(themeColors.selectedBg)(
+            `● ${label}${sizeLabel}${activeLabel}`,
+          );
+          term.styleReset();
+        });
+      } else {
+        renderLine(term, y++, () => {
+          fg(term, m.active ? themeColors.success : themeColors.text, "  ");
+          fg(
+            term,
+            m.active ? themeColors.success : themeColors.text,
+            `○ ${label}${sizeLabel}${activeLabel}`,
+          );
+        });
+      }
+    }
+    renderLine(term, y++, () => {});
+    return y;
+  }
+
+  _renderActions(term: any, startY: number): number {
+    const items = this._getModelButtonItems();
+
+    renderLine(term, startY, () => {
+      for (let i = 0; i < items.length; i++) {
+        if (i > 0) {
+          fg(term, themeColors.textMuted, "  ");
+        }
+        const item = items[i]!;
+        const text = `[ ${item.label} ]`;
+
+        if (item.disabled) {
+          fg(term, themeColors.borderMuted, text);
+        } else if (i === this._actionIndex) {
+          term.bold();
+          fg(term, themeColors.selectedText, text);
+          term.styleReset();
+        } else {
+          fg(term, themeColors.border, text);
+        }
+      }
+    });
+
+    return startY + 1;
+  }
+
+  _renderSearchResults(term: any, width: number, startY: number): number {
+    let y = startY;
+
+    if (this._searchResults.length === 0) {
+      renderLine(term, y++, () => {
+        fg(term, themeColors.textMuted, "  No results.");
+      });
+      renderLine(term, y++, () => {});
+      return y;
+    }
+
+    for (let i = 0; i < this._searchResults.length; i++) {
+      const r = this._searchResults[i];
+      const label = `${r.id} (${r.likes} likes)`;
+      if (i === this._searchIndex) {
+        renderLine(term, y++, () => {
+          term.bold();
+          fg(term, themeColors.selectedText, "  ");
+          term.bgColorRgbHex(themeColors.selectedBg)(`▸ ${label}`);
+          term.styleReset();
+        });
+      } else {
+        renderLine(term, y++, () => {
+          fg(term, themeColors.text, "  ");
+          fg(term, themeColors.text, `  ${label}`);
+        });
+      }
+    }
+    renderLine(term, y++, () => {});
+    return y;
+  }
+
+  _renderRepoFiles(term: any, width: number, startY: number): number {
+    let y = startY;
+
+    renderLine(term, y++, () => {
+      fg(term, themeColors.textMuted, `  Repo: ${this._repoId}`);
+    });
+    renderLine(term, y++, () => {});
+
+    if (this._repoFiles.length === 0) {
+      renderLine(term, y++, () => {
+        fg(term, themeColors.textMuted, "  No GGUF files.");
+      });
+      renderLine(term, y++, () => {});
+      return y;
+    }
+
+    for (let i = 0; i < this._repoFiles.length; i++) {
+      const f = this._repoFiles[i];
+      const label = `${f.rfpath} (${formatSize(f.size)})`;
+      if (i === this._fileIndex) {
+        renderLine(term, y++, () => {
+          term.bold();
+          fg(term, themeColors.selectedText, "  ");
+          term.bgColorRgbHex(themeColors.selectedBg)(`▸ ${label}`);
+          term.styleReset();
+        });
+      } else {
+        renderLine(term, y++, () => {
+          fg(term, themeColors.text, "  ");
+          fg(term, themeColors.text, `  ${label}`);
+        });
+      }
+    }
+    renderLine(term, y++, () => {});
+    return y;
+  }
+
+  _renderBrowseResults(term: any, width: number, startY: number): number {
+    let y = startY;
+
+    if (this._browseResults.length === 0) {
+      renderLine(term, y++, () => {
+        fg(term, themeColors.textMuted, "  No results.");
+      });
+      renderLine(term, y++, () => {});
+      return y;
+    }
+
+    for (let i = 0; i < this._browseResults.length; i++) {
+      const r = this._browseResults[i];
+      const label = `${r.id} │ ${r.likes} ♥ │ ${r.downloads ?? 0} ↓`;
+      if (i === this._browseIndex) {
+        renderLine(term, y++, () => {
+          term.bold();
+          fg(term, themeColors.selectedText, "  ");
+          term.bgColorRgbHex(themeColors.selectedBg)(`▸ ${label}`);
+          term.styleReset();
+        });
+      } else {
+        renderLine(term, y++, () => {
+          fg(term, themeColors.text, "  ");
+          fg(term, themeColors.text, `  ${label}`);
+        });
+      }
+    }
+    renderLine(term, y++, () => {});
+    return y;
+  }
+
+  _renderBrowseFilters(term: any, width: number, startY: number): number {
+    const innerW = width - 2;
+    const parts: string[] = [];
+    for (let i = 0; i < ALL_FILTERS.length; i++) {
+      const f = ALL_FILTERS[i];
+      const prefix = this._browseFilters[i] ? "●" : "○";
+      parts.push(`${prefix} ${f.label}`);
+    }
+    const bar = parts.join(" │ ");
+
+    let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
+      {
+        render: () => {
+          fg(term, themeColors.textMuted, " Filters:");
+          term(" ".repeat(Math.max(0, innerW - " Filters:".length)));
+        },
+      },
+      {
+        render: () => {
+          for (let i = 0; i < ALL_FILTERS.length; i++) {
+            if (i > 0) fg(term, themeColors.textMuted, " │");
+            const prefix = this._browseFilters[i] ? "●" : "○";
+            if (i === this._filterIndex) {
+              term.bold();
+              fg(term, themeColors.selected, ` ${prefix} ${ALL_FILTERS[i].label} `);
+              term.styleReset();
+            } else {
+              fg(term, themeColors.text, `${prefix} ${ALL_FILTERS[i].label}`);
+            }
+          }
+          term(" ".repeat(Math.max(0, innerW - bar.length)));
+        },
+      },
+    ]);
+    renderLine(term, y++, () => {});
+    return y;
+  }
+
+  _renderBrowseSort(term: any, width: number, startY: number): number {
+    const innerW = width - 2;
+    const parts: string[] = [];
+    for (let i = 0; i < SORT_OPTIONS.length; i++) {
+      const opt = SORT_OPTIONS[i];
+      const arrow = this._browseDirection === -1 && i === this._sortIndex ? " ▼" : "";
+      parts.push(opt.label + arrow);
+    }
+    const bar = parts.join(" │ ");
+
+    let y = renderBox({ term, width, borderColor: themeColors.border, startY }, [
+      {
+        render: () => {
+          fg(term, themeColors.textMuted, " Sort:");
+          term(" ".repeat(Math.max(0, innerW - " Sort:".length)));
+        },
+      },
+      {
+        render: () => {
+          for (let i = 0; i < SORT_OPTIONS.length; i++) {
+            if (i > 0) fg(term, themeColors.textMuted, " │");
+            const opt = SORT_OPTIONS[i];
+            const arrow = this._browseDirection === -1 && i === this._sortIndex ? " ▼" : "";
+            if (i === this._sortIndex) {
+              term.bold();
+              fg(term, themeColors.selected, ` ${opt.label}${arrow} `);
+              term.styleReset();
+            } else {
+              fg(term, themeColors.text, opt.label);
+            }
+          }
+          term(" ".repeat(Math.max(0, innerW - bar.length)));
+        },
+      },
+    ]);
+    renderLine(term, y++, () => {});
+    return y;
+  }
+
+  _renderModelCard(term: any, width: number, startY: number): number {
+    const innerW = width - 2;
+    let y = startY;
+
+    if (!this._modelCard) {
+      renderLine(term, y++, () => {
+        fg(term, themeColors.textMuted, "  No model info.");
+      });
+      renderLine(term, y++, () => {});
+      return y;
+    }
+    const c = this._modelCard;
+    const cardLines = [
+      ` ID: ${c.id}`,
+      ` Author: ${c.author}`,
+      ` Likes: ${c.likes}  Downloads: ${c.downloads}`,
+      ` Tags: ${(c.tags || []).join(", ")}`,
+      ` Pipeline: ${c.pipelineTag || "N/A"}`,
+      ` Created: ${c.createdAt}`,
+      ` Modified: ${c.lastModified}`,
+    ];
+    y = renderBox({ term, width, borderColor: themeColors.border, startY: y }, cardLines.map(line => ({
+      render: () => {
+        fg(term, themeColors.text, line);
+        term(" ".repeat(Math.max(0, innerW - line.length)));
+      },
+    })));
+    renderLine(term, y++, () => {});
+    return y;
+  }
+
+  _renderDownloadProgress(term: any, width: number, startY: number): number {
+    if (!this._downloading) return startY;
+
+    const progress = this._dlProgress;
+    const label = "Downloading...";
+    const barWidth = Math.min(40, width - 10);
+    const filled = Math.floor((progress / 100) * barWidth);
+    const empty = barWidth - filled;
+
+    renderLine(term, startY++, () => {
+      fg(term, themeColors.text, ` ${label} `);
+      fg(term, themeColors.border, "\u250c");
+      fg(term, themeColors.success, "\u2588".repeat(filled));
+      fg(term, themeColors.textMuted, "\u2591".repeat(empty));
+      fg(term, themeColors.border, "\u2510");
+      fg(term, themeColors.text, ` ${progress}%`);
+      if (this._dlLabel) {
+        fg(term, themeColors.textMuted, ` ${this._dlLabel}`);
+      }
+    });
+
+    return startY;
+  }
+
+  _renderHelp(term: any, startY: number): number {
+    const helpTexts: Record<string, string> = {
+      list: "j/k navigate │ g actions │ Enter select",
+      actions: "h/l navigate │ Enter execute │ j/k list",
+      search: "j/k navigate │ Enter open │ g back │ e new search",
+      files: "j/k navigate │ Enter download │ g back",
+      browse: "j/k navigate │ f filters │ s sort │ m card │ Enter open │ g back │ e search",
+      browsefilters: "h/l navigate │ Enter toggle │ g back",
+      browsesort: "h/l navigate │ Enter apply │ R reverse │ g back",
+      modelcard: "m/g close │ Enter open repo",
+    };
+
+    const hint = helpTexts[this._focusArea] || "";
+
+    renderLine(term, startY++, () => {});
+
+    const width = termWidth(term);
+    const left = Math.floor((width - 2 - hint.length) / 2);
+
+    renderLine(term, startY, () => {
+      term(" ".repeat(left));
+      fg(term, themeColors.textMuted, hint);
+    });
+
+    return startY + 1;
+  }
+
+  onDetach(): void {
+    this._config = null;
+    this._models = [];
+    this._selectedIndex = 0;
+    this._focusArea = "list";
+    this._actionIndex = 0;
+    this._loading = false;
+    this._message = null;
+    this._totalSize = 0;
+    this._searching = false;
+    this._searchQuery = "";
+    this._searchResults = [];
+    this._searchIndex = 0;
+    this._downloading = false;
+    this._dlProgress = 0;
+    this._dlLabel = "";
+    this._repoFiles = [];
+    this._repoId = "";
+    this._fileIndex = 0;
+    this._fetchingFiles = false;
+    this._editMode = false;
+    this._editValue = "";
+    this._browseResults = [];
+    this._browseIndex = 0;
+    this._browseSort = 0;
+    this._browseDirection = -1;
+    this._browseFilters = new Array(ALL_FILTERS.length).fill(false);
+    this._filterIndex = 0;
+    this._sortIndex = 0;
+    this._modelCard = null;
+    this._fetchingCard = false;
+    this._browseSearchQuery = "";
+    this._browseEditMode = false;
+    this._browseEditValue = "";
+    this._initPromise = null;
+  }
+}
+
+export function createModelsTab(ctx: TabContext) {
+  return new ModelsControl(ctx);
 }

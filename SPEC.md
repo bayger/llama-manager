@@ -2,7 +2,9 @@
 
 ## Overview
 
-A terminal UI application built with TypeScript and Ink that provides a unified interface for managing llama.cpp installations, controlling the llama-server process, downloading HuggingFace GGUF models, monitoring server performance in real time, and reviewing historical task statistics.
+A terminal UI application built with TypeScript and terminal-kit that provides a unified interface for managing llama.cpp installations, controlling the llama-server process, downloading HuggingFace GGUF models, monitoring server performance in real time, and reviewing historical task statistics.
+
+Uses a custom Control-based UI framework with composable widgets, flex-based layouts, and a singleton focus manager — no React or Ink dependency.
 
 ---
 
@@ -11,12 +13,13 @@ A terminal UI application built with TypeScript and Ink that provides a unified 
 | Layer | Choice |
 |---|---|
 | Language | TypeScript |
-| TUI Framework | Ink |
-| HTTP Client | node-fetch / undici |
+| TUI Framework | terminal-kit (imperative rendering) |
+| UI Architecture | Custom Control tree with Column/Row layouts |
+| HTTP Client | undici |
 | Process Management | child_process (spawn) |
-| State Management | Ink's built-in hooks (`useState`, `useEffect`) |
+| State Management | Control-owned presentation state + TabContext services |
 | Config Storage | JSON file at `$XDG_CONFIG_HOME/llama-dashboard/config.json` |
-| Package Manager | npm or pnpm |
+| Package Manager | npm |
 
 ---
 
@@ -46,6 +49,63 @@ Models live under `HF_HOME` so users who already set `HF_HOME` to a large disk g
 
 ---
 
+## UI Architecture
+
+### Control Tree
+
+The UI is built from a hierarchy of `Control` instances. Each control manages its own presentation state (selected index, scroll offset, edit value) and renders itself to a terminal-kit `Terminal` object.
+
+```
+App
+├─ Column (flex layout)
+│  ├─ Label (tab bar)
+│  ├─ Control (active tab)
+│  │  ├─ Column / Row (nested layouts)
+│  │  ├─ Button, TextInput, List, ...
+│  │  └─ ...
+│  └─ HelpBar
+└─ FocusManager (singleton, tracks single focus point)
+```
+
+### Layout System
+
+Two-pass layout with flex-based space distribution:
+
+1. **`measure()`** — each control reports its desired size
+2. **`onLayout()`** — parent distributes available space, assigns child `Rect`s
+
+`Column` distributes vertically (flex along Y), `Row` distributes horizontally (flex along X). Controls without `flex` get their measured size; remaining space goes to flexible children proportionally.
+
+### Focus Management
+
+`FocusManager` singleton tracks a single focus point. Tab/Shift+Tab navigates through focusable controls in tree order. Key events are delivered to the focused control. When a control has no focusable children, the manager falls back to the root for key delivery.
+
+### Rendering
+
+Dirty-flag based incremental rendering. Each control tracks `needsRender`; setting it propagates up to the root. The app's render loop only redraws dirty subtrees.
+
+### RenderContext
+
+Shared context object passed to controls, providing access to the `Terminal` and app services (config, server, tasks, versions, models, api, hf) without tight coupling.
+
+### Widgets
+
+| Widget | Purpose |
+|---|---|
+| `Label` | Static text display |
+| `Button` | Clickable/focusable action button |
+| `ButtonBar` | Horizontal row of buttons |
+| `TextInput` | Single-line text input with cursor |
+| `List` | Scrollable selectable list |
+| `Scrollable` | Scrollable content container |
+| `Box` | Bordered container (Unicode box-drawing) |
+| `Divider` | Horizontal line separator |
+| `Spacer` | Flexible space filler |
+| `ProgressBar` | Download/operation progress |
+| `HelpBar` | Bottom status bar with key hints |
+
+---
+
 ## UI Structure
 
 Tab-based navigation with 5 persistent tabs across the top:
@@ -67,6 +127,7 @@ Tab-based navigation with 5 persistent tabs across the top:
 | Input | Action |
 |---|---|
 | `←` / `→` | Switch tabs |
+| `Tab` / `Shift+Tab` | Move focus between controls |
 | `Enter` | Confirm / select |
 | `Esc` | Cancel / go back |
 | `q` | Quit application |
@@ -357,8 +418,8 @@ Manages GGUF model downloads from HuggingFace Hub.
 ```
 Local models (3):
   ✓ TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf  (5.04 GB)  [active]
-   bartowski/Mistral-7B-Instruct-v0.3-GGUF/mistral-7b-instruct-v0.3.Q5_K_M.gguf  (5.33 GB)
-    Qwen/Qwen2.5-7B-Instruct-GGUF/qwen2.5-7b-instruct-q4_k_m.gguf  (4.92 GB)
+    bartowski/Mistral-7B-Instruct-v0.3-GGUF/mistral-7b-instruct-v0.3.Q5_K_M.gguf  (5.33 GB)
+     Qwen/Qwen2.5-7B-Instruct-GGUF/qwen2.5-7b-instruct-q4_k_m.gguf  (4.92 GB)
 
 Storage: 15.29 GB used in ~/.cache/huggingface/llama-dashboard/
 ```
@@ -450,7 +511,7 @@ Real-time monitoring panel. Polls llama-server API endpoints at configurable int
 
 #### Historical Charts (Optional, Phase 2)
 
-- Token/s over time (sparkline in terminal using `ink-sparkline` or custom)
+- Token/s over time (sparkline in terminal using custom rendering)
 - Context usage over time
 
 ---
@@ -570,21 +631,35 @@ Path: `$XDG_CONFIG_HOME/llama-dashboard/config.json` (resolves to `~/.config/lla
 ```
 llama-dashboard/
 ├── src/
-│   ├── main.ts                 # Entry point, renders root component
+│   ├── main.ts                 # Entry point (shebang: #!/usr/bin/env node)
 │   ├── components/
-│   │   ├── App.tsx             # Root layout: tabs, status bar
-│   │   ├── Tabs.tsx            # Tab bar component
-│   │   ├── StatusBar.tsx       # Bottom status bar
-│   │   ├── tabs/
-│   │   │   ├── ServerTab.tsx
-│   │   │   ├── TasksTab.tsx
-│   │   │   ├── VersionsTab.tsx
-│   │   │   ├── ModelsTab.tsx
-│   │   │   └── DashboardTab.tsx
-│   │   ├── inputs/
-│   │   │   ├── TextInput.tsx   # Reusable text input
-│   │   │   ├── SelectList.tsx  # Scrollable selectable list
-│   │   │   └── ProgressBar.tsx # Download progress
+│   │   ├── App.ts              # Root app: tabs, terminal-kit render loop
+│   │   ├── ui/
+│   │   │   ├── Control.ts      # Base control: lifecycle, children, dirty flags
+│   │   │   ├── Layout.ts       # Column (vertical flex) and Row (horizontal flex)
+│   │   │   ├── FocusManager.ts # Singleton focus tracker, Tab navigation
+│   │   │   ├── Group.ts        # Control grouping
+│   │   │   ├── types.ts        # Rect, Size, RenderContext interfaces
+│   │   │   ├── widgets/
+│   │   │   │   ├── Label.ts
+│   │   │   │   ├── Button.ts
+│   │   │   │   ├── ButtonBar.ts
+│   │   │   │   ├── TextInput.ts
+│   │   │   │   ├── List.ts
+│   │   │   │   ├── Scrollable.ts
+│   │   │   │   ├── Box.ts
+│   │   │   │   ├── Divider.ts
+│   │   │   │   ├── Spacer.ts
+│   │   │   │   ├── ProgressBar.ts
+│   │   │   │   └── HelpBar.ts
+│   │   │   └── index.ts        # Re-exports
+│   │   └── tabs/
+│   │       ├── ServerTab.ts    # ServerControl (profile mgmt, preset editor)
+│   │       ├── TasksTab.ts     # TasksControl (task list, stats footer)
+│   │       ├── VersionsTab.ts  # VersionsControl (install/switch, releases)
+│   │       ├── ModelsTab.ts    # ModelsControl (model list, search, HF browse)
+│   │       ├── DashboardTab.ts # DashboardControl (metrics, status polling)
+│   │       └── LiveLogsTab.ts  # LiveLogsControl (scrollable log viewer)
 │   └── lib/
 │       ├── config.ts           # Config I/O, XDG path resolution, defaults
 │       ├── server.ts           # Server process management
@@ -593,10 +668,12 @@ llama-dashboard/
 │       ├── versions.ts         # Install/switch/uninstall versions
 │       ├── models.ts           # HF search, download, local mgmt
 │       ├── api.ts              # HTTP client for llama-server API
-│       └── hf.ts               # HuggingFace Hub API client
+│       ├── hf.ts               # HuggingFace Hub API client
+│       ├── theme.ts            # GitHub Dark palette, fg(), bg(), fgBg()
+│       └── tabcontext.ts       # Shared context: services + RenderContext
 ├── package.json
 ├── tsconfig.json
-└── README.md
+└── AGENTS.md
 ```
 
 ---
@@ -605,16 +682,10 @@ llama-dashboard/
 
 | Package | Purpose |
 |---|---|
-| `ink` | TUI framework |
-| `react` | Component rendering (required by Ink) |
-| `ink-select-input` | List selection component |
-| `ink-text-input` | Text input component |
-| `ink-spinner` | Loading spinner |
-| `chalk` | Terminal colors |
-| `node-fetch` or `undici` | HTTP requests |
-| `tar` | Extract tar.gz archives (if needed) |
-| `yargs` or `commander` | CLI argument parsing (for `--help`, `--version`) |
+| `terminal-kit` | Terminal rendering, input handling, colors |
+| `undici` | HTTP requests (llama-server API, GitHub, HuggingFace) |
 | `fs-extra` | File operations with promises |
+| `chalk` | Terminal colors (legacy, partial) |
 
 ---
 
