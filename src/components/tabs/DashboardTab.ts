@@ -2,11 +2,49 @@ import { Control } from "../ui/Control.js";
 import { Column } from "../ui/Layout.js";
 import { ButtonBar } from "../ui/widgets/ButtonBar.js";
 import { Button } from "../ui/widgets/Button.js";
+import { Divider } from "../ui/widgets/Divider.js";
 import { themeColors, fg } from "../../lib/theme.js";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog } from "../../lib/server.js";
+import { getServerMetrics, MetricsData } from "../../lib/api.js";
 import { fireAsync, formatUptime } from "../../lib/utils.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
+
+class MetricsControl extends Control {
+  public _metrics: MetricsData | null = null;
+
+  measure(parentSize?: Size): Size {
+    return { width: parentSize?.width ?? this.rect.width, height: 2 };
+  }
+
+  render(): void {
+    if (!this.visible || !this.needsRender) return;
+    const term = this.term;
+    const { x, y, width } = this.rect;
+
+    const m = this._metrics;
+    const colW = Math.floor((width - 1) / 2);
+
+    const metrics = [
+      { label: "Prompt/s", value: m ? m.promptTokensPerSec.toFixed(1) : "—" },
+      { label: "Predict/s", value: m ? m.predictedTokensPerSec.toFixed(1) : "—" },
+      { label: "Processing", value: m ? String(m.requestsProcessing) : "—" },
+      { label: "Deferred", value: m ? String(m.requestsDeferred) : "—" },
+    ];
+
+    for (let row = 0; row < 2; row++) {
+      term.moveTo(x, y + row);
+      for (let col = 0; col < 2; col++) {
+        const idx = row * 2 + col;
+        const met = metrics[idx]!;
+        const cell = ` ${met.label}: ${met.value} `.padEnd(colW);
+        fg(term, themeColors.textMuted, cell.substring(0, colW));
+      }
+    }
+
+    this.needsRender = false;
+  }
+}
 
 class StatusControl extends Control {
   measure(parentSize?: Size): Size {
@@ -80,10 +118,12 @@ export class DashboardControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _buttonBar: ButtonBar;
+  protected _metricsControl: MetricsControl;
   protected _statusControl: StatusControl;
   protected _logsControl: LogsControl;
   protected _logUnsub: (() => void) | null = null;
   protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
+  protected _metricsTimer: ReturnType<typeof setInterval> | null = null;
   protected _attached = false;
 
   constructor(ctx: TabContext) {
@@ -95,13 +135,18 @@ export class DashboardControl extends Control {
     this._buttonBar.add(new Button({ label: "Stop" }));
     this._buttonBar.add(new Button({ label: "Restart" }));
 
+    this._metricsControl = new MetricsControl();
     this._statusControl = new StatusControl();
     this._logsControl = new LogsControl();
     this._logsControl.flex = 1;
 
     this._column = new Column();
     this._column.add(this._buttonBar);
+    this._column.add(new Divider());
+    this._column.add(this._metricsControl);
+    this._column.add(new Divider());
     this._column.add(this._statusControl);
+    this._column.add(new Divider());
     this._column.add(this._logsControl);
 
     this.add(this._column);
@@ -146,6 +191,20 @@ export class DashboardControl extends Control {
       ctx.scheduleRender();
     });
 
+    this._metricsTimer = setInterval(() => {
+      const config = ctx.getConfig();
+      if (!config) return;
+      getServerMetrics(config).then((m) => {
+        this._metricsControl._metrics = m;
+        this.markDirty();
+        ctx.scheduleRender();
+      }).catch(() => {
+        this._metricsControl._metrics = null;
+        this.markDirty();
+        ctx.scheduleRender();
+      });
+    }, 2000);
+
     this._logUnsub = onServerLog(() => {
       if (this._logRenderTimer) clearTimeout(this._logRenderTimer);
       this._logRenderTimer = setTimeout(() => {
@@ -159,6 +218,10 @@ export class DashboardControl extends Control {
 
   onDetach(): void {
     this._attached = false;
+    if (this._metricsTimer) {
+      clearInterval(this._metricsTimer);
+      this._metricsTimer = null;
+    }
     if (this._logUnsub) {
       this._logUnsub();
       this._logUnsub = null;

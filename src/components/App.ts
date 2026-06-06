@@ -122,6 +122,12 @@ export class App {
 
     this.setupKeyHandler();
     this.render();
+
+    const initialControl = this.getActiveControl();
+    if (initialControl) {
+      focusManager.setRoot(initialControl);
+      focusManager.focusFirst();
+    }
   }
 
   private _wrapControl(control: Control): TabModule {
