@@ -431,7 +431,7 @@ export class OptionsControl extends Column {
           fg(term, themeColors.success, text);
           term.styleReset();
         } else {
-          fg(term, themeColors.border, text);
+          fg(term, themeColors.textMuted, text);
         }
       }
     });
