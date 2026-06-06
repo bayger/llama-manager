@@ -3,6 +3,7 @@ import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
 
 export class Label extends Control {
+  focusable = false;
   public text = "";
   public color = themeColors.text;
   public bold = false;

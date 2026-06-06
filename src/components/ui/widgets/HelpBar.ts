@@ -3,6 +3,7 @@ import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
 
 export class HelpBar extends Control {
+  focusable = false;
   public text = "";
   public prefix = "";
   public prefixColor = themeColors.success;

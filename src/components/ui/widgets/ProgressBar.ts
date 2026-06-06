@@ -5,6 +5,7 @@ import type { Size } from "../types.js";
 const SPINNER_FRAMES = ["\u240b", "\u2413", "\u2419", "\u2418", "\u243c", "\u2434", "\u2426", "\u2427", "\u2407", "\u240f"];
 
 export class ProgressBar extends Control {
+  focusable = false;
   public progress = 0;
   public label = "";
   public filledColor = themeColors.accent;

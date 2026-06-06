@@ -2,6 +2,7 @@ import { Control } from "./Control.js";
 import type { Rect, Size } from "./types.js";
 
 export class Column extends Control {
+  focusable = false;
   measure(parentSize: Size): Size {
     let totalHeight = 0;
     let fixedHeight = 0;
@@ -61,6 +62,7 @@ export class Column extends Control {
 }
 
 export class Row extends Control {
+  focusable = false;
   measure(parentSize: Size): Size {
     let totalWidth = 0;
     let fixedWidth = 0;

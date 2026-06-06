@@ -7,6 +7,7 @@ export class Control {
   public enabled = true;
   public visible = true;
   public focused = false;
+  public focusable = true;
   public tabIndex = 0;
   public needsRender = true;
   public flex = 0;
@@ -183,10 +184,11 @@ export class Control {
   getAllFocusable(): Control[] {
     const result: Control[] = [];
     for (const child of this.children) {
-      if (child.enabled && child.visible) {
+      if (!child.enabled || !child.visible) continue;
+      if (child.focusable) {
         result.push(child);
-        result.push(...child.getAllFocusable());
       }
+      result.push(...child.getAllFocusable());
     }
     return result;
   }

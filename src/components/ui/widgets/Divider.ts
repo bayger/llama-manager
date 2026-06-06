@@ -3,6 +3,7 @@ import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
 
 export class Divider extends Control {
+  focusable = false;
   public char = "\u2500";
   public color = themeColors.border;
 

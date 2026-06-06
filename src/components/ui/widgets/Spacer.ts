@@ -2,6 +2,7 @@ import { Control } from "../Control.js";
 import type { Size } from "../types.js";
 
 export class Spacer extends Control {
+  focusable = false;
   measure(_parentSize?: Size): Size {
     return { width: 0, height: 0 };
   }

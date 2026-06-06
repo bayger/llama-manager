@@ -1,9 +1,13 @@
+import { Control } from "../Control.js";
 import { Row } from "../Layout.js";
 import { Button } from "./Button.js";
 import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
 
 export class ButtonBar extends Row {
+  getAllFocusable(): Control[] {
+    return [];
+  }
   protected _selectedIndex = -1;
 
   get selectedIndex(): number {
