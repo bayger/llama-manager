@@ -327,23 +327,6 @@ export class App {
         return;
       }
 
-      if (!this.state.textInputFocused) {
-        if (name === 'TAB') {
-          const idx = TABS.indexOf(this.state.activeTab);
-          if (idx < TABS.length - 1) {
-            this.setActiveTab(TABS[idx + 1]);
-            return;
-          }
-        }
-        if (name === 'SHIFT_TAB') {
-          const idx = TABS.indexOf(this.state.activeTab);
-          if (idx > 0) {
-            this.setActiveTab(TABS[idx - 1]);
-            return;
-          }
-        }
-      }
-
       const control = this.getActiveControl();
       if (control) {
         focusManager.handleKey(name);

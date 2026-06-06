@@ -64,8 +64,7 @@ export class FocusManager {
 
   focusFirst(): void {
     if (!this._root) return;
-    const focusable = this._root.getAllFocusable();
-    this.setFocus(focusable.length > 0 ? focusable[0] : this._root);
+    this.setFocus(this._root);
   }
 
   focusLast(): void {
@@ -84,7 +83,9 @@ export class FocusManager {
 
   handleKey(key: string): boolean {
     const target = this._focused || this._root;
-    if (this._textInputActive && target) {
+    if (!target) return false;
+
+    if (this._textInputActive) {
       return target.handleChar(key) || target.handleKey(key);
     }
     if (key === "TAB") {
@@ -95,10 +96,7 @@ export class FocusManager {
       this.previousFocus();
       return true;
     }
-    if (target) {
-      return target.handleKey(key);
-    }
-    return false;
+    return target.handleKey(key);
   }
 }
 

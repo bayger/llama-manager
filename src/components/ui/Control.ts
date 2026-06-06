@@ -120,12 +120,25 @@ export class Control {
 
   // — Input —
 
-  handleKey(_key: string): boolean {
+  handleKey(key: string): boolean {
+    const focused = this.findFocusedDescendant();
+    if (focused && focused.handleKey(key)) return true;
     return false;
   }
 
-  handleChar(_char: string): boolean {
+  handleChar(char: string): boolean {
+    const focused = this.findFocusedDescendant();
+    if (focused && focused.handleChar(char)) return true;
     return false;
+  }
+
+  findFocusedDescendant(): Control | null {
+    for (const child of this.children) {
+      if (child.enabled && child.visible && child.focused) return child;
+      const found = child.findFocusedDescendant();
+      if (found) return found;
+    }
+    return null;
   }
 
   // — Focus —

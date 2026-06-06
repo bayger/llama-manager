@@ -170,8 +170,14 @@ export class DashboardControl extends Control {
     this._ctx = null;
   }
 
-  handleKey(key: string): boolean {
-    return this._buttonBar.handleKey(key);
+  onFocus(): void {
+    super.onFocus();
+    this._buttonBar.focus();
+  }
+
+  markDirty(): void {
+    super.markDirty();
+    this._ctx?.scheduleRender();
   }
 }
 

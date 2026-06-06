@@ -85,7 +85,7 @@ export class ButtonBar extends Row {
     if (this._selectedIndex >= 0 && this._selectedIndex < buttons.length) {
       buttons[this._selectedIndex]!.focused = true;
     }
-    this.needsRender = true;
+    this.markDirty();
   }
 
   focus(): void {
@@ -105,7 +105,7 @@ export class ButtonBar extends Row {
         }
         this._selectedIndex = firstEnabled;
         buttons[firstEnabled].focused = true;
-        this.needsRender = true;
+        this.markDirty();
       }
     }
   }
@@ -117,6 +117,6 @@ export class ButtonBar extends Row {
       buttons[this._selectedIndex]!.focused = false;
     }
     this._selectedIndex = -1;
-    this.needsRender = true;
+    this.markDirty();
   }
 }
