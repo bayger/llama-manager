@@ -1,6 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { Column } from "../ui/Layout.js";
-import { ButtonBar } from "../ui/widgets/ButtonBar.js";
+import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { themeColors, fg } from "../../lib/theme.js";
@@ -117,7 +116,8 @@ class LogsControl extends Control {
 export class DashboardControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
-  protected _buttonBar: ButtonBar;
+  protected _buttonRow: Row;
+  protected _buttons: Button[];
   protected _metricsControl: MetricsControl;
   protected _statusControl: StatusControl;
   protected _logsControl: LogsControl;
@@ -130,10 +130,15 @@ export class DashboardControl extends Control {
     super();
     this._ctx = ctx;
 
-    this._buttonBar = new ButtonBar();
-    this._buttonBar.add(new Button({ label: "Start" }));
-    this._buttonBar.add(new Button({ label: "Stop" }));
-    this._buttonBar.add(new Button({ label: "Restart" }));
+    this._buttonRow = new Row();
+    this._buttons = [
+      new Button({ label: "Start" }),
+      new Button({ label: "Stop" }),
+      new Button({ label: "Restart" }),
+    ];
+    for (const btn of this._buttons) {
+      this._buttonRow.add(btn);
+    }
 
     this._metricsControl = new MetricsControl();
     this._statusControl = new StatusControl();
@@ -141,7 +146,7 @@ export class DashboardControl extends Control {
     this._logsControl.flex = 1;
 
     this._column = new Column();
-    this._column.add(this._buttonBar);
+    this._column.add(this._buttonRow);
     this._column.add(new Divider());
     this._column.add(this._metricsControl);
     this._column.add(new Divider());
@@ -160,7 +165,7 @@ export class DashboardControl extends Control {
     if (!this._ctx || this._attached) return;
     this._attached = true;
     const ctx = this._ctx;
-    const buttons = this._buttonBar.getButtons();
+    const buttons = this._buttons;
 
     buttons[0]?.setAction(() => {
       fireAsync(async () => {
@@ -235,7 +240,10 @@ export class DashboardControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    this._buttonBar.focus();
+    const firstEnabled = this._buttons.find(b => !b.disabled);
+    if (firstEnabled) {
+      firstEnabled.focus();
+    }
   }
 
   markDirty(): void {
