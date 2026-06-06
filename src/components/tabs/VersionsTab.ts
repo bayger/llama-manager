@@ -376,7 +376,7 @@ export class VersionsControl extends Column {
           try {
             const res = await fetch(
               `https://api.github.com/repos/ggml-org/llama.cpp/releases/tags/${tag}`,
-              { headers: { "User-Agent": "llama-dashboard" } },
+              { headers: { "User-Agent": "llama-manager" } },
             );
             if (res.ok) {
               const data = await res.json();

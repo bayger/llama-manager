@@ -1,4 +1,4 @@
-# llama-dashboard — Agent Instructions
+# llama-manager — Agent Instructions
 
 ## Quick Start
 
@@ -29,7 +29,7 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 - `theme.ts` provides a GitHub Dark color palette — colors are hex strings, not chalk methods.
 - `tabcontext.ts` provides shared context with app services and `RenderContext` for terminal access.
 - HTTP client is `undici` (not node-fetch).
-- Config stored at `$XDG_CONFIG_HOME/llama-dashboard/config.json`. See SPEC.md for full schema.
+- Config stored at `$XDG_CONFIG_HOME/llama-manager/config.json`. See SPEC.md for full schema.
 
 ## Dependencies
 
