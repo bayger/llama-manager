@@ -1,9 +1,12 @@
 import { Column } from "../ui/Layout.js";
 import { spawn } from "child_process";
-import { themeColors, fg, termHeight, termWidth, renderDivider, renderLine } from "../../lib/theme.js";
+import { themeColors, fg, termHeight, renderLine } from "../../lib/theme.js";
+import { Divider } from "../ui/widgets/Divider.js";
+import { HelpBar } from "../ui/widgets/HelpBar.js";
+import { Label } from "../ui/widgets/Label.js";
 import { onServerLog, serverLogLines, clearServerLogs, getStatus } from "../../lib/server.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { RenderContext, Size } from "../ui/types.js";
 
 interface LogEntry {
   timestamp: string | null;
@@ -47,14 +50,35 @@ export class LiveLogsControl extends Column {
   protected _running = false;
   protected _logUnsub: (() => void) | null = null;
   protected _statusInterval: ReturnType<typeof setInterval> | null = null;
+  protected _helpBar: HelpBar;
+  protected _divider: Divider;
+  protected _emptyLabel: Label;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._helpBar = new HelpBar();
+    this._divider = new Divider();
+    this._emptyLabel = new Label();
+    this._emptyLabel.color = themeColors.textMuted;
   }
 
   measure(_parentSize?: Size): Size {
     return { width: _parentSize?.width || 80, height: _parentSize?.height || 20 };
+  }
+
+  attach(renderContext: RenderContext): void {
+    super.attach(renderContext);
+    this._helpBar.attach(renderContext);
+    this._divider.attach(renderContext);
+    this._emptyLabel.attach(renderContext);
+  }
+
+  detach(): void {
+    this._helpBar.detach();
+    this._divider.detach();
+    this._emptyLabel.detach();
+    super.detach();
   }
 
   onAttach(): void {
@@ -110,14 +134,28 @@ export class LiveLogsControl extends Column {
     });
     y++;
 
-    y = this._renderHelpBar(term, y);
-    renderDivider(term, y, themeColors.border);
+    this._helpBar.text = "g auto-scroll | G top | u clear | y copy | arrows scroll";
+    if (this._copied) {
+      this._helpBar.prefix = " | Copied to clipboard!";
+      this._helpBar.prefixColor = themeColors.success;
+    } else {
+      this._helpBar.prefix = "";
+    }
+    this._helpBar.rect = { x: 0, y: y, width: this.rect.width, height: 1 };
+    this._helpBar.needsRender = true;
+    this._helpBar.render();
+    y++;
+
+    this._divider.rect = { x: 0, y: y, width: this.rect.width, height: 1 };
+    this._divider.needsRender = true;
+    this._divider.render();
     y++;
 
     if (lines.length === 0) {
-      renderLine(term, y, () => {
-        fg(term, themeColors.textMuted, "Waiting for server output...");
-      });
+      this._emptyLabel.text = "Waiting for server output...";
+      this._emptyLabel.rect = { x: 0, y: y, width: this.rect.width, height: 1 };
+      this._emptyLabel.needsRender = true;
+      this._emptyLabel.render();
       this.needsRender = false;
       return;
     }
@@ -177,21 +215,6 @@ export class LiveLogsControl extends Column {
       return true;
     }
     return false;
-  }
-
-  _renderHelpBar(term: any, y: number): number {
-    const width = termWidth(term);
-    const text = "g auto-scroll | G top | u clear | y copy | arrows scroll";
-    const left = Math.floor((width - text.length) / 2);
-
-    renderLine(term, y, () => {
-      term(" ".repeat(left));
-      fg(term, themeColors.textMuted, text);
-      if (this._copied) {
-        fg(term, themeColors.success, " | Copied to clipboard!");
-      }
-    });
-    return y + 1;
   }
 
   _renderLogLine(term: any, y: number, entry: LogEntry): number {
