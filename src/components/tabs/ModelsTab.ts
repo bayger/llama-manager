@@ -1,7 +1,11 @@
 import { Column } from "../ui/Layout.js";
 import { ButtonBar } from "../ui/widgets/ButtonBar.js";
 import { Button } from "../ui/widgets/Button.js";
-import { themeColors, fg, termWidth, termHeight, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
+import { Divider } from "../ui/widgets/Divider.js";
+import { HelpBar } from "../ui/widgets/HelpBar.js";
+import { Label } from "../ui/widgets/Label.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
+import { themeColors, fg, termWidth, termHeight, renderBox, renderLine } from "../../lib/theme.js";
 import { loadConfig, saveConfig, getModelsDir, ConfigData } from "../../lib/config.js";
 import {
   listLocalModels,
@@ -95,6 +99,10 @@ export class ModelsControl extends Column {
   protected _browseEditMode = false;
   protected _browseEditValue = "";
   protected _initPromise: Promise<void> | null = null;
+  protected _divider: Divider;
+  protected _helpSpacer: Spacer;
+  protected _helpBar: HelpBar;
+  protected _loadingLabel: Label;
 
   constructor(ctx: TabContext) {
     super();
@@ -104,6 +112,12 @@ export class ModelsControl extends Column {
     this._buttonBar.add(new Button({ label: "Delete", action: () => this._onDelete() }));
     this._buttonBar.add(new Button({ label: "Search", action: () => this._onSearch() }));
     this._buttonBar.add(new Button({ label: "Browse", action: () => this._onBrowse() }));
+    this._divider = new Divider();
+    this._helpSpacer = new Spacer();
+    this._helpBar = new HelpBar();
+    this._loadingLabel = new Label();
+    this._loadingLabel.color = themeColors.textMuted;
+    this._loadingLabel.text = "  Loading models...";
   }
 
   measure(_parentSize?: Size): Size {
@@ -113,10 +127,18 @@ export class ModelsControl extends Column {
   attach(renderContext: RenderContext): void {
     super.attach(renderContext);
     this._buttonBar.attach(renderContext);
+    this._divider.attach(renderContext);
+    this._helpSpacer.attach(renderContext);
+    this._helpBar.attach(renderContext);
+    this._loadingLabel.attach(renderContext);
   }
 
   detach(): void {
     this._buttonBar.detach();
+    this._divider.detach();
+    this._helpSpacer.detach();
+    this._helpBar.detach();
+    this._loadingLabel.detach();
     super.detach();
   }
 
@@ -153,9 +175,9 @@ export class ModelsControl extends Column {
       case "buttons": {
         y = this._renderHeader(term, width, y);
         y = this._renderButtons(term, y);
-        renderDivider(term, y++, themeColors.border);
+        y = this._renderDividerAt(y, width);
         y = this._renderModelList(term, width, y);
-        y = this._renderHelp(term, y);
+        y = this._renderHelp(y);
         break;
       }
       case "search": {
@@ -166,7 +188,7 @@ export class ModelsControl extends Column {
             fg(term, themeColors.accent, `  Search: ${this._editValue}`);
             term.styleReset();
           });
-          y = this._renderHelp(term, y);
+          y = this._renderHelp(y);
         } else {
           y = this._renderHeader(term, width, y);
           renderLine(term, y++, () => {
@@ -174,14 +196,14 @@ export class ModelsControl extends Column {
           });
           renderLine(term, y++, () => {});
           y = this._renderSearchResults(term, width, y);
-          y = this._renderHelp(term, y);
+          y = this._renderHelp(y);
         }
         break;
       }
       case "files": {
         y = this._renderHeader(term, width, y);
         y = this._renderRepoFiles(term, width, y);
-        y = this._renderHelp(term, y);
+        y = this._renderHelp(y);
         break;
       }
       case "browse": {
@@ -192,7 +214,7 @@ export class ModelsControl extends Column {
             fg(term, themeColors.accent, `  Browse search: ${this._browseEditValue}`);
             term.styleReset();
           });
-          y = this._renderHelp(term, y);
+          y = this._renderHelp(y);
         } else {
           y = this._renderHeader(term, width, y);
           renderLine(term, y++, () => {
@@ -200,7 +222,7 @@ export class ModelsControl extends Column {
           });
           renderLine(term, y++, () => {});
           y = this._renderBrowseResults(term, width, y);
-          y = this._renderHelp(term, y);
+          y = this._renderHelp(y);
         }
         break;
       }
@@ -208,20 +230,20 @@ export class ModelsControl extends Column {
         y = this._renderHeader(term, width, y);
         y = this._renderBrowseResults(term, width, y);
         y = this._renderBrowseFilters(term, width, y);
-        y = this._renderHelp(term, y);
+        y = this._renderHelp(y);
         break;
       }
       case "browsesort": {
         y = this._renderHeader(term, width, y);
         y = this._renderBrowseResults(term, width, y);
         y = this._renderBrowseSort(term, width, y);
-        y = this._renderHelp(term, y);
+        y = this._renderHelp(y);
         break;
       }
       case "modelcard": {
         y = this._renderHeader(term, width, y);
         y = this._renderModelCard(term, width, y);
-        y = this._renderHelp(term, y);
+        y = this._renderHelp(y);
         break;
       }
     }
@@ -819,6 +841,13 @@ export class ModelsControl extends Column {
 
   // — Rendering —
 
+  _renderDividerAt(y: number, width: number): number {
+    this._divider.rect = { x: 0, y, width, height: 1 };
+    this._divider.needsRender = true;
+    this._divider.render();
+    return y + 1;
+  }
+
   _renderHeader(term: any, width: number, startY: number): number {
     const titleLine = ` Models │ ${this._models.length} local │ ${formatSize(this._totalSize)} used`;
     const dirLine = ` Dir: ${this._config ? getModelsDir(this._config) : "N/A"}`;
@@ -832,8 +861,7 @@ export class ModelsControl extends Column {
       fg(term, themeColors.textMuted, dirLine);
       term(" ".repeat(Math.max(0, width - dirLine.length)));
     });
-    renderDivider(term, y++, themeColors.border);
-    return y;
+    return this._renderDividerAt(y, width);
   }
 
   _renderModelList(term: any, width: number, startY: number): number {
@@ -1126,7 +1154,7 @@ export class ModelsControl extends Column {
     return startY;
   }
 
-  _renderHelp(term: any, startY: number): number {
+  _renderHelp(startY: number): number {
     const helpTexts: Record<string, string> = {
       list: "j/k navigate │ UP to actions │ Enter select",
       buttons: "h/l navigate │ Enter execute │ DOWN to list",
@@ -1140,17 +1168,16 @@ export class ModelsControl extends Column {
 
     const hint = helpTexts[this._focusArea] || "";
 
-    renderLine(term, startY++, () => {});
+    this._helpSpacer.rect = { x: 0, y: startY, width: this.rect.width, height: 1 };
+    this._helpSpacer.needsRender = true;
+    this._helpSpacer.render();
 
-    const width = termWidth(term);
-    const left = Math.floor((width - 2 - hint.length) / 2);
+    this._helpBar.text = hint;
+    this._helpBar.rect = { x: 0, y: startY + 1, width: this.rect.width, height: 1 };
+    this._helpBar.needsRender = true;
+    this._helpBar.render();
 
-    renderLine(term, startY, () => {
-      term(" ".repeat(left));
-      fg(term, themeColors.textMuted, hint);
-    });
-
-    return startY + 1;
+    return startY + 2;
   }
 
   onDetach(): void {
