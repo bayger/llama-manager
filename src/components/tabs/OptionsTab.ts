@@ -5,7 +5,7 @@ import { themeColors, fg, termWidth, renderLine, renderDivider } from "../../lib
 import { saveConfig } from "../../lib/config.js";
 import type { ConfigData } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { RenderContext, Size } from "../ui/types.js";
 
 type FieldType = "string" | "number" | "boolean" | "password";
 
@@ -141,6 +141,16 @@ export class OptionsControl extends Column {
     this._buttonBar = new ButtonBar();
     this._buttonBar.add(new Button({ label: "Reset", action: () => this._onReset() }));
     this._buttonBar.add(new Button({ label: "Save All", action: () => this._onSaveAll() }));
+  }
+
+  attach(renderContext: RenderContext): void {
+    super.attach(renderContext);
+    this._buttonBar.attach(renderContext);
+  }
+
+  detach(): void {
+    this._buttonBar.detach();
+    super.detach();
   }
 
   measure(_parentSize?: Size): Size {

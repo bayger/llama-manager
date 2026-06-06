@@ -7,7 +7,7 @@ import { getServerMetrics } from "../../lib/api.js";
 import { getStatus, startServer, stopServer } from "../../lib/server.js";
 import { fireAsync, formatDuration, formatUptime } from "../../lib/utils.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { RenderContext, Size } from "../ui/types.js";
 
 interface DashboardMetrics {
   promptTokensPerSec: number;
@@ -58,6 +58,16 @@ export class DashboardControl extends Column {
 
   measure(_parentSize?: Size): Size {
     return { width: _parentSize?.width || 80, height: _parentSize?.height || 20 };
+  }
+
+  attach(renderContext: RenderContext): void {
+    super.attach(renderContext);
+    this._buttonBar.attach(renderContext);
+  }
+
+  detach(): void {
+    this._buttonBar.detach();
+    super.detach();
   }
 
   onAttach(): void {
