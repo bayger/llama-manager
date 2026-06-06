@@ -160,11 +160,6 @@ export class OptionsControl extends Column {
     y = this._renderButtons(term, y);
     renderDivider(term, y++, themeColors.border);
     y = this._renderForm(term, config, y);
-
-    if (this._editMode) {
-      y = this._renderEditMode(term, y);
-    }
-
     y = this._renderHelp(term, y);
 
     this.needsRender = false;
@@ -471,6 +466,7 @@ export class OptionsControl extends Column {
 
   _renderField(term: any, field: OptionField, config: ConfigData, index: number, startY: number): number {
     const isSelected = index === this._selectedIndex && this._focusArea === "form" && !this._editMode;
+    const isEditing = this._editMode && index === this._selectedIndex;
     const value = getValue(config, field);
     const formatted = formatValue(value, field.type);
     const isDefault = value === field.default;
@@ -478,28 +474,40 @@ export class OptionsControl extends Column {
     let y = startY;
 
     renderLine(term, y++, () => {
-      if (isSelected) {
+      if (isEditing) {
         term.bold();
         fg(term, themeColors.success, "\u25c8 ");
-      }
-      else {
-        fg(term, themeColors.textMuted, "  ");
-      }
+        fg(term, themeColors.text, field.label);
+        fg(term, themeColors.selected, ` ${this._editValue}`);
+        term.styleReset();
+      } else if (isSelected) {
+        term.bold();
+        fg(term, themeColors.success, "\u25c8 ");
+        fg(term, themeColors.text, field.label);
+        term(" ");
 
-      fg(term, themeColors.text, field.label);
-      term(" ");
+        if (isDefault) {
+          fg(term, themeColors.textMuted, formatted || `(<${field.default === null ? "null" : String(field.default)}>)`);
+        }
+        else {
+          fg(term, themeColors.success, formatted);
+        }
 
-      if (isDefault) {
-        fg(term, themeColors.textMuted, formatted || `(<${field.default === null ? "null" : String(field.default)}>)`);
-      }
-      else {
-        fg(term, themeColors.success, formatted);
-      }
-
-      if (isSelected) {
         term(" ");
         fg(term, themeColors.textMuted, field.type === "boolean" ? "[toggle]" : "[edit]");
         term.styleReset();
+      }
+      else {
+        fg(term, themeColors.textMuted, "  ");
+        fg(term, themeColors.text, field.label);
+        term(" ");
+
+        if (isDefault) {
+          fg(term, themeColors.textMuted, formatted || `(<${field.default === null ? "null" : String(field.default)}>)`);
+        }
+        else {
+          fg(term, themeColors.success, formatted);
+        }
       }
     });
 
@@ -510,18 +518,6 @@ export class OptionsControl extends Column {
     }
 
     return y;
-  }
-
-  _renderEditMode(term: any, startY: number): number {
-    const field = FIELDS[this._selectedIndex];
-    if (!field) return startY;
-
-    renderLine(term, startY++, () => {});
-    renderLine(term, startY, () => {
-      fg(term, themeColors.warning, `  Editing ${field.label}: `);
-      fg(term, themeColors.text, this._editValue);
-    });
-    return startY + 1;
   }
 
   _renderHelp(term: any, startY: number): number {
