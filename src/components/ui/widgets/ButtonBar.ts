@@ -41,6 +41,9 @@ export class ButtonBar extends Row {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
+    for (const child of this.children) {
+      child.needsRender = true;
+    }
     super.render();
     this.needsRender = false;
   }

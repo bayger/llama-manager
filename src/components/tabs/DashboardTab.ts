@@ -100,7 +100,8 @@ export class DashboardControl extends Column {
     cy++;
 
     if (this._serverState === "stopped") {
-      const midY = Math.floor((y + cy) / 2);
+      const bottomY = this.rect.y + this.rect.height;
+      const midY = Math.floor((cy + bottomY) / 2);
       renderLine(term, midY, () => {
         term.bold();
         fg(term, themeColors.warning, "Server not running");
@@ -114,7 +115,8 @@ export class DashboardControl extends Column {
     }
 
     if (!this._metrics) {
-      const midY = Math.floor((y + cy) / 2);
+      const bottomY = this.rect.y + this.rect.height;
+      const midY = Math.floor((cy + bottomY) / 2);
       renderLine(term, midY, () => {
         term.bold();
         fg(term, themeColors.text, "Connecting to server...");
