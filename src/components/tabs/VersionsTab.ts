@@ -164,15 +164,16 @@ export class VersionsControl extends Control {
 
       const sel = this._list.getSelectedItem();
       this._btnDelete.disabled = !sel || sel.data.active;
-      this._btnDelete.needsRender = true;
-      this._buttonRow.needsRender = true;
 
-      this._column.needsRender = true;
       this.markDirty();
-      ctx.scheduleRender();
     } catch (err: any) {
       // ignore
     }
+  }
+
+  override markDirty(): void {
+    super.markDirty();
+    this._ctx?.scheduleRender();
   }
 }
 
