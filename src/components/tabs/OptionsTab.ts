@@ -1,4 +1,6 @@
 import { Column } from "../ui/Layout.js";
+import { ButtonBar } from "../ui/widgets/ButtonBar.js";
+import { Button } from "../ui/widgets/Button.js";
 import { themeColors, fg, termWidth, renderLine, renderDivider } from "../../lib/theme.js";
 import { saveConfig } from "../../lib/config.js";
 import type { ConfigData } from "../../lib/config.js";
@@ -129,13 +131,16 @@ export class OptionsControl extends Column {
   protected _ctx: TabContext | null = null;
   protected _selectedIndex = 0;
   protected _focusArea: "buttons" | "form" = "buttons";
-  protected _buttonIndex = 0;
+  protected _buttonBar: ButtonBar;
   protected _editMode = false;
   protected _editValue = "";
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._buttonBar = new ButtonBar();
+    this._buttonBar.add(new Button({ label: "Reset", action: () => this._onReset() }));
+    this._buttonBar.add(new Button({ label: "Save All", action: () => this._onSaveAll() }));
   }
 
   measure(_parentSize?: Size): Size {
@@ -247,74 +252,37 @@ export class OptionsControl extends Column {
 
   // — Buttons —
 
-  _getButtonItems(): Array<{ label: string; disabled?: boolean }> {
-    return [
-      { label: "Reset" },
-      { label: "Save All" },
-    ];
+  _updateButtons(): void {
+    const buttons = this._buttonBar.getButtons();
+    buttons[0].disabled = false;
+    buttons[1].disabled = false;
   }
 
-  _moveButtonIndex(items: Array<{ label: string; disabled?: boolean }>, currentIndex: number, direction: -1 | 1): number {
-    const next = currentIndex + direction;
-    if (next < 0 || next >= items.length) return currentIndex;
-    if (!items[next]?.disabled) return next;
-    const step = direction > 0 ? 1 : -1;
-    for (let i = currentIndex + step; i >= 0 && i < items.length; i += step) {
-      if (!items[i]?.disabled) return i;
+  _onReset(): void {
+    const field = FIELDS[this._selectedIndex];
+    if (field) {
+      this._saveField(field, field.default);
     }
-    return currentIndex;
+  }
+
+  _onSaveAll(): void {
+    this._ctx?.showMessage("All changes are saved automatically");
   }
 
   _handleButtonsKey(key: string): boolean {
-    if (key === "h" || key === "LEFT" || key === "k") {
-      const items = this._getButtonItems();
-      this._buttonIndex = this._moveButtonIndex(items, this._buttonIndex, -1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
-    if (key === "l" || key === "RIGHT" || key === "j") {
-      const items = this._getButtonItems();
-      this._buttonIndex = this._moveButtonIndex(items, this._buttonIndex, 1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
-    if (key === "RETURN" || key === "ENTER") {
-      const items = this._getButtonItems();
-      if (!items[this._buttonIndex]?.disabled) {
-        this._executeButtonAction(this._buttonIndex);
-      }
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
     if (key === "DOWN") {
       this._focusArea = "form";
+      this._buttonBar.blur();
       this.markDirty();
       this._ctx?.scheduleRender();
       return true;
     }
-    return false;
-  }
-
-  _executeButtonAction(index: number): void {
-    const actions = ["Reset", "Save All"] as const;
-    const action = actions[index];
-
-    switch (action) {
-      case "Reset": {
-        const field = FIELDS[this._selectedIndex];
-        if (field) {
-          this._saveField(field, field.default);
-        }
-        break;
-      }
-      case "Save All": {
-        this._ctx?.showMessage("All changes are saved automatically");
-        break;
-      }
+    const handled = this._buttonBar.handleKey(key);
+    if (handled) {
+      this.markDirty();
+      this._ctx?.scheduleRender();
     }
+    return handled;
   }
 
   // — Form —
@@ -323,6 +291,7 @@ export class OptionsControl extends Column {
     if (key === "UP") {
       if (this._selectedIndex === 0) {
         this._focusArea = "buttons";
+        this._buttonBar.focus();
         this.markDirty();
         this._ctx?.scheduleRender();
         return true;
@@ -414,28 +383,18 @@ export class OptionsControl extends Column {
   }
 
   _renderButtons(term: any, startY: number): number {
-    const items = this._getButtonItems();
-
-    renderLine(term, startY, () => {
-      for (let i = 0; i < items.length; i++) {
-        if (i > 0) {
-          fg(term, themeColors.textMuted, "  ");
-        }
-        const item = items[i]!;
-        const text = `[ ${item.label} ]`;
-
-        if (item.disabled) {
-          fg(term, themeColors.borderMuted, text);
-        } else if (this._focusArea === "buttons" && i === this._buttonIndex) {
-          term.bold();
-          fg(term, themeColors.success, text);
-          term.styleReset();
-        } else {
-          fg(term, themeColors.textMuted, text);
-        }
-      }
-    });
-
+    this._updateButtons();
+    const buttons = this._buttonBar.getButtons();
+    let totalWidth = 0;
+    for (let i = 0; i < buttons.length; i++) {
+      totalWidth += buttons[i]!.label.length + 4;
+      if (i < buttons.length - 1) totalWidth += 2;
+    }
+    const rect = { x: 0, y: startY, width: totalWidth, height: 1 };
+    this._buttonBar.rect = rect;
+    this._buttonBar.onLayout();
+    this._buttonBar.needsRender = true;
+    this._buttonBar.render();
     return startY + 1;
   }
 
@@ -547,7 +506,6 @@ export class OptionsControl extends Column {
   onDetach(): void {
     this._selectedIndex = 0;
     this._focusArea = "buttons";
-    this._buttonIndex = 0;
     this._editMode = false;
     this._editValue = "";
   }

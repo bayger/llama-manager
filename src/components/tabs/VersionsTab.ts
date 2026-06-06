@@ -1,4 +1,6 @@
 import { Column } from "../ui/Layout.js";
+import { ButtonBar } from "../ui/widgets/ButtonBar.js";
+import { Button } from "../ui/widgets/Button.js";
 import { themeColors, fg, termWidth, termHeight, renderBox, renderBoxWithSeparator, renderLine, renderDivider } from "../../lib/theme.js";
 import { loadConfig, saveConfig, getVersionsDir, ConfigData } from "../../lib/config.js";
 import {
@@ -20,7 +22,6 @@ import { formatSize } from "../../lib/models.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
 
-const ACTIONS = ["switch", "uninstall", "check", "install"] as const;
 
 export class VersionsControl extends Column {
   protected _ctx: TabContext | null = null;
@@ -28,7 +29,7 @@ export class VersionsControl extends Column {
   protected _versions: VersionInfo[] = [];
   protected _selectedIndex = 0;
   protected _focusArea: "buttons" | "list" | "releases" | "backends" = "buttons";
-  protected _buttonIndex = 0;
+  protected _buttonBar: ButtonBar;
   protected _loading = false;
   protected _message: string | null = null;
   protected _installing = false;
@@ -50,6 +51,11 @@ export class VersionsControl extends Column {
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._buttonBar = new ButtonBar();
+    this._buttonBar.add(new Button({ label: "Switch", action: () => this._onSwitch() }));
+    this._buttonBar.add(new Button({ label: "Uninstall", action: () => this._onUninstall() }));
+    this._buttonBar.add(new Button({ label: "Check", action: () => this._onCheck() }));
+    this._buttonBar.add(new Button({ label: "Install", action: () => this._onInstall() }));
   }
 
   measure(_parentSize?: Size): Size {
@@ -194,55 +200,29 @@ export class VersionsControl extends Column {
 
   // — Buttons —
 
-  _getVersionButtonItems(): Array<{ label: string; disabled?: boolean }> {
+  _updateButtons(): void {
     const hasSelection = this._versions.length > 0 && this._selectedIndex < this._versions.length;
-    return [
-      { label: "Switch", disabled: !hasSelection },
-      { label: "Uninstall", disabled: !hasSelection },
-      { label: "Check" },
-      { label: "Install" },
-    ];
-  }
-
-  _moveButtonIndex(items: Array<{ label: string; disabled?: boolean }>, currentIndex: number, direction: -1 | 1): number {
-    const next = currentIndex + direction;
-    if (next < 0 || next >= items.length) return currentIndex;
-    if (!items[next]?.disabled) return next;
-    const step = direction > 0 ? 1 : -1;
-    for (let i = currentIndex + step; i >= 0 && i < items.length; i += step) {
-      if (!items[i]?.disabled) return i;
-    }
-    return currentIndex;
+    const buttons = this._buttonBar.getButtons();
+    buttons[0].disabled = !hasSelection;
+    buttons[1].disabled = !hasSelection;
+    buttons[2].disabled = false;
+    buttons[3].disabled = false;
   }
 
   _handleButtonsKey(key: string): boolean {
-    if (key === "h" || key === "LEFT" || key === "k") {
-      this._buttonIndex = this._moveButtonIndex(this._getVersionButtonItems(), this._buttonIndex, -1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
-    if (key === "l" || key === "RIGHT" || key === "j") {
-      this._buttonIndex = this._moveButtonIndex(this._getVersionButtonItems(), this._buttonIndex, 1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
-    if (key === "RETURN" || key === "ENTER") {
-      const items = this._getVersionButtonItems();
-      if (!items[this._buttonIndex]?.disabled) {
-        const action = ACTIONS[this._buttonIndex];
-        this._executeAction(action).catch(() => {});
-      }
-      return true;
-    }
     if (key === "DOWN") {
       this._focusArea = "list";
+      this._buttonBar.blur();
       this.markDirty();
       this._ctx?.scheduleRender();
       return true;
     }
-    return false;
+    const handled = this._buttonBar.handleKey(key);
+    if (handled) {
+      this.markDirty();
+      this._ctx?.scheduleRender();
+    }
+    return handled;
   }
 
   // — List —
@@ -251,6 +231,7 @@ export class VersionsControl extends Column {
     if (key === "k" || key === "UP") {
       if (this._selectedIndex === 0) {
         this._focusArea = "buttons";
+        this._buttonBar.focus();
         this.markDirty();
         this._ctx?.scheduleRender();
         return true;
@@ -268,7 +249,7 @@ export class VersionsControl extends Column {
     }
     if (key === "RETURN" || key === "ENTER") {
       if (this._versions.length > 0) {
-        this._executeAction("switch").catch(() => {});
+        this._onSwitch();
       }
       return true;
     }
@@ -423,100 +404,101 @@ export class VersionsControl extends Column {
 
   // — Actions —
 
-  async _executeAction(action: string): Promise<void> {
+  _onSwitch(): void {
     if (!this._config) return;
-
-    switch (action) {
-      case "switch": {
-        if (this._versions.length === 0) {
-          this._showMessage("No versions installed.");
-          return;
-        }
-        const v = this._versions[this._selectedIndex];
-        if (!v) {
-          this._showMessage("No version selected.");
-          return;
-        }
-        try {
-          this._config = await switchVersion(this._config, v.version);
-          await saveConfig(this._config);
-          this._versions = await listVersions(this._config);
-          this._installedBackends = this._buildInstalledBackends(this._versions);
-          this._showMessage(`Switched to ${v.version}`);
-        } catch (err: any) {
-          this._showMessage(`Switch failed: ${err.message}`);
-        }
-        this.markDirty();
-        this._ctx?.scheduleRender();
-        break;
-      }
-
-      case "uninstall": {
-        if (this._versions.length === 0) {
-          this._showMessage("No versions installed.");
-          return;
-        }
-        const v = this._versions[this._selectedIndex];
-        if (!v) {
-          this._showMessage("No version selected.");
-          return;
-        }
-        if (v.active) {
-          this._showMessage("Cannot uninstall active version.");
-          return;
-        }
-        try {
-          await uninstallVersion(this._config, v.version);
-          this._versions = await listVersions(this._config);
-          this._totalSize = await getTotalVersionsSize(this._config);
-          this._installedBackends = this._buildInstalledBackends(this._versions);
-          if (this._selectedIndex >= this._versions.length) {
-            this._selectedIndex = Math.max(0, this._versions.length - 1);
-          }
-          this._showMessage(`Uninstalled ${v.version}`);
-        } catch (err: any) {
-          this._showMessage(`Uninstall failed: ${err.message}`);
-        }
-        this.markDirty();
-        this._ctx?.scheduleRender();
-        break;
-      }
-
-      case "check": {
-        try {
-          this._ctx?.showMessage("Checking for updates...");
-          const latest = await checkLatestVersion();
-          const activeVersion = this._config.activeVersion;
-          if (activeVersion && activeVersion.startsWith(latest.split("-")[0])) {
-            this._showMessage(`Already on latest: ${latest}`);
-          } else {
-            this._showMessage(`Latest version: ${latest} (current: ${activeVersion || "none"})`);
-          }
-        } catch (err: any) {
-          this._showMessage(`Check failed: ${err.message}`);
-        }
-        break;
-      }
-
-      case "install": {
-        this._focusArea = "releases";
-        this._releaseIndex = 0;
-        this._fetchingReleases = true;
-        this._ctx?.showMessage("Fetching releases...");
-        this.markDirty();
-        this._ctx?.scheduleRender();
-        try {
-          this._releases = await listRecentVersions(20);
-        } catch (err: any) {
-          this._showMessage(`Failed to fetch releases: ${err.message}`);
-          this._focusArea = "buttons";
-        }
-        this._fetchingReleases = false;
-        this.markDirty();
-        this._ctx?.scheduleRender();
-        break;
-      }
+    if (this._versions.length === 0) {
+      this._showMessage("No versions installed.");
+      return;
     }
+    const v = this._versions[this._selectedIndex];
+    if (!v) {
+      this._showMessage("No version selected.");
+      return;
+    }
+    (async () => {
+      try {
+        this._config = await switchVersion(this._config!, v.version);
+        await saveConfig(this._config);
+        this._versions = await listVersions(this._config);
+        this._installedBackends = this._buildInstalledBackends(this._versions);
+        this._showMessage(`Switched to ${v.version}`);
+      } catch (err: any) {
+        this._showMessage(`Switch failed: ${err.message}`);
+      }
+      this.markDirty();
+      this._ctx?.scheduleRender();
+    })();
+  }
+
+  _onUninstall(): void {
+    if (!this._config) return;
+    if (this._versions.length === 0) {
+      this._showMessage("No versions installed.");
+      return;
+    }
+    const v = this._versions[this._selectedIndex];
+    if (!v) {
+      this._showMessage("No version selected.");
+      return;
+    }
+    if (v.active) {
+      this._showMessage("Cannot uninstall active version.");
+      return;
+    }
+    (async () => {
+      try {
+        await uninstallVersion(this._config!, v.version);
+        this._versions = await listVersions(this._config!);
+        this._totalSize = await getTotalVersionsSize(this._config!);
+        this._installedBackends = this._buildInstalledBackends(this._versions);
+        if (this._selectedIndex >= this._versions.length) {
+          this._selectedIndex = Math.max(0, this._versions.length - 1);
+        }
+        this._showMessage(`Uninstalled ${v.version}`);
+      } catch (err: any) {
+        this._showMessage(`Uninstall failed: ${err.message}`);
+      }
+      this.markDirty();
+      this._ctx?.scheduleRender();
+    })();
+  }
+
+  _onCheck(): void {
+    if (!this._config) return;
+    (async () => {
+      try {
+        this._ctx?.showMessage("Checking for updates...");
+        const latest = await checkLatestVersion();
+        const activeVersion = this._config!.activeVersion;
+        if (activeVersion && activeVersion.startsWith(latest.split("-")[0])) {
+          this._showMessage(`Already on latest: ${latest}`);
+        } else {
+          this._showMessage(`Latest version: ${latest} (current: ${activeVersion || "none"})`);
+        }
+      } catch (err: any) {
+        this._showMessage(`Check failed: ${err.message}`);
+      }
+    })();
+  }
+
+  _onInstall(): void {
+    (async () => {
+      this._focusArea = "releases";
+      this._releaseIndex = 0;
+      this._fetchingReleases = true;
+      this._ctx?.showMessage("Fetching releases...");
+      this.markDirty();
+      this._ctx?.scheduleRender();
+      try {
+        this._releases = await listRecentVersions(20);
+      } catch (err: any) {
+        this._showMessage(`Failed to fetch releases: ${err.message}`);
+        this._focusArea = "buttons";
+      }
+      this._fetchingReleases = false;
+      this.markDirty();
+      this._ctx?.scheduleRender();
+    })();
   }
 
   async _installSelectedBackend(): Promise<void> {
@@ -595,30 +577,19 @@ export class VersionsControl extends Column {
   }
 
   _renderButtons(term: any, startY: number): number {
-    const items = this._getVersionButtonItems();
-    const y = startY;
-
-    renderLine(term, y, () => {
-      for (let i = 0; i < items.length; i++) {
-        if (i > 0) {
-          fg(term, themeColors.textMuted, "  ");
-        }
-        const item = items[i]!;
-        const text = `[ ${item.label} ]`;
-
-        if (item.disabled) {
-          fg(term, themeColors.borderMuted, text);
-        } else if (this._focusArea === "buttons" && i === this._buttonIndex) {
-          term.bold();
-          fg(term, themeColors.success, text);
-          term.styleReset();
-        } else {
-          fg(term, themeColors.textMuted, text);
-        }
-      }
-    });
-
-    return y + 1;
+    this._updateButtons();
+    const buttons = this._buttonBar.getButtons();
+    let totalWidth = 0;
+    for (let i = 0; i < buttons.length; i++) {
+      totalWidth += buttons[i]!.label.length + 4;
+      if (i < buttons.length - 1) totalWidth += 2;
+    }
+    const rect = { x: 0, y: startY, width: totalWidth, height: 1 };
+    this._buttonBar.rect = rect;
+    this._buttonBar.onLayout();
+    this._buttonBar.needsRender = true;
+    this._buttonBar.render();
+    return startY + 1;
   }
 
   _renderVersionList(term: any, startY: number): number {
@@ -870,7 +841,6 @@ export class VersionsControl extends Column {
     this._versions = [];
     this._selectedIndex = 0;
     this._focusArea = "buttons";
-    this._buttonIndex = 0;
     this._loading = false;
     this._message = null;
     this._installing = false;

@@ -10,6 +10,10 @@ export class ButtonBar extends Row {
     return this._selectedIndex;
   }
 
+  getButtons(): Button[] {
+    return this.children.filter(c => c.visible) as Button[];
+  }
+
   measure(_parentSize: Size): Size {
     let totalWidth = 0;
     const visibleButtons = this.children.filter(c => c.visible) as Button[];
@@ -43,8 +47,8 @@ export class ButtonBar extends Row {
 
   handleKey(key: string): boolean {
     const buttons = this.children.filter(c => c.visible) as Button[];
-    if (key === "RIGHT" || key === "LEFT") {
-      const dir = key === "RIGHT" ? 1 : -1;
+    if (key === "RIGHT" || key === "LEFT" || key === "h" || key === "l") {
+      const dir = (key === "RIGHT" || key === "l") ? 1 : -1;
       this.moveSelection(dir);
       return true;
     }

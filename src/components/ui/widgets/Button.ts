@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fg, fgBg, themeColors } from "../../../lib/theme.js";
+import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
 
 export interface ButtonConfig {
@@ -36,10 +36,10 @@ export class Button extends Control {
       fg(term, themeColors.borderMuted, text);
     } else if (this.focused) {
       term.bold();
-      fgBg(term, themeColors.selectedText, themeColors.selectedBg, text);
+      fg(term, themeColors.success, text);
       term.styleReset();
     } else {
-      fg(term, themeColors.border, text);
+      fg(term, themeColors.textMuted, text);
     }
 
     this.needsRender = false;

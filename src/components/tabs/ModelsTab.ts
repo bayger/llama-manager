@@ -1,4 +1,6 @@
 import { Column } from "../ui/Layout.js";
+import { ButtonBar } from "../ui/widgets/ButtonBar.js";
+import { Button } from "../ui/widgets/Button.js";
 import { themeColors, fg, termWidth, termHeight, renderBox, renderLine, renderDivider } from "../../lib/theme.js";
 import { loadConfig, saveConfig, getModelsDir, ConfigData } from "../../lib/config.js";
 import {
@@ -21,9 +23,6 @@ import {
 } from "../../lib/hf.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
-
-const ACTIONS = ["setactive", "delete", "search", "browse"] as const;
-const ACTION_LABELS = ["Set Active", "Delete", "Search", "Browse"];
 
 const TASK_FILTERS = [
   { label: "All", filter: "" },
@@ -66,7 +65,7 @@ export class ModelsControl extends Column {
   protected _models: LocalModel[] = [];
   protected _selectedIndex = 0;
   protected _focusArea: "list" | "buttons" | "search" | "files" | "browse" | "browsefilters" | "browsesort" | "modelcard" = "buttons";
-  protected _actionIndex = 0;
+  protected _buttonBar: ButtonBar;
   protected _loading = false;
   protected _message: string | null = null;
   protected _totalSize = 0;
@@ -100,6 +99,11 @@ export class ModelsControl extends Column {
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._buttonBar = new ButtonBar();
+    this._buttonBar.add(new Button({ label: "Set Active", action: () => this._onSetActive() }));
+    this._buttonBar.add(new Button({ label: "Delete", action: () => this._onDelete() }));
+    this._buttonBar.add(new Button({ label: "Search", action: () => this._onSearch() }));
+    this._buttonBar.add(new Button({ label: "Browse", action: () => this._onBrowse() }));
   }
 
   measure(_parentSize?: Size): Size {
@@ -296,91 +300,73 @@ export class ModelsControl extends Column {
 
   // — Actions —
 
-  _getModelButtonItems(): Array<{ label: string; disabled?: boolean }> {
+  _updateButtons(): void {
     const hasSelection = this._models.length > 0 && this._selectedIndex < this._models.length;
-    return [
-      { label: "Set Active", disabled: !hasSelection },
-      { label: "Delete", disabled: !hasSelection },
-      { label: "Search" },
-      { label: "Browse" },
-    ];
+    const buttons = this._buttonBar.getButtons();
+    buttons[0].disabled = !hasSelection;
+    buttons[1].disabled = !hasSelection;
+    buttons[2].disabled = false;
+    buttons[3].disabled = false;
   }
 
-  _moveButtonIndex(items: Array<{ label: string; disabled?: boolean }>, currentIndex: number, direction: -1 | 1): number {
-    const next = currentIndex + direction;
-    if (next < 0 || next >= items.length) return currentIndex;
-    if (!items[next]?.disabled) return next;
-    const step = direction > 0 ? 1 : -1;
-    for (let i = currentIndex + step; i >= 0 && i < items.length; i += step) {
-      if (!items[i]?.disabled) return i;
-    }
-    return currentIndex;
-  }
-
-  async _executeAction(actionIndex: number): Promise<void> {
-    const action = ACTIONS[actionIndex];
+  async _onSetActive(): Promise<void> {
     if (!this._config) return;
-
-    switch (action) {
-      case "setactive": {
-        if (this._models.length === 0 || this._selectedIndex >= this._models.length) {
-          this._message = "No model selected";
-          return;
-        }
-        const m = this._models[this._selectedIndex];
-        try {
-          const updated = await setActiveModel(this._config, m.repoId, m.filename);
-          await saveConfig(updated);
-          this._config = updated;
-          await this._refreshModels();
-          this._message = `Set active: ${m.repoId}/${m.filename}`;
-          this._ctx?.showMessage(this._message!);
-        } catch (err: any) {
-          this._message = `Error: ${err.message}`;
-        }
-        this.markDirty();
-        this._ctx?.scheduleRender();
-        break;
-      }
-      case "delete": {
-        if (this._models.length === 0 || this._selectedIndex >= this._models.length) {
-          this._message = "No model selected";
-          return;
-        }
-        const m = this._models[this._selectedIndex];
-        try {
-          const updated = await deleteModel(this._config, m.path);
-          await saveConfig(updated);
-          this._config = updated;
-          await this._refreshModels();
-          this._message = `Deleted: ${m.filename}`;
-          this._ctx?.showMessage(this._message!);
-        } catch (err: any) {
-          this._message = `Error: ${err.message}`;
-        }
-        this.markDirty();
-        this._ctx?.scheduleRender();
-        break;
-      }
-      case "search": {
-        this._focusArea = "search";
-        this._editMode = true;
-        this._editValue = "";
-        this._searchResults = [];
-        this._searchIndex = 0;
-        this._ctx?.setTextInputFocused(true);
-        this.markDirty();
-        this._ctx?.scheduleRender();
-        break;
-      }
-      case "browse": {
-        this._focusArea = "browse";
-        this._browseResults = [];
-        this._browseIndex = 0;
-        await this._fetchBrowse();
-        break;
-      }
+    if (this._models.length === 0 || this._selectedIndex >= this._models.length) {
+      this._message = "No model selected";
+      return;
     }
+    const m = this._models[this._selectedIndex];
+    try {
+      const updated = await setActiveModel(this._config, m.repoId, m.filename);
+      await saveConfig(updated);
+      this._config = updated;
+      await this._refreshModels();
+      this._message = `Set active: ${m.repoId}/${m.filename}`;
+      this._ctx?.showMessage(this._message!);
+    } catch (err: any) {
+      this._message = `Error: ${err.message}`;
+    }
+    this.markDirty();
+    this._ctx?.scheduleRender();
+  }
+
+  async _onDelete(): Promise<void> {
+    if (!this._config) return;
+    if (this._models.length === 0 || this._selectedIndex >= this._models.length) {
+      this._message = "No model selected";
+      return;
+    }
+    const m = this._models[this._selectedIndex];
+    try {
+      const updated = await deleteModel(this._config, m.path);
+      await saveConfig(updated);
+      this._config = updated;
+      await this._refreshModels();
+      this._message = `Deleted: ${m.filename}`;
+      this._ctx?.showMessage(this._message!);
+    } catch (err: any) {
+      this._message = `Error: ${err.message}`;
+    }
+    this.markDirty();
+    this._ctx?.scheduleRender();
+  }
+
+  _onSearch(): void {
+    this._focusArea = "search";
+    this._editMode = true;
+    this._editValue = "";
+    this._searchResults = [];
+    this._searchIndex = 0;
+    this._ctx?.setTextInputFocused(true);
+    this.markDirty();
+    this._ctx?.scheduleRender();
+  }
+
+  _onBrowse(): void {
+    this._focusArea = "browse";
+    this._browseResults = [];
+    this._browseIndex = 0;
+    this._fetchBrowse().catch(() => {});
   }
 
   async _fetchBrowse(): Promise<void> {
@@ -563,6 +549,7 @@ export class ModelsControl extends Column {
     if (key === "k" || key === "UP") {
       if (this._selectedIndex === 0) {
         this._focusArea = "buttons";
+        this._buttonBar.focus();
         this.markDirty();
         this._ctx?.scheduleRender();
         return true;
@@ -580,8 +567,7 @@ export class ModelsControl extends Column {
     }
     if (key === "RETURN" || key === "ENTER") {
       this._focusArea = "buttons";
-      const items = this._getModelButtonItems();
-      this._actionIndex = items[0]?.disabled ? 1 : 0;
+      this._buttonBar.focus();
       this.markDirty();
       this._ctx?.scheduleRender();
       return true;
@@ -590,32 +576,19 @@ export class ModelsControl extends Column {
   }
 
   _handleButtonsKey(key: string): boolean {
-    if (key === "h" || key === "LEFT" || key === "k") {
-      this._actionIndex = this._moveButtonIndex(this._getModelButtonItems(), this._actionIndex, -1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
-    if (key === "l" || key === "RIGHT" || key === "j") {
-      this._actionIndex = this._moveButtonIndex(this._getModelButtonItems(), this._actionIndex, 1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
     if (key === "DOWN") {
       this._focusArea = "list";
+      this._buttonBar.blur();
       this.markDirty();
       this._ctx?.scheduleRender();
       return true;
     }
-    if (key === "RETURN" || key === "ENTER") {
-      const items = this._getModelButtonItems();
-      if (!items[this._actionIndex]?.disabled) {
-        this._executeAction(this._actionIndex).catch(() => {});
-      }
-      return true;
+    const handled = this._buttonBar.handleKey(key);
+    if (handled) {
+      this.markDirty();
+      this._ctx?.scheduleRender();
     }
-    return false;
+    return handled;
   }
 
   _handleSearchKey(key: string): boolean {
@@ -895,28 +868,18 @@ export class ModelsControl extends Column {
   }
 
   _renderButtons(term: any, startY: number): number {
-    const items = this._getModelButtonItems();
-
-    renderLine(term, startY, () => {
-      for (let i = 0; i < items.length; i++) {
-        if (i > 0) {
-          fg(term, themeColors.textMuted, "  ");
-        }
-        const item = items[i]!;
-        const text = `[ ${item.label} ]`;
-
-        if (item.disabled) {
-          fg(term, themeColors.borderMuted, text);
-        } else if (i === this._actionIndex) {
-          term.bold();
-          fg(term, themeColors.success, text);
-          term.styleReset();
-        } else {
-          fg(term, themeColors.textMuted, text);
-        }
-      }
-    });
-
+    this._updateButtons();
+    const buttons = this._buttonBar.getButtons();
+    let totalWidth = 0;
+    for (let i = 0; i < buttons.length; i++) {
+      totalWidth += buttons[i]!.label.length + 4;
+      if (i < buttons.length - 1) totalWidth += 2;
+    }
+    const rect = { x: 0, y: startY, width: totalWidth, height: 1 };
+    this._buttonBar.rect = rect;
+    this._buttonBar.onLayout();
+    this._buttonBar.needsRender = true;
+    this._buttonBar.render();
     return startY + 1;
   }
 
@@ -1185,7 +1148,6 @@ export class ModelsControl extends Column {
     this._models = [];
     this._selectedIndex = 0;
     this._focusArea = "buttons";
-    this._actionIndex = 0;
     this._loading = false;
     this._message = null;
     this._totalSize = 0;

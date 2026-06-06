@@ -1,4 +1,6 @@
 import { Column } from "../ui/Layout.js";
+import { ButtonBar } from "../ui/widgets/ButtonBar.js";
+import { Button } from "../ui/widgets/Button.js";
 import { fg, themeColors, termWidth, renderDivider, renderLine } from "../../lib/theme.js";
 import { loadConfig, ConfigData, getActivePresets } from "../../lib/config.js";
 import { getServerMetrics } from "../../lib/api.js";
@@ -6,8 +8,6 @@ import { getStatus, startServer, stopServer } from "../../lib/server.js";
 import { fireAsync, formatDuration, formatUptime } from "../../lib/utils.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
-
-const CONTROLS = ["Start", "Stop", "Restart"];
 
 interface DashboardMetrics {
   promptTokensPerSec: number;
@@ -39,13 +39,17 @@ export class DashboardControl extends Column {
   protected _uptime = 0;
   protected _statusInterval: ReturnType<typeof setInterval> | null = null;
   protected _spinnerIndex = 0;
-  protected _controlIndex = 0;
+  protected _buttonBar: ButtonBar;
   protected _configLoaded = false;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
     this.enabled = true;
+    this._buttonBar = new ButtonBar();
+    this._buttonBar.add(new Button({ label: "Start", action: () => this._onStart() }));
+    this._buttonBar.add(new Button({ label: "Stop", action: () => this._onStop() }));
+    this._buttonBar.add(new Button({ label: "Restart", action: () => this._onRestart() }));
   }
 
   get metrics(): DashboardMetrics | null {
@@ -113,17 +117,10 @@ export class DashboardControl extends Column {
   }
 
   handleKey(key: string): boolean {
-    const items = this._getControlItems();
-    if (key === "h" || key === "LEFT") {
-      this._moveControlIndex(-1);
-      return true;
-    }
-    if (key === "l" || key === "RIGHT") {
-      this._moveControlIndex(1);
-      return true;
-    }
-    if (key === "RETURN" || key === "ENTER") {
-      this._executeControl(this._controlIndex);
+    const handled = this._buttonBar.handleKey(key);
+    if (handled) {
+      this.needsRender = true;
+      this._ctx?.scheduleRender();
       return true;
     }
     return false;
@@ -131,25 +128,14 @@ export class DashboardControl extends Column {
 
   // — Private methods —
 
-  _getControlItems(): Array<{ label: string; warning?: string }> {
-    const noVersion = !this._config?.activeVersion;
-    return [
-      { label: "Start", warning: noVersion ? "No version installed" : undefined },
-      { label: "Stop" },
-      { label: "Restart", warning: noVersion ? "No version installed" : undefined },
-    ];
+  _updateButtons(): void {
+    const buttons = this._buttonBar.getButtons();
+    buttons[0].disabled = false;
+    buttons[1].disabled = false;
+    buttons[2].disabled = false;
   }
 
-  _moveControlIndex(direction: -1 | 1): void {
-    let next = this._controlIndex + direction;
-    if (next < 0) next = CONTROLS.length - 1;
-    if (next >= CONTROLS.length) next = 0;
-    this._controlIndex = next;
-    this.needsRender = true;
-    if (this._ctx) this._ctx.scheduleRender();
-  }
-
-  _executeControl(index: number): void {
+  _onStart(): void {
     if (!this._ctx) return;
     const ctx = this._ctx;
     const cfg = this._config;
@@ -157,73 +143,75 @@ export class DashboardControl extends Column {
       ctx.showMessage("No configuration loaded");
       return;
     }
-
-    const control = CONTROLS[index];
-    switch (control) {
-      case "Start": {
-        if (this._serverState === "running") {
-          ctx.showMessage("Server already running");
-          return;
-        }
-        if (this._serverState === "starting") {
-          ctx.showMessage("Server already starting");
-          return;
-        }
-        if (!cfg.activeVersion) {
-          ctx.showMessage("No active version selected. Install one from the Versions tab.");
-          return;
-        }
-        fireAsync(async () => {
-          this._serverState = "starting";
-          const pid = await startServer(cfg);
-          this._pid = pid;
-          this._uptime = 0;
-          this._serverState = "running";
-          this._startStatusPolling();
-          ctx.showMessage(`Server started (PID ${pid})`);
-        }, ctx);
-        break;
-      }
-      case "Stop": {
-        if (this._serverState !== "running") {
-          ctx.showMessage("Server not running");
-          return;
-        }
-        fireAsync(async () => {
-          this._serverState = "stopping";
-          await stopServer();
-          this._serverState = "stopped";
-          this._pid = null;
-          this._uptime = 0;
-          this._stopStatusPolling();
-          ctx.showMessage("Server stopped");
-        }, ctx);
-        break;
-      }
-      case "Restart": {
-        if (this._serverState !== "running") {
-          ctx.showMessage("Server not running");
-          return;
-        }
-        if (!cfg.activeVersion) {
-          ctx.showMessage("No active version selected");
-          return;
-        }
-        fireAsync(async () => {
-          this._serverState = "stopping";
-          await stopServer();
-          if (!this._config) return;
-          this._serverState = "starting";
-          const pid = await startServer(this._config);
-          this._pid = pid;
-          this._uptime = 0;
-          this._serverState = "running";
-          this._startStatusPolling();
-          ctx.showMessage(`Server restarted (PID ${pid})`);
-        }, ctx);
-        break;
-      }
+    if (this._serverState === "running") {
+      ctx.showMessage("Server already running");
+      return;
     }
+    if (this._serverState === "starting") {
+      ctx.showMessage("Server already starting");
+      return;
+    }
+    if (!cfg.activeVersion) {
+      ctx.showMessage("No active version selected. Install one from the Versions tab.");
+      return;
+    }
+    fireAsync(async () => {
+      this._serverState = "starting";
+      const pid = await startServer(cfg);
+      this._pid = pid;
+      this._uptime = 0;
+      this._serverState = "running";
+      this._startStatusPolling();
+      ctx.showMessage(`Server started (PID ${pid})`);
+    }, ctx);
+  }
+
+  _onStop(): void {
+    if (!this._ctx) return;
+    const ctx = this._ctx;
+    if (this._serverState !== "running") {
+      ctx.showMessage("Server not running");
+      return;
+    }
+    fireAsync(async () => {
+      this._serverState = "stopping";
+      await stopServer();
+      this._serverState = "stopped";
+      this._pid = null;
+      this._uptime = 0;
+      this._stopStatusPolling();
+      ctx.showMessage("Server stopped");
+    }, ctx);
+  }
+
+  _onRestart(): void {
+    if (!this._ctx) return;
+    const ctx = this._ctx;
+    const cfg = this._config;
+    if (!cfg) {
+      ctx.showMessage("No configuration loaded");
+      return;
+    }
+    if (this._serverState !== "running") {
+      ctx.showMessage("Server not running");
+      return;
+    }
+    if (!cfg.activeVersion) {
+      ctx.showMessage("No active version selected");
+      return;
+    }
+    fireAsync(async () => {
+      this._serverState = "stopping";
+      await stopServer();
+      if (!this._config) return;
+      this._serverState = "starting";
+      const pid = await startServer(this._config);
+      this._pid = pid;
+      this._uptime = 0;
+      this._serverState = "running";
+      this._startStatusPolling();
+      ctx.showMessage(`Server restarted (PID ${pid})`);
+    }, ctx);
   }
 
   _renderServerStatus(term: any, startY: number): number {
@@ -281,33 +269,25 @@ export class DashboardControl extends Column {
   }
 
   _renderControls(term: any, startY: number): number {
-    const items = this._getControlItems();
-    const separator = "  ";
-    let y = startY;
+    this._updateButtons();
+    const buttons = this._buttonBar.getButtons();
+    let totalWidth = 0;
+    for (let i = 0; i < buttons.length; i++) {
+      totalWidth += buttons[i]!.label.length + 4;
+      if (i < buttons.length - 1) totalWidth += 2;
+    }
+    const rect = { x: 0, y: startY, width: totalWidth, height: 1 };
+    this._buttonBar.rect = rect;
+    this._buttonBar.onLayout();
+    this._buttonBar.needsRender = true;
+    this._buttonBar.render();
 
-    renderLine(term, y++, () => {
-      for (let i = 0; i < items.length; i++) {
-        if (i > 0) {
-          fg(term, themeColors.textMuted, separator);
-        }
-        const item = items[i]!;
-        const text = `[ ${item.label} ]`;
+    let y = startY + 1;
 
-        if (i === this._controlIndex) {
-          term.bold();
-          fg(term, themeColors.success, text);
-          term.styleReset();
-        } else {
-          fg(term, themeColors.textMuted, text);
-        }
-      }
-    });
-
-    const hasWarning = items.some(item => item.warning);
-    if (hasWarning) {
-      const warnings = items.filter(item => item.warning).map(item => item.warning);
+    const noVersion = !this._config?.activeVersion;
+    if (noVersion) {
       renderLine(term, y++, () => {
-        fg(term, themeColors.warning, `  ${warnings.join(" │ ")}`);
+        fg(term, themeColors.warning, "  No version installed");
       });
     }
 

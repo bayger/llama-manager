@@ -46,15 +46,17 @@ export class ServerControl extends Column {
   protected _editValue = "";
   protected _devicesOutput: string | null = null;
   protected _focusArea: "buttons" | "form" = "buttons";
-  protected _buttonIndex = 0;
-
-  protected _buttonBar: ButtonBar | null = null;
+  protected _buttonBar: ButtonBar;
   protected _helpBar: HelpBar | null = null;
   protected _headerLabel: Label | null = null;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._buttonBar = new ButtonBar();
+    this._buttonBar.add(new Button({ label: "Create", action: () => this._onCreateProfile() }));
+    this._buttonBar.add(new Button({ label: "Rename", action: () => this._onRenameProfile() }));
+    this._buttonBar.add(new Button({ label: "Delete", action: () => this._onDeleteProfile() }));
   }
 
   measure(_parentSize?: Size): Size {
@@ -155,36 +157,19 @@ export class ServerControl extends Column {
   }
 
   _handleButtonsKey(key: string): boolean {
-    if (key === "h" || key === "LEFT" || key === "k") {
-      const items = this._getProfileButtonItems();
-      this._buttonIndex = this._moveButtonIndex(items, this._buttonIndex, -1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
-    if (key === "l" || key === "RIGHT" || key === "j") {
-      const items = this._getProfileButtonItems();
-      this._buttonIndex = this._moveButtonIndex(items, this._buttonIndex, 1);
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
-    if (key === "RETURN" || key === "ENTER") {
-      const items = this._getProfileButtonItems();
-      if (!items[this._buttonIndex]?.disabled) {
-        this._executeProfileAction(this._buttonIndex);
-      }
-      this.markDirty();
-      this._ctx?.scheduleRender();
-      return true;
-    }
     if (key === "DOWN") {
       this._focusArea = "form";
+      this._buttonBar.blur();
       this.markDirty();
       this._ctx?.scheduleRender();
       return true;
     }
-    return false;
+    const handled = this._buttonBar.handleKey(key);
+    if (handled) {
+      this.markDirty();
+      this._ctx?.scheduleRender();
+    }
+    return handled;
   }
 
   _handleFormKey(key: string): boolean {
@@ -193,6 +178,7 @@ export class ServerControl extends Column {
     if (key === "UP") {
       if (this._selectedIndex === 0) {
         this._focusArea = "buttons";
+        this._buttonBar.focus();
         this.markDirty();
         this._ctx?.scheduleRender();
         return true;
@@ -313,59 +299,55 @@ export class ServerControl extends Column {
 
   // — Profile button logic —
 
-  _getProfileButtonItems(): Array<{ label: string; disabled?: boolean }> {
+  _updateButtons(): void {
     const isDefault = this._config?.server?.activeProfile === "Default";
     const profileCount = this._config ? Object.keys(this._config.server.profiles).length : 0;
     const canDelete = !isDefault && profileCount > 1;
-    return [
-      { label: "Create" },
-      { label: "Rename" },
-      { label: "Delete", disabled: !canDelete },
-    ];
+    const buttons = this._buttonBar.getButtons();
+    buttons[0].disabled = false;
+    buttons[1].disabled = false;
+    buttons[2].disabled = !canDelete;
   }
 
-  _executeProfileAction(index: number): void {
-    if (!this._config) return;
-    const actions = ["Create", "Rename", "Delete"] as const;
-    const action = actions[index];
+  _onCreateProfile(): void {
+    this._editMode = true;
+    this._editKey = "create";
+    this._editValue = "";
+    this._ctx?.setTextInputFocused(true);
+    this.markDirty();
+    this._ctx?.scheduleRender();
+  }
 
-    switch (action) {
-      case "Create": {
-        this._editMode = true;
-        this._editKey = "create";
-        this._editValue = "";
-        this._ctx?.setTextInputFocused(true);
-        break;
-      }
-      case "Rename": {
-        this._editMode = true;
-        this._editKey = "rename";
-        this._editValue = this._config.server.activeProfile;
-        this._ctx?.setTextInputFocused(true);
-        break;
-      }
-      case "Delete": {
-        const profileName = this._config.server.activeProfile;
-        if (profileName === "Default") {
-          this._ctx?.showMessage("Cannot delete the Default profile");
-          return;
-        }
-        if (Object.keys(this._config.server.profiles).length <= 1) {
-          this._ctx?.showMessage("Cannot delete the last profile");
-          return;
-        }
-        fireAsync(async () => {
-          const profiles = this._config!.server.profiles;
-          delete profiles[profileName];
-          this._config!.server.activeProfile = Object.keys(profiles)[0]!;
-          await saveConfig(this._config!);
-          this._ctx?.showMessage(`Deleted profile "${profileName}"`);
-          this.markDirty();
-          this._ctx?.scheduleRender();
-        }, this._ctx!);
-        break;
-      }
+  _onRenameProfile(): void {
+    if (!this._config) return;
+    this._editMode = true;
+    this._editKey = "rename";
+    this._editValue = this._config.server.activeProfile;
+    this._ctx?.setTextInputFocused(true);
+    this.markDirty();
+    this._ctx?.scheduleRender();
+  }
+
+  _onDeleteProfile(): void {
+    if (!this._config) return;
+    const profileName = this._config.server.activeProfile;
+    if (profileName === "Default") {
+      this._ctx?.showMessage("Cannot delete the Default profile");
+      return;
     }
+    if (Object.keys(this._config.server.profiles).length <= 1) {
+      this._ctx?.showMessage("Cannot delete the last profile");
+      return;
+    }
+    fireAsync(async () => {
+      const profiles = this._config!.server.profiles;
+      delete profiles[profileName];
+      this._config!.server.activeProfile = Object.keys(profiles)[0]!;
+      await saveConfig(this._config!);
+      this._ctx?.showMessage(`Deleted profile "${profileName}"`);
+      this.markDirty();
+      this._ctx?.scheduleRender();
+    }, this._ctx!);
   }
 
   // — Form row building —
@@ -629,19 +611,6 @@ export class ServerControl extends Column {
     }
   }
 
-  // — Button index helper —
-
-  _moveButtonIndex(items: Array<{ label: string; disabled?: boolean }>, currentIndex: number, direction: -1 | 1): number {
-    const next = currentIndex + direction;
-    if (next < 0 || next >= items.length) return currentIndex;
-    if (!items[next]?.disabled) return next;
-    const step = direction > 0 ? 1 : -1;
-    for (let i = currentIndex + step; i >= 0 && i < items.length; i += step) {
-      if (!items[i]?.disabled) return i;
-    }
-    return currentIndex;
-  }
-
   // — Rendering —
 
   _renderHeader(term: any, startY: number): number {
@@ -659,30 +628,19 @@ export class ServerControl extends Column {
   }
 
   _renderProfileButtons(term: any, startY: number): number {
-    const items = this._getProfileButtonItems();
-    const y = startY;
-
-    renderLine(term, y, () => {
-      for (let i = 0; i < items.length; i++) {
-        if (i > 0) {
-          fg(term, themeColors.textMuted, "  ");
-        }
-        const item = items[i]!;
-        const text = `[ ${item.label} ]`;
-
-        if (item.disabled) {
-          fg(term, themeColors.borderMuted, text);
-        } else if (this._focusArea === "buttons" && i === this._buttonIndex) {
-          term.bold();
-          fg(term, themeColors.success, text);
-          term.styleReset();
-        } else {
-          fg(term, themeColors.textMuted, text);
-        }
-      }
-    });
-
-    return y + 1;
+    this._updateButtons();
+    const buttons = this._buttonBar.getButtons();
+    let totalWidth = 0;
+    for (let i = 0; i < buttons.length; i++) {
+      totalWidth += buttons[i]!.label.length + 4;
+      if (i < buttons.length - 1) totalWidth += 2;
+    }
+    const rect = { x: 0, y: startY, width: totalWidth, height: 1 };
+    this._buttonBar.rect = rect;
+    this._buttonBar.onLayout();
+    this._buttonBar.needsRender = true;
+    this._buttonBar.render();
+    return startY + 1;
   }
 
   _renderForm(term: any, startY: number): number {
@@ -907,7 +865,6 @@ export class ServerControl extends Column {
     this._devicesOutput = null;
     this._loading = false;
     this._focusArea = "buttons";
-    this._buttonIndex = 0;
   }
 }
 
