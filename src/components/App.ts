@@ -91,6 +91,7 @@ export class App {
       showMessage: (msg: string) => this.showMessage(msg),
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       getConfig: () => this.state.config,
+      setConfig: (config: any) => { this.state.config = config; },
     };
 
     this._renderContext = {

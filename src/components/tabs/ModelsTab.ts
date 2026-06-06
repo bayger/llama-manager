@@ -137,6 +137,7 @@ export class ModelsControl extends Control {
         profile.presets.model.model = model.path;
       }
       await saveConfig(updated);
+      this._ctx?.setConfig(updated);
       this._ctx?.showMessage(`Selected ${model.filename}`);
       this.refreshModels();
     })();
@@ -153,6 +154,7 @@ export class ModelsControl extends Control {
       const model = (selected as any).data as LocalModel;
       const updated = await deleteModel(config, model.path);
       await saveConfig(updated);
+      this._ctx?.setConfig(updated);
       this._ctx?.showMessage(`Removed ${model.filename}`);
       this.refreshModels();
     })();
