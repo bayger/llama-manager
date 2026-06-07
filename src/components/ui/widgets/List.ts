@@ -71,21 +71,23 @@ export class List<T = any> extends Control {
   handleKey(key: string): boolean {
     if (this.items.length === 0) return false;
 
-    if (key === "UP") {
+    if (key === "UP" || key === "k") {
       if (this.selectedIndex > 0) {
         this.selectedIndex--;
-        this.needsRender = true;
+        this.markDirty();
+        return true;
       }
-      return true;
+      return false;
     }
-    if (key === "DOWN") {
+    if (key === "DOWN" || key === "j") {
       if (this.selectedIndex < this.items.length - 1) {
         this.selectedIndex++;
-        this.needsRender = true;
+        this.markDirty();
+        return true;
       }
-      return true;
+      return false;
     }
-    if (key === "RETURN" || key === "SPACE") {
+    if (key === "RETURN" || key === "ENTER" || key === "SPACE") {
       if (this.selectedIndex >= 0 && this._onSelect) {
         this._onSelect(this.items[this.selectedIndex]!);
       }

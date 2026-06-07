@@ -1,5 +1,6 @@
 import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
+import { focusManager } from "../FocusManager.js";
 import type { Size } from "../types.js";
 
 export interface ButtonConfig {
@@ -10,8 +11,39 @@ export interface ButtonConfig {
 
 export class Button extends Control {
   public label = "";
-  public disabled = false;
   protected _action: (() => void) | null = null;
+
+  get disabled(): boolean {
+    return !this.enabled;
+  }
+
+  set disabled(value: boolean) {
+    if (value === !this.enabled) return;
+    if (value && this.focused) {
+      this.blur();
+      this.markDirty();
+      const sibling = this.findNextEnabledSibling();
+      if (sibling) {
+        focusManager.setFocus(sibling);
+      }
+    }
+    this.enabled = !value;
+  }
+
+  findNextEnabledSibling(): Button | null {
+    if (!this._parent) return null;
+    const siblings = this._parent.getAllFocusable().filter(c => c instanceof Button) as Button[];
+    const idx = siblings.indexOf(this);
+    if (idx === -1) return null;
+    for (let i = 1; i < siblings.length; i++) {
+      const offset = (idx + i) % siblings.length;
+      const s = siblings[offset]!;
+      if (s.enabled && s.visible) {
+        return s;
+      }
+    }
+    return null;
+  }
 
   constructor(config?: ButtonConfig) {
     super();
@@ -49,6 +81,14 @@ export class Button extends Control {
     if (this.disabled) return false;
     if (key === "RETURN" || key === "ENTER" || key === "SPACE") {
       if (this._action) this._action();
+      return true;
+    }
+    if (key === "UP" || key === "k") {
+      focusManager.focusPrev();
+      return true;
+    }
+    if (key === "DOWN" || key === "j") {
+      focusManager.focusNext();
       return true;
     }
     return false;

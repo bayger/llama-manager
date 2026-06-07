@@ -1,6 +1,5 @@
 export { Label } from "./Label.js";
 export { Button } from "./Button.js";
-export { ButtonBar } from "./ButtonBar.js";
 export { TextInput } from "./TextInput.js";
 export { List } from "./List.js";
 export { Scrollable } from "./Scrollable.js";

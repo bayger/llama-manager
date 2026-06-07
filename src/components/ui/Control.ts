@@ -7,6 +7,7 @@ export class Control {
   public enabled = true;
   public visible = true;
   public focused = false;
+  public focusable = true;
   public tabIndex = 0;
   public needsRender = true;
   public flex = 0;
@@ -112,10 +113,6 @@ export class Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term } = this;
-    const { x, y, width } = this.rect;
-    term.moveTo(x, y);
-    term.colorRgbHex(this._renderContext!.term.width ? "#c9d1d9" : "#c9d1d9");
     for (const child of this.children) {
       child.render();
     }
@@ -124,12 +121,25 @@ export class Control {
 
   // — Input —
 
-  handleKey(_key: string): boolean {
+  handleKey(key: string): boolean {
+    const focused = this.findFocusedDescendant();
+    if (focused && focused.handleKey(key)) return true;
     return false;
   }
 
-  handleChar(_char: string): boolean {
+  handleChar(char: string): boolean {
+    const focused = this.findFocusedDescendant();
+    if (focused && focused.handleChar(char)) return true;
     return false;
+  }
+
+  findFocusedDescendant(): Control | null {
+    for (const child of this.children) {
+      if (child.enabled && child.visible && child.focused) return child;
+      const found = child.findFocusedDescendant();
+      if (found) return found;
+    }
+    return null;
   }
 
   // — Focus —
@@ -161,17 +171,24 @@ export class Control {
   onDetach(): void {}
   onFocus(): void {}
   onBlur(): void {}
-  onLayout(): void {}
+  onLayout(): void {
+    for (const child of this.children) {
+      if (child.visible) {
+        child.layout(this.rect);
+      }
+    }
+  }
 
   // — Utilities —
 
   getAllFocusable(): Control[] {
     const result: Control[] = [];
     for (const child of this.children) {
-      if (child.enabled && child.visible) {
+      if (!child.enabled || !child.visible) continue;
+      if (child.focusable) {
         result.push(child);
-        result.push(...child.getAllFocusable());
       }
+      result.push(...child.getAllFocusable());
     }
     return result;
   }

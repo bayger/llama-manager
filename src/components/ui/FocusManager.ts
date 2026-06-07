@@ -25,10 +25,12 @@ export class FocusManager {
     if (this._focused === control) return;
     if (this._focused) {
       this._focused.blur();
+      this._focused.markDirty();
     }
     this._focused = control;
     if (control) {
       control.focus();
+      control.markDirty();
     }
   }
 
@@ -62,10 +64,25 @@ export class FocusManager {
     }
   }
 
+  focusNext(): void {
+    if (!this._root || !this._focused) return;
+    const focusable = this._root.getAllFocusable();
+    const idx = focusable.indexOf(this._focused);
+    if (idx === -1 || idx >= focusable.length - 1) return;
+    this.setFocus(focusable[idx + 1]);
+  }
+
+  focusPrev(): void {
+    if (!this._root || !this._focused) return;
+    const focusable = this._root.getAllFocusable();
+    const idx = focusable.indexOf(this._focused);
+    if (idx === -1 || idx <= 0) return;
+    this.setFocus(focusable[idx - 1]);
+  }
+
   focusFirst(): void {
     if (!this._root) return;
-    const focusable = this._root.getAllFocusable();
-    this.setFocus(focusable.length > 0 ? focusable[0] : this._root);
+    this.setFocus(this._root);
   }
 
   focusLast(): void {
@@ -83,9 +100,10 @@ export class FocusManager {
   }
 
   handleKey(key: string): boolean {
-    const target = this._focused || this._root;
-    if (this._textInputActive && target) {
-      return target.handleChar(key) || target.handleKey(key);
+    if (!this._root) return false;
+
+    if (this._textInputActive && this._focused) {
+      return this._focused.handleChar(key) || this._root.handleKey(key);
     }
     if (key === "TAB") {
       this.nextFocus();
@@ -95,8 +113,14 @@ export class FocusManager {
       this.previousFocus();
       return true;
     }
-    if (target) {
-      return target.handleKey(key);
+    if (this._root.handleKey(key)) return true;
+    if ((key === "UP" || key === "k") && this._focused) {
+      this.focusPrev();
+      return true;
+    }
+    if ((key === "DOWN" || key === "j") && this._focused) {
+      this.focusNext();
+      return true;
     }
     return false;
   }

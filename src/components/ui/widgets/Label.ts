@@ -1,8 +1,10 @@
 import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
+import { focusManager } from "../FocusManager.js";
 import type { Size } from "../types.js";
 
 export class Label extends Control {
+  focusable = false;
   public text = "";
   public color = themeColors.text;
   public bold = false;
@@ -14,7 +16,17 @@ export class Label extends Control {
     return { width: len, height: 1 };
   }
 
-  render(): void {
+  onFocus(): void {
+    super.onFocus();
+    this.markDirty();
+  }
+
+  onBlur(): void {
+    super.onBlur();
+    this.markDirty();
+  }
+
+render(): void {
     if (!this.visible || !this.needsRender) return;
     const { term, rect } = this;
     term.moveTo(rect.x, rect.y);
@@ -25,7 +37,9 @@ export class Label extends Control {
     } else if (this.padding > 0) {
       term(" ".repeat(this.padding));
     }
-    fg(term, this.color, this.text);
+    const isFocused = focusManager.getFocused() === this;
+    const prefix = isFocused ? "> " : "";
+    fg(term, this.color, prefix + this.text);
     term.styleReset();
     this.needsRender = false;
   }

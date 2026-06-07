@@ -10,6 +10,7 @@ const H = "\u2500";
 const V = "\u2502";
 
 export class Box extends Control {
+  focusable = false;
   public borderColor = themeColors.border;
   public title = "";
 
