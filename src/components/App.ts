@@ -34,6 +34,7 @@ interface AppState {
   message: string | null;
   messageTimer: ReturnType<typeof setTimeout> | null;
   textInputFocused: boolean;
+  helpOverlayVisible: boolean;
   config: any;
 }
 
@@ -54,6 +55,7 @@ export class App {
       message: null,
       messageTimer: null,
       textInputFocused: false,
+      helpOverlayVisible: false,
       config: null,
     };
   }
@@ -212,15 +214,19 @@ export class App {
         term.eraseLine();
       }
 
-      const control = this.getActiveControl();
-      if (control) {
-        control.attach(this.renderContext);
-        control.layout({ x: 1, y: 3, width: width, height: height - 4 });
-        term.moveTo(1, 3);
-        control.render();
+      if (this.state.helpOverlayVisible) {
+        this.renderHelpOverlay(width, height);
       } else {
-        term.moveTo(1, 3);
-        this.tabs[activeTab].legacy.render();
+        const control = this.getActiveControl();
+        if (control) {
+          control.attach(this.renderContext);
+          control.layout({ x: 1, y: 3, width: width, height: height - 4 });
+          term.moveTo(1, 3);
+          control.render();
+        } else {
+          term.moveTo(1, 3);
+          this.tabs[activeTab].legacy.render();
+        }
       }
     }
 
@@ -239,6 +245,84 @@ export class App {
     this.dirty.tabbar = false;
     this.dirty.content = false;
     this.dirty.statusbar = false;
+  }
+
+  private renderHelpOverlay(width: number, height: number): void {
+    const { term } = this;
+    const overlayY = 3;
+    const overlayHeight = height - 4;
+
+    const helpSections = [
+      {
+        title: 'Navigation',
+        keys: [
+          ['F1-F6', 'Switch tabs'],
+          ['Tab / Shift+Tab', 'Move focus'],
+          ['Enter', 'Confirm / select'],
+          ['Esc', 'Cancel / go back'],
+        ],
+      },
+      {
+        title: 'Actions',
+        keys: [
+          ['?', 'Toggle help'],
+          ['q', 'Quit application'],
+        ],
+      },
+      {
+        title: 'Tab Shortcuts',
+        keys: [
+          ['F1', 'Dashboard — metrics and server control'],
+          ['F2', 'Profiles — preset editing and management'],
+          ['F3', 'Tasks — inference task history'],
+          ['F4', 'Versions — install and switch llama.cpp builds'],
+          ['F5', 'Models — browse, download, and manage GGUF models'],
+          ['F6', 'Options — global application settings'],
+        ],
+      },
+    ];
+
+    const contentLines: { text: string; key: string; desc: string; isTitle: boolean; isHeader: boolean }[] = [];
+    contentLines.push({ text: '  KEYBOARD SHORTCUTS', key: '', desc: '', isTitle: true, isHeader: false });
+    contentLines.push({ text: '', key: '', desc: '', isTitle: false, isHeader: false });
+
+    for (const section of helpSections) {
+      contentLines.push({ text: `  ${section.title}`, key: '', desc: '', isTitle: false, isHeader: true });
+      for (const [key, desc] of section.keys) {
+        contentLines.push({ text: `    ${key.padEnd(22)}     ${desc}`, key, desc, isTitle: false, isHeader: false });
+      }
+      contentLines.push({ text: '', key: '', desc: '', isTitle: false, isHeader: false });
+    }
+
+    const contentHeight = contentLines.length;
+    const startY = overlayY + Math.max(1, Math.floor((overlayHeight - contentHeight) / 2));
+
+    for (let y = overlayY; y < height; y++) {
+      term.moveTo(1, y);
+      term.bgColorRgbHex(themeColors.canvasSubtle);
+      term.colorRgbHex(themeColors.canvasSubtle);
+      term(' '.repeat(width));
+      term.styleReset();
+    }
+
+    for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
+      const line = contentLines[i]!;
+      const y = startY + i;
+      term.moveTo(1, y);
+      term.bgColorRgbHex(themeColors.canvasSubtle);
+
+      if (line.isTitle) {
+        term.colorRgbHex(themeColors.accent)(line.text);
+      } else if (line.isHeader) {
+        term.colorRgbHex(themeColors.accent)(line.text);
+      } else if (line.key) {
+        term.colorRgbHex(themeColors.textLink)(`    ${line.key}`);
+        term.colorRgbHex(themeColors.text)(`     ${line.desc}`);
+      } else {
+        term.colorRgbHex(themeColors.text)(line.text);
+      }
+      term.styleReset();
+    }
   }
 
   private renderTabs(selectedIndex: number, width: number): void {
@@ -337,7 +421,19 @@ export class App {
       }
 
       if (name === '?') {
-        this.showMessage(`${this.state.activeTab} | F1-F6 navigate | q quit`);
+        this.state.helpOverlayVisible = !this.state.helpOverlayVisible;
+        this.dirty.content = true;
+        this.render();
+        return;
+      }
+
+      if (this.state.helpOverlayVisible) {
+        if (name === '?' || name === 'Escape') {
+          this.state.helpOverlayVisible = false;
+          this.dirty.content = true;
+          this.render();
+          return;
+        }
         return;
       }
 
