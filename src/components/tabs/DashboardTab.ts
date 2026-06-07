@@ -8,6 +8,7 @@ import { themeColors, fg } from "../../lib/theme.js";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog } from "../../lib/server.js";
 import { getServerMetrics, MetricsData } from "../../lib/api.js";
 import { fireAsync, formatUptime } from "../../lib/utils.js";
+import { BACKEND_LABELS } from "../../lib/versions.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
 
@@ -84,6 +85,7 @@ export class DashboardControl extends Control {
   protected _buttonRow: Row;
   protected _buttons: Button[];
   protected _profileLabel: Label;
+  protected _versionLabel: Label;
   protected _metricsControl: MetricsControl;
   protected _statusControl: StatusControl;
   protected _logsControl: LogsViewer;
@@ -105,24 +107,60 @@ export class DashboardControl extends Control {
     for (const btn of this._buttons) {
       this._buttonRow.add(btn);
     }
-    this._profileLabel = new Label();
+
+    const sep1 = new Label();
+    sep1.text = "│";
+    sep1.color = themeColors.border;
+    sep1.focusable = false;
+    this._buttonRow.add(sep1);
+
+      this._profileLabel = new Label();
     this._profileLabel.text = "";
     this._profileLabel.color = themeColors.textMuted;
-    this._profileLabel.flex = 1;
+    this._profileLabel.focusable = false;
+    const profileLbl = this._profileLabel;
+    this._profileLabel.measure = () => ({ width: "Profile: ".length + profileLbl.text.length, height: 1 });
     this._profileLabel.render = () => {
-      if (!this._profileLabel.visible || !this._profileLabel.needsRender) return;
-      const { term, rect } = this._profileLabel;
+      if (!profileLbl.visible || !profileLbl.needsRender) return;
+      const { term, rect } = profileLbl;
       term.moveTo(rect.x, rect.y);
       fg(term, themeColors.textMuted, "Profile: ");
-      fg(term, themeColors.text, this._profileLabel.text);
+      fg(term, themeColors.text, profileLbl.text);
       const endX = (term as any).cursorX ?? rect.x;
       const padLen = rect.width - (endX - rect.x);
       if (padLen > 0) {
         fg(term, themeColors.canvas, " ".repeat(padLen));
       }
-      this._profileLabel.needsRender = false;
+      profileLbl.needsRender = false;
     };
     this._buttonRow.add(this._profileLabel);
+
+    const sep2 = new Label();
+    sep2.text = "│";
+    sep2.color = themeColors.border;
+    sep2.focusable = false;
+    this._buttonRow.add(sep2);
+
+     this._versionLabel = new Label();
+    this._versionLabel.text = "";
+    this._versionLabel.color = themeColors.textMuted;
+    this._versionLabel.focusable = false;
+    const versionLbl = this._versionLabel;
+    this._versionLabel.measure = () => ({ width: Math.max("Version: ".length + versionLbl.text.length, 1), height: 1 });
+    this._versionLabel.render = () => {
+      if (!versionLbl.visible || !versionLbl.needsRender) return;
+      const { term, rect } = versionLbl;
+      term.moveTo(rect.x, rect.y);
+      fg(term, themeColors.textMuted, "Version: ");
+      fg(term, themeColors.text, versionLbl.text);
+      const endX = (term as any).cursorX ?? rect.x;
+      const padLen = rect.width - (endX - rect.x);
+      if (padLen > 0) {
+        fg(term, themeColors.canvas, " ".repeat(padLen));
+      }
+      versionLbl.needsRender = false;
+    };
+    this._buttonRow.add(this._versionLabel);
 
     this._metricsControl = new MetricsControl();
     this._statusControl = new StatusControl();
@@ -237,6 +275,15 @@ export class DashboardControl extends Control {
   updateProfileLabel(): void {
     const config = this._ctx?.getConfig();
     this._profileLabel.text = config ? config.server.activeProfile : "";
+
+    if (config && config.activeVersion) {
+      const version = config.activeVersion;
+      const backend = version.split("-").slice(1).join("-");
+      const label = BACKEND_LABELS[backend] || backend || "CPU";
+      this._versionLabel.text = `${version} ${label}`;
+    } else {
+      this._versionLabel.text = "";
+    }
   }
 
   markDirty(): void {
