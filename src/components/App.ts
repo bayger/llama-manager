@@ -297,6 +297,8 @@ export class App {
 
   private setupKeyHandler(): void {
     this.keyHandler = (name: string, _matches: string[], data: any) => {
+      const textActive = focusManager.isTextInputActive();
+
       if (name === 'CTRL_C') {
         this.dispose();
         this.term.grabInput(false);
@@ -306,12 +308,20 @@ export class App {
         return;
       }
 
-      if (name === 'q' && !this.state.textInputFocused) {
+      if (name === 'q' && !textActive) {
         this.dispose();
         this.term.grabInput(false);
         this.term.fullscreen(false);
         this.term.styleReset();
         process.exit(0);
+        return;
+      }
+
+      if (textActive) {
+        const control = this.getActiveControl();
+        if (control) {
+          focusManager.handleKey(name);
+        }
         return;
       }
 
@@ -327,7 +337,7 @@ export class App {
         return;
       }
 
-      if (name === '?' && !this.state.textInputFocused) {
+      if (name === '?') {
         this.showMessage(`${this.state.activeTab} | F1-F6 navigate | q quit`);
         return;
       }
@@ -356,6 +366,7 @@ export class App {
       clearTimeout(this.renderTimer);
       this.renderTimer = null;
     }
+    focusManager.clear();
     if (this._tabs) {
       for (const entry of Object.values(this._tabs)) {
         if (entry.control) {
@@ -365,7 +376,6 @@ export class App {
         }
       }
     }
-    focusManager.clear();
     taskStore.dispose();
   }
 }

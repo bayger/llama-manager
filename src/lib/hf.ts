@@ -91,7 +91,6 @@ export interface BrowseOptions {
   search?: string;
   filters?: string[];
   limit?: number;
-  offset?: number;
 }
 
 const modelInfoCache = new Map<string, HFModelInfo>();
@@ -105,18 +104,15 @@ export async function browseModels(
   token?: string,
 ): Promise<HFRepoInfo[]> {
   const params = new URLSearchParams({
-    filter: "gguf",
     sort: options.sort || "likes",
     direction: String(options.direction || -1),
     limit: String(options.limit || 20),
   });
 
-  if (options.offset) {
-    params.set("offset", String(options.offset));
-  }
-
   if (options.search) {
-    params.set("search", options.search);
+    params.set("search", `${options.search} gguf`);
+  } else {
+    params.set("search", "gguf");
   }
 
   const filterParts: string[] = [];

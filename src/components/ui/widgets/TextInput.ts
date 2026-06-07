@@ -33,19 +33,24 @@ export class TextInput extends Control {
 
   onFocus(): void {
     super.onFocus();
-    this.term(CURSOR_SHOW);
+    if (this._renderContext) {
+      this.term(CURSOR_SHOW);
+    }
     this.cursorPos = this.value.length;
   }
 
-onBlur(): void {
+  onBlur(): void {
     super.onBlur();
-    this.term(CURSOR_HIDE);
+    if (this._renderContext) {
+      this.term(CURSOR_HIDE);
+    }
   }
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
     const { term, rect } = this;
     term.moveTo(rect.x, rect.y);
+    term.styleReset();
 
     if (this.prefix) {
       fg(term, themeColors.textMuted, this.prefix);
@@ -53,59 +58,77 @@ onBlur(): void {
 
     const display = this.value || this.placeholder;
     const displayColor = this.value ? themeColors.text : themeColors.textMuted;
-
-    if (this.focused) {
-      term.moveTo(rect.x + this.prefix.length + this.cursorPos, rect.y);
-    }
-
     fg(term, displayColor, display);
 
+    const contentLen = this.value.length + this.prefix.length;
+    const remaining = Math.max(0, rect.width - contentLen);
+    fg(term, themeColors.canvas, " ".repeat(remaining));
+
     if (this.focused) {
-      term.moveTo(rect.x + this.prefix.length + this.cursorPos, rect.y);
+      const cursorX = rect.x + this.prefix.length + this.cursorPos;
+      term.moveTo(cursorX, rect.y);
     }
 
     this.needsRender = false;
   }
 
   handleKey(key: string): boolean {
-    if (key === "RETURN") {
+    if (key === "RETURN" || key === "ENTER") {
       if (this._onSubmit) this._onSubmit(this.value);
       return true;
     }
-    if (key === "ESC" || key === "CTRL_C") {
-      this.term(CURSOR_HIDE);
+    if (key === "ESC" || key === "ESCAPE" || key === "CTRL_C") {
+      if (this._renderContext) {
+        this.term(CURSOR_HIDE);
+      }
       if (this._onCancel) this._onCancel();
       return true;
     }
     if (key === "LEFT") {
       this.cursorPos = Math.max(0, this.cursorPos - 1);
-      this.term.moveTo(this.rect.x + this.prefix.length + this.cursorPos, this.rect.y);
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
     if (key === "RIGHT") {
       this.cursorPos = Math.min(this.value.length, this.cursorPos + 1);
-      this.term.moveTo(this.rect.x + this.prefix.length + this.cursorPos, this.rect.y);
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
-    if (key === "CTRL_D" || key === "BACKSPACE" || key === "\u007f") {
+    if (key === "BACKSPACE" || key === "CTRL_H" || key === "\u007f") {
       if (this.cursorPos > 0) {
         this.value = this.value.slice(0, this.cursorPos - 1) + this.value.slice(this.cursorPos);
         this.cursorPos--;
         if (this._onChange) this._onChange(this.value);
-        this.needsRender = true;
-        return true;
       }
-    }
-    if (key === "CTRL_E") {
-      this.cursorPos = this.value.length;
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
-    if (key === "CTRL_A") {
+    if (key === "DELETE" || key === "CTRL_D") {
+      if (this.cursorPos < this.value.length) {
+        this.value = this.value.slice(0, this.cursorPos) + this.value.slice(this.cursorPos + 1);
+        if (this._onChange) this._onChange(this.value);
+      }
+      this.markDirty();
+      return true;
+    }
+    if (key === "CTRL_E" || key === "END") {
+      this.cursorPos = this.value.length;
+      this.markDirty();
+      return true;
+    }
+    if (key === "CTRL_A" || key === "HOME") {
       this.cursorPos = 0;
-      this.needsRender = true;
+      this.markDirty();
+      return true;
+    }
+    if (key === "CTRL_W") {
+      const before = this.value.slice(0, this.cursorPos);
+      const match = before.match(/\S+\s*$/);
+      const newCursor = match ? this.cursorPos - match[0].length : 0;
+      this.value = this.value.slice(0, newCursor) + this.value.slice(this.cursorPos);
+      this.cursorPos = newCursor;
+      if (this._onChange) this._onChange(this.value);
+      this.markDirty();
       return true;
     }
     return false;
@@ -115,7 +138,7 @@ onBlur(): void {
     this.value = this.value.slice(0, this.cursorPos) + char + this.value.slice(this.cursorPos);
     this.cursorPos++;
     if (this._onChange) this._onChange(this.value);
-    this.needsRender = true;
+    this.markDirty();
     return true;
   }
 }

@@ -52,14 +52,17 @@ export class ModelsControl extends Control {
   protected _hfProgressBar: ProgressBar;
   protected _hfButtonRow: Row;
   protected _hfBackBtn: Button;
+  protected _hfPrevBtn: Button;
   protected _hfNextBtn: Button;
   protected _hfCancelBtn: Button;
 
   // HF Browser state
   protected _searchQuery = "";
-  protected _searchOffset = 0;
+  protected _searchPage = 0;
+  protected _allRepos: HFRepoInfo[] = [];
   protected _repos: HFRepoInfo[] = [];
   protected _selectedRepo: HFRepoInfo | null = null;
+  protected _PAGE_SIZE = 20;
   protected _files: HFFileInfo[] = [];
   protected _downloadAbortController: AbortController | null = null;
   protected _downloadCancelled = false;
@@ -117,12 +120,8 @@ export class ModelsControl extends Control {
     this._hfSearchInput.placeholder = "Search models...";
     this._hfSearchInput.prefix = "> ";
 
-    this._hfSearchBtn = new Button({ label: "Search" });
-    this._hfBrowseBtn = new Button({ label: "Trending" });
     this._hfSearchRow = new Row();
     this._hfSearchRow.add(this._hfSearchInput);
-    this._hfSearchRow.add(this._hfSearchBtn);
-    this._hfSearchRow.add(this._hfBrowseBtn);
 
     this._hfResultsList = new List<string>();
     this._hfResultsList.flex = 1;
@@ -172,18 +171,26 @@ export class ModelsControl extends Control {
     this._hfProgressBar.filledColor = themeColors.success;
 
     this._hfContentColumn = new Column();
+    this._hfContentColumn.flex = 1;
     this._hfContentColumn.add(this._hfResultsList);
     this._hfContentColumn.add(this._hfFilesList);
     this._hfContentColumn.add(this._hfProgressBar);
 
     this._hfBackBtn = new Button({ label: "Back" });
+    this._hfSearchBtn = new Button({ label: "Search" });
+    this._hfBrowseBtn = new Button({ label: "Trending" });
+    this._hfPrevBtn = new Button({ label: "Prev Page" });
     this._hfNextBtn = new Button({ label: "Next Page" });
     this._hfCancelBtn = new Button({ label: "Cancel" });
     this._hfBackBtn.visible = false;
+    this._hfPrevBtn.visible = false;
     this._hfNextBtn.visible = false;
     this._hfCancelBtn.visible = false;
     this._hfButtonRow = new Row();
     this._hfButtonRow.add(this._hfBackBtn);
+    this._hfButtonRow.add(this._hfSearchBtn);
+    this._hfButtonRow.add(this._hfBrowseBtn);
+    this._hfButtonRow.add(this._hfPrevBtn);
     this._hfButtonRow.add(this._hfNextBtn);
     this._hfButtonRow.add(this._hfCancelBtn);
 
@@ -192,9 +199,9 @@ export class ModelsControl extends Control {
     this._hfColumn.add(new Divider());
     this._hfColumn.add(this._hfSearchRow);
     this._hfColumn.add(new Divider());
-    this._hfColumn.add(this._hfContentColumn);
-    this._hfColumn.add(new Divider());
     this._hfColumn.add(this._hfButtonRow);
+    this._hfColumn.add(new Divider());
+    this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 
     this.add(this._column);
@@ -231,38 +238,71 @@ export class ModelsControl extends Control {
     });
 
     this._hfSearchBtn.setAction(() => {
-      this._searchQuery = this._hfSearchInput.value;
-      this._searchOffset = 0;
-      this.searchRepos();
-    });
+       this._searchQuery = this._hfSearchInput.value;
+       this._searchPage = 0;
+       this.searchRepos();
+     });
 
-    this._hfBrowseBtn.setAction(() => {
-      this._searchQuery = "";
-      this._hfSearchInput.value = "";
-      this._searchOffset = 0;
-      this.browseTrending();
-    });
+   this._hfBrowseBtn.setAction(() => {
+       this._searchQuery = "";
+       this._hfSearchInput.value = "";
+       this._searchPage = 0;
+       this.browseTrending();
+     });
 
-    this._hfBackBtn.setAction(() => {
+this._hfBackBtn.setAction(() => {
       this.goBack();
     });
 
-    this._hfNextBtn.setAction(() => {
-      this._searchOffset += 20;
-      if (this._view === "results") {
-        this.loadResults();
+    this._hfPrevBtn.setAction(() => {
+      if (this._view === "results" && this._searchPage > 0) {
+        this._searchPage--;
+        this.showPage();
       }
     });
+
+    this._hfNextBtn.setAction(() => {
+       if (this._view === "results") {
+         this._searchPage++;
+         this.showPage();
+       }
+     });
 
     this._hfCancelBtn.setAction(() => {
       this.cancelDownload();
     });
 
-    this._hfSearchInput.setOnSubmit((value) => {
-      this._searchQuery = value;
-      this._searchOffset = 0;
-      this.searchRepos();
-    });
+   this._hfSearchInput.setOnSubmit((value) => {
+       this._searchQuery = value;
+       this._searchPage = 0;
+       this.searchRepos();
+     });
+
+this._hfResultsList.handleKey = (key: string) => {
+      if (key === "n") {
+        this._searchPage++;
+        this.showPage();
+        return true;
+      }
+      if (key === "p" && this._searchPage > 0) {
+        this._searchPage--;
+        this.showPage();
+        return true;
+      }
+      if (key === "g" && !focusManager.isTextInputActive()) {
+        this.goBack();
+        return true;
+      }
+      return List.prototype.handleKey.call(this._hfResultsList, key);
+    };
+
+    this._hfFilesList.handleKey = (key: string) => {
+      if (key === "g" && !focusManager.isTextInputActive()) {
+        this.goBack();
+        return true;
+      }
+      return List.prototype.handleKey.call(this._hfFilesList, key);
+    };
 
     this.refreshModels();
   }
@@ -297,14 +337,14 @@ export class ModelsControl extends Control {
   }
 
   // --- View transitions ---
-  enterBrowseMode(): void {
-    this._view = "search";
-    this._searchOffset = 0;
-    this._hfSearchInput.value = "";
-    this.updateView();
-    focusManager.setFocus(this._hfSearchInput);
-    focusManager.activateTextInput(true);
-  }
+ enterBrowseMode(): void {
+     this._view = "search";
+     this._searchPage = 0;
+     this._hfSearchInput.value = "";
+     this.updateView();
+     focusManager.setFocus(this._hfSearchInput);
+     focusManager.activateTextInput(true);
+   }
 
   goBack(): void {
     if (this._view === "results") {
@@ -337,7 +377,7 @@ export class ModelsControl extends Control {
     const isDownloading = this._view === "downloading";
 
     // Search row visibility
-    this._hfSearchRow.visible = isSearch;
+    this._hfSearchRow.visible = true;
 
     // Content visibility
     this._hfResultsList.visible = isResults;
@@ -346,14 +386,18 @@ export class ModelsControl extends Control {
 
     // Button visibility
     this._hfBackBtn.visible = !isSearch;
-    this._hfNextBtn.visible = isResults;
+    this._hfSearchBtn.visible = isSearch;
+    this._hfBrowseBtn.visible = isSearch;
+    this._hfPrevBtn.visible = isResults && this._searchPage > 0;
+    this._hfNextBtn.visible = isResults && (this._searchPage + 1) * this._PAGE_SIZE < this._allRepos.length;
     this._hfCancelBtn.visible = isDownloading;
+    this._hfButtonRow.visible = true;
 
     // Header
     if (isSearch) {
       this._hfHeaderLabel.text = "HuggingFace Browser";
     } else if (isResults) {
-      this._hfHeaderLabel.text = `Search Results (${this._repos.length})`;
+      this._hfHeaderLabel.text = `Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`;
     } else if (isFiles) {
       this._hfHeaderLabel.text = this._selectedRepo ? this._selectedRepo.id : "Files";
     } else if (isDownloading) {
@@ -366,10 +410,10 @@ export class ModelsControl extends Control {
       focusManager.activateTextInput(true);
     } else if (isResults) {
       focusManager.activateTextInput(false);
-      focusManager.setFocus(this._hfBackBtn);
+      focusManager.setFocus(this._hfResultsList);
     } else if (isFiles) {
       focusManager.activateTextInput(false);
-      focusManager.setFocus(this._hfBackBtn);
+      focusManager.setFocus(this._hfFilesList);
     }
 
     this.markDirty();
@@ -384,12 +428,13 @@ export class ModelsControl extends Control {
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
       const token = config?.app?.hfToken || undefined;
-      this._repos = await browseModels({
+      this._allRepos = await browseModels({
         search: this._searchQuery,
         sort: "likes",
-        limit: 20,
+        limit: 100,
       }, token);
-      this.showResults();
+      this._searchPage = 0;
+      this.showPage();
     }, this._ctx!);
   }
 
@@ -397,27 +442,20 @@ export class ModelsControl extends Control {
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
       const token = config?.app?.hfToken || undefined;
-      this._repos = await browseModels({
+      this._allRepos = await browseModels({
         sort: "likes",
-        limit: 20,
+        limit: 100,
       }, token);
-      this.showResults();
+      this._searchPage = 0;
+      this.showPage();
     }, this._ctx!);
   }
 
-  loadResults(): void {
-    fireAsync(async () => {
-      const config = this._ctx?.getConfig();
-      const token = config?.app?.hfToken || undefined;
-      const repos = await browseModels({
-        search: this._searchQuery || undefined,
-        sort: "likes",
-        limit: 20,
-        offset: this._searchOffset,
-      }, token);
-      this._repos = repos;
-      this.showResults();
-    }, this._ctx!);
+  showPage(): void {
+    const start = this._searchPage * this._PAGE_SIZE;
+    const end = start + this._PAGE_SIZE;
+    this._repos = this._allRepos.slice(start, end);
+    this.showResults();
   }
 
   showResults(): void {
