@@ -243,8 +243,9 @@ export class App {
 
   private renderTabs(selectedIndex: number, width: number): void {
     const { term } = this;
+
+    // Row 1: tab labels
     term.moveTo(1, 1);
-    term.eraseLine();
 
     const labels: string[] = [];
     const positions: { start: number; end: number }[] = [];
@@ -272,6 +273,7 @@ export class App {
       }
     }
 
+    // Row 2: active tab underline
     term.moveTo(1, 2);
     term.eraseLine();
     let activeStart = 0;
@@ -287,11 +289,8 @@ export class App {
     }
 
     for (let i = 0; i < width; i++) {
-      if (i >= activeStart && i < activeEnd) {
-        fg(term, themeColors.accent, '\u2550');
-      } else {
-        fg(term, themeColors.border, '\u2500');
-      }
+      const color = i >= activeStart && i < activeEnd ? themeColors.accent : themeColors.border;
+      fg(term, color, '\u2501');
     }
   }
 
