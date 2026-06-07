@@ -103,6 +103,7 @@ export class FocusManager {
     if (!this._root) return false;
 
     if (this._textInputActive && this._focused) {
+      if (this._focused.handleKey(key)) return true;
       return this._focused.handleChar(key) || this._root.handleKey(key);
     }
     if (key === "TAB") {

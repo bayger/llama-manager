@@ -239,7 +239,7 @@ export class VersionsControl extends Control {
   onFocus(): void {
     super.onFocus();
     if (this._list.items.length > 0) {
-      this._list.focus();
+      focusManager.setFocus(this._list);
     } else if (this._mode === "local") {
       focusManager.setFocus(this._btnInstall);
     }
@@ -303,7 +303,7 @@ export class VersionsControl extends Control {
       });
       this._list.updateItems(items);
       this._header.update(`Releases: ${items.length}  (press g for local)`);
-      this._list.focus();
+      focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
       ctx.showMessage(`Failed to fetch releases: ${err.message}`);
@@ -349,7 +349,7 @@ export class VersionsControl extends Control {
       this._list.setRenderer(this._backendRenderer.bind(this));
       this._list.updateItems(items);
       this._header.update(`Backends for ${release.tag}  (press g for releases)`);
-      this._list.focus();
+      focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
       ctx.showMessage(`Error: ${err.message}`);
@@ -431,7 +431,7 @@ export class VersionsControl extends Control {
 
       const sel = this._list.getSelectedItem();
       this._btnDelete.disabled = !sel || sel.data.active;
-      this._list.focus();
+      focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
       // ignore

@@ -125,6 +125,7 @@ export async function downloadModel(
   fileSize: number,
   onProgress: DownloadProgress,
   token?: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const modelsDir = getModelsDir(config);
   const repoDir = path.join(modelsDir, repoId);
@@ -139,6 +140,7 @@ export async function downloadModel(
 
   onProgress(0, "Starting download...");
   const res = await fetch(downloadUrl, {
+    signal,
     headers: {
       "User-Agent": "llama-manager",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -166,6 +168,11 @@ export async function downloadModel(
 
   try {
     while (true) {
+      if (signal?.aborted) {
+        writeStream.end();
+        await fs.remove(tmpPath).catch(() => {});
+        throw new Error("Download cancelled");
+      }
       const { done, value } = await readerObj.read();
       if (done) break;
       received += value.byteLength;

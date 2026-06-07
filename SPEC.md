@@ -94,7 +94,6 @@ Shared context object passed to controls, providing access to the `Terminal` and
 |---|---|
 | `Label` | Static text display |
 | `Button` | Clickable/focusable action button |
-| `ButtonBar` | Horizontal row of buttons |
 | `TextInput` | Single-line text input with cursor |
 | `List` | Scrollable selectable list |
 | `Scrollable` | Scrollable content container |
@@ -604,7 +603,6 @@ llama-manager/
 │   │   │   ├── widgets/
 │   │   │   │   ├── Label.ts
 │   │   │   │   ├── Button.ts
-│   │   │   │   ├── ButtonBar.ts
 │   │   │   │   ├── TextInput.ts
 │   │   │   │   ├── List.ts
 │   │   │   │   ├── Scrollable.ts
