@@ -4,6 +4,7 @@ import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
+import { Scrollable } from "../ui/widgets/Scrollable.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import {
@@ -57,6 +58,53 @@ class VersionsHeader extends Control {
   }
 }
 
+class ChangelogView extends Scrollable {
+  protected _lines: string[] = [];
+
+  measure(parentSize?: Size): Size {
+    return { width: parentSize?.width ?? this.rect.width, height: parentSize?.height ?? this._lines.length };
+  }
+
+  onLayout(): void {
+    super.onLayout();
+    this.setContentHeight(this._lines.length);
+  }
+
+  update(body: string): void {
+    this._lines = stripMarkdown(body);
+    this.setContentHeight(this._lines.length);
+    this.scrollOffset = 0;
+    this.needsRender = true;
+  }
+
+  clear(): void {
+    this._lines = [];
+    this.setContentHeight(0);
+    this.scrollOffset = 0;
+    this.needsRender = true;
+  }
+
+  render(): void {
+    if (!this.visible || !this.needsRender) return;
+    const { term, rect } = this;
+    const { x, y, width } = rect;
+
+    for (let i = 0; i < this._viewportHeight; i++) {
+      const lineIdx = this.scrollOffset + i;
+      term.moveTo(x, y + i);
+      if (lineIdx < this._lines.length) {
+        const line = this._lines[lineIdx] || "";
+        const display = line.padEnd(width).substring(0, width);
+        fg(term, themeColors.textMuted, display);
+      } else {
+        fg(term, themeColors.canvas, " ".repeat(width));
+      }
+    }
+
+    this.needsRender = false;
+  }
+}
+
 export class VersionsControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
@@ -66,7 +114,9 @@ export class VersionsControl extends Control {
   protected _buttonRow: Row;
   protected _btnInstall: Button;
   protected _btnDelete: Button;
+  protected _contentRow: Row;
   protected _list: List<any>;
+  protected _changelog: ChangelogView;
   protected _progressBar: ProgressBar;
   protected _attached = false;
 
@@ -85,6 +135,9 @@ export class VersionsControl extends Control {
     this._list.focusable = true;
     this._list.tabIndex = 0;
 
+    this._changelog = new ChangelogView();
+    this._changelog.visible = false;
+
     this._btnInstall = new Button({ label: "Install" });
     this._btnDelete = new Button({ label: "Delete" });
     this._buttonRow = new Row();
@@ -100,14 +153,21 @@ export class VersionsControl extends Control {
     this._dividerButtons = new Divider();
     this._prompt = new VersionsHeader();
     this._prompt.visible = false;
+
+    this._contentRow = new Row();
+    this._contentRow.add(this._list);
+    this._list.flex = 1;
+    this._contentRow.add(this._changelog);
+    this._changelog.flex = 1;
+
     this._column = new Column();
     this._column.add(this._header);
     this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
     this._column.add(this._prompt);
     this._column.add(new Divider());
-    this._column.add(this._list);
-    this._list.flex = 1;
+    this._column.add(this._contentRow);
+    this._contentRow.flex = 1;
     this._column.add(this._progressBar);
 
     this.add(this._column);
@@ -190,6 +250,7 @@ export class VersionsControl extends Control {
     this._dividerButtons.visible = true;
     this._buttonRow.visible = true;
     this._prompt.visible = false;
+    this._changelog.visible = false;
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
     this._btnDelete.visible = true;
@@ -217,6 +278,7 @@ export class VersionsControl extends Control {
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
+    this._changelog.visible = true;
     this._list.selectedIndex = -1;
     this._list.items = [];
     this._header.update("GitHub Releases (press g for local)");
@@ -232,6 +294,13 @@ export class VersionsControl extends Control {
       }));
 
       this._list.setRenderer(this._releaseRenderer.bind(this));
+      this._list.setOnHighlight((item) => {
+        if (item) {
+          this._changelog.update(item.data.body || "");
+        } else {
+          this._changelog.clear();
+        }
+      });
       this._list.updateItems(items);
       this._header.update(`Releases: ${items.length}  (press g for local)`);
       this._list.focus();
@@ -251,6 +320,7 @@ export class VersionsControl extends Control {
     this._buttonRow.visible = false;
     this._prompt.visible = true;
     this._prompt.update("Select backend");
+    this._changelog.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
@@ -298,6 +368,7 @@ export class VersionsControl extends Control {
     this._dividerButtons.visible = false;
     this._buttonRow.visible = false;
     this._prompt.visible = false;
+    this._changelog.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._list.items = [];
@@ -412,6 +483,20 @@ export class VersionsControl extends Control {
     super.markDirty();
     this._ctx?.scheduleRender();
   }
+}
+
+function stripMarkdown(md: string): string[] {
+  return md
+    .replace(/```[\s\S]*?```/g, "") // remove code blocks
+    .replace(/`([^`]+)`/g, "$1") // inline code
+    .replace(/\*\*([^*]+)\*\*/g, "$1") // bold
+    .replace(/\*([^*]+)\*/g, "$1") // italic
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1") // links
+    .replace(/^#{1,6}\s+/gm, "") // headings
+    .replace(/^- /gm, "  ") // unordered lists
+    .replace(/^>\s+/gm, "  ") // blockquotes
+    .split("\n")
+    .map(l => l.trimEnd());
 }
 
 function formatSize(bytes: number): string {

@@ -28,6 +28,7 @@ export interface RemoteVersion {
   tag: string;
   name: string;
   publishedAt: string;
+  body: string;
   assets: Array<{ name: string; size: number; url: string }>;
 }
 
@@ -53,6 +54,7 @@ export async function listRecentVersions(limit = 20): Promise<RemoteVersion[]> {
     tag: r.tag_name,
     name: r.name || r.tag_name,
     publishedAt: r.published_at,
+    body: r.body || "",
     assets: (r.assets || []).map((a: any) => ({ name: a.name, size: a.size, url: a.browser_download_url })),
   }));
 }
