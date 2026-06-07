@@ -3,36 +3,49 @@ import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { List, ListItem } from "../ui/widgets/List.js";
+import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
-import { listVersions, uninstallVersion, switchVersion, getTotalVersionsSize, VersionInfo, BACKEND_LABELS } from "../../lib/versions.js";
+import {
+  listVersions,
+  uninstallVersion,
+  switchVersion,
+  getTotalVersionsSize,
+  listRecentVersions,
+  installVersion,
+  VersionInfo,
+  RemoteVersion,
+  AvailableBackend,
+  BACKEND_LABELS,
+  getAvailableBackends,
+  getPlatformKey,
+} from "../../lib/versions.js";
 import { saveConfig } from "../../lib/config.js";
 import { fireAsync } from "../../lib/utils.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
 
+type ViewMode = "local" | "releases" | "backends" | "installing";
+
 class VersionsHeader extends Control {
-  protected _count = 0;
-  protected _sizeStr = "0 B";
+  protected _text = "";
 
   measure(parentSize?: Size): Size {
     return { width: parentSize?.width ?? this.rect.width, height: 1 };
   }
 
-  update(count: number, sizeStr: string): void {
-    this._count = count;
-    this._sizeStr = sizeStr;
+  update(text: string): void {
+    this._text = text;
     this.needsRender = true;
   }
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const term = this.term;
-    const { x, y, width } = this.rect;
+    const { term, rect } = this;
+    const { x, y, width } = rect;
 
     term.moveTo(x, y);
-    fg(term, themeColors.text, ` Versions: ${this._count}`);
-    fg(term, themeColors.textMuted, `  Size: ${this._sizeStr}`);
+    fg(term, themeColors.text, this._text);
 
     const endX = (term as any).cursorX ?? x;
     const padLen = width - (endX - x);
@@ -51,36 +64,36 @@ export class VersionsControl extends Control {
   protected _buttonRow: Row;
   protected _btnInstall: Button;
   protected _btnDelete: Button;
-  protected _list: List<string>;
+  protected _list: List<any>;
+  protected _progressBar: ProgressBar;
   protected _attached = false;
+
+  protected _mode: ViewMode = "local";
+  protected _selectedRelease: RemoteVersion | null = null;
+  protected _availableBackends: AvailableBackend[] = [];
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
 
     this._header = new VersionsHeader();
+    this._header.update("Versions: 0  Size: 0 B");
+
     this._list = new List();
     this._list.focusable = true;
     this._list.tabIndex = 0;
-    this._list.setRenderer((term, item, _index, isSelected, _x, rowY, width) => {
-      const v = (item as any).data as VersionInfo;
-      const prefix = v.active ? "● " : "  ";
-      const line = ` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`;
-
-      if (isSelected) {
-        fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
-        term.styleReset();
-      } else {
-        term.moveTo(_x, rowY);
-        fg(term, v.active ? themeColors.success : themeColors.text, line);
-      }
-    });
 
     this._btnInstall = new Button({ label: "Install" });
     this._btnDelete = new Button({ label: "Delete" });
     this._buttonRow = new Row();
     this._buttonRow.add(this._btnInstall);
     this._buttonRow.add(this._btnDelete);
+
+    this._progressBar = new ProgressBar();
+    this._progressBar.visible = false;
+    this._progressBar.filledColor = themeColors.accent;
+    this._progressBar.emptyColor = themeColors.border;
+    this._progressBar.labelColor = themeColors.textMuted;
 
     this._column = new Column();
     this._column.add(this._header);
@@ -89,6 +102,7 @@ export class VersionsControl extends Control {
     this._column.add(new Divider());
     this._column.add(this._list);
     this._list.flex = 1;
+    this._column.add(this._progressBar);
 
     this.add(this._column);
   }
@@ -104,36 +118,51 @@ export class VersionsControl extends Control {
 
     this._btnInstall.setAction(() => {
       fireAsync(async () => {
-        // Install flow — placeholder for now
+        await this.showReleases();
       }, ctx);
-      this.markDirty();
-      ctx.scheduleRender();
     });
 
     this._btnDelete.setAction(() => {
-      const selected = this._list.getSelectedItem();
-      if (!selected) return;
-
       fireAsync(async () => {
+        const selected = this._list.getSelectedItem();
+        if (!selected) return;
         const config = ctx.getConfig();
         if (!config) throw new Error("No config loaded");
         await uninstallVersion(config, selected.data.version);
-        await this.refresh();
+        if (this._mode === "local") await this.refreshLocal();
       }, ctx);
     });
 
     this._list.setOnSelect((item) => {
       fireAsync(async () => {
-        const config = ctx.getConfig();
-        if (!config) throw new Error("No config loaded");
-        await switchVersion(config, item.data.version);
-        await saveConfig(config);
-        ctx.setConfig(config);
-        await this.refresh();
+        if (this._mode === "local") {
+          const config = ctx.getConfig();
+          if (!config) throw new Error("No config loaded");
+          await switchVersion(config, item.data.version);
+          await saveConfig(config);
+          ctx.setConfig(config);
+          await this.refreshLocal();
+        } else if (this._mode === "releases") {
+          this._selectedRelease = item.data;
+          await this.showBackends(item.data);
+        } else if (this._mode === "backends") {
+          const backend = item.data;
+          await this.install(item.data.id);
+        }
       }, ctx);
     });
 
-    this.refresh();
+    this._list.handleKey = (key: string) => {
+      if (key === "g" && !focusManager.isTextInputActive()) {
+        fireAsync(async () => {
+          await this.showLocal();
+        }, ctx);
+        return true;
+      }
+      return List.prototype.handleKey.call(this._list, key);
+    };
+
+    this.refreshLocal();
   }
 
   onDetach(): void {
@@ -145,12 +174,140 @@ export class VersionsControl extends Control {
     super.onFocus();
     if (this._list.items.length > 0) {
       this._list.focus();
-    } else {
+    } else if (this._mode === "local") {
       focusManager.setFocus(this._btnInstall);
     }
   }
 
-  protected async refresh(): Promise<void> {
+  async showLocal(): Promise<void> {
+    this._mode = "local";
+    this._btnInstall.visible = true;
+    this._btnInstall.label = "Install";
+    this._btnDelete.visible = true;
+    this._progressBar.visible = false;
+    this._list.setRenderer(this._localRenderer.bind(this));
+    this._list.handleKey = (key: string) => {
+      if (key === "g" && !focusManager.isTextInputActive()) {
+        fireAsync(async () => { await this.showLocal(); }, this._ctx!);
+        return true;
+      }
+      return List.prototype.handleKey.call(this._list, key);
+    };
+    await this.refreshLocal();
+  }
+
+  async showReleases(): Promise<void> {
+    const ctx = this._ctx;
+    if (!ctx) return;
+
+    this._mode = "releases";
+    this._btnInstall.visible = false;
+    this._btnDelete.visible = false;
+    this._progressBar.visible = false;
+    this._list.selectedIndex = -1;
+    this._list.items = [];
+    this._header.update("GitHub Releases (press g for local)");
+    this.markDirty();
+
+    try {
+      const releases = await listRecentVersions(30);
+      const items: ListItem<any>[] = releases.map(r => ({
+        id: r.tag,
+        label: r.tag,
+        sublabel: r.publishedAt ? r.publishedAt.substring(0, 10) : "",
+        data: r,
+      }));
+
+      this._list.setRenderer(this._releaseRenderer.bind(this));
+      this._list.updateItems(items);
+      this._header.update(`Releases: ${items.length}  (press g for local)`);
+      this.markDirty();
+    } catch (err: any) {
+      ctx.showMessage(`Failed to fetch releases: ${err.message}`);
+      await this.showLocal();
+    }
+  }
+
+  async showBackends(release: RemoteVersion): Promise<void> {
+    const ctx = this._ctx;
+    if (!ctx) return;
+
+    this._mode = "backends";
+    this._btnInstall.visible = false;
+    this._btnDelete.visible = false;
+    this._progressBar.visible = false;
+    this._list.selectedIndex = -1;
+    this._list.items = [];
+    this.markDirty();
+
+    try {
+      const platform = getPlatformKey();
+      const backends = getAvailableBackends(release.tag, platform, release.assets);
+      this._availableBackends = backends;
+
+      if (backends.length === 0) {
+        ctx.showMessage(`No compatible builds for ${platform}`);
+        await this.showReleases();
+        return;
+      }
+
+      const items: ListItem<any>[] = backends.map(b => ({
+        id: b.id,
+        label: b.label,
+        sublabel: b.assetName,
+        data: b,
+      }));
+
+      this._list.setRenderer(this._backendRenderer.bind(this));
+      this._list.updateItems(items);
+      this._header.update(`Backends for ${release.tag}  (press g for releases)`);
+      this.markDirty();
+    } catch (err: any) {
+      ctx.showMessage(`Error: ${err.message}`);
+      await this.showReleases();
+    }
+  }
+
+  async install(backendId: string): Promise<void> {
+    const ctx = this._ctx;
+    if (!ctx || !this._selectedRelease) return;
+
+    const config = ctx.getConfig();
+    if (!config) return;
+
+    this._mode = "installing";
+    this._btnInstall.visible = false;
+    this._btnDelete.visible = false;
+    this._list.items = [];
+    this._progressBar.visible = true;
+    this._progressBar.progress = 0;
+    this._progressBar.label = "Preparing...";
+    this._progressBar.extraLabel = "";
+    this._header.update(`Installing ${this._selectedRelease.tag} (${backendId})`);
+    this.markDirty();
+
+    try {
+      const installed = await installVersion(
+        config,
+        this._selectedRelease.tag,
+        backendId,
+        (pct, label) => {
+          this._progressBar.progress = pct;
+          this._progressBar.label = label;
+          this.markDirty();
+        },
+      );
+
+      ctx.showMessage(`Installed ${installed}`);
+      await this.showLocal();
+    } catch (err: any) {
+      ctx.showMessage(`Install failed: ${err.message}`);
+      this._progressBar.visible = false;
+      await this.showBackends(this._selectedRelease);
+    }
+  }
+
+  async refreshLocal(): Promise<void> {
     try {
       const ctx = this._ctx;
       if (!ctx) return;
@@ -160,15 +317,16 @@ export class VersionsControl extends Control {
       const versions = await listVersions(config);
       const totalSize = await getTotalVersionsSize(config);
 
-      this._header.update(versions.length, formatSize(totalSize));
+      this._header.update(`Versions: ${versions.length}  Size: ${formatSize(totalSize)}`);
 
-      const items: ListItem<string>[] = versions.map(v => ({
+      const items: ListItem<any>[] = versions.map(v => ({
         id: v.version,
         label: v.version,
         sublabel: BACKEND_LABELS[v.backend] || v.backend,
         data: v,
       }));
 
+      this._list.setRenderer(this._localRenderer.bind(this));
       this._list.updateItems(items);
 
       if (config.activeVersion) {
@@ -184,6 +342,47 @@ export class VersionsControl extends Control {
       this.markDirty();
     } catch (err: any) {
       // ignore
+    }
+  }
+
+  _localRenderer(term: any, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+    const v = item.data as VersionInfo;
+    const prefix = v.active ? "● " : "  ";
+    const line = ` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`;
+
+    if (isSelected) {
+      fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
+      term.styleReset();
+    } else {
+      term.moveTo(_x, rowY);
+      fg(term, v.active ? themeColors.success : themeColors.text, line);
+    }
+  }
+
+  _releaseRenderer(term: any, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+    const r = item.data as RemoteVersion;
+    const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
+    const line = ` ${r.tag}  ${date}`;
+
+    if (isSelected) {
+      fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
+      term.styleReset();
+    } else {
+      term.moveTo(_x, rowY);
+      fg(term, themeColors.text, line);
+    }
+  }
+
+  _backendRenderer(term: any, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+    const b = item.data as AvailableBackend;
+    const line = ` ${b.label}  ${b.assetName}`;
+
+    if (isSelected) {
+      fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
+      term.styleReset();
+    } else {
+      term.moveTo(_x, rowY);
+      fg(term, themeColors.text, line);
     }
   }
 
