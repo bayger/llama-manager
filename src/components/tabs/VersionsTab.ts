@@ -61,6 +61,8 @@ export class VersionsControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _header: VersionsHeader;
+  protected _dividerButtons: Divider;
+  protected _prompt: VersionsHeader;
   protected _buttonRow: Row;
   protected _btnInstall: Button;
   protected _btnDelete: Button;
@@ -95,10 +97,14 @@ export class VersionsControl extends Control {
     this._progressBar.emptyColor = themeColors.border;
     this._progressBar.labelColor = themeColors.textMuted;
 
+    this._dividerButtons = new Divider();
+    this._prompt = new VersionsHeader();
+    this._prompt.visible = false;
     this._column = new Column();
     this._column.add(this._header);
-    this._column.add(new Divider());
+    this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
+    this._column.add(this._prompt);
     this._column.add(new Divider());
     this._column.add(this._list);
     this._list.flex = 1;
@@ -181,6 +187,9 @@ export class VersionsControl extends Control {
 
   async showLocal(): Promise<void> {
     this._mode = "local";
+    this._dividerButtons.visible = true;
+    this._buttonRow.visible = true;
+    this._prompt.visible = false;
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
     this._btnDelete.visible = true;
@@ -201,6 +210,10 @@ export class VersionsControl extends Control {
     if (!ctx) return;
 
     this._mode = "releases";
+    this._dividerButtons.visible = true;
+    this._buttonRow.visible = false;
+    this._prompt.visible = true;
+    this._prompt.update("Select version");
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
@@ -221,6 +234,7 @@ export class VersionsControl extends Control {
       this._list.setRenderer(this._releaseRenderer.bind(this));
       this._list.updateItems(items);
       this._header.update(`Releases: ${items.length}  (press g for local)`);
+      this._list.focus();
       this.markDirty();
     } catch (err: any) {
       ctx.showMessage(`Failed to fetch releases: ${err.message}`);
@@ -233,6 +247,10 @@ export class VersionsControl extends Control {
     if (!ctx) return;
 
     this._mode = "backends";
+    this._dividerButtons.visible = true;
+    this._buttonRow.visible = false;
+    this._prompt.visible = true;
+    this._prompt.update("Select backend");
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
@@ -261,6 +279,7 @@ export class VersionsControl extends Control {
       this._list.setRenderer(this._backendRenderer.bind(this));
       this._list.updateItems(items);
       this._header.update(`Backends for ${release.tag}  (press g for releases)`);
+      this._list.focus();
       this.markDirty();
     } catch (err: any) {
       ctx.showMessage(`Error: ${err.message}`);
@@ -276,6 +295,9 @@ export class VersionsControl extends Control {
     if (!config) return;
 
     this._mode = "installing";
+    this._dividerButtons.visible = false;
+    this._buttonRow.visible = false;
+    this._prompt.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._list.items = [];
@@ -338,7 +360,7 @@ export class VersionsControl extends Control {
 
       const sel = this._list.getSelectedItem();
       this._btnDelete.disabled = !sel || sel.data.active;
-
+      this._list.focus();
       this.markDirty();
     } catch (err: any) {
       // ignore
