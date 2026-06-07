@@ -108,17 +108,17 @@ Shared context object passed to controls, providing access to the `Terminal` and
 
 ## UI Structure
 
-Tab-based navigation with 5 persistent tabs across the top:
+Tab-based navigation with 6 persistent tabs across the top:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  [Server]  [Tasks]  [Versions]  [Models]  [Dashboard]   │
-├──────────────────────────────────────────────────────────┤
+│  F1 Dashboard  F2 Profiles  F3 Tasks  F4 Versions  ...   │
+│  ═══════════════════════════════════════════════════════  │
 │                                                          │
 │  <Active tab content fills remaining terminal height>    │
 │                                                          │
 ├──────────────────────────────────────────────────────────┤
-│  Status bar: active version | server status | shortcuts  │
+│  Dashboard | F1-F6 navigate | q quit | ? help            │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -126,7 +126,7 @@ Tab-based navigation with 5 persistent tabs across the top:
 
 | Input | Action |
 |---|---|
-| `←` / `→` | Switch tabs |
+| `F1`-`F6` | Switch tabs |
 | `Tab` / `Shift+Tab` | Move focus between controls |
 | `Enter` | Confirm / select |
 | `Esc` | Cancel / go back |
@@ -135,26 +135,43 @@ Tab-based navigation with 5 persistent tabs across the top:
 
 ---
 
-## Feature 1: Server Control
+## Feature 1: Server Profiles
 
-### Tab: `[Server]`
+### Tab: `F2 Profiles`
 
-Displays current server state and provides controls.
+Manages server profiles — named collections of preset arguments and free-form arguments. Each profile can be activated independently, allowing quick switching between different server configurations (e.g., one for chat, one for embeddings, one for experimentation).
 
-#### State Display
+#### Profile List
 
-- **Status**: `Running` / `Stopped` / `Starting` / `Stopping`
-- **PID**: Process ID if running
-- **Active Version**: Currently selected llama.cpp version
-- **Server URL**: `http://localhost:<port>`
-- **Uptime**: Duration since start
+- **Create** — add a new profile (clones current presets)
+- **Rename** — change profile name
+- **Delete** — remove profile (blocked if active)
+- **SetActive** — mark profile as active for server start
+- Active profile shown with indicator
 
-#### Controls
+#### Settings Panel
 
-- **Start** — launches `llama-server` with persisted config
-- **Stop** — graceful shutdown (SIGTERM, then SIGKILL after timeout)
-- **Restart** — stop then start
-- **Edit Config** — inline form for server arguments
+Inline editor for all preset categories. Fields are type-aware with inline editing:
+
+- String fields: free text, Enter to save
+- Number fields: numeric input with validation
+- Boolean fields: toggle true/false
+- Enum fields: cycle through options
+
+Categories: Server, Model, Compute, GPU, Sampling, Speculative, Reasoning, Logging.
+
+#### Free-Form Arguments
+
+Multi-line text input per profile for arbitrary `--flag value` pairs not covered by presets.
+
+#### Devices Button
+
+Probes `llama-server --list-devices` to show available GPU/CPU devices for the active version.
+
+The final command line is assembled as:
+```
+<active-version>/llama-server <preset-args> <free-form-args>
+```
 
 #### Curated Presets
 
@@ -281,12 +298,8 @@ The final command line is assembled as:
 
 - Server process is spawned via `child_process.spawn`
 - PID is tracked and stored in memory
-- On dashboard quit, server is **not** killed by default (configurable)
-- Config is persisted to `$HOME/.llama-manager/config.json` after every change
-
-#### Server Log Viewer
-
-Bottom panel shows live server stdout/stderr (scrollable, last 200 lines).
+- On dashboard quit, server is **not** killed by default (configurable via `dashboard.killServerOnExit`)
+- Config is persisted to `$XDG_CONFIG_HOME/llama-manager/config.json` after every change
 
 ---
 
@@ -472,47 +485,57 @@ Search HuggingFace:
 
 ---
 
-## Feature 5: Live Dashboard
+## Feature 5: Dashboard
 
-### Tab: `[Dashboard]`
+### Tab: `F1 Dashboard`
 
-Real-time monitoring panel. Polls llama-server API endpoints at configurable interval (default: 2s).
+Combined monitoring and server control panel. Includes metrics, server status, start/stop/restart buttons, and a live log viewer.
 
 #### Layout
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  TOKEN STATS              RESOURCE USAGE    QUEUE         │
-│                                                          │
-│  tokens/s:    42.3     GPU VRAM:    4.2 / 8.0 GB   Active: 1  │
-│  prompt t/s:  128.1    CPU RAM:     1.8 / 16.0 GB  Queued: 0  │
-│  total:       1,247    GPU Layers:  33 / 33        Completed: 42│
-│  eval time:   23.7ms   CPU Threads: 8               Failed:  0  │
-│  prompt ms:   184ms                                                   │
+│  [Start]  [Stop]  [Restart]        Profile: Default      │
+│  ───────────────────────────────────────────────────────  │
+│  Prompt/s: 128.1    Predict/s: 42.3                      │
+│  Processing: 1        Deferred: 0                        │
+│  ───────────────────────────────────────────────────────  │
+│  Running  PID: 12345  Uptime: 2h 15m                     │
+│  ───────────────────────────────────────────────────────  │
+│  [Live server log viewer — scrollable, colored]          │
+│  ...                                                      │
 └──────────────────────────────────────────────────────────┘
 ```
 
-#### Metrics Sources
+#### Metrics
+
+Polls llama-server `/metrics` (Prometheus endpoint) at configurable interval (default: 2s).
 
 | Metric | Source |
 |---|------|
-| tokens/s, prompt tokens/s, total tokens | `/stats` API endpoint |
-| eval time, prompt ms | `/stats` API endpoint |
-| GPU VRAM usage | System command (`nvidia-smi`) or `/stats` if available |
-| CPU RAM usage | `/proc/self/status` or `/stats` |
-| GPU layers | Server config (`--gpu-layers`) |
-| Active/queued/completed/failed | `/stats` or `/queue` endpoint |
+| Prompt/s | `/metrics` — `llama_tokens_per_second` (prompt) |
+| Predict/s | `/metrics` — `llama_tokens_per_second` (predicted) |
+| Processing | `/metrics` — `llama_requests_processing` |
+| Deferred | `/metrics` — `llama_requests_deferred` |
+
+#### Server Controls
+
+- **Start** — launches `llama-server` with active profile config
+- **Stop** — graceful shutdown (SIGTERM, then SIGKILL after timeout)
+- **Restart** — stop then start
+
+#### Live Log Viewer
+
+Bottom panel shows live server stdout/stderr with structured coloring:
+- Error lines highlighted in red
+- Warning lines highlighted in yellow
+- Scrollable, follows latest output
+- Managed by `LogsViewer` specialized component
 
 #### Connection State
 
-- If server is offline, show: `Server not running. Start server from [Server] tab.`
+- If server is offline, metrics show `—`
 - Auto-reconnect when server comes back online
-- Show last successful poll timestamp
-
-#### Historical Charts (Optional, Phase 2)
-
-- Token/s over time (sparkline in terminal using custom rendering)
-- Context usage over time
 
 ---
 
@@ -530,86 +553,22 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
   "hfToken": null,
   "server": {
     "logFile": null,
-    "freeFormArgs": [
-      "--rope-scaling yarn",
-      "--rope-freq-scale 0.5"
-    ],
-    "presets": {
-      "server": {
-        "host": "127.0.0.1",
-        "port": 8080,
-        "parallel": -1,
-        "timeout": 600,
-        "apiKey": null,
-        "threadsHttp": -1,
-        "contBatching": true,
-        "cachePrompt": true,
-        "metrics": false,
-        "ui": true,
-        "embedding": false,
-        "rerank": false
-      },
-      "model": {
-        "model": null,
-        "lora": null,
-        "hfRepo": null,
-        "hfToken": null,
-        "chatTemplate": null,
-        "jinja": true
-      },
-      "compute": {
-        "threads": -1,
-        "threadsBatch": null,
-        "ctxSize": 0,
-        "batchSize": 2048,
-        "ubatchSize": 512,
-        "flashAttn": "auto",
-        "mlock": false,
-        "mmap": true,
-        "cacheTypeK": "f16",
-        "cacheTypeV": "f16"
-      },
-      "gpu": {
-        "gpuLayers": "auto",
-        "splitMode": "layer",
-        "tensorSplit": null,
-        "mainGpu": 0,
-        "device": null,
-        "fit": "on"
-      },
-      "sampling": {
-        "seed": -1,
-        "temperature": 0.8,
-        "topK": 40,
-        "topP": 0.95,
-        "minP": 0.05,
-        "repeatLastN": 64,
-        "repeatPenalty": 1.0,
-        "presencePenalty": 0.0,
-        "frequencyPenalty": 0.0,
-        "grammar": null,
-        "jsonSchema": null,
-        "ignoreEos": false
-      },
-      "speculative": {
-        "draftModel": null,
-        "specType": "none",
-        "draftNMax": 3,
-        "draftThreads": null,
-        "draftGpuLayers": "auto"
-      },
-      "reasoning": {
-        "reasoning": "auto",
-        "reasoningBudget": -1,
-        "reasoningFormat": "auto"
-      },
-      "logging": {
-        "logFile": null,
-        "logVerbosity": 3,
-        "logColors": "auto",
-        "logTimestamps": true
+    "profiles": {
+      "Default": {
+        "presets": {
+          "server": { "host": "127.0.0.1", "port": 8080, "parallel": -1, "timeout": 600, "apiKey": null, "threadsHttp": -1, "contBatching": true, "cachePrompt": true, "metrics": false, "ui": true, "embedding": false, "rerank": false },
+          "model": { "model": null, "lora": null, "hfRepo": null, "chatTemplate": null, "jinja": true },
+          "compute": { "threads": -1, "threadsBatch": null, "ctxSize": 0, "batchSize": 2048, "ubatchSize": 512, "flashAttn": "auto", "mlock": false, "mmap": true, "cacheTypeK": "f16", "cacheTypeV": "f16" },
+          "gpu": { "gpuLayers": "auto", "splitMode": "layer", "tensorSplit": null, "mainGpu": 0, "device": null, "fit": "on" },
+          "sampling": { "seed": -1, "temperature": 0.8, "topK": 40, "topP": 0.95, "minP": 0.05, "repeatLastN": 64, "repeatPenalty": 1.0, "presencePenalty": 0.0, "frequencyPenalty": 0.0, "grammar": null, "jsonSchema": null, "ignoreEos": false },
+          "speculative": { "draftModel": null, "specType": "none", "draftNMax": 3, "draftThreads": null, "draftGpuLayers": "auto" },
+          "reasoning": { "reasoning": "auto", "reasoningBudget": -1, "reasoningFormat": "auto" },
+          "logging": { "logFile": null, "logVerbosity": 3, "logColors": "auto", "logTimestamps": true }
+        },
+        "freeFormArgs": []
       }
-    }
+    },
+    "activeProfile": "Default"
   },
   "dashboard": {
     "pollIntervalMs": 2000,
@@ -622,6 +581,8 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
 }
 ```
 
+**Profile-based config**: Server presets are organized per-profile. Each profile has its own `presets` and `freeFormArgs`. The `activeProfile` determines which config is used on server start. Legacy flat config (pre-profiles) is auto-migrated on load.
+
 **Path resolution**: Any `null` value falls back to the XDG default from the Storage Paths table above. The config only stores paths the user has explicitly changed.
 
 ---
@@ -631,15 +592,15 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
 ```
 llama-manager/
 ├── src/
-│   ├── main.ts                 # Entry point (shebang: #!/usr/bin/env node)
+│   ├── main.ts                         # Entry point (shebang: #!/usr/bin/env node)
 │   ├── components/
-│   │   ├── App.ts              # Root app: tabs, terminal-kit render loop
+│   │   ├── App.ts                      # Root app: 6 tabs, render loop, key handling
 │   │   ├── ui/
-│   │   │   ├── Control.ts      # Base control: lifecycle, children, dirty flags
-│   │   │   ├── Layout.ts       # Column (vertical flex) and Row (horizontal flex)
-│   │   │   ├── FocusManager.ts # Singleton focus tracker, Tab navigation
-│   │   │   ├── Group.ts        # Control grouping
-│   │   │   ├── types.ts        # Rect, Size, RenderContext interfaces
+│   │   │   ├── Control.ts              # Base control: lifecycle, children, dirty flags
+│   │   │   ├── Layout.ts               # Column (vertical flex) and Row (horizontal flex)
+│   │   │   ├── FocusManager.ts         # Singleton focus tracker, Tab navigation
+│   │   │   ├── Group.ts                # Control grouping
+│   │   │   ├── types.ts                # Rect, Size, RenderContext interfaces
 │   │   │   ├── widgets/
 │   │   │   │   ├── Label.ts
 │   │   │   │   ├── Button.ts
@@ -652,27 +613,35 @@ llama-manager/
 │   │   │   │   ├── Spacer.ts
 │   │   │   │   ├── ProgressBar.ts
 │   │   │   │   └── HelpBar.ts
-│   │   │   └── index.ts        # Re-exports
+│   │   │   └── index.ts                # Re-exports
+│   │   ├── specialized/
+│   │   │   ├── SettingsPanel.ts        # Profile settings editor (type-aware fields)
+│   │   │   ├── ProfileList.ts          # Clickable profile list with CRUD actions
+│   │   │   ├── LogsViewer.ts           # Structured log coloring, scrollable
+│   │   │   └── OptionsPanel.ts         # Global app settings editor
 │   │   └── tabs/
-│   │       ├── ServerTab.ts    # ServerControl (profile mgmt, preset editor)
-│   │       ├── TasksTab.ts     # TasksControl (task list, stats footer)
-│   │       ├── VersionsTab.ts  # VersionsControl (install/switch, releases)
-│   │       ├── ModelsTab.ts    # ModelsControl (model list, search, HF browse)
-│   │       ├── DashboardTab.ts # DashboardControl (metrics, status polling)
-│   │       └── LiveLogsTab.ts  # LiveLogsControl (scrollable log viewer)
+│   │       ├── DashboardTab.ts         # F1: Metrics, server controls, live log viewer
+│   │       ├── ServerTab.ts            # F2: Profile management, preset editing
+│   │       ├── TasksTab.ts             # F3: Parsed task history with columns
+│   │       ├── VersionsTab.ts          # F4: Local versions, GitHub install/uninstall
+│   │       ├── ModelsTab.ts            # F5: Local GGUFs, HF browse, download
+│   │       └── OptionsTab.ts           # F6: Global app settings
 │   └── lib/
-│       ├── config.ts           # Config I/O, XDG path resolution, defaults
-│       ├── server.ts           # Server process management
-│       ├── logparser.ts        # Parse server logs, emit task events
-│       ├── tasks.ts            # Task storage, filtering, aggregation
-│       ├── versions.ts         # Install/switch/uninstall versions
-│       ├── models.ts           # HF search, download, local mgmt
-│       ├── api.ts              # HTTP client for llama-server API
-│       ├── hf.ts               # HuggingFace Hub API client
-│       ├── theme.ts            # GitHub Dark palette, fg(), bg(), fgBg()
-│       └── tabcontext.ts       # Shared context: services + RenderContext
+│       ├── config.ts                   # Config I/O, XDG paths, profiles, presets, migration
+│       ├── server.ts                   # Server process management, log tailing
+│       ├── logparser.ts                # Parse server logs, emit task events
+│       ├── logcolors.ts                # Log line colorization by severity
+│       ├── tasks.ts                    # Task storage, filtering, aggregation
+│       ├── versions.ts                 # Install/switch/uninstall versions
+│       ├── models.ts                   # HF search, download, local mgmt
+│       ├── api.ts                      # HTTP client for llama-server API (/metrics)
+│       ├── hf.ts                       # HuggingFace Hub API client
+│       ├── theme.ts                    # GitHub Dark palette, fg(), bg(), fgBg()
+│       ├── utils.ts                    # Formatting: fireAsync, formatMs, formatDuration, etc.
+│       └── tabcontext.ts               # Shared context: services + RenderContext
 ├── package.json
 ├── tsconfig.json
+├── SPEC.md
 └── AGENTS.md
 ```
 
@@ -689,21 +658,6 @@ llama-manager/
 
 ---
 
-## CLI Interface
-
-```
-llama-manager              # Launch TUI
-llama-manager --help       # Show usage
-llama-manager --version    # Print version
-llama-manager server start # Headless: start server with config
-llama-manager server stop  # Headless: stop server
-llama-manager models list  # Headless: list local models
-```
-
-The TUI is the primary interface. Headless commands are convenience shortcuts that read/write the same config.
-
----
-
 ## Error Handling
 
 - Network failures (HF, GitHub): retry with backoff, show user-friendly message
@@ -714,219 +668,45 @@ The TUI is the primary interface. Headless commands are convenience shortcuts th
 
 ---
 
-## Feature 6: Model Browser
+## Feature 6: Options
 
-### Tab: `[Models]` — Enhanced Browse Mode
+### Tab: `F6 Options`
 
-Extends the existing model search with a full HuggingFace model browser. Accessible via a new "Browse" action alongside "Set Active", "Delete", and "Search". Provides a curated, filterable view of the HuggingFace model hub without requiring a specific search query.
+Global application settings. Managed by `OptionsPanel` specialized component. All fields are inline-editable with save on Enter.
 
-#### Browse Modes
+#### Settings Categories
 
-The models tab supports three modes for discovering models:
+**Paths**
+- `versionsDir` — custom directory for llama.cpp builds
+- `modelsDir` — custom directory for GGUF models
+- `tasksFile` — custom path for tasks JSONL
+- `logFile` — custom path for server log
 
-| Mode | Trigger | Description |
-|---|---|------|
-| **Search** (existing) | `Search` action + query | Free-text search with GGUF filter |
-| **Browse** (new) | `Browse` action | Curated, filterable hub browse |
-| **Repo Detail** (existing) | Enter on search result | File listing for a given repo |
+**Dashboard**
+- `pollIntervalMs` — metrics polling interval (default: 2000ms)
+- `killServerOnExit` — whether to kill server on app quit (default: false)
 
-#### Browse Interface
+**Tasks**
+- `maxStored` — maximum tasks in history (default: 10000)
+- `autoParse` — automatic log parsing (default: true)
 
-```
-Browse HuggingFace Models:
-  ┌──────────────────────────────────────────────────────────┐
-  │  Filters: [All Tasks] [Q4_K_M] [Q5_K_M] [Q8_]  Sort: [↓Likes] │
-  │  > mistral 7b                                              │
-  └──────────────────────────────────────────────────────────┘
+**Appearance**
+- `compactTasks` — compact task list layout
+- `showDraftRate` — display draft acceptance rate in tasks
 
-  Results (42):
-    bartowski/Mistral-7B-Instruct-v0.3-GGUF      22 files   ♥ 3.1k   ↓ 120k
-    ✓ TheBloke/Mistral-7B-v0.1-GGUF              14 files   ♥ 2.8k   ↓ 98k
-    Qwen/Qwen2.5-7B-Instruct-GGUF                18 files   ♥ 5.2k   ↓ 240k
-    ...
-
-  Storage: 15.29 GB used │ Page 1/5 │ j/k navigate │ f filters │ s sort │ Enter open
-```
-
-#### Filters
-
-Filters are applied as query parameters to the HuggingFace API. Each filter is toggleable with `Enter` when focused, navigable with `h`/`l`.
-
-**Task Filters**
-
-| Filter | API Parameter | Description |
-|---|---|---|
-| Text Generation | `pipeline_tag:text-generation` | General-purpose LLMs |
-| Text Generation Infilling | `pipeline_tag:text-generation-infilling` | Fill-in-the-middle models |
-| Feature Extraction | `pipeline_tag:feature-extraction` | Embedding models |
-
-**Quantization Filters** (quick-access tags)
-
-| Filter | API Parameter | Description |
-|---|---|---|
-| Q2_K | `tag:q2_k` | 2-bit quantization |
-| Q3_K_S / Q3_K_M / Q3_K_L | `tag:q3_k_*` | 3-bit variants |
-| Q4_0 | `tag:q4_0` | Original 4-bit |
-| Q4_K_S / Q4_K_M | `tag:q4_k_*` | Q4 K-quants (most common) |
-| Q5_K_S / Q5_K_M | `tag:q5_k_*` | Q5 K-quants |
-| Q6_K | `tag:q6_k` | 6-bit quantization |
-| Q8_0 | `tag:q8_0` | 8-bit quantization |
-| FP16 | `tag:fp16` | Half-precision |
-| FP32 | `tag:fp32` | Full precision |
-
-**Author / Organization Filters**
-
-| Filter | API Parameter | Description |
-|---|---|---|
-| TheBloke | `author:TheBloke` | Popular GGUF converter |
-| bartowski | `author:bartowski` | Active GGUF quantizer |
-| Qwen | `author:Qwen` | Qwen family models |
-| meta-llama | `author:meta-llama` | Llama family (may require auth) |
-
-**Sort Options**
-
-| Sort | API Parameter | Description |
-|---|---|---|
-| Likes (default) | `sort:likes` | Most liked |
-| Downloads | `sort:downloads` | Most downloaded |
-| Last Modified | `sort:lastModified` | Recently updated |
-| Trending | `sort:trending` | Rising popularity |
-| Created | `sort:created` | Oldest / newest |
-
-Each sort can be ascending or descending (toggled with `R`).
-
-#### Filter UI
-
-```
-  Filters:
-    [✓ All Tasks]  [Text Gen]  [Embedding]  [Infilling]
-    [Q4_K_M]  [Q5_K_M]  [Q8_]  [FP16]
-    [TheBloke]  [bartowski]  [Qwen]
-    Sort: [↓Likes]  [↓Downloads]  [↓Modified]  [Trending]
-
-  h/l navigate │ Enter toggle │ g back │ Enter on repo to open
-```
-
-Filters are combined with AND logic. The `gguf` tag is always applied. When no filter is active, the "All" option shows top GGUF models sorted by the selected criterion.
-
-#### Model Card Preview
-
-Pressing `m` on a selected repo shows an expanded model card with metadata from the HuggingFace API:
-
-```
-  Model Card: bartowski/Mistral-7B-Instruct-v0.3-GGUF
-
-  Author:     bartowski
-  Likes:      3,142
-  Downloads:  124,583
-  Tags:       mistral, gguf, q4_k_m, q5_k_m, q8_0, fp16
-  Pipeline:   text-generation
-  Created:    15 Mar 2024
-  Modified:   02 Jun 2025
-
-  README (first 8 lines):
-    # Mistral-7B-Instruct-v0.3 GGUF
-    Converted from original Mistral-7B-Instruct-v0.3.
-    Quantizations: Q2_K, Q3_K_S/M/L, Q4_0, Q4_K_S/M, ...
-
-  m close │ Enter open files
-```
-
-Fetched from `GET /api/models/{repoId}`. Cached locally to avoid repeated API calls.
-
-#### API Endpoints
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/models?sort={sort}&direction={dir}&search={q}&filter={filter}&limit={n}` | Browse/list models |
-| `GET /api/models/{repoId}` | Model metadata (for card preview) |
-| `GET /api/models/{repoId}/tree/main` | File listing (existing) |
-| `GET /api/whoami` | Auth check — validates HF token |
-
-The browse mode reuses the existing `searchRepos()` function in `hf.ts` but with different default parameters (no search query, different sort/filter). A new `getModelInfo()` function fetches full model metadata for the card preview.
-
-#### New Functions in `hf.ts`
-
-```typescript
-export interface HFModelInfo {
-  id: string;
-  author: string;
-  likes: number;
-  downloads: number;
-  tags: string[];
-  pipelineTag: string | null;
-  createdAt: string;
-  lastModified: string;
-  private: boolean;
-  disabled: boolean;
-  cardData?: {
-    language?: string[];
-    license?: string;
-    library_name?: string;
-  };
-}
-
-export interface BrowseOptions {
-  sort?: "likes" | "downloads" | "lastModified" | "trending" | "created";
-  direction?: 1 | -1;
-  search?: string;
-  filters?: string[];    // e.g. ["author:bartowski", "tag:q4_k_m"]
-  limit?: number;
-  offset?: number;
-}
-
-export async function browseModels(
-  options: BrowseOptions,
-  token?: string,
-): Promise<HFRepoInfo[]>
-
-export async function getModelInfo(
-  repoId: string,
-  token?: string,
-): Promise<HFModelInfo>
-```
-
-#### State and Navigation
-
-New focus area: `browse`. New action in the actions bar: `Browse`.
-
-```
-Actions:  [Set Active]  [Delete]  [Search]  [Browse]
-```
-
-Navigation flow:
-1. `g` → actions → `Browse` → Enter
-2. Lands in `browse` focus area with filter bar at top
-3. `f` → enter filter mode, `h`/`l` navigate filters, `Enter` toggles
-4. `s` → enter sort mode, `h`/`l` pick sort, `R` reverse
-5. `j`/`k` → navigate results
-6. `Enter` → open repo files (download)
-7. `m` → model card preview
-8. `g` → back to main model list
-
-#### Auth Handling
-
-Gated repos (e.g., `meta-llama/Llama-3.1-8B-Instruct-GGUF`) require authentication. The browser should:
-- Show a lock icon (🔒) next to gated repos
-- Attempt fetch with token if configured
-- Display clear error: `Access denied. Set HF token in config.`
-- Provide hint: `Token needed for gated models. Export HF_TOKEN or set in config.`
-
-#### Caching
-
-Model metadata and browse results are cached in memory for the session duration. Model card data (`getModelInfo`) is cached per repo ID to avoid repeated API calls when navigating back to the same repo.
-
-#### Config
-
-No new config fields required. Reuses existing `hfToken` from config. The browse mode is always available alongside the existing search.
+**HuggingFace**
+- `hfToken` — access token for gated models
 
 ---
 
 ## Future Considerations
 
+- Enhanced model browser with filters, sort, and model card preview
 - Multi-server support (run several instances on different ports)
 - LoRA adapter management
 - Prompt templates library
 - Chat interface within the TUI
 - Export/import dashboard config
 - Plugin system for custom metrics
+- CLI headless commands (`server start/stop`, `models list`)
+- Historical charts (sparklines for token/s over time)
