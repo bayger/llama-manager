@@ -2,6 +2,7 @@ import { Control } from "../ui/Control.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
+import { Label } from "../ui/widgets/Label.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
 import { themeColors, fg } from "../../lib/theme.js";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog } from "../../lib/server.js";
@@ -82,6 +83,7 @@ export class DashboardControl extends Control {
   protected _column: Column;
   protected _buttonRow: Row;
   protected _buttons: Button[];
+  protected _profileLabel: Label;
   protected _metricsControl: MetricsControl;
   protected _statusControl: StatusControl;
   protected _logsControl: LogsViewer;
@@ -103,6 +105,24 @@ export class DashboardControl extends Control {
     for (const btn of this._buttons) {
       this._buttonRow.add(btn);
     }
+    this._profileLabel = new Label();
+    this._profileLabel.text = "";
+    this._profileLabel.color = themeColors.textMuted;
+    this._profileLabel.flex = 1;
+    this._profileLabel.render = () => {
+      if (!this._profileLabel.visible || !this._profileLabel.needsRender) return;
+      const { term, rect } = this._profileLabel;
+      term.moveTo(rect.x, rect.y);
+      fg(term, themeColors.textMuted, "Profile: ");
+      fg(term, themeColors.text, this._profileLabel.text);
+      const endX = (term as any).cursorX ?? rect.x;
+      const padLen = rect.width - (endX - rect.x);
+      if (padLen > 0) {
+        fg(term, themeColors.canvas, " ".repeat(padLen));
+      }
+      this._profileLabel.needsRender = false;
+    };
+    this._buttonRow.add(this._profileLabel);
 
     this._metricsControl = new MetricsControl();
     this._statusControl = new StatusControl();
@@ -176,6 +196,8 @@ export class DashboardControl extends Control {
       });
     }, 2000);
 
+    this.updateProfileLabel();
+
     this._logUnsub = onServerLog(() => {
       if (this._logRenderTimer) clearTimeout(this._logRenderTimer);
       this._logRenderTimer = setTimeout(() => {
@@ -210,6 +232,11 @@ export class DashboardControl extends Control {
     if (firstEnabled) {
       firstEnabled.focus();
     }
+  }
+
+  updateProfileLabel(): void {
+    const config = this._ctx?.getConfig();
+    this._profileLabel.text = config ? config.server.activeProfile : "";
   }
 
   markDirty(): void {
