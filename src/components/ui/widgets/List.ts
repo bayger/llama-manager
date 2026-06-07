@@ -16,6 +16,7 @@ export class List<T = any> extends Control {
   public selectedIndex = -1;
   public itemHeight = 1;
   protected _onSelect: ((item: ListItem<T>) => void) | null = null;
+  protected _onHighlight: ((item: ListItem<T> | null) => void) | null = null;
   protected _customRenderer: ItemRenderer<T> | null = null;
 
   measure(_parentSize?: Size): Size {
@@ -25,6 +26,16 @@ export class List<T = any> extends Control {
 
   setOnSelect(callback: (item: ListItem<T>) => void): void {
     this._onSelect = callback;
+  }
+
+  setOnHighlight(callback: (item: ListItem<T> | null) => void): void {
+    this._onHighlight = callback;
+  }
+
+  protected _fireHighlight(): void {
+    if (this._onHighlight) {
+      this._onHighlight(this.getSelectedItem());
+    }
   }
 
   setRenderer(renderer: ItemRenderer<T>): void {
@@ -74,6 +85,7 @@ export class List<T = any> extends Control {
     if (key === "UP" || key === "k") {
       if (this.selectedIndex > 0) {
         this.selectedIndex--;
+        this._fireHighlight();
         this.markDirty();
         return true;
       }
@@ -82,6 +94,7 @@ export class List<T = any> extends Control {
     if (key === "DOWN" || key === "j") {
       if (this.selectedIndex < this.items.length - 1) {
         this.selectedIndex++;
+        this._fireHighlight();
         this.markDirty();
         return true;
       }
@@ -101,6 +114,7 @@ export class List<T = any> extends Control {
     if (this.selectedIndex < 0 && this.items.length > 0) {
       this.selectedIndex = 0;
       this.needsRender = true;
+      this._fireHighlight();
     }
   }
 
