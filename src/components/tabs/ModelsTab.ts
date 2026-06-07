@@ -94,11 +94,7 @@ export class ModelsControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    if (this._modelList.items.length > 0) {
-      focusManager.setFocus(this._modelList);
-    } else {
-      focusManager.setFocus(this._browseBtn);
-    }
+    focusManager.setFocus(this._browseBtn);
   }
 
   refreshModels(): void {
@@ -119,9 +115,6 @@ export class ModelsControl extends Control {
 
       this._modelList.updateItems(items);
       this._headerLabel.text = `Models: ${models.length}  Size: ${formatSize(totalSize)}`;
-      if (models.length > 0) {
-        focusManager.setFocus(this._modelList);
-      }
       this.markDirty();
     })();
   }

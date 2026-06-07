@@ -12,11 +12,10 @@ import { createTasksTab } from "./tabs/TasksTab.js";
 import { createVersionsTab } from "./tabs/VersionsTab.js";
 import { createDashboardTab } from "./tabs/DashboardTab.js";
 import { createModelsTab } from "./tabs/ModelsTab.js";
-import { createLiveLogsTab } from "./tabs/LiveLogsTab.js";
 import { createOptionsTab } from "./tabs/OptionsTab.js";
 import type { TabContext } from "../lib/tabcontext.js";
 
-const TABS = ["Dashboard", "Profiles", "Tasks", "Versions", "Models", "Logs", "Options"] as const;
+const TABS = ["Dashboard", "Profiles", "Tasks", "Versions", "Models", "Options"] as const;
 type TabId = (typeof TABS)[number];
 
 interface TabModule {
@@ -107,7 +106,6 @@ export class App {
       Versions: createVersionsTab,
       Models: createModelsTab,
       Dashboard: createDashboardTab,
-      Logs: createLiveLogsTab,
       Options: createOptionsTab,
     };
 
@@ -234,7 +232,7 @@ export class App {
         fg(term, themeColors.success, message);
         fg(term, themeColors.textMuted, ` | ? help`);
       } else {
-        fg(term, themeColors.textMuted, `${activeTab} | F1-F7 navigate | q quit | ? help`);
+        fg(term, themeColors.textMuted, `${activeTab} | F1-F6 navigate | q quit | ? help`);
       }
     }
 
@@ -319,7 +317,7 @@ export class App {
 
       if (name.startsWith('F') && !name.startsWith('F1')) {
         const num = parseInt(name.slice(1), 10);
-        if (num >= 1 && num <= 7) {
+        if (num >= 1 && num <= 6) {
           this.setActiveTab(TABS[num - 1]);
           return;
         }
@@ -330,7 +328,7 @@ export class App {
       }
 
       if (name === '?' && !this.state.textInputFocused) {
-        this.showMessage(`${this.state.activeTab} | F1-F7 navigate | q quit`);
+        this.showMessage(`${this.state.activeTab} | F1-F6 navigate | q quit`);
         return;
       }
 

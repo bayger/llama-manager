@@ -4,6 +4,7 @@ import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { focusManager } from "../ui/FocusManager.js";
 import { listVersions, uninstallVersion, switchVersion, getTotalVersionsSize, VersionInfo, BACKEND_LABELS } from "../../lib/versions.js";
 import { saveConfig } from "../../lib/config.js";
 import { fireAsync } from "../../lib/utils.js";
@@ -144,6 +145,8 @@ export class VersionsControl extends Control {
     super.onFocus();
     if (this._list.items.length > 0) {
       this._list.focus();
+    } else {
+      focusManager.setFocus(this._btnInstall);
     }
   }
 
