@@ -1,6 +1,5 @@
-import type { Terminal } from "terminal-kit";
-import type { Rect, Size, RenderContext } from "./types.js";
-import { termWidth } from "../../lib/theme.js";
+import type { Rect, Size, RenderContext, Point } from "./types.js";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -27,8 +26,9 @@ export class Control {
     return this._renderContext;
   }
 
-  get term(): Terminal {
-    return this.renderContext.term;
+  get canvas(): FramebufferCanvas {
+    if (!this._renderContext) throw new Error("Control not attached to render context");
+    return this._renderContext.canvas;
   }
 
   constructor() {
@@ -59,7 +59,7 @@ export class Control {
   add(child: Control): void {
     child._parent = this;
     this.children.push(child);
-    this.needsRender = true;
+    this.markDirty();
   }
 
   remove(child: Control): void {
@@ -67,7 +67,7 @@ export class Control {
     if (idx !== -1) {
       this.children.splice(idx, 1);
       child._parent = null;
-      this.needsRender = true;
+      this.markDirty();
     }
   }
 
@@ -76,7 +76,7 @@ export class Control {
       child._parent = null;
     }
     this.children.length = 0;
-    this.needsRender = true;
+    this.markDirty();
   }
 
   // — Attachment —
@@ -106,16 +106,22 @@ export class Control {
   layout(rect: Rect): void {
     this.rect = rect;
     this.onLayout();
-    this.needsRender = true;
+    this.markDirty();
   }
 
   // — Rendering —
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
+
+    const prevClip = this.canvas.getClipRect();
+    this.canvas.setClipRect(this.rect);
+
     for (const child of this.children) {
       child.render();
     }
+
+    this.canvas.setClipRect(prevClip);
     this.needsRender = false;
   }
 
@@ -147,19 +153,22 @@ export class Control {
   focus(): void {
     this.focused = true;
     this.onFocus();
-    this.needsRender = true;
+    this.markDirty();
   }
 
   blur(): void {
     this.focused = false;
     this.onBlur();
-    this.needsRender = true;
+    this.markDirty();
   }
 
   // — Dirty tracking —
 
   markDirty(): void {
     this.needsRender = true;
+    if (this._renderContext) {
+      this._renderContext.scheduleRender();
+    }
     if (this._parent) {
       this._parent.markDirty();
     }
@@ -171,12 +180,33 @@ export class Control {
   onDetach(): void {}
   onFocus(): void {}
   onBlur(): void {}
+  onMouseDown(_point: Point): boolean {
+    return false;
+  }
   onLayout(): void {
     for (const child of this.children) {
       if (child.visible) {
         child.layout(this.rect);
       }
     }
+  }
+
+  // — Mouse —
+
+  hitTest(point: Point): Control | null {
+    if (!this.visible || !this.enabled) return null;
+
+    for (let i = this.children.length - 1; i >= 0; i--) {
+      const child = this.children[i]!;
+      const found = child.hitTest(point);
+      if (found) return found;
+    }
+
+    const { x, y, width, height } = this.rect;
+    if (point.x >= x && point.x < x + width && point.y >= y && point.y < y + height) {
+      return this;
+    }
+    return null;
   }
 
   // — Utilities —
@@ -194,6 +224,6 @@ export class Control {
   }
 
   fitContent(width: number, height: number): Size {
-    return { width: Math.min(width, termWidth(this.term)), height: Math.min(height, 999) };
+    return { width: Math.min(width, this.canvas.width), height: Math.min(height, 999) };
   }
 }

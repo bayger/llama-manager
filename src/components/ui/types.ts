@@ -1,4 +1,4 @@
-import type { Terminal } from "terminal-kit";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 export interface Rect {
   x: number;
@@ -12,8 +12,13 @@ export interface Size {
   height: number;
 }
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
 export interface RenderContext {
-  term: Terminal;
+  canvas: FramebufferCanvas;
   scheduleRender(): void;
   showMessage(msg: string): void;
   getConfig(): any | null;

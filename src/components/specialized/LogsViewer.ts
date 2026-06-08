@@ -21,7 +21,7 @@ export class LogsViewer extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const term = this.term;
+    const canvas = this.canvas;
     const { x, y, width, height } = this.rect;
 
     if (height <= 0) {
@@ -36,10 +36,10 @@ export class LogsViewer extends Control {
 
     for (let i = 0; i < height; i++) {
       if (i < visibleLines.length) {
-        renderLogLine(term, x, y + i, width, visibleLines[i]!);
+        renderLogLine(canvas, x, y + i, width, visibleLines[i]!);
       } else {
-        term.moveTo(x, y + i);
-        fg(term, themeColors.canvas, " ".repeat(width));
+        canvas.moveTo(x, y + i);
+        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 

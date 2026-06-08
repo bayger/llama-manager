@@ -28,19 +28,19 @@ export class Label extends Control {
 
 render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
-    term.moveTo(rect.x, rect.y);
-    if (this.bold) term.bold();
+    const { canvas, rect } = this;
+    canvas.moveTo(rect.x, rect.y);
+    if (this.bold) canvas.bold();
     if (this.align === "center") {
       const pad = Math.max(0, (rect.width - this.text.length) / 2);
-      term(" ".repeat(pad));
+      canvas.write(" ".repeat(pad));
     } else if (this.padding > 0) {
-      term(" ".repeat(this.padding));
+      canvas.write(" ".repeat(this.padding));
     }
     const isFocused = focusManager.getFocused() === this;
     const prefix = isFocused ? "> " : "";
-    fg(term, this.color, prefix + this.text);
-    term.styleReset();
+    fg(canvas, this.color, prefix + this.text);
+    canvas.styleReset();
     this.needsRender = false;
   }
 }

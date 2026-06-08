@@ -19,7 +19,7 @@ export class ProgressBar extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
+    const { canvas, rect } = this;
     const { x, y, width } = rect;
 
     const barWidth = Math.max(10, width - this.label.length - 10);
@@ -27,15 +27,15 @@ export class ProgressBar extends Control {
     const empty = barWidth - filled;
     const frame = SPINNER_FRAMES[Math.floor(Date.now() / 100) % SPINNER_FRAMES.length];
 
-    term.moveTo(x, y);
-    fg(term, this.labelColor, `${frame} ${this.label} ${this.progress}%`);
+    canvas.moveTo(x, y);
+    fg(canvas, this.labelColor, `${frame} ${this.label} ${this.progress}%`);
     if (this.extraLabel) {
-      fg(term, themeColors.textMuted, ` ${this.extraLabel}`);
+      fg(canvas, themeColors.textMuted, ` ${this.extraLabel}`);
     }
 
-    term.moveTo(x, y + 1);
-    fg(term, this.filledColor, "\u2588".repeat(filled));
-    fg(term, this.emptyColor, "\u2591".repeat(empty));
+    canvas.moveTo(x, y + 1);
+    fg(canvas, this.filledColor, "\u2588".repeat(filled));
+    fg(canvas, this.emptyColor, "\u2591".repeat(empty));
 
     this.needsRender = false;
   }

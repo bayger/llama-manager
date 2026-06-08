@@ -14,17 +14,17 @@ export class HelpBar extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
+    const { canvas, rect } = this;
     const { x, y, width } = rect;
 
-    term.moveTo(x, y);
-    term.eraseLine();
+    canvas.moveTo(x, y);
+    canvas.eraseLine();
 
     const left = Math.floor((width - this.text.length) / 2);
-    term.moveTo(x + left, y + 1);
-    fg(term, themeColors.textMuted, this.text);
+    canvas.moveTo(x + left, y + 1);
+    fg(canvas, themeColors.textMuted, this.text);
     if (this.prefix) {
-      fg(term, this.prefixColor, this.prefix);
+      fg(canvas, this.prefixColor, this.prefix);
     }
 
     this.needsRender = false;

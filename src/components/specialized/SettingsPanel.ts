@@ -11,11 +11,9 @@ import {
 } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
-import type { Terminal } from "terminal-kit";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 const KEY_COL_WIDTH = 18;
-const CURSOR_SHOW = "\x1b[?25h";
-const CURSOR_HIDE = "\x1b[?25l";
 
 interface RowInfo {
   type: "header" | "field";
@@ -133,7 +131,7 @@ export class SettingsPanel extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const term = this.term;
+    const canvas = this.canvas;
     const { x, y: startY, width, height } = this.rect;
     const presets = this._config?.server.profiles[this._config?.server.activeProfile]?.presets;
 
@@ -146,58 +144,58 @@ export class SettingsPanel extends Control {
       const visualRow = i + this._scrollOffset;
       if (visualRow >= this._rows.length) break;
 
-      term.moveTo(x, startY + i);
-      term.styleReset();
+      canvas.moveTo(x, startY + i);
+      canvas.styleReset();
       const row = this._rows[visualRow]!;
       const isSelected = visualRow === this._selectedIndex;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
 
       if (row.type === "header") {
-        this.renderHeader(term, row, isSelected, width);
+        this.renderHeader(canvas, row, isSelected, width);
       } else if (row.type === "field" && row.field) {
-        this.renderField(term, row, isSelected, isEditing, width, presets);
+        this.renderField(canvas, row, isSelected, isEditing, width, presets);
       }
     }
 
     const lastVisualRow = Math.min(this._scrollOffset + height, this._rows.length);
     for (let i = lastVisualRow - this._scrollOffset; i < height; i++) {
-      term.moveTo(x, startY + i);
-      term.styleReset();
-      fg(term, themeColors.canvas, " ".repeat(width));
+      canvas.moveTo(x, startY + i);
+      canvas.styleReset();
+      fg(canvas, themeColors.canvas, " ".repeat(width));
     }
 
     if (this._edit) {
-      this.renderCursor(term);
+      this.renderCursor(canvas);
     }
 
     this.needsRender = false;
   }
 
-  renderCursor(term: Terminal): void {
+  renderCursor(canvas: FramebufferCanvas): void {
     if (!this._edit || !this._config) return;
     const row = this._edit.row;
     const screenY = this.rect.y + row - this._scrollOffset;
     const valueStartX = this.rect.x + KEY_COL_WIDTH;
     const cursorX = valueStartX + this._edit.cursor;
-    term.moveTo(cursorX, screenY);
+    canvas.moveTo(cursorX, screenY);
   }
 
-  renderHeader(term: Terminal, row: RowInfo, isSelected: boolean, width: number): void {
+  renderHeader(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, width: number): void {
     const cat = PRESET_CATEGORIES[row.catIdx]!;
     const arrow = this._collapsed.has(row.catIdx) ? "▶" : "▼";
     const headerText = ` ${arrow} ${cat.name}`;
 
     if (isSelected) {
       const padded = headerText.padEnd(width);
-      fgBg(term, themeColors.canvas, themeColors.accent, padded);
+      fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
     } else {
-      fg(term, themeColors.accent, headerText);
-      fg(term, themeColors.textMuted, " ".repeat(Math.max(0, width - headerText.length)));
+      fg(canvas, themeColors.accent, headerText);
+      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - headerText.length)));
     }
-    term.styleReset();
+    canvas.styleReset();
   }
 
-  renderField(term: Terminal, row: RowInfo, isSelected: boolean, isEditing: boolean, width: number, presets: ServerPresets): void {
+  renderField(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, isEditing: boolean, width: number, presets: ServerPresets): void {
     const field = row.field!;
     const cat = PRESET_CATEGORIES[row.catIdx]!;
     const presetData = presets[cat.presetKey];
@@ -205,9 +203,9 @@ export class SettingsPanel extends Control {
 
     if (isEditing && this._edit) {
       const value = this._edit.text;
-      fg(term, themeColors.warning, keyStr);
-      fg(term, themeColors.selected, value);
-      fg(term, themeColors.textMuted, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
+      fg(canvas, themeColors.warning, keyStr);
+      fg(canvas, themeColors.selected, value);
+      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
     } else {
       const value = formatFieldValue(field, presetData?.[field.key]);
 
@@ -222,21 +220,21 @@ export class SettingsPanel extends Control {
       const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
 
       if (isSelected) {
-        term.bold();
-        fg(term, themeColors.accent, keyStr);
-        term.styleReset();
-        fg(term, themeColors.text, value);
-        fg(term, themeColors.textMuted, extra + (desc ? "  " + desc : ""));
+        canvas.bold();
+        fg(canvas, themeColors.accent, keyStr);
+        canvas.styleReset();
+        fg(canvas, themeColors.text, value);
+        fg(canvas, themeColors.textMuted, extra + (desc ? "  " + desc : ""));
       } else {
-        fg(term, themeColors.textMuted, keyStr);
-        fg(term, themeColors.text, value);
-        fg(term, themeColors.textMuted, desc ? "  " + desc : "");
+        fg(canvas, themeColors.textMuted, keyStr);
+        fg(canvas, themeColors.text, value);
+        fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
       }
 
       const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-      fg(term, themeColors.textMuted, " ".repeat(Math.max(0, width - drawn)));
+      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - drawn)));
     }
-    term.styleReset();
+    canvas.styleReset();
   }
 
   handleKey(key: string): boolean {
@@ -455,7 +453,7 @@ export class SettingsPanel extends Control {
       cursor: editValue.length,
     };
     focusManager.activateTextInput(true);
-    this.term(CURSOR_SHOW);
+    this.canvas.showCursor();
     this.markDirty();
   }
 
@@ -474,7 +472,7 @@ export class SettingsPanel extends Control {
 
     this._edit = null;
     focusManager.activateTextInput(false);
-    this.term(CURSOR_HIDE);
+    this.canvas.hideCursor();
 
     if (changed) {
       try {
@@ -498,7 +496,7 @@ export class SettingsPanel extends Control {
     }
     this._edit = null;
     focusManager.activateTextInput(false);
-    this.term(CURSOR_HIDE);
+    this.canvas.hideCursor();
     this.markDirty();
   }
 
@@ -530,7 +528,7 @@ export class SettingsPanel extends Control {
       }
       this._edit = null;
       focusManager.activateTextInput(false);
-      this.term(CURSOR_HIDE);
+      this.canvas.hideCursor();
       this.markDirty();
     }
   }

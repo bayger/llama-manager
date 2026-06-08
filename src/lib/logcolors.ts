@@ -1,5 +1,5 @@
-import type { Terminal } from "terminal-kit";
 import { themeColors, fg } from "./theme.js";
+import type { FramebufferCanvas } from "./framebuffer-canvas.js";
 
 export interface LogSegment {
   text: string;
@@ -36,19 +36,19 @@ export function parseLogLine(line: string): LogSegment[] {
   ];
 }
 
-export function renderLogLine(term: Terminal, x: number, y: number, width: number, line: string): void {
-  term.moveTo(x, y);
+export function renderLogLine(canvas: FramebufferCanvas, x: number, y: number, width: number, line: string): void {
+  canvas.moveTo(x, y);
   const segments = parseLogLine(line);
   let remainingWidth = width;
 
   for (const seg of segments) {
     if (remainingWidth <= 0) break;
     const truncated = seg.text.substring(0, remainingWidth);
-    fg(term, seg.color, truncated);
+    fg(canvas, seg.color, truncated);
     remainingWidth -= truncated.length;
   }
 
   if (remainingWidth > 0) {
-    fg(term, themeColors.canvas, " ".repeat(remainingWidth));
+    fg(canvas, themeColors.canvas, " ".repeat(remainingWidth));
   }
 }

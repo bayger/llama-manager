@@ -1,4 +1,5 @@
 import { Control } from "./Control.js";
+import type { Point } from "./types.js";
 
 export class FocusManager {
   private _root: Control | null = null;
@@ -25,12 +26,10 @@ export class FocusManager {
     if (this._focused === control) return;
     if (this._focused) {
       this._focused.blur();
-      this._focused.markDirty();
     }
     this._focused = control;
     if (control) {
       control.focus();
-      control.markDirty();
     }
   }
 
@@ -97,6 +96,15 @@ export class FocusManager {
     }
     this._focused = null;
     this._textInputActive = false;
+  }
+
+  handleMouse(point: Point): boolean {
+    if (!this._root) return false;
+    const target = this._root.hitTest(point);
+    if (!target) return false;
+    this.setFocus(target);
+    target.onMouseDown(point);
+    return true;
   }
 
   handleKey(key: string): boolean {

@@ -42,7 +42,7 @@ export class Box extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
+    const { canvas, rect } = this;
     const { x, y, width, height } = rect;
 
     if (width < 4 || height < 3) {
@@ -53,20 +53,20 @@ export class Box extends Control {
     const innerW = width - 2;
 
     // Top border
-    term.moveTo(x, y);
-    fg(term, this.borderColor, TL);
+    canvas.moveTo(x, y);
+    fg(canvas, this.borderColor, TL);
     if (this.title) {
       const titlePadded = ` ${this.title} `.padEnd(innerW);
-      fg(term, this.borderColor, titlePadded);
+      fg(canvas, this.borderColor, titlePadded);
     } else {
-      fg(term, this.borderColor, H.repeat(innerW));
+      fg(canvas, this.borderColor, H.repeat(innerW));
     }
-    fg(term, this.borderColor, TR);
+    fg(canvas, this.borderColor, TR);
 
     // Middle rows
     for (let row = 1; row < height - 1; row++) {
-      term.moveTo(x, y + row);
-      fg(term, this.borderColor, V);
+      canvas.moveTo(x, y + row);
+      fg(canvas, this.borderColor, V);
     }
 
     // Render child
@@ -76,15 +76,15 @@ export class Box extends Control {
 
     // Right border
     for (let row = 1; row < height - 1; row++) {
-      term.moveTo(x + width - 1, y + row);
-      fg(term, this.borderColor, V);
+      canvas.moveTo(x + width - 1, y + row);
+      fg(canvas, this.borderColor, V);
     }
 
     // Bottom border
-    term.moveTo(x, y + height - 1);
-    fg(term, this.borderColor, BL);
-    fg(term, this.borderColor, H.repeat(innerW));
-    fg(term, this.borderColor, BR);
+    canvas.moveTo(x, y + height - 1);
+    fg(canvas, this.borderColor, BL);
+    fg(canvas, this.borderColor, H.repeat(innerW));
+    fg(canvas, this.borderColor, BR);
 
     this.needsRender = false;
   }
