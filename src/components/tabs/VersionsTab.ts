@@ -37,7 +37,7 @@ class VersionsHeader extends Control {
 
   update(text: string): void {
     this._text = text;
-    this.needsRender = true;
+    this.markDirty();
   }
 
   render(): void {
@@ -74,14 +74,14 @@ class ChangelogView extends Scrollable {
     this._lines = stripMarkdown(body);
     this.setContentHeight(this._lines.length);
     this.scrollOffset = 0;
-    this.needsRender = true;
+    this.markDirty();
   }
 
   clear(): void {
     this._lines = [];
     this.setContentHeight(0);
     this.scrollOffset = 0;
-    this.needsRender = true;
+    this.markDirty();
   }
 
   render(): void {
@@ -477,11 +477,6 @@ export class VersionsControl extends Control {
       term.moveTo(_x, rowY);
       fg(term, themeColors.text, line);
     }
-  }
-
-  override markDirty(): void {
-    super.markDirty();
-    this._ctx?.scheduleRender();
   }
 }
 

@@ -65,7 +65,7 @@ export class Control {
   add(child: Control): void {
     child._parent = this;
     this.children.push(child);
-    this.needsRender = true;
+    this.markDirty();
   }
 
   remove(child: Control): void {
@@ -73,7 +73,7 @@ export class Control {
     if (idx !== -1) {
       this.children.splice(idx, 1);
       child._parent = null;
-      this.needsRender = true;
+      this.markDirty();
     }
   }
 
@@ -82,7 +82,7 @@ export class Control {
       child._parent = null;
     }
     this.children.length = 0;
-    this.needsRender = true;
+    this.markDirty();
   }
 
   // — Attachment —
@@ -112,7 +112,7 @@ export class Control {
   layout(rect: Rect): void {
     this.rect = rect;
     this.onLayout();
-    this.needsRender = true;
+    this.markDirty();
   }
 
   // — Rendering —
@@ -159,19 +159,22 @@ export class Control {
   focus(): void {
     this.focused = true;
     this.onFocus();
-    this.needsRender = true;
+    this.markDirty();
   }
 
   blur(): void {
     this.focused = false;
     this.onBlur();
-    this.needsRender = true;
+    this.markDirty();
   }
 
   // — Dirty tracking —
 
   markDirty(): void {
     this.needsRender = true;
+    if (this._renderContext) {
+      this._renderContext.scheduleRender();
+    }
     if (this._parent) {
       this._parent.markDirty();
     }

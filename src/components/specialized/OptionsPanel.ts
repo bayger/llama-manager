@@ -560,11 +560,6 @@ export class OptionsPanel extends Control {
     }
   }
 
-  markDirty(): void {
-    super.markDirty();
-    this._ctx?.scheduleRender();
-  }
-
   onFocus(): void {
     super.onFocus();
     this.clampSelection();

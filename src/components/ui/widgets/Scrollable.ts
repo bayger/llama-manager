@@ -19,7 +19,7 @@ export class Scrollable extends Control {
 
   setScrollOffset(offset: number): void {
     this.scrollOffset = Math.max(0, Math.min(offset, Math.max(0, this.contentHeight - this._viewportHeight)));
-    this.needsRender = true;
+    this.markDirty();
   }
 
   setContentHeight(h: number): void {
@@ -27,7 +27,7 @@ export class Scrollable extends Control {
     if (this.scrollOffset >= Math.max(0, this.contentHeight - this._viewportHeight)) {
       this.scrollOffset = Math.max(0, this.contentHeight - this._viewportHeight);
     }
-    this.needsRender = true;
+    this.markDirty();
   }
 
   canScrollUp(): boolean {
@@ -49,33 +49,33 @@ export class Scrollable extends Control {
   handleKey(key: string): boolean {
     if (key === "UP" && this.canScrollUp()) {
       this.scrollOffset--;
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
     if (key === "DOWN" && this.canScrollDown()) {
       this.scrollOffset++;
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
     if (key === "PAGE_UP") {
       this.scrollOffset = Math.max(0, this.scrollOffset - this._viewportHeight + 1);
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
     if (key === "PAGE_DOWN") {
       const maxScroll = Math.max(0, this.contentHeight - this._viewportHeight);
       this.scrollOffset = Math.min(maxScroll, this.scrollOffset + this._viewportHeight - 1);
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
     if (key === "HOME") {
       this.scrollOffset = 0;
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
     if (key === "END") {
       this.scrollOffset = Math.max(0, this.contentHeight - this._viewportHeight);
-      this.needsRender = true;
+      this.markDirty();
       return true;
     }
     return false;

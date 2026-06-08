@@ -222,7 +222,7 @@ export class ModelsControl extends Control {
       this._hfColumn.visible = true;
       this._hfColumn.layout(this.rect);
     }
-    this.needsRender = true;
+    this.markDirty();
   }
 
   onAttach(): void {
@@ -594,11 +594,6 @@ this._hfResultsList.handleKey = (key: string) => {
       this._ctx?.showMessage(`Removed ${model.filename}`);
       this.refreshModels();
     })();
-  }
-
-  override markDirty(): void {
-    super.markDirty();
-    this._ctx?.scheduleRender();
   }
 }
 

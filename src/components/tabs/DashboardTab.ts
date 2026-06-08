@@ -198,7 +198,6 @@ export class DashboardControl extends Control {
         await startServer(config);
       }, ctx);
       this.markDirty();
-      ctx.scheduleRender();
     });
 
     buttons[1]?.setAction(() => {
@@ -206,7 +205,6 @@ export class DashboardControl extends Control {
         await stopServer();
       }, ctx);
       this.markDirty();
-      ctx.scheduleRender();
     });
 
     buttons[2]?.setAction(() => {
@@ -217,7 +215,6 @@ export class DashboardControl extends Control {
         await startServer(config);
       }, ctx);
       this.markDirty();
-      ctx.scheduleRender();
     });
 
     this._metricsTimer = setInterval(() => {
@@ -226,11 +223,9 @@ export class DashboardControl extends Control {
       getServerMetrics(config).then((m) => {
         this._metricsControl._metrics = m;
         this.markDirty();
-        ctx.scheduleRender();
       }).catch(() => {
         this._metricsControl._metrics = null;
         this.markDirty();
-        ctx.scheduleRender();
       });
     }, 2000);
 
@@ -240,11 +235,10 @@ export class DashboardControl extends Control {
       if (this._logRenderTimer) clearTimeout(this._logRenderTimer);
       this._logRenderTimer = setTimeout(() => {
         this.markDirty();
-        ctx.scheduleRender();
       }, 200);
     });
 
-    this.needsRender = true;
+    this.markDirty();
   }
 
   onDetach(): void {
@@ -284,11 +278,6 @@ export class DashboardControl extends Control {
     } else {
       this._versionLabel.text = "";
     }
-  }
-
-  markDirty(): void {
-    super.markDirty();
-    this._ctx?.scheduleRender();
   }
 }
 

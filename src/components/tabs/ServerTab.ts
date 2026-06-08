@@ -133,7 +133,6 @@ export class ServerControl extends Control {
     this._buttons[1].disabled = isDefault;
     this._buttons[2].disabled = isDefault;
     this.markDirty();
-    this._ctx?.scheduleRender();
   }
 
   showProfileList(): void {
@@ -143,7 +142,6 @@ export class ServerControl extends Control {
     this._profileList.setConfig(this._ctx?.getConfig() || null);
     focusManager.setFocus(this._profileList);
     this.markDirty();
-    this._ctx?.scheduleRender();
   }
 
   showSettings(): void {
@@ -155,7 +153,6 @@ export class ServerControl extends Control {
       focusManager.setFocus(firstEnabled);
     }
     this.markDirty();
-    this._ctx?.scheduleRender();
   }
 
   switchProfile(name: string): void {
@@ -172,11 +169,6 @@ export class ServerControl extends Control {
 
     this.refreshConfig();
     this.showSettings();
-  }
-
-  markDirty(): void {
-    super.markDirty();
-    this._ctx?.scheduleRender();
   }
 
   startProfileEdit(mode: "create" | "rename"): void {

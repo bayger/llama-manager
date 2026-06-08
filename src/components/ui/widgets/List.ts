@@ -47,7 +47,7 @@ export class List<T = any> extends Control {
     if (this.selectedIndex >= items.length) {
       this.selectedIndex = items.length - 1;
     }
-    this.needsRender = true;
+    this.markDirty();
   }
 
   render(): void {
@@ -113,7 +113,6 @@ export class List<T = any> extends Control {
     super.onFocus();
     if (this.selectedIndex < 0 && this.items.length > 0) {
       this.selectedIndex = 0;
-      this.needsRender = true;
       this._fireHighlight();
     }
   }

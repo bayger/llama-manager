@@ -26,12 +26,10 @@ export class FocusManager {
     if (this._focused === control) return;
     if (this._focused) {
       this._focused.blur();
-      this._focused.markDirty();
     }
     this._focused = control;
     if (control) {
       control.focus();
-      control.markDirty();
     }
   }
 

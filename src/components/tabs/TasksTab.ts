@@ -138,11 +138,6 @@ export class TasksControl extends Control {
     }
   }
 
-  markDirty(): void {
-    super.markDirty();
-    this._ctx?.scheduleRender();
-  }
-
   applyFilters(): void {
     this._selectedIndex = 0;
     this._scrollOffset = 0;
