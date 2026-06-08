@@ -9,10 +9,10 @@ export class Spacer extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
+    const { canvas, rect } = this;
     for (let row = 0; row < rect.height; row++) {
-      term.moveTo(rect.x, rect.y + row);
-      term.eraseLine();
+      canvas.moveTo(rect.x, rect.y + row);
+      canvas.eraseLine();
     }
     this.needsRender = false;
   }

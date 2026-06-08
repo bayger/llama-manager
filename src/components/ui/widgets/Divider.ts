@@ -13,9 +13,9 @@ export class Divider extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
-    term.moveTo(rect.x, rect.y);
-    fg(term, this.color, this.char.repeat(rect.width));
+    const { canvas, rect } = this;
+    canvas.moveTo(rect.x, rect.y);
+    fg(canvas, this.color, this.char.repeat(rect.width));
     this.needsRender = false;
   }
 }

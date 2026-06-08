@@ -60,18 +60,18 @@ export class Button extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
-    term.moveTo(rect.x, rect.y);
+    const { canvas, rect } = this;
+    canvas.moveTo(rect.x, rect.y);
     const text = `[ ${this.label} ]`;
 
     if (this.disabled) {
-      fg(term, themeColors.borderMuted, text);
+      fg(canvas, themeColors.borderMuted, text);
     } else if (this.focused) {
-      term.bold();
-      fg(term, themeColors.success, text);
-      term.styleReset();
+      canvas.bold();
+      fg(canvas, themeColors.success, text);
+      canvas.styleReset();
     } else {
-      fg(term, themeColors.textMuted, text);
+      fg(canvas, themeColors.textMuted, text);
     }
 
     this.needsRender = false;

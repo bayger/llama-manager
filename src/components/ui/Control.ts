@@ -1,5 +1,6 @@
 import type { Terminal } from "terminal-kit";
-import type { Rect, Size, RenderContext } from "./types.js";
+import type { Rect, Size, RenderContext, Point } from "./types.js";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { termWidth } from "../../lib/theme.js";
 
 export class Control {
@@ -29,6 +30,11 @@ export class Control {
 
   get term(): Terminal {
     return this.renderContext.term;
+  }
+
+  get canvas(): FramebufferCanvas {
+    if (!this._renderContext) throw new Error("Control not attached to render context");
+    return this._renderContext.canvas;
   }
 
   constructor() {
@@ -113,9 +119,15 @@ export class Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
+
+    const prevClip = this.canvas.getClipRect();
+    this.canvas.setClipRect(this.rect);
+
     for (const child of this.children) {
       child.render();
     }
+
+    this.canvas.setClipRect(prevClip);
     this.needsRender = false;
   }
 
@@ -171,12 +183,33 @@ export class Control {
   onDetach(): void {}
   onFocus(): void {}
   onBlur(): void {}
+  onMouseDown(_point: Point): boolean {
+    return false;
+  }
   onLayout(): void {
     for (const child of this.children) {
       if (child.visible) {
         child.layout(this.rect);
       }
     }
+  }
+
+  // — Mouse —
+
+  hitTest(point: Point): Control | null {
+    if (!this.visible || !this.enabled) return null;
+
+    for (let i = this.children.length - 1; i >= 0; i--) {
+      const child = this.children[i]!;
+      const found = child.hitTest(point);
+      if (found) return found;
+    }
+
+    const { x, y, width, height } = this.rect;
+    if (point.x >= x && point.x < x + width && point.y >= y && point.y < y + height) {
+      return this;
+    }
+    return null;
   }
 
   // — Utilities —

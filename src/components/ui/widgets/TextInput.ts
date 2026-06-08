@@ -48,21 +48,21 @@ export class TextInput extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
-    term.moveTo(rect.x, rect.y);
-    term.styleReset();
+    const { canvas, term, rect } = this;
+    canvas.moveTo(rect.x, rect.y);
+    canvas.styleReset();
 
     if (this.prefix) {
-      fg(term, themeColors.textMuted, this.prefix);
+      fg(canvas, themeColors.textMuted, this.prefix);
     }
 
     const display = this.value || this.placeholder;
     const displayColor = this.value ? themeColors.text : themeColors.textMuted;
-    fg(term, displayColor, display);
+    fg(canvas, displayColor, display);
 
     const contentLen = this.value.length + this.prefix.length;
     const remaining = Math.max(0, rect.width - contentLen);
-    fg(term, themeColors.canvas, " ".repeat(remaining));
+    fg(canvas, themeColors.canvas, " ".repeat(remaining));
 
     if (this.focused) {
       const cursorX = rect.x + this.prefix.length + this.cursorPos;

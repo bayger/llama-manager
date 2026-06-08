@@ -5,6 +5,9 @@ import { taskStore } from "../lib/tasks.js";
 import { Control } from "./ui/Control.js";
 import { focusManager } from "./ui/FocusManager.js";
 import type { RenderContext } from "./ui/types.js";
+import { Framebuffer } from "../lib/framebuffer.js";
+import { FramebufferCanvas } from "../lib/framebuffer-canvas.js";
+import { diffToTerminal } from "../lib/framebuffer-diff.js";
 
 // Tab imports
 import { createServerTab } from "./tabs/ServerTab.js";
@@ -47,6 +50,9 @@ export class App {
   private _renderContext: RenderContext | null = null;
   private _tabs: Record<TabId, TabEntry> | null = null;
   private dirty = { tabbar: false, content: false, statusbar: false };
+  private _fb: Framebuffer | null = null;
+  private _canvas: FramebufferCanvas | null = null;
+  private _firstRender = true;
 
   constructor(term: Terminal) {
     this.term = term;
@@ -75,19 +81,21 @@ export class App {
     return entry.control || null;
   }
 
-  private getActiveTabModule(): TabModule {
-    const entry = this.tabs[this.state.activeTab];
-    return entry.control ? entry.legacy : entry.legacy;
-  }
-
   async start(): Promise<void> {
     await loadConfig().then((config) => {
       this.state.config = config;
       taskStore.init(config);
     });
 
+    this._fb = new Framebuffer();
+    this._fb.resize(termWidth(this.term), termHeight(this.term));
+    this._fb.clearFront();
+
+    this._canvas = new FramebufferCanvas(this._fb, this.term);
+
     this._ctx = {
       term: this.term,
+      canvas: this._canvas,
       scheduleRender: () => this.scheduleRender(),
       showMessage: (msg: string) => this.showMessage(msg),
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
@@ -97,6 +105,7 @@ export class App {
 
     this._renderContext = {
       term: this.term,
+      canvas: this._canvas,
       scheduleRender: () => this.scheduleRender(),
       showMessage: (msg: string) => this.showMessage(msg),
       getConfig: () => this.state.config,
@@ -189,42 +198,49 @@ export class App {
 
   render(): void {
     const { term } = this;
+    const fb = this._fb!;
+    const canvas = this._canvas!;
     const { activeTab, message } = this.state;
     const width = termWidth(term);
     const height = termHeight(term);
 
+    // Resize if needed
+    fb.resize(width, height);
+
     // First render: clear full screen
-    if (!this.dirty.tabbar && !this.dirty.content && !this.dirty.statusbar) {
-      term.moveTo(1, 1);
-      term('\x1b[0J');
+    if (this._firstRender) {
+      fb.clearFront();
+      this._firstRender = false;
       this.dirty.tabbar = true;
       this.dirty.content = true;
       this.dirty.statusbar = true;
     }
 
+    // Swap buffers (old front becomes back for diff)
+    fb.swap();
+    // Copy previous frame into new front so clean regions carry over
+    fb.copyRegion(fb.back, 0, 0, width, height, 0, 0);
+
     // --- Tab bar (row 1-2) ---
     if (this.dirty.tabbar) {
-      this.renderTabs(TABS.indexOf(activeTab), width);
+      // Clear row 1 before rendering tabs so leftover characters don't remain
+      canvas.moveTo(1, 1);
+      canvas.eraseLine();
+      this.renderTabs(TABS.indexOf(activeTab), width, canvas);
     }
 
     // --- Content area (row 3 to height-1) ---
     if (this.dirty.content) {
-      for (let y = 3; y < height; y++) {
-        term.moveTo(1, y);
-        term.eraseLine();
-      }
-
       if (this.state.helpOverlayVisible) {
-        this.renderHelpOverlay(width, height);
+        this.renderHelpOverlay(width, height, canvas);
       } else {
         const control = this.getActiveControl();
         if (control) {
           control.attach(this.renderContext);
           control.layout({ x: 1, y: 3, width: width, height: height - 4 });
-          term.moveTo(1, 3);
           control.render();
         } else {
-          term.moveTo(1, 3);
+          canvas.moveTo(1, 3);
           this.tabs[activeTab].legacy.render();
         }
       }
@@ -232,23 +248,25 @@ export class App {
 
     // --- Status bar (last row) ---
     if (this.dirty.statusbar) {
-      term.moveTo(1, height);
-      term.eraseLine();
+      canvas.moveTo(1, height);
+      canvas.eraseLine();
       if (message) {
-        fg(term, themeColors.success, message);
-        fg(term, themeColors.textMuted, ` | ? help`);
+        fg(canvas, themeColors.success, message);
+        fg(canvas, themeColors.textMuted, ` | ? help`);
       } else {
-        fg(term, themeColors.textMuted, `${activeTab} | F1-F6 navigate | q quit | ? help`);
+        fg(canvas, themeColors.textMuted, `${activeTab} | F1-F6 navigate | q quit | ? help`);
       }
     }
+
+    // Diff front vs back and emit ANSI to terminal
+    diffToTerminal(fb.back, fb.front, term, width, height);
 
     this.dirty.tabbar = false;
     this.dirty.content = false;
     this.dirty.statusbar = false;
   }
 
-  private renderHelpOverlay(width: number, height: number): void {
-    const { term } = this;
+  private renderHelpOverlay(width: number, height: number, canvas: FramebufferCanvas): void {
     const overlayY = 3;
     const overlayHeight = height - 4;
 
@@ -298,38 +316,36 @@ export class App {
     const startY = overlayY + Math.max(1, Math.floor((overlayHeight - contentHeight) / 2));
 
     for (let y = overlayY; y < height; y++) {
-      term.moveTo(1, y);
-      term.bgColorRgbHex(themeColors.canvasSubtle);
-      term.colorRgbHex(themeColors.canvasSubtle);
-      term(' '.repeat(width));
-      term.styleReset();
+      canvas.moveTo(1, y);
+      canvas.bgColorRgbHex(themeColors.canvasSubtle);
+      canvas.colorRgbHex(themeColors.canvasSubtle);
+      canvas.write(' '.repeat(width));
+      canvas.styleReset();
     }
 
     for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
       const line = contentLines[i]!;
       const y = startY + i;
-      term.moveTo(1, y);
-      term.bgColorRgbHex(themeColors.canvasSubtle);
+      canvas.moveTo(1, y);
+      canvas.bgColorRgbHex(themeColors.canvasSubtle);
 
       if (line.isTitle) {
-        term.colorRgbHex(themeColors.accent)(line.text);
+        canvas.colorRgbHex(themeColors.accent).write(line.text);
       } else if (line.isHeader) {
-        term.colorRgbHex(themeColors.accent)(line.text);
+        canvas.colorRgbHex(themeColors.accent).write(line.text);
       } else if (line.key) {
-        term.colorRgbHex(themeColors.textLink)(`    ${line.key}`);
-        term.colorRgbHex(themeColors.text)(`     ${line.desc}`);
+        canvas.colorRgbHex(themeColors.textLink).write(`    ${line.key}`);
+        canvas.colorRgbHex(themeColors.text).write(`     ${line.desc}`);
       } else {
-        term.colorRgbHex(themeColors.text)(line.text);
+        canvas.colorRgbHex(themeColors.text).write(line.text);
       }
-      term.styleReset();
+      canvas.styleReset();
     }
   }
 
-  private renderTabs(selectedIndex: number, width: number): void {
-    const { term } = this;
-
+  private renderTabs(selectedIndex: number, width: number, canvas: FramebufferCanvas): void {
     // Row 1: tab labels
-    term.moveTo(1, 1);
+    canvas.moveTo(1, 1);
 
     const labels: string[] = [];
     const positions: { start: number; end: number }[] = [];
@@ -344,22 +360,22 @@ export class App {
 
     for (let i = 0; i < labels.length; i++) {
       if (i === selectedIndex) {
-        fg(term, themeColors.textMuted, `F${i + 1}`);
-        term.bold;
-        fg(term, themeColors.accent, ` ${TABS[i]}`);
-        term.styleReset();
+        fg(canvas, themeColors.textMuted, `F${i + 1}`);
+        canvas.bold();
+        fg(canvas, themeColors.accent, ` ${TABS[i]}`);
+        canvas.styleReset();
       } else {
-        fg(term, themeColors.border, `F${i + 1}`);
-        fg(term, themeColors.textMuted, ` ${TABS[i]}`);
+        fg(canvas, themeColors.border, `F${i + 1}`);
+        fg(canvas, themeColors.textMuted, ` ${TABS[i]}`);
       }
       if (i < labels.length - 1) {
-        term('  ');
+        canvas.write('  ');
       }
     }
 
     // Row 2: active tab underline
-    term.moveTo(1, 2);
-    term.eraseLine();
+    canvas.moveTo(1, 2);
+    canvas.eraseLine();
     let activeStart = 0;
     let activeEnd = 0;
     let pos = 0;
@@ -374,7 +390,7 @@ export class App {
 
     for (let i = 0; i < width; i++) {
       const color = i >= activeStart && i < activeEnd ? themeColors.accent : themeColors.border;
-      fg(term, color, '\u2501');
+      fg(canvas, color, '\u2501');
     }
   }
 
@@ -446,12 +462,29 @@ export class App {
     };
 
     this.term.on('key', this.keyHandler);
+
+    // Mouse handling
+    const mouseHandler = (_data: any) => {
+      const nx = (_data as any).nx;
+      const ny = (_data as any).ny;
+      const button = (_data as any).button;
+      if (button === 0 && typeof nx === 'number' && typeof ny === 'number') {
+        focusManager.handleMouse({ x: nx + 1, y: ny + 1 });
+      }
+    };
+    (this.term as any).on('mouse', mouseHandler);
+    (this._ctx as any).mouseHandler = mouseHandler;
   }
 
   dispose(): void {
     if (this.keyHandler) {
       this.term.removeListener('key', this.keyHandler);
       this.keyHandler = null;
+    }
+    const mouseHandler = (this._ctx as any).mouseHandler;
+    if (mouseHandler) {
+      (this.term as any).removeListener('mouse', mouseHandler);
+      (this._ctx as any).mouseHandler = null;
     }
     if (this.state.messageTimer) {
       clearTimeout(this.state.messageTimer);

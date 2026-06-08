@@ -52,26 +52,26 @@ export class List<T = any> extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
+    const { canvas, rect } = this;
     const { x, y, width } = rect;
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
       const isSelected = i === this.selectedIndex;
-      term.moveTo(x, y + i);
+      canvas.moveTo(x, y + i);
 
       if (this._customRenderer) {
-        this._customRenderer(term, item, i, isSelected, x, y + i, width);
+        this._customRenderer(canvas, item, i, isSelected, x, y + i, width);
       } else {
         const label = item.label;
         const display = ` ${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
         if (isSelected) {
-          term.bold();
-          fgBg(term, themeColors.selectedText, themeColors.selectedBg, display.padEnd(width));
-          term.styleReset();
+          canvas.bold();
+          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, display.padEnd(width));
+          canvas.styleReset();
         } else {
-          fg(term, themeColors.text, display);
+          fg(canvas, themeColors.text, display);
         }
       }
     }
