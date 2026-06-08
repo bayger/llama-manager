@@ -1,10 +1,7 @@
 // GitHub Dark theme palette mapped to terminal colors
 // https://github.com/github/design/blob/main/docs/color-variables.md
 
-import type { Terminal } from "terminal-kit";
 import type { FramebufferCanvas } from "./framebuffer-canvas.js";
-
-type WriteTarget = Terminal | FramebufferCanvas;
 
 export const themeColors = {
   // GitHub dark surface colors
@@ -43,41 +40,35 @@ export const themeColors = {
 export type ThemeColors = typeof themeColors;
 
 // Output text with a hex foreground color
-export function fg(target: WriteTarget, hex: string, text: string): void {
-  target.colorRgbHex(hex, text);
+export function fg(target: FramebufferCanvas, hex: string, text: string): void {
+  target.colorRgbHex(hex);
+  target.write(text);
 }
 
 // Output text with a hex background color
-export function bg(target: WriteTarget, hex: string, text: string): void {
-  target.bgColorRgbHex(hex, text);
+export function bg(target: FramebufferCanvas, hex: string, text: string): void {
+  target.bgColorRgbHex(hex);
+  target.write(text);
 }
 
 // Output text with both fg and bg colors
-export function fgBg(target: WriteTarget, fgHex: string, bgHex: string, text: string): void {
-  target.colorRgbHex(fgHex).bgColorRgbHex(bgHex, text);
-}
-
-// Create a styled output function for a given hex color
-export function fgFn(target: WriteTarget, hex: string): (text: string) => WriteTarget {
-  return (text) => target.colorRgbHex(hex, text);
-}
-
-// Create a styled output function for a given bg color
-export function bgFn(target: WriteTarget, hex: string): (text: string) => WriteTarget {
-  return (text) => target.bgColorRgbHex(hex, text);
+export function fgBg(target: FramebufferCanvas, fgHex: string, bgHex: string, text: string): void {
+  target.colorRgbHex(fgHex);
+  target.bgColorRgbHex(bgHex);
+  target.write(text);
 }
 
 // Keep backward compat for lib files that import theme colors
 export const theme = themeColors;
 
 // Safe terminal dimension getters (fallback to stdout when term is not ready)
-export function termWidth(target: WriteTarget): number {
+export function termWidth(target: FramebufferCanvas): number {
   const w = target.width;
   if (typeof w === 'number' && isFinite(w) && w > 0) return w;
   return process.stdout.columns || 80;
 }
 
-export function termHeight(target: WriteTarget): number {
+export function termHeight(target: FramebufferCanvas): number {
   const h = target.height;
   if (typeof h === 'number' && isFinite(h) && h > 0) return h;
   return process.stdout.rows || 24;
@@ -86,7 +77,7 @@ export function termHeight(target: WriteTarget): number {
 /**
  * Renders a single line at (1, y) with erase, then runs fn.
  */
-export function renderLine(target: WriteTarget, y: number, fn: () => void): void {
+export function renderLine(target: FramebufferCanvas, y: number, fn: () => void): void {
   target.moveTo(1, y);
   target.eraseLine();
   fn();
@@ -95,7 +86,7 @@ export function renderLine(target: WriteTarget, y: number, fn: () => void): void
 /**
  * Render a full-width horizontal divider line.
  */
-export function renderDivider(target: WriteTarget, y: number, color: string): void {
+export function renderDivider(target: FramebufferCanvas, y: number, color: string): void {
   const width = termWidth(target);
   renderLine(target, y, () => {
     fg(target, color, "\u2500".repeat(width));
@@ -120,20 +111,20 @@ export interface BoxLine {
 }
 
 export interface BoxOptions {
-  target: WriteTarget;
+  target: FramebufferCanvas;
   width: number;
   borderColor: string;
   startY: number;
 }
 
-function hBorder(target: WriteTarget, width: number, color: string, left: string, right: string): void {
+function hBorder(target: FramebufferCanvas, width: number, color: string, left: string, right: string): void {
   const inner = Math.max(0, width - 2);
   fg(target, color, left);
   fg(target, color, H.repeat(inner));
   fg(target, color, right);
 }
 
-function vBorder(target: WriteTarget, color: string): void {
+function vBorder(target: FramebufferCanvas, color: string): void {
   fg(target, color, V);
 }
 

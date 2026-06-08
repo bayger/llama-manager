@@ -1,4 +1,5 @@
 import { Control } from "../ui/Control.js";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
@@ -42,16 +43,16 @@ class VersionsHeader extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
-    const { x, y, width } = rect;
+    const canvas = this.canvas;
+    const { x, y, width } = this.rect;
 
-    term.moveTo(x, y);
-    fg(term, themeColors.text, this._text);
+    canvas.moveTo(x, y);
+    fg(canvas, themeColors.text, this._text);
 
-    const endX = (term as any).cursorX ?? x;
+    const endX = canvas.cursorX ?? x;
     const padLen = width - (endX - x);
     if (padLen > 0) {
-      fg(term, themeColors.canvas, " ".repeat(padLen));
+      fg(canvas, themeColors.canvas, " ".repeat(padLen));
     }
 
     this.needsRender = false;
@@ -86,18 +87,18 @@ class ChangelogView extends Scrollable {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { term, rect } = this;
-    const { x, y, width } = rect;
+    const canvas = this.canvas;
+    const { x, y, width } = this.rect;
 
     for (let i = 0; i < this._viewportHeight; i++) {
       const lineIdx = this.scrollOffset + i;
-      term.moveTo(x, y + i);
+      canvas.moveTo(x, y + i);
       if (lineIdx < this._lines.length) {
         const line = this._lines[lineIdx] || "";
         const display = line.padEnd(width).substring(0, width);
-        fg(term, themeColors.textMuted, display);
+        fg(canvas, themeColors.textMuted, display);
       } else {
-        fg(term, themeColors.canvas, " ".repeat(width));
+        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 
@@ -438,44 +439,44 @@ export class VersionsControl extends Control {
     }
   }
 
-  _localRenderer(term: any, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const v = item.data as VersionInfo;
     const prefix = v.active ? "● " : "  ";
     const line = ` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`;
 
     if (isSelected) {
-      fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
-      term.styleReset();
+      fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+      canvas.styleReset();
     } else {
-      term.moveTo(_x, rowY);
-      fg(term, v.active ? themeColors.success : themeColors.text, line);
+      canvas.moveTo(_x, rowY);
+      fg(canvas, v.active ? themeColors.success : themeColors.text, line);
     }
   }
 
-  _releaseRenderer(term: any, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const r = item.data as RemoteVersion;
     const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
     const line = ` ${r.tag}  ${date}`;
 
     if (isSelected) {
-      fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
-      term.styleReset();
+      fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+      canvas.styleReset();
     } else {
-      term.moveTo(_x, rowY);
-      fg(term, themeColors.text, line);
+      canvas.moveTo(_x, rowY);
+      fg(canvas, themeColors.text, line);
     }
   }
 
-  _backendRenderer(term: any, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const b = item.data as AvailableBackend;
     const line = ` ${b.label}  ${b.assetName}`;
 
     if (isSelected) {
-      fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
-      term.styleReset();
+      fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+      canvas.styleReset();
     } else {
-      term.moveTo(_x, rowY);
-      fg(term, themeColors.text, line);
+      canvas.moveTo(_x, rowY);
+      fg(canvas, themeColors.text, line);
     }
   }
 }

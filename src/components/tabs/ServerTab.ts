@@ -11,9 +11,6 @@ import { ConfigData, saveConfig } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
 
-const CURSOR_SHOW = "\x1b[?25h";
-const CURSOR_HIDE = "\x1b[?25l";
-
 export class ServerControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
@@ -187,14 +184,14 @@ export class ServerControl extends Control {
     };
     focusManager.setFocus(this);
     focusManager.activateTextInput(true);
-    this.term(CURSOR_SHOW);
+    this.canvas.showCursor();
     this.markDirty();
   }
 
   cancelProfileEdit(restoreFocus: boolean = true): void {
     this._profileEdit = null;
     focusManager.activateTextInput(false);
-    this.term(CURSOR_HIDE);
+    this.canvas.hideCursor();
     if (restoreFocus) {
       const firstEnabled = this._buttons.find(b => !b.disabled);
       if (firstEnabled) {
@@ -370,16 +367,16 @@ export class ServerControl extends Control {
     super.render();
 
     if (this._profileEdit) {
-      const term = this.term;
+      const canvas = this.canvas;
       const labelRect = this._profileLabel.rect;
       const prefix = this._profileEdit.mode === "create" ? "Create: " : "Rename: ";
-      term.moveTo(labelRect.x, labelRect.y);
-      term.styleReset();
-      fg(term, themeColors.warning, prefix);
-      fg(term, themeColors.selected, this._profileEdit.text);
+      canvas.moveTo(labelRect.x, labelRect.y);
+      canvas.styleReset();
+      fg(canvas, themeColors.warning, prefix);
+      fg(canvas, themeColors.selected, this._profileEdit.text);
       const drawn = labelRect.x + prefix.length + this._profileEdit.text.length;
-      fg(term, themeColors.textMuted, " ".repeat(Math.max(0, labelRect.width - prefix.length - this._profileEdit.text.length)));
-      term.moveTo(drawn, labelRect.y);
+      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, labelRect.width - prefix.length - this._profileEdit.text.length)));
+      canvas.moveTo(drawn, labelRect.y);
     }
 
     this.needsRender = false;

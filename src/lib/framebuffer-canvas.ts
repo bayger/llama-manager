@@ -1,6 +1,5 @@
-import type { Terminal } from "terminal-kit";
 import type { Cell } from "./framebuffer.js";
-import { Framebuffer } from "./framebuffer.js";
+import { Framebuffer, DEFAULT_FG, DEFAULT_BG } from "./framebuffer.js";
 
 export interface ClipRect {
   x: number;
@@ -9,7 +8,7 @@ export interface ClipRect {
   height: number;
 }
 
-const defaultCell: Cell = { ch: ' ', fg: '', bg: '', bold: false };
+const defaultCell: Cell = { ch: ' ', fg: DEFAULT_FG, bg: DEFAULT_BG, bold: false };
 
 /** Convert 1-indexed terminal coord to 0-indexed buffer index. */
 function toBuf(v: number): number {
@@ -20,26 +19,40 @@ export class FramebufferCanvas {
   // Cursor stored in 1-indexed terminal coordinates (matches app/control rects)
   private _cursorX = 1;
   private _cursorY = 1;
-  private _fg = '';
-  private _bg = '';
+  private _fg = DEFAULT_FG;
+  private _bg = DEFAULT_BG;
   private _bold = false;
   private _clip: ClipRect | null = null;
+  private _cursorVisible = false;
 
-  constructor(
-    private _fb: Framebuffer,
-    private _term: Terminal,
-  ) {}
+  constructor(private _fb: Framebuffer) {}
 
   get cursorX(): number {
     return this._cursorX;
   }
 
+  get cursorY(): number {
+    return this._cursorY;
+  }
+
+  get cursorVisible(): boolean {
+    return this._cursorVisible;
+  }
+
+  showCursor(): void {
+    this._cursorVisible = true;
+  }
+
+  hideCursor(): void {
+    this._cursorVisible = false;
+  }
+
   get width(): number {
-    return this._fb.width || (this._term.width as number);
+    return this._fb.width;
   }
 
   get height(): number {
-    return this._fb.height || (this._term.height as number);
+    return this._fb.height;
   }
 
   setClipRect(rect: ClipRect | null): void {
@@ -103,19 +116,13 @@ export class FramebufferCanvas {
     }
   }
 
-  colorRgbHex(hex: string, text?: string): this {
+  colorRgbHex(hex: string): this {
     this._fg = hex;
-    if (text !== undefined) {
-      this.write(text);
-    }
     return this;
   }
 
-  bgColorRgbHex(hex: string, text?: string): this {
+  bgColorRgbHex(hex: string): this {
     this._bg = hex;
-    if (text !== undefined) {
-      this.write(text);
-    }
     return this;
   }
 
@@ -125,8 +132,8 @@ export class FramebufferCanvas {
   }
 
   styleReset(): this {
-    this._fg = '';
-    this._bg = '';
+    this._fg = DEFAULT_FG;
+    this._bg = DEFAULT_BG;
     this._bold = false;
     return this;
   }

@@ -1,4 +1,3 @@
-import type { Terminal } from "terminal-kit";
 import type { Cell } from "./framebuffer.js";
 
 function cellsEqual(a: Cell, b: Cell): boolean {
@@ -31,7 +30,7 @@ interface RunEntry {
 export function diffToTerminal(
   oldBuf: Cell[][],
   newBuf: Cell[][],
-  term: Terminal,
+  write: (text: string) => void,
   width: number,
   height: number,
 ): void {
@@ -96,22 +95,19 @@ export function diffToTerminal(
       if (run.bold) {
         output += '\x1b[1m';
       }
-
-      if (run.ch === ' ') {
-        output += ' '.repeat(run.len);
-      } else {
-        let text = '';
-        for (let dx = 0; dx < run.len; dx++) {
-          text += newRow[run.x + dx]!.ch;
-        }
-        output += text;
+      
+      let text = '';
+      for (let dx = 0; dx < run.len; dx++) {
+        text += newRow[run.x + dx]!.ch;
       }
+      output += text;
+      
 
       output += '\x1b[0m';
     }
   }
 
   if (output) {
-    term(output);
+    write(output);
   }
 }

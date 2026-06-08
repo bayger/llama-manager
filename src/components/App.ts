@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, termHeight, termWidth } from "../lib/theme.js";
+import { themeColors } from "../lib/theme.js";
 import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
 import { focusManager } from "./ui/FocusManager.js";
@@ -10,6 +10,9 @@ import { FramebufferCanvas } from "../lib/framebuffer-canvas.js";
 import { diffToTerminal } from "../lib/framebuffer-diff.js";
 import { MainControl, TABS } from "./MainControl.js";
 import type { TabId } from "./MainControl.js";
+
+const CURSOR_SHOW = "\x1b[?25h";
+const CURSOR_HIDE = "\x1b[?25l";
 
 export class App {
   private _fb: Framebuffer | null = null;
@@ -29,13 +32,12 @@ export class App {
     taskStore.init(config);
 
     this._fb = new Framebuffer();
-    this._fb.resize(termWidth(this.term), termHeight(this.term));
+    this._fb.resize(process.stdout.columns || 80, process.stdout.rows || 24);
     this._fb.clearFront();
 
-    this._canvas = new FramebufferCanvas(this._fb, this.term);
+    this._canvas = new FramebufferCanvas(this._fb);
 
     this._ctx = {
-      term: this.term,
       canvas: this._canvas,
       scheduleRender: () => this.scheduleRender(),
       showMessage: (msg: string) => this.showMessage(msg),
@@ -93,8 +95,8 @@ export class App {
     const fb = this._fb!;
     const canvas = this._canvas!;
     const main = this._main!;
-    const width = termWidth(term);
-    const height = termHeight(term);
+    const width = process.stdout.columns || 80;
+    const height = process.stdout.rows || 24;
 
     fb.resize(width, height);
 
@@ -113,7 +115,14 @@ export class App {
       main.render();
     }
 
-    diffToTerminal(fb.back, fb.front, term, width, height);
+    diffToTerminal(fb.back, fb.front, (text) => term(text), width, height);
+
+    if (canvas.cursorVisible) {
+      term(`\x1b[${canvas.cursorY};${canvas.cursorX}H`);
+      term(CURSOR_SHOW);
+    } else {
+      term(CURSOR_HIDE);
+    }
   }
 
   private renderHelpOverlay(width: number, height: number, canvas: FramebufferCanvas): void {

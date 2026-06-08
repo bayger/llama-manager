@@ -21,7 +21,7 @@ class MetricsControl extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const term = this.term;
+    const canvas = this.canvas;
     const { x, y, width } = this.rect;
 
     const m = this._metrics;
@@ -35,12 +35,12 @@ class MetricsControl extends Control {
     ];
 
     for (let row = 0; row < 2; row++) {
-      term.moveTo(x, y + row);
+      canvas.moveTo(x, y + row);
       for (let col = 0; col < 2; col++) {
         const idx = row * 2 + col;
         const met = metrics[idx]!;
         const cell = ` ${met.label}: ${met.value} `.padEnd(colW);
-        fg(term, themeColors.textMuted, cell.substring(0, colW));
+        fg(canvas, themeColors.textMuted, cell.substring(0, colW));
       }
     }
 
@@ -55,24 +55,24 @@ class StatusControl extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const term = this.term;
-    term.moveTo(this.rect.x, this.rect.y);
+    const canvas = this.canvas;
+    canvas.moveTo(this.rect.x, this.rect.y);
 
     const status = getStatus();
     const stateText = status.running ? "Running" : "Stopped";
     const stateColor = status.running ? themeColors.success : themeColors.textMuted;
 
-    fg(term, stateColor, ` ${stateText}`);
+    fg(canvas, stateColor, ` ${stateText}`);
 
     if (status.running && status.pid) {
-      fg(term, themeColors.text, `  PID: ${status.pid}`);
-      fg(term, themeColors.textMuted, `  Uptime: ${formatUptime(status.uptime)}`);
+      fg(canvas, themeColors.text, `  PID: ${status.pid}`);
+      fg(canvas, themeColors.textMuted, `  Uptime: ${formatUptime(status.uptime)}`);
     }
 
-    const endX = (term as any).cursorX ?? this.rect.x;
+    const endX = canvas.cursorX ?? this.rect.x;
     const padLen = this.rect.width - (endX - this.rect.x);
     if (padLen > 0) {
-      fg(term, themeColors.canvas, " ".repeat(padLen));
+      fg(canvas, themeColors.canvas, " ".repeat(padLen));
     }
 
     this.needsRender = false;
@@ -122,14 +122,14 @@ export class DashboardControl extends Control {
     this._profileLabel.measure = () => ({ width: "Profile: ".length + profileLbl.text.length, height: 1 });
     this._profileLabel.render = () => {
       if (!profileLbl.visible || !profileLbl.needsRender) return;
-      const { term, rect } = profileLbl;
-      term.moveTo(rect.x, rect.y);
-      fg(term, themeColors.textMuted, "Profile: ");
-      fg(term, themeColors.text, profileLbl.text);
-      const endX = (term as any).cursorX ?? rect.x;
+      const { canvas, rect } = profileLbl;
+      canvas.moveTo(rect.x, rect.y);
+      fg(canvas, themeColors.textMuted, "Profile: ");
+      fg(canvas, themeColors.text, profileLbl.text);
+      const endX = canvas.cursorX ?? rect.x;
       const padLen = rect.width - (endX - rect.x);
       if (padLen > 0) {
-        fg(term, themeColors.canvas, " ".repeat(padLen));
+        fg(canvas, themeColors.canvas, " ".repeat(padLen));
       }
       profileLbl.needsRender = false;
     };
@@ -149,14 +149,14 @@ export class DashboardControl extends Control {
     this._versionLabel.measure = () => ({ width: Math.max("Version: ".length + versionLbl.text.length, 1), height: 1 });
     this._versionLabel.render = () => {
       if (!versionLbl.visible || !versionLbl.needsRender) return;
-      const { term, rect } = versionLbl;
-      term.moveTo(rect.x, rect.y);
-      fg(term, themeColors.textMuted, "Version: ");
-      fg(term, themeColors.text, versionLbl.text);
-      const endX = (term as any).cursorX ?? rect.x;
+      const { canvas, rect } = versionLbl;
+      canvas.moveTo(rect.x, rect.y);
+      fg(canvas, themeColors.textMuted, "Version: ");
+      fg(canvas, themeColors.text, versionLbl.text);
+      const endX = canvas.cursorX ?? rect.x;
       const padLen = rect.width - (endX - rect.x);
       if (padLen > 0) {
-        fg(term, themeColors.canvas, " ".repeat(padLen));
+        fg(canvas, themeColors.canvas, " ".repeat(padLen));
       }
       versionLbl.needsRender = false;
     };

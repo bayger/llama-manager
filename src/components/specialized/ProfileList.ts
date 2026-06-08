@@ -34,7 +34,7 @@ export class ProfileList extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender || !this._config) return;
-    const term = this.term;
+    const canvas = this.canvas;
     const { x, y: startY, width, height } = this.rect;
     const names = Object.keys(this._config.server.profiles);
 
@@ -44,8 +44,8 @@ export class ProfileList extends Control {
     }
 
     for (let i = 0; i < height; i++) {
-      term.moveTo(x, startY + i);
-      term.styleReset();
+      canvas.moveTo(x, startY + i);
+      canvas.styleReset();
 
       if (i < names.length) {
         const name = names[i]!;
@@ -55,16 +55,16 @@ export class ProfileList extends Control {
         if (isSelected) {
           const prefix = isActive ? " > " : "   ";
           const line = (prefix + name).padEnd(width);
-          fgBg(term, themeColors.canvas, themeColors.accent, line.substring(0, width));
+          fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
         } else if (isActive) {
           const line = ("* " + name).padEnd(width);
-          fg(term, themeColors.accent, line.substring(0, width));
+          fg(canvas, themeColors.accent, line.substring(0, width));
         } else {
           const line = ("   " + name).padEnd(width);
-          fg(term, themeColors.textMuted, line.substring(0, width));
+          fg(canvas, themeColors.textMuted, line.substring(0, width));
         }
       } else {
-        fg(term, themeColors.canvas, " ".repeat(width));
+        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 

@@ -164,32 +164,32 @@ export class TasksControl extends Control {
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const term = this.term;
+    const canvas = this.canvas;
     const { x, y: startY, width, height } = this.rect;
     const tasks = this.filteredTasks;
     const allTasks = taskStore.getTasks();
     const stats = taskStore.getStats(tasks);
 
-    term.moveTo(x, startY);
-    term.styleReset();
+    canvas.moveTo(x, startY);
+    canvas.styleReset();
 
     const sortLabel = SORT_FIELDS.find((s) => s.field === this._sortField)?.label || this._sortField;
     const sortIndicator = this._sortDir === "asc" ? " ▲" : " ▼";
     const filterIndicator = (this._searchValue !== "" || this._slotValue !== "") ? " [F]" : "";
-    fg(term, themeColors.text, `Tasks: ${stats.count}`);
-    fg(term, themeColors.textMuted, `  Avg PP: ${stats.avgPromptSpeed.toFixed(1)}`);
-    fg(term, themeColors.textMuted, `  Avg TG: ${stats.avgOutputSpeed.toFixed(1)}`);
-    fg(term, themeColors.accent, `  Sort: ${sortLabel}${sortIndicator}`);
+    fg(canvas, themeColors.text, `Tasks: ${stats.count}`);
+    fg(canvas, themeColors.textMuted, `  Avg PP: ${stats.avgPromptSpeed.toFixed(1)}`);
+    fg(canvas, themeColors.textMuted, `  Avg TG: ${stats.avgOutputSpeed.toFixed(1)}`);
+    fg(canvas, themeColors.accent, `  Sort: ${sortLabel}${sortIndicator}`);
     if (filterIndicator) {
-      fg(term, themeColors.warning, filterIndicator);
+      fg(canvas, themeColors.warning, filterIndicator);
     }
-    fg(term, themeColors.textMuted, " ".repeat(Math.max(0, width - 60 - String(stats.count).length - String(stats.avgPromptSpeed.toFixed(1)).length - String(stats.avgOutputSpeed.toFixed(1)).length - sortLabel.length)));
+    fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - 60 - String(stats.count).length - String(stats.avgPromptSpeed.toFixed(1)).length - String(stats.avgOutputSpeed.toFixed(1)).length - sortLabel.length)));
 
     super.render();
 
     const headerY = startY + (this._filterVisible ? 3 : 2);
-    term.moveTo(x, headerY);
-    term.styleReset();
+    canvas.moveTo(x, headerY);
+    canvas.styleReset();
     this.renderHeaderRow(width);
 
     const listStartY = startY + (this._filterVisible ? 4 : 3);
@@ -197,15 +197,15 @@ export class TasksControl extends Control {
 
     for (let i = 0; i < listHeight; i++) {
       const taskIdx = i + this._scrollOffset;
-      term.moveTo(x, listStartY + i);
-      term.styleReset();
+      canvas.moveTo(x, listStartY + i);
+      canvas.styleReset();
 
       if (taskIdx < tasks.length) {
         const task = tasks[taskIdx]!;
         const isSelected = taskIdx === this._selectedIndex;
         this.renderTaskRow(task, isSelected, width);
       } else {
-        fg(term, themeColors.canvas, " ".repeat(width));
+        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 
@@ -236,9 +236,9 @@ export class TasksControl extends Control {
       row = ` ${baseCols.join(" ")} ${SORT_FIELDS[highlightCol - 2].label}${sortIndicator}`.padEnd(baseCols.join(" ").length + SORT_FIELDS[highlightCol - 2].label.length + sortIndicator.length + 2);
     }
 
-    fg(this.term, themeColors.accent, row);
-    fg(this.term, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
-    this.term.styleReset();
+    fg(this.canvas, themeColors.accent, row);
+    fg(this.canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
+    this.canvas.styleReset();
   }
 
   renderTaskRow(task: TaskMetrics, isSelected: boolean, width: number): void {
@@ -259,13 +259,14 @@ export class TasksControl extends Control {
 
     if (isSelected) {
       const padded = row.padEnd(width);
-      this.term.colorRgbHex(themeColors.canvas).bgColorRgbHex(themeColors.accent)(padded);
-      this.term.styleReset();
+      this.canvas.colorRgbHex(themeColors.canvas).bgColorRgbHex(themeColors.accent);
+      this.canvas.write(padded);
+      this.canvas.styleReset();
     } else {
-      fg(this.term, themeColors.text, row);
-      fg(this.term, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
+      fg(this.canvas, themeColors.text, row);
+      fg(this.canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
     }
-    this.term.styleReset();
+    this.canvas.styleReset();
   }
 
   handleKey(key: string): boolean {

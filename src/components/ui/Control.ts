@@ -1,7 +1,5 @@
-import type { Terminal } from "terminal-kit";
 import type { Rect, Size, RenderContext, Point } from "./types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { termWidth } from "../../lib/theme.js";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -26,10 +24,6 @@ export class Control {
   get renderContext(): RenderContext {
     if (!this._renderContext) throw new Error("Control not attached to render context");
     return this._renderContext;
-  }
-
-  get term(): Terminal {
-    return this.renderContext.term;
   }
 
   get canvas(): FramebufferCanvas {
@@ -230,6 +224,6 @@ export class Control {
   }
 
   fitContent(width: number, height: number): Size {
-    return { width: Math.min(width, termWidth(this.term)), height: Math.min(height, 999) };
+    return { width: Math.min(width, this.canvas.width), height: Math.min(height, 999) };
   }
 }

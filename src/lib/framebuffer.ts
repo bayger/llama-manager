@@ -5,7 +5,10 @@ export interface Cell {
   bold: boolean;
 }
 
-const defaultCell: Cell = { ch: ' ', fg: '', bg: '', bold: false };
+export const DEFAULT_FG = '#7f7f7f';
+export const DEFAULT_BG = '#000000';
+
+const defaultCell: Cell = { ch: ' ', fg: DEFAULT_FG, bg: DEFAULT_BG, bold: false };
 
 function createCell(): Cell {
   return { ...defaultCell };

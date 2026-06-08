@@ -1,4 +1,5 @@
 import { Control } from "../ui/Control.js";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Divider } from "../ui/widgets/Divider.js";
@@ -88,7 +89,7 @@ export class ModelsControl extends Control {
       const model = (item as any).data as LocalModel;
       this.selectModel(model);
     });
-    this._modelList.setRenderer((term, item, _index, isSelected, _x, rowY, width) => {
+    this._modelList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const model = (item as any).data as LocalModel;
       const prefix = model.active ? "\u25cf " : "  ";
       const name = `${model.repoId}/${model.filename}`;
@@ -96,11 +97,11 @@ export class ModelsControl extends Control {
       const line = ` ${prefix}${name}  ${size}`;
 
       if (isSelected) {
-        fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
-        term.styleReset();
+        fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+        canvas.styleReset();
       } else {
-        term.moveTo(_x, rowY);
-        fg(term, model.active ? themeColors.success : themeColors.text, line);
+        canvas.moveTo(_x, rowY);
+        fg(canvas, model.active ? themeColors.success : themeColors.text, line);
       }
     });
 
@@ -129,7 +130,7 @@ export class ModelsControl extends Control {
       const repo = (item as any).data as HFRepoInfo;
       this.openRepoFiles(repo);
     });
-    this._hfResultsList.setRenderer((term, item, _index, isSelected, _x, rowY, width) => {
+    this._hfResultsList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const repo = (item as any).data as HFRepoInfo;
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
@@ -137,11 +138,11 @@ export class ModelsControl extends Control {
       const line = ` ${repo.id}${meta ? `  ${meta}` : ""}`;
 
       if (isSelected) {
-        fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
-        term.styleReset();
+        fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+        canvas.styleReset();
       } else {
-        term.moveTo(_x, rowY);
-        fg(term, themeColors.text, line);
+        canvas.moveTo(_x, rowY);
+        fg(canvas, themeColors.text, line);
       }
     });
 
@@ -152,17 +153,17 @@ export class ModelsControl extends Control {
       const file = (item as any).data as HFFileInfo;
       this.downloadSelectedFile(file);
     });
-    this._hfFilesList.setRenderer((term, item, _index, isSelected, _x, rowY, width) => {
+    this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const file = (item as any).data as HFFileInfo;
       const size = formatSize(file.size);
       const line = ` ${file.path}  ${size}`;
 
       if (isSelected) {
-        fgBg(term, themeColors.accent, themeColors.canvas, line.padEnd(width));
-        term.styleReset();
+        fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+        canvas.styleReset();
       } else {
-        term.moveTo(_x, rowY);
-        fg(term, themeColors.text, line);
+        canvas.moveTo(_x, rowY);
+        fg(canvas, themeColors.text, line);
       }
     });
 

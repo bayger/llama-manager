@@ -2,9 +2,6 @@ import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
 
-const CURSOR_SHOW = "\x1b[?25h";
-const CURSOR_HIDE = "\x1b[?25l";
-
 export class TextInput extends Control {
   public value = "";
   public placeholder = "";
@@ -33,22 +30,18 @@ export class TextInput extends Control {
 
   onFocus(): void {
     super.onFocus();
-    if (this._renderContext) {
-      this.term(CURSOR_SHOW);
-    }
+    this.canvas.showCursor();
     this.cursorPos = this.value.length;
   }
 
   onBlur(): void {
     super.onBlur();
-    if (this._renderContext) {
-      this.term(CURSOR_HIDE);
-    }
+    this.canvas.hideCursor();
   }
 
   render(): void {
     if (!this.visible || !this.needsRender) return;
-    const { canvas, term, rect } = this;
+    const { canvas, rect } = this;
     canvas.moveTo(rect.x, rect.y);
     canvas.styleReset();
 
@@ -66,7 +59,7 @@ export class TextInput extends Control {
 
     if (this.focused) {
       const cursorX = rect.x + this.prefix.length + this.cursorPos;
-      term.moveTo(cursorX, rect.y);
+      canvas.moveTo(cursorX, rect.y);
     }
 
     this.needsRender = false;
@@ -78,9 +71,7 @@ export class TextInput extends Control {
       return true;
     }
     if (key === "ESC" || key === "ESCAPE" || key === "CTRL_C") {
-      if (this._renderContext) {
-        this.term(CURSOR_HIDE);
-      }
+      this.canvas.hideCursor();
       if (this._onCancel) this._onCancel();
       return true;
     }

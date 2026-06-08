@@ -1,6 +1,7 @@
 import { Control } from "../Control.js";
 import { fg, fgBg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
+import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
 
 export interface ListItem<T = any> {
   id: T;
@@ -9,7 +10,7 @@ export interface ListItem<T = any> {
   data?: any;
 }
 
-export type ItemRenderer<T> = (term: any, item: ListItem<T>, index: number, isSelected: boolean, x: number, y: number, width: number) => void;
+export type ItemRenderer<T> = (canvas: FramebufferCanvas, item: ListItem<T>, index: number, isSelected: boolean, x: number, y: number, width: number) => void;
 
 export class List<T = any> extends Control {
   public items: ListItem<T>[] = [];
