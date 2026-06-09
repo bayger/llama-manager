@@ -13,6 +13,7 @@ export interface ListItem<T = any> {
 export type ItemRenderer<T> = (canvas: FramebufferCanvas, item: ListItem<T>, index: number, isSelected: boolean, x: number, y: number, width: number) => void;
 
 export class List<T = any> extends Control {
+  focusable = true;
   public items: ListItem<T>[] = [];
   public selectedIndex = -1;
   public itemHeight = 1;

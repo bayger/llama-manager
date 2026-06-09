@@ -134,6 +134,7 @@ function isNumericChar(char: string): boolean {
 }
 
 export class OptionsPanel extends Control {
+  focusable = true;
   protected _config: ConfigData | null = null;
   protected _ctx: TabContext | null = null;
   protected _scrollOffset = 0;

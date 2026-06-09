@@ -6,47 +6,10 @@ import { Label } from "../ui/widgets/Label.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
 import { themeColors, fg } from "../../lib/theme.js";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog } from "../../lib/server.js";
-import { getServerMetrics, MetricsData } from "../../lib/api.js";
 import { fireAsync, formatUptime } from "../../lib/utils.js";
 import { BACKEND_LABELS } from "../../lib/versions.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
-
-class MetricsControl extends Control {
-  public _metrics: MetricsData | null = null;
-
-  measure(parentSize?: Size): Size {
-    return { width: parentSize?.width ?? this.rect.width, height: 2 };
-  }
-
-  render(): void {
-    if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
-    const { x, y, width } = this.rect;
-
-    const m = this._metrics;
-    const colW = Math.floor((width - 1) / 2);
-
-    const metrics = [
-      { label: "Prompt/s", value: m ? m.promptTokensPerSec.toFixed(1) : "—" },
-      { label: "Predict/s", value: m ? m.predictedTokensPerSec.toFixed(1) : "—" },
-      { label: "Processing", value: m ? String(m.requestsProcessing) : "—" },
-      { label: "Deferred", value: m ? String(m.requestsDeferred) : "—" },
-    ];
-
-    for (let row = 0; row < 2; row++) {
-      canvas.moveTo(x, y + row);
-      for (let col = 0; col < 2; col++) {
-        const idx = row * 2 + col;
-        const met = metrics[idx]!;
-        const cell = ` ${met.label}: ${met.value} `.padEnd(colW);
-        fg(canvas, themeColors.textMuted, cell.substring(0, colW));
-      }
-    }
-
-    this.needsRender = false;
-  }
-}
 
 class StatusControl extends Control {
   measure(parentSize?: Size): Size {
@@ -86,12 +49,10 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _profileLabel: Label;
   protected _versionLabel: Label;
-  protected _metricsControl: MetricsControl;
   protected _statusControl: StatusControl;
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
   protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
-  protected _metricsTimer: ReturnType<typeof setInterval> | null = null;
   protected _attached = false;
 
   constructor(ctx: TabContext) {
@@ -162,7 +123,6 @@ export class DashboardControl extends Control {
     };
     this._buttonRow.add(this._versionLabel);
 
-    this._metricsControl = new MetricsControl();
     this._statusControl = new StatusControl();
     this._logsControl = new LogsViewer({
       getLines: () => serverLogLines,
@@ -171,8 +131,6 @@ export class DashboardControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
-    this._column.add(new Divider());
-    this._column.add(this._metricsControl);
     this._column.add(new Divider());
     this._column.add(this._statusControl);
     this._column.add(new Divider());
@@ -217,18 +175,6 @@ export class DashboardControl extends Control {
       this.markDirty();
     });
 
-    this._metricsTimer = setInterval(() => {
-      const config = ctx.getConfig();
-      if (!config) return;
-      getServerMetrics(config).then((m) => {
-        this._metricsControl._metrics = m;
-        this.markDirty();
-      }).catch(() => {
-        this._metricsControl._metrics = null;
-        this.markDirty();
-      });
-    }, 2000);
-
     this.updateProfileLabel();
 
     this._logUnsub = onServerLog(() => {
@@ -243,10 +189,6 @@ export class DashboardControl extends Control {
 
   onDetach(): void {
     this._attached = false;
-    if (this._metricsTimer) {
-      clearInterval(this._metricsTimer);
-      this._metricsTimer = null;
-    }
     if (this._logUnsub) {
       this._logUnsub();
       this._logUnsub = null;

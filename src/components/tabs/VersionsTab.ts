@@ -133,7 +133,6 @@ export class VersionsControl extends Control {
     this._header.update("Versions: 0  Size: 0 B");
 
     this._list = new List();
-    this._list.focusable = true;
     this._list.tabIndex = 0;
 
     this._changelog = new ChangelogView();

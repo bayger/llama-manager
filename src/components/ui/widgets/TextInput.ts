@@ -3,6 +3,7 @@ import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size } from "../types.js";
 
 export class TextInput extends Control {
+  focusable = true;
   public value = "";
   public placeholder = "";
   public cursorPos = 0;

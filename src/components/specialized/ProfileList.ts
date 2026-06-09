@@ -4,6 +4,7 @@ import { ConfigData } from "../../lib/config.js";
 import type { Size } from "../ui/types.js";
 
 export class ProfileList extends Control {
+  focusable = true;
   protected _config: ConfigData | null = null;
   protected _selectedIndex = 0;
   protected _onSelect: ((name: string) => void) | null = null;

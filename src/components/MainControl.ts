@@ -10,6 +10,7 @@ import { createVersionsTab } from "./tabs/VersionsTab.js";
 import { createDashboardTab } from "./tabs/DashboardTab.js";
 import { createModelsTab } from "./tabs/ModelsTab.js";
 import { createOptionsTab } from "./tabs/OptionsTab.js";
+import { focusManager } from "./ui/FocusManager.js";
 
 export const TABS = ["Dashboard", "Profiles", "Tasks", "Versions", "Models", "Options"] as const;
 export type TabId = (typeof TABS)[number];
@@ -249,6 +250,14 @@ export class MainControl extends Column {
     this.tabBar.setSelectedIndex(TABS.indexOf(tab));
     this.tabContent.setActiveTab(tab);
     this.statusBar.setActiveTab(tab);
+
+    const control = this.tabContent.getActiveControl();
+    if (control) {
+      const focusable = control.getAllFocusable();
+      if (focusable.length > 0) {
+        focusManager.setFocus(focusable[0]);
+      }
+    }
   }
 
   showMessage(msg: string): void {

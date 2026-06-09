@@ -10,6 +10,7 @@ export interface ButtonConfig {
 }
 
 export class Button extends Control {
+  focusable = true;
   public label = "";
   protected _action: (() => void) | null = null;
 

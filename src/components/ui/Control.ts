@@ -6,7 +6,7 @@ export class Control {
   public enabled = true;
   public visible = true;
   public focused = false;
-  public focusable = true;
+  public focusable = false;
   public tabIndex = 0;
   public needsRender = true;
   public flex = 0;

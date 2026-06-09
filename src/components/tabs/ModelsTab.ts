@@ -27,6 +27,7 @@ import type { Size } from "../ui/types.js";
 type ViewMode = "local" | "search" | "results" | "files" | "downloading";
 
 export class ModelsControl extends Control {
+  focusable = true;
   protected _ctx: TabContext | null = null;
   protected _attached = false;
 

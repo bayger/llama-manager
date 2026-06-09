@@ -12,6 +12,7 @@ import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size } from "../ui/types.js";
 
 export class ServerControl extends Control {
+  focusable = true;
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _profileLabel: Label;

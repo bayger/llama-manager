@@ -24,6 +24,7 @@ function fmtNum(n: number): string {
 }
 
 export class TasksControl extends Control {
+  focusable = true;
   protected _ctx: TabContext | null = null;
   protected _divider: Divider;
   protected _searchInput: TextInput;

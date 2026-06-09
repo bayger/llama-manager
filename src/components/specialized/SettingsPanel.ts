@@ -66,6 +66,7 @@ function isNumericChar(char: string): boolean {
 }
 
 export class SettingsPanel extends Control {
+  focusable = true;
   protected _config: ConfigData | null = null;
   protected _scrollOffset = 0;
   protected _selectedIndex = 0;
