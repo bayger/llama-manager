@@ -8,6 +8,7 @@ export class FocusManager {
 
   setRoot(root: Control): void {
     this._root = root;
+    this.setFocus(root);
   }
 
   getFocused(): Control | null {

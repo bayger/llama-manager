@@ -431,7 +431,6 @@ export class VersionsControl extends Control {
 
       const sel = this._list.getSelectedItem();
       this._btnDelete.disabled = !sel || sel.data.active;
-      focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
       // ignore

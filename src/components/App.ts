@@ -50,30 +50,7 @@ export class App {
     this._main.attach(this._ctx);
 
     this.setupKeyHandler();
-    this.render();
-
-    const initialControl = this._main.getActiveControl();
-    if (initialControl) {
-      focusManager.setRoot(this._main);
-      process.nextTick(() => {
-        focusManager.setFocus(initialControl);
-      });
-    }
-  }
-
-  setActiveTab(tab: TabId): void {
-    const prevControl = this._main?.getActiveControl();
-    if (prevControl) {
-      focusManager.clear();
-    }
-
-    this._main!.setActiveTab(tab);
-
-    const newControl = this._main!.getActiveControl();
-    if (newControl) {
-      focusManager.setRoot(this._main!);
-      focusManager.setFocus(newControl);
-    }
+    focusManager.setRoot(this._main);
   }
 
   showMessage(msg: string): void {
@@ -217,11 +194,6 @@ export class App {
           this.helpOverlayVisible = false;
           this.scheduleRender();
         }
-        return;
-      }
-
-      if (textActive) {
-        focusManager.handleKey(name);
         return;
       }
 
