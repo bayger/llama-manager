@@ -100,19 +100,29 @@ class TaskStore extends EventEmitter {
 
     const sum = tasks.reduce(
       (acc, t) => ({
-        promptSpeed: acc.promptSpeed + t.promptSpeed,
-        outputSpeed: acc.outputSpeed + t.outputSpeed,
+        promptTokens: acc.promptTokens + t.promptTokens,
+        promptTimeMs: acc.promptTimeMs + t.promptTimeMs,
+        outputTokens: acc.outputTokens + t.outputTokens,
+        evalTimeMs: acc.evalTimeMs + t.evalTimeMs,
         totalTokens: acc.totalTokens + t.totalTokens,
-        draftAcceptance: acc.draftAcceptance + (t.draftAcceptance || 0),
+        draftAccepted: acc.draftAccepted + (t.draftAccepted || 0),
+        draftGenerated: acc.draftGenerated + (t.draftGenerated || 0),
       }),
-      { promptSpeed: 0, outputSpeed: 0, totalTokens: 0, draftAcceptance: 0 },
+      {
+        promptTokens: 0, promptTimeMs: 0, outputTokens: 0, evalTimeMs: 0,
+        totalTokens: 0, draftAccepted: 0, draftGenerated: 0,
+      },
     );
 
+    const avgPromptSpeed = sum.promptTimeMs > 0 ? (sum.promptTokens / sum.promptTimeMs) * 1000 : 0;
+    const avgOutputSpeed = sum.evalTimeMs > 0 ? (sum.outputTokens / sum.evalTimeMs) * 1000 : 0;
+    const avgDraftAcceptance = sum.draftGenerated > 0 ? sum.draftAccepted / sum.draftGenerated : 0;
+
     return {
-      avgPromptSpeed: sum.promptSpeed / tasks.length,
-      avgOutputSpeed: sum.outputSpeed / tasks.length,
+      avgPromptSpeed,
+      avgOutputSpeed,
       totalTokens: sum.totalTokens,
-      avgDraftAcceptance: sum.draftAcceptance / tasks.length,
+      avgDraftAcceptance,
       count: tasks.length,
     };
   }

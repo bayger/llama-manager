@@ -177,6 +177,33 @@ export function buildArgs(config: ConfigData): string[] {
   if (p.server.ui === false) args.push("--no-ui");
   if (p.server.embedding) args.push("--embedding");
   if (p.server.rerank) args.push("--rerank");
+  push("--predict", p.server.predict);
+  push("--cache-reuse", p.server.cacheReuse);
+  push("--cache-ram", p.server.cacheRam);
+  if (p.server.kvUnified === false) args.push("--no-kv-unified");
+  if (p.server.cacheIdleSlots === false) args.push("--no-cache-idle-slots");
+  push("--ctx-checkpoints", p.server.ctxCheckpoints);
+  push("--checkpoint-every-n-tokens", p.server.checkpointEveryN);
+  if (p.server.contextShift) args.push("--context-shift");
+  if (p.server.warmup === false) args.push("--no-warmup");
+  if (p.server.special) args.push("--special");
+  if (p.server.skipChatParsing) args.push("--skip-chat-parsing");
+  if (p.server.prefillAssistant === false) args.push("--no-prefill-assistant");
+  push("--slot-prompt-similarity", p.server.slotPromptSim);
+  push("--slot-save-path", p.server.slotSavePath);
+  if (p.server.reusePort) args.push("--reuse-port");
+  if (p.server.props) args.push("--props");
+  if (p.server.noSlots) args.push("--no-slots");
+  push("--sleep-idle-seconds", p.server.sleepIdle);
+  push("--tools", p.server.tools);
+  if (p.server.uiMcpProxy) args.push("--ui-mcp-proxy");
+  push("--media-path", p.server.mediaPath);
+  push("--alias", p.server.alias);
+  push("--api-key-file", p.server.apiKeyFile);
+  push("--ssl-key-file", p.server.sslKeyFile);
+  push("--ssl-cert-file", p.server.sslCertFile);
+  push("--path", p.server.path);
+  push("--api-prefix", p.server.apiPrefix);
 
   push("--model", p.model.model);
   push("--lora", p.model.lora);
@@ -184,6 +211,15 @@ export function buildArgs(config: ConfigData): string[] {
   push("--hf-token", config.hfToken);
   push("--chat-template", p.model.chatTemplate);
   if (p.model.jinja === false) args.push("--no-jinja");
+  push("--mmproj", p.model.mmproj);
+  if (p.model.mmprojAuto === false) args.push("--no-mmproj-auto");
+  if (p.model.mmprojOffload === false) args.push("--no-mmproj-offload");
+  push("--chat-template-file", p.model.chatTemplateFile);
+  push("--chat-template-kwargs", p.model.chatTemplateKwargs);
+  push("--lora-scaled", p.model.loraScaled);
+  if (p.model.loraInitWithoutApply) args.push("--lora-init-without-apply");
+  push("--model-url", p.model.modelUrl);
+  push("--docker-repo", p.model.dockerRepo);
 
   push("--threads", p.compute.threads);
   push("--threads-batch", p.compute.threadsBatch);
@@ -195,6 +231,14 @@ export function buildArgs(config: ConfigData): string[] {
   if (p.compute.mmap === false) args.push("--no-mmap");
   push("--cache-type-k", p.compute.cacheTypeK);
   push("--cache-type-v", p.compute.cacheTypeV);
+  if (p.compute.cpuMoe) args.push("--cpu-moe");
+  if (p.compute.noKvOffload) args.push("--no-kv-offload");
+  if (p.compute.noHost) args.push("--no-host");
+  if (p.compute.directIo) args.push("--direct-io");
+  push("--numa", p.compute.numa);
+  push("--rope-scaling", p.compute.ropeScaling);
+  push("--rope-freq-scale", p.compute.ropeFreqScale);
+  push("--rope-freq-base", p.compute.ropeFreqBase);
 
   if (p.gpu.gpuLayers && p.gpu.gpuLayers !== "auto") push("--gpu-layers", p.gpu.gpuLayers);
   push("--split-mode", p.gpu.splitMode);
@@ -202,6 +246,9 @@ export function buildArgs(config: ConfigData): string[] {
   push("--main-gpu", p.gpu.mainGpu);
   push("--device", p.gpu.device);
   push("--fit", p.gpu.fit);
+  push("--fit-target", p.gpu.fitTarget);
+  push("--fit-ctx", p.gpu.fitCtx);
+  push("--override-tensor", p.gpu.overrideTensor);
 
   push("--seed", p.sampling.seed);
   push("--temperature", p.sampling.temperature);
@@ -215,21 +262,47 @@ export function buildArgs(config: ConfigData): string[] {
   push("--grammar", p.sampling.grammar);
   push("--json-schema", p.sampling.jsonSchema);
   if (p.sampling.ignoreEos) args.push("--ignore-eos");
+  push("--typical-p", p.sampling.typicalP);
+  push("--top-n-sigma", p.sampling.topNSigma);
+  push("--xtc-probability", p.sampling.xtcProbability);
+  push("--xtc-threshold", p.sampling.xtcThreshold);
+  push("--dry-multiplier", p.sampling.dryMultiplier);
+  push("--dry-base", p.sampling.dryBase);
+  push("--dynatemp-range", p.sampling.dynatempRange);
+  push("--dynatemp-exp", p.sampling.dynatempExp);
+  push("--mirostat", p.sampling.mirostat);
+  push("--mirostat-ent", p.sampling.mirostatEnt);
+  push("--mirostat-lr", p.sampling.mirostatLr);
+  push("--logit-bias", p.sampling.logitBias);
+  push("--grammar-file", p.sampling.grammarFile);
+  push("--json-schema-file", p.sampling.jsonSchemaFile);
+  if (p.sampling.backendSampling) args.push("--backend-sampling");
+  push("--adaptive-target", p.sampling.adaptiveTarget);
+  push("--adaptive-decay", p.sampling.adaptiveDecay);
+  push("--sampling-seq", p.sampling.samplingSeq);
 
   push("--spec-draft-model", p.speculative.draftModel);
   push("--spec-type", p.speculative.specType);
   push("--spec-draft-n-max", p.speculative.draftNMax);
   push("--spec-draft-threads", p.speculative.draftThreads);
   if (p.speculative.draftGpuLayers && p.speculative.draftGpuLayers !== "auto") push("--spec-draft-ngl", p.speculative.draftGpuLayers);
+  push("--spec-draft-n-min", p.speculative.draftNMin);
+  push("--spec-draft-p-split", p.speculative.draftPSplit);
+  push("--spec-draft-p-min", p.speculative.draftPMin);
+  push("--spec-draft-hf-repo", p.speculative.draftHfRepo);
+  push("--cache-type-k-draft", p.speculative.draftCacheTypeK);
+  push("--cache-type-v-draft", p.speculative.draftCacheTypeV);
 
   push("--reasoning", p.reasoning.reasoning);
   push("--reasoning-budget", p.reasoning.reasoningBudget);
   if (p.reasoning.reasoningFormat && p.reasoning.reasoningFormat !== "auto") push("--reasoning-format", p.reasoning.reasoningFormat);
+  push("--reasoning-budget-message", p.reasoning.reasoningBudgetMessage);
 
   push("--log-file", getLogFile(config));
   push("--log-verbosity", p.logging.logVerbosity);
   push("--log-colors", p.logging.logColors);
   if (p.logging.logTimestamps === false) args.push("--no-log-timestamps");
+  if (p.logging.logPrefix) args.push("--log-prefix");
 
   for (const arg of getActiveFreeFormArgs(config)) {
     if (arg.trim()) {
