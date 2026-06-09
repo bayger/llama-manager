@@ -215,10 +215,10 @@ export class Control {
     const result: Control[] = [];
     for (const child of this.children) {
       if (!child.enabled || !child.visible) continue;
+      result.push(...child.getAllFocusable());
       if (child.focusable) {
         result.push(child);
       }
-      result.push(...child.getAllFocusable());
     }
     return result;
   }
