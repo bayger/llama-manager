@@ -253,10 +253,7 @@ export class MainControl extends Column {
 
     const control = this.tabContent.getActiveControl();
     if (control) {
-      const focusable = control.getAllFocusable();
-      if (focusable.length > 0) {
-        focusManager.setFocus(focusable[0]);
-      }
+      focusManager.setFocus(control);
     }
   }
 

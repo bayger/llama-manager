@@ -55,7 +55,9 @@ export class App {
     const initialControl = this._main.getActiveControl();
     if (initialControl) {
       focusManager.setRoot(this._main);
-      focusManager.focusFirst();
+      process.nextTick(() => {
+        focusManager.setFocus(initialControl);
+      });
     }
   }
 
@@ -70,7 +72,7 @@ export class App {
     const newControl = this._main!.getActiveControl();
     if (newControl) {
       focusManager.setRoot(this._main!);
-      focusManager.focusFirst();
+      focusManager.setFocus(newControl);
     }
   }
 

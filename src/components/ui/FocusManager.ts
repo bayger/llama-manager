@@ -27,10 +27,21 @@ export class FocusManager {
     if (this._focused) {
       this._focused.blur();
     }
-    this._focused = control;
-    if (control) {
-      control.focus();
+    if (!control) {
+      this._focused = null;
+      return;
     }
+    if (!control.focusable) {
+      const focusable = control.getAllFocusable();
+      if (focusable.length > 0) {
+        control = focusable[0];
+      } else {
+        this._focused = null;
+        return;
+      }
+    }
+    this._focused = control;
+    control.focus();
   }
 
   nextFocus(): void {
