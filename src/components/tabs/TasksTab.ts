@@ -5,15 +5,23 @@ import { themeColors, fg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { Size, Rect } from "../ui/types.js";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "timestamp", label: "Time" },
   { field: "taskId", label: "ID" },
+  { field: "slotId", label: "Slot" },
+  { field: "promptSpeed", label: "PP" },
   { field: "outputSpeed", label: "TG" },
-  { field: "totalTimeMs", label: "Duration" },
   { field: "outputTokens", label: "Tokens" },
+  { field: "totalTimeMs", label: "Duration" },
 ];
+
+const DETAILS_WIDTH = 40;
+
+function fmtNum(n: number): string {
+  return n.toLocaleString();
+}
 
 export class TasksControl extends Control {
   protected _ctx: TabContext | null = null;
@@ -111,8 +119,8 @@ export class TasksControl extends Control {
   }
 
   onLayout(): void {
-    const { x, y, width } = this.rect;
-    this._divider.layout({ x, y: y + (this._filterVisible ? 2 : 1), width: width, height: 1 });
+    const { x, y, width, height } = this.rect;
+    this._divider.layout({ x, y: y + (this._filterVisible ? 2 : 1), width, height: 1 });
     this._searchInput.layout({ x: x + 1, y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
     this._slotInput.layout({ x: x + 1 + Math.floor(width / 2), y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
     this.clampSelection();
@@ -167,7 +175,6 @@ export class TasksControl extends Control {
     const canvas = this.canvas;
     const { x, y: startY, width, height } = this.rect;
     const tasks = this.filteredTasks;
-    const allTasks = taskStore.getTasks();
     const stats = taskStore.getStats(tasks);
 
     canvas.moveTo(x, startY);
@@ -188,12 +195,14 @@ export class TasksControl extends Control {
     super.render();
 
     const headerY = startY + (this._filterVisible ? 3 : 2);
-    canvas.moveTo(x, headerY);
-    canvas.styleReset();
-    this.renderHeaderRow(width);
-
     const listStartY = startY + (this._filterVisible ? 4 : 3);
     const listHeight = height - (this._filterVisible ? 4 : 3);
+
+    const listWidth = width >= DETAILS_WIDTH + 25 ? width - DETAILS_WIDTH - 1 : width;
+
+    canvas.moveTo(x, headerY);
+    canvas.styleReset();
+    this.renderHeaderRow(listWidth);
 
     for (let i = 0; i < listHeight; i++) {
       const taskIdx = i + this._scrollOffset;
@@ -203,38 +212,57 @@ export class TasksControl extends Control {
       if (taskIdx < tasks.length) {
         const task = tasks[taskIdx]!;
         const isSelected = taskIdx === this._selectedIndex;
-        this.renderTaskRow(task, isSelected, width);
+        this.renderTaskRow(task, isSelected, listWidth);
       } else {
-        fg(canvas, themeColors.canvas, " ".repeat(width));
+        fg(canvas, themeColors.canvas, " ".repeat(listWidth));
       }
+    }
+
+    if (width >= DETAILS_WIDTH + 25) {
+      const dx = x + listWidth + 1;
+      this.renderDetailsPanel({ x: dx, y: listStartY, width: DETAILS_WIDTH, height: listHeight }, tasks);
     }
 
     this.needsRender = false;
   }
 
-  renderHeaderRow(width: number): void {
-    const sortLabel = SORT_FIELDS.find((s) => s.field === this._sortField)?.label || this._sortField;
-    const sortIndicator = this._sortDir === "asc" ? " ▲" : " ▼";
+ renderHeaderRow(width: number): void {
+    const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
 
-    const cols = [
-      "TIMESTAMP".padEnd(9),
-      "ID".padStart(6),
-      "SLOT".padEnd(4),
-      "PP".padStart(10),
-      "TG".padStart(10),
-      "TOKENS".padStart(8),
-      "TIME".padStart(8),
-    ].join(" ");
+    const allCols = [
+      { header: "TIMESTAMP", width: 10, align: "left" as const, sortField: "timestamp" as TaskSortField },
+      { header: "ID", width: 6, align: "right" as const, sortField: "taskId" as TaskSortField },
+      { header: "SLOT", width: 4, align: "left" as const, sortField: "slotId" as TaskSortField },
+      { header: "PP", width: 10, align: "right" as const, sortField: "promptSpeed" as TaskSortField },
+      { header: "TG", width: 10, align: "right" as const, sortField: "outputSpeed" as TaskSortField },
+      { header: "TOKENS", width: 8, align: "right" as const, sortField: "outputTokens" as TaskSortField },
+      { header: "TIME", width: 8, align: "right" as const, sortField: "totalTimeMs" as TaskSortField },
+    ];
 
-    let row = ` ${cols}`;
-    const highlightCol = SORT_FIELDS.findIndex((s) => s.field === this._sortField);
-    if (highlightCol >= 2) {
-      const baseCols = [
-        "TIMESTAMP".padEnd(9),
-        "ID".padStart(6),
-      ];
-      row = ` ${baseCols.join(" ")} ${SORT_FIELDS[highlightCol - 2].label}${sortIndicator}`.padEnd(baseCols.join(" ").length + SORT_FIELDS[highlightCol - 2].label.length + sortIndicator.length + 2);
+    const baseCols = allCols.slice(0, 3);
+    const baseLen = baseCols.reduce((sum, c) => sum + c.width, 0) + (baseCols.length - 1) + 2;
+    const extraCols = allCols.slice(3);
+    let runningLen = baseLen;
+    const visibleCols = [...baseCols];
+    for (const col of extraCols) {
+      runningLen += 1 + col.width;
+      if (runningLen <= width) {
+        visibleCols.push(col);
+      } else {
+        break;
+      }
     }
+
+    const parts = visibleCols.map((col) => {
+      const isSorted = col.sortField && this._sortField === col.sortField;
+      if (isSorted) {
+        const content = col.header + sortIndicator;
+        return col.align === "right" ? content.padStart(col.width) : content.padEnd(col.width);
+      }
+      return col.align === "right" ? col.header.padStart(col.width) : col.header.padEnd(col.width);
+    });
+
+    const row = " " + parts.join(" ");
 
     fg(this.canvas, themeColors.accent, row);
     fg(this.canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
@@ -245,17 +273,25 @@ export class TasksControl extends Control {
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
 
-    const cols = [
-      timeStr.padEnd(9),
+    const baseCols = [
+      timeStr.padEnd(10),
       `#${task.taskId}`.padStart(6),
       `S${task.slotId}`.padEnd(4),
-      `${task.promptSpeed.toFixed(1)} tps`.padStart(10),
-      `${task.outputSpeed.toFixed(1)} tps`.padStart(10),
-      `${task.outputTokens}`.padStart(8),
-      `${task.totalTimeMs.toFixed(0)}ms`.padStart(8),
-    ].join(" ");
+    ];
+    const baseLen = baseCols.join(" ").length + 2;
 
-    const row = ` ${cols}`;
+    const showPp = width >= baseLen + 10;
+    const showTg = width >= baseLen + 20;
+    const showTokens = width >= baseLen + 28;
+    const showTime = width >= baseLen + 36;
+
+    const cols = [...baseCols];
+    if (showPp) cols.push(`${task.promptSpeed.toFixed(1)} tps`.padStart(10));
+    if (showTg) cols.push(`${task.outputSpeed.toFixed(1)} tps`.padStart(10));
+    if (showTokens) cols.push(`${task.outputTokens}`.padStart(8));
+    if (showTime) cols.push(`${task.totalTimeMs.toFixed(0)}ms`.padStart(8));
+
+    const row = " " + cols.join(" ");
 
     if (isSelected) {
       const padded = row.padEnd(width);
@@ -267,6 +303,76 @@ export class TasksControl extends Control {
       fg(this.canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
     }
     this.canvas.styleReset();
+  }
+
+  renderDetailsPanel(rect: Rect, tasks: TaskMetrics[]): void {
+    if (rect.width === 0) return;
+    const { x, y, width, height } = rect;
+    const canvas = this.canvas;
+
+    if (tasks.length === 0 || this._selectedIndex < 0 || this._selectedIndex >= tasks.length) {
+      canvas.moveTo(x, y);
+      fg(canvas, themeColors.textMuted, "No tasks");
+      for (let i = 1; i < height; i++) {
+        canvas.moveTo(x, y + i);
+        fg(canvas, themeColors.canvas, " ".repeat(width));
+      }
+      return;
+    }
+
+    const task = tasks[this._selectedIndex]!;
+    const time = new Date(task.timestamp);
+    const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
+
+    const lines: { label: string; value: string }[] = [
+      { label: "Task Details", value: "" },
+      { label: "", value: "" },
+      { label: "ID", value: `#${task.taskId}` },
+      { label: "Slot", value: `S${task.slotId}` },
+      { label: "Time", value: timeStr },
+      { label: "", value: "" },
+      { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
+      { label: "Prompt Time", value: `${fmtNum(Math.round(task.promptTimeMs))}ms` },
+      { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
+      { label: "", value: "" },
+      { label: "Output Tokens", value: fmtNum(task.outputTokens) },
+      { label: "Eval Time", value: `${fmtNum(Math.round(task.evalTimeMs))}ms` },
+      { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
+      { label: "", value: "" },
+      { label: "Total Tokens", value: fmtNum(task.totalTokens) },
+      { label: "Total Time", value: `${fmtNum(Math.round(task.totalTimeMs))}ms` },
+      { label: "", value: "" },
+      { label: "Graphs Reused", value: String(task.graphsReused) },
+      { label: "Draft Accept", value: `${task.draftAcceptance.toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
+      { label: "Context Size", value: fmtNum(task.contextSize) },
+      { label: "Truncated", value: task.truncated ? "Yes" : "No" },
+    ];
+
+    for (let i = 0; i < height; i++) {
+      canvas.moveTo(x, y + i);
+      canvas.styleReset();
+
+      if (i < lines.length) {
+        const line = lines[i]!;
+        if (i === 0) {
+          const title = line.label.padEnd(width);
+          fg(canvas, themeColors.accent, title);
+        } else if (line.label === "") {
+          fg(canvas, themeColors.canvas, " ".repeat(width));
+        } else {
+          const label = line.label + ":";
+          const value = line.value;
+          const labelWidth = 14;
+          const formattedLabel = label.padEnd(labelWidth);
+          const row = ` ${formattedLabel} ${value}`;
+          fg(canvas, themeColors.textMuted, formattedLabel);
+          fg(canvas, themeColors.text, " " + value);
+          fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
+        }
+      } else {
+        fg(canvas, themeColors.canvas, " ".repeat(width));
+      }
+    }
   }
 
   handleKey(key: string): boolean {
@@ -341,7 +447,7 @@ export class TasksControl extends Control {
     if (key === "PAGE_DOWN") {
       const listHeight = this.rect.height - (this._filterVisible ? 4 : 3);
       this._selectedIndex = Math.min(len - 1, this._selectedIndex + listHeight);
-      this._scrollOffset = Math.min(len - listHeight, this._scrollOffset + listHeight);
+      this._scrollOffset = Math.min(len - listHeight, this._scrollOffset);
       this.markDirty();
       return true;
     }
