@@ -16,7 +16,7 @@ export interface TaskFilter {
   taskId?: number;
 }
 
-export type TaskSortField = "taskId" | "timestamp" | "outputSpeed" | "totalTimeMs" | "outputTokens";
+export type TaskSortField = "taskId" | "timestamp" | "slotId" | "promptSpeed" | "outputSpeed" | "totalTimeMs" | "outputTokens";
 export type TaskSortDir = "asc" | "desc";
 
 class TaskStore extends EventEmitter {
