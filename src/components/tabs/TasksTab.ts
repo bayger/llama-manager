@@ -343,7 +343,7 @@ export class TasksControl extends Control {
       { label: "Total Time", value: `${fmtNum(Math.round(task.totalTimeMs))}ms` },
       { label: "", value: "" },
       { label: "Graphs Reused", value: String(task.graphsReused) },
-      { label: "Draft Accept", value: `${task.draftAcceptance.toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
+      { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
       { label: "Context Size", value: fmtNum(task.contextSize) },
       { label: "Truncated", value: task.truncated ? "Yes" : "No" },
     ];
