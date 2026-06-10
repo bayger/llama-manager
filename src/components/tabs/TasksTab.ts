@@ -369,9 +369,13 @@ export class TasksControl extends Control {
           fg(canvas, themeColors.canvas, " ".repeat(width));
         } else {
           const label = line.label + ":";
-          const value = line.value;
+          let value = line.value;
           const labelWidth = 14;
           const formattedLabel = label.padEnd(labelWidth);
+          const valueWidth = width - labelWidth - 2;
+          if (value.length > valueWidth) {
+            value = "…" + value.substring(value.length - (valueWidth - 1));
+          }
           const row = ` ${formattedLabel} ${value}`;
           fg(canvas, themeColors.textMuted, formattedLabel);
           fg(canvas, themeColors.text, " " + value);
