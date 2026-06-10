@@ -212,7 +212,7 @@ export class TasksControl extends Control {
 
       if (taskIdx < tasks.length) {
         const task = tasks[taskIdx]!;
-        const isSelected = taskIdx === this._selectedIndex;
+        const isSelected = taskIdx === this._selectedIndex && this.focused;
         this.renderTaskRow(task, isSelected, listWidth);
       } else {
         fg(canvas, themeColors.canvas, " ".repeat(listWidth));

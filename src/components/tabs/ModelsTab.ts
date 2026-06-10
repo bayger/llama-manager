@@ -98,11 +98,12 @@ export class ModelsControl extends Control {
       const line = ` ${prefix}${name}  ${size}`;
 
       if (isSelected) {
-        fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+        fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
         canvas.styleReset();
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, model.active ? themeColors.success : themeColors.text, line);
+        fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 
@@ -139,11 +140,12 @@ export class ModelsControl extends Control {
       const line = ` ${repo.id}${meta ? `  ${meta}` : ""}`;
 
       if (isSelected) {
-        fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+        fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
         canvas.styleReset();
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, themeColors.text, line);
+        fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 
@@ -160,11 +162,12 @@ export class ModelsControl extends Control {
       const line = ` ${file.path}  ${size}`;
 
       if (isSelected) {
-        fgBg(canvas, themeColors.accent, themeColors.canvas, line.padEnd(width));
+        fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
         canvas.styleReset();
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, themeColors.text, line);
+        fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 

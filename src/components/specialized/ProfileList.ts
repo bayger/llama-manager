@@ -51,18 +51,18 @@ export class ProfileList extends Control {
       if (i < names.length) {
         const name = names[i]!;
         const isActive = name === this._config.server.activeProfile;
-        const isSelected = i === this._selectedIndex;
+        const isSelected = i === this._selectedIndex && this.focused;
 
         if (isSelected) {
-          const prefix = isActive ? " > " : "   ";
+          const prefix = isActive ? "● " : "  ";
           const line = (prefix + name).padEnd(width);
           fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
         } else if (isActive) {
-          const line = ("* " + name).padEnd(width);
-          fg(canvas, themeColors.accent, line.substring(0, width));
+          const line = ("● " + name).padEnd(width);
+          fg(canvas, themeColors.success, line.substring(0, width));
         } else {
-          const line = ("   " + name).padEnd(width);
-          fg(canvas, themeColors.textMuted, line.substring(0, width));
+          const line = ("  " + name).padEnd(width);
+          fg(canvas, themeColors.text, line.substring(0, width));
         }
       } else {
         fg(canvas, themeColors.canvas, " ".repeat(width));

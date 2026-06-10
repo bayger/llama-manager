@@ -220,7 +220,7 @@ export class OptionsPanel extends Control {
       canvas.moveTo(x, startY + i);
       canvas.styleReset();
       const row = this._rows[visualRow]!;
-      const isSelected = visualRow === this._selectedIndex;
+      const isSelected = visualRow === this._selectedIndex && this.focused;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
 
       if (row.type === "header") {
@@ -291,11 +291,8 @@ export class OptionsPanel extends Control {
       const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
 
       if (isSelected) {
-        canvas.bold();
-        fg(canvas, themeColors.accent, keyStr);
-        canvas.styleReset();
-        fg(canvas, themeColors.text, value);
-        fg(canvas, themeColors.textMuted, extra + (desc ? "  " + desc : ""));
+        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
+        fgBg(canvas, themeColors.canvas, themeColors.accent, padded.substring(0, width));
       } else {
         fg(canvas, themeColors.textMuted, keyStr);
         fg(canvas, themeColors.text, value);

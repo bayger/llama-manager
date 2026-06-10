@@ -59,7 +59,7 @@ export class List<T = any> extends Control {
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
-      const isSelected = i === this.selectedIndex;
+      const isSelected = i === this.selectedIndex && this.focused;
       canvas.moveTo(x, y + i);
 
       if (this._customRenderer) {
@@ -69,11 +69,11 @@ export class List<T = any> extends Control {
         const display = ` ${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
         if (isSelected) {
-          canvas.bold();
-          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, display.padEnd(width));
+          fgBg(canvas, themeColors.canvas, themeColors.accent, display.substring(0, width));
           canvas.styleReset();
         } else {
           fg(canvas, themeColors.text, display);
+          fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - display.length)));
         }
       }
     }
