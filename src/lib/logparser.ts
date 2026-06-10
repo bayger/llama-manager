@@ -1,6 +1,7 @@
 import { EventEmitter } from "events";
 import fs from "fs-extra";
 import path from "path";
+import type { ConfigData } from "./config.js";
 
 export interface TaskMetrics {
   taskId: number;
@@ -20,6 +21,9 @@ export interface TaskMetrics {
   contextSize: number;
   truncated: boolean;
   timestamp: string;
+  profile?: string;
+  model?: string;
+  version?: string;
 }
 
 const taskBuffer = new Map<number, Partial<TaskMetrics>>();
@@ -124,11 +128,19 @@ function fillDefaults(partial: Partial<TaskMetrics>): TaskMetrics {
     contextSize: partial.contextSize ?? 0,
     truncated: partial.truncated ?? false,
     timestamp: partial.timestamp ?? new Date().toISOString(),
+    profile: partial.profile,
+    model: partial.model,
+    version: partial.version,
   };
 }
 
 export class LogParser extends EventEmitter {
   private tailTimers = new Map<number, NodeJS.Timeout>();
+  private _config: ConfigData | null = null;
+
+  setConfig(config: ConfigData): void {
+    this._config = config;
+  }
 
   seedCompleted(ids: number[]) {
     for (const id of ids) completedTaskIds.add(id);
@@ -147,6 +159,12 @@ export class LogParser extends EventEmitter {
 
     if (metrics.contextSize !== undefined) {
       const complete = fillDefaults(merged);
+      if (this._config) {
+        const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+        complete.profile = this._config.server.activeProfile;
+        complete.model = (presets?.model?.model as string | undefined) ?? (presets?.model?.hfRepo as string | undefined) ?? undefined;
+        complete.version = this._config.activeVersion ?? undefined;
+      }
       completedTaskIds.add(key);
       taskBuffer.delete(key);
       const timer = this.tailTimers.get(key);
@@ -163,6 +181,12 @@ export class LogParser extends EventEmitter {
         const buf = taskBuffer.get(key);
         if (buf) {
           const complete = fillDefaults(buf);
+          if (this._config) {
+            const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+            complete.profile = this._config.server.activeProfile;
+            complete.model = (presets?.model?.model as string | undefined) ?? (presets?.model?.hfRepo as string | undefined) ?? undefined;
+            complete.version = this._config.activeVersion ?? undefined;
+          }
           completedTaskIds.add(key);
           taskBuffer.delete(key);
           this.tailTimers.delete(key);

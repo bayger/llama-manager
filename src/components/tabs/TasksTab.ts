@@ -231,6 +231,7 @@ export class TasksControl extends Control {
       { header: "TIMESTAMP", width: 10, align: "left" as const, sortField: "timestamp" as TaskSortField },
       { header: "ID", width: 6, align: "right" as const, sortField: "taskId" as TaskSortField },
       { header: "SLOT", width: 4, align: "left" as const, sortField: "slotId" as TaskSortField },
+      { header: "PROFILE", width: 10, align: "left" as const, sortField: "timestamp" as TaskSortField },
       { header: "PP", width: 10, align: "right" as const, sortField: "promptSpeed" as TaskSortField },
       { header: "TG", width: 10, align: "right" as const, sortField: "outputSpeed" as TaskSortField },
       { header: "PROMPT", width: 8, align: "right" as const, sortField: "promptTokens" as TaskSortField },
@@ -279,13 +280,15 @@ export class TasksControl extends Control {
     ];
     const baseLen = baseCols.join(" ").length + 2;
 
-    const showPp = width >= baseLen + 10;
-    const showTg = width >= baseLen + 20;
-    const showPrompt = width >= baseLen + 28;
-    const showOutput = width >= baseLen + 36;
-    const showTime = width >= baseLen + 44;
+    const showProfile = width >= baseLen + 5;
+    const showPp = width >= baseLen + (showProfile ? 16 : 10);
+    const showTg = width >= baseLen + (showProfile ? 26 : 20);
+    const showPrompt = width >= baseLen + (showProfile ? 34 : 28);
+    const showOutput = width >= baseLen + (showProfile ? 42 : 36);
+    const showTime = width >= baseLen + (showProfile ? 50 : 44);
 
     const cols = [...baseCols];
+    if (showProfile) cols.push((task.profile || "-").padEnd(10));
     if (showPp) cols.push(`${task.promptSpeed.toFixed(1)} tps`.padStart(10));
     if (showTg) cols.push(`${task.outputSpeed.toFixed(1)} tps`.padStart(10));
     if (showPrompt) cols.push(`${task.promptTokens}`.padStart(8));
@@ -331,6 +334,10 @@ export class TasksControl extends Control {
       { label: "ID", value: `#${task.taskId}` },
       { label: "Slot", value: `S${task.slotId}` },
       { label: "Time", value: timeStr },
+      { label: "", value: "" },
+      { label: "Profile", value: task.profile || "-" },
+      { label: "Model", value: task.model || "-" },
+      { label: "Version", value: task.version || "-" },
       { label: "", value: "" },
       { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
       { label: "Prompt Time", value: `${fmtNum(Math.round(task.promptTimeMs))}ms` },

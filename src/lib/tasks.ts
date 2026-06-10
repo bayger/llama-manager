@@ -35,6 +35,7 @@ class TaskStore extends EventEmitter {
     }
 
     logParser.seedCompleted(this.tasks.map((t) => t.taskId));
+    logParser.setConfig(config);
 
     const logFile = getLogFile(config);
     await logParser.parseExistingFile(logFile);
