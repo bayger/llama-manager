@@ -1,11 +1,14 @@
 import { Control } from "../ui/Control.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
+import { Table } from "../ui/widgets/Table.js";
 import { themeColors, fg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
+import { fireAsync } from "../../lib/utils.js";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size, Rect } from "../ui/types.js";
+import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table.js";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "timestamp", label: "Time" },
@@ -19,10 +22,6 @@ const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
 ];
 
 const DETAILS_WIDTH = 40;
-const FIXED_COL_WIDTHS = [10, 6, 4, 10, 10, 8, 8, 8];
-const FIXED_WIDTH = FIXED_COL_WIDTHS.reduce((a, b) => a + b, 0);
-const PROFILE_MIN_WIDTH = 8;
-const MIN_ROW_WITH_PROFILE = 1 + FIXED_WIDTH + FIXED_COL_WIDTHS.length;
 
 function fmtNum(n: number): string {
   return n.toLocaleString();
@@ -31,11 +30,10 @@ function fmtNum(n: number): string {
 export class TasksControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
+  protected _table: Table<TaskMetrics>;
   protected _divider: Divider;
   protected _searchInput: TextInput;
   protected _slotInput: TextInput;
-  protected _scrollOffset = 0;
-  protected _selectedIndex = 0;
   protected _attached = false;
   protected _filterVisible = false;
   protected _sortField: TaskSortField = "timestamp";
@@ -46,6 +44,13 @@ export class TasksControl extends Control {
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._table = new Table();
+    this._table.showHeader = true;
+    this._table.headerHeight = 1;
+    this._table.setOnHighlight(() => this.markDirty());
+    this._table.setOnSelect(() => {
+      fireAsync(async () => {}, ctx);
+    });
     this._divider = new Divider();
     this._searchInput = new TextInput();
     this._slotInput = new TextInput();
@@ -53,6 +58,7 @@ export class TasksControl extends Control {
     this._slotInput.prefix = "Slot: ";
     this._searchInput.visible = false;
     this._slotInput.visible = false;
+    this.add(this._table);
     this.add(this._divider);
     this.add(this._searchInput);
     this.add(this._slotInput);
@@ -112,8 +118,8 @@ export class TasksControl extends Control {
     if (this._attached) return;
     this._attached = true;
     taskStore.on("updated", () => {
-      this._selectedIndex = 0;
-      this._scrollOffset = 0;
+      this._table.selectedIndex = 0;
+      this._table.scrollOffset = 0;
       this.markDirty();
     });
     this.markDirty();
@@ -126,36 +132,39 @@ export class TasksControl extends Control {
 
   onLayout(): void {
     const { x, y, width, height } = this.rect;
+    const tableLayout = this.getTableLayout();
+    this._table.layout(tableLayout);
     this._divider.layout({ x, y: y + (this._filterVisible ? 2 : 1), width, height: 1 });
     this._searchInput.layout({ x: x + 1, y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
     this._slotInput.layout({ x: x + 1 + Math.floor(width / 2), y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
-    this.clampSelection();
+
+    const tasks = this.filteredTasks;
+    this._table.items = tasks.map((t) => ({
+      id: t.taskId,
+      label: this.formatTime(t.timestamp),
+      sublabel: `#${t.taskId}`,
+      data: t,
+    }));
+    this._table.contentHeight = tasks.length;
+    this.updateColumns();
+
+    const renderTaskRow: TableRenderer<TaskMetrics> = (canvas, item, _index, isSelected, _x, _y, _width, columns) => {
+      this.renderTaskRow(item.data!, isSelected, _width, columns);
+    };
+    this._table.setRenderer(renderTaskRow);
   }
 
-  clampSelection(): void {
-    const tasks = this.filteredTasks;
-    const len = tasks.length;
-    if (len === 0) {
-      this._selectedIndex = 0;
-      this._scrollOffset = 0;
-      return;
-    }
-    this._selectedIndex = Math.max(0, Math.min(this._selectedIndex, len - 1));
-    const listHeight = this.rect.height - (this._filterVisible ? 4 : 3);
-    const maxScroll = Math.max(0, len - listHeight);
-    this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, maxScroll));
-    if (this._selectedIndex < this._scrollOffset) {
-      this._scrollOffset = this._selectedIndex;
-    }
-    if (this._selectedIndex >= this._scrollOffset + listHeight) {
-      this._scrollOffset = this._selectedIndex - listHeight + 1;
-    }
+  getTableLayout(): Rect {
+    const { x, y, width, height } = this.rect;
+    const headerY = y + (this._filterVisible ? 3 : 2);
+    const listHeight = height - (this._filterVisible ? 4 : 3);
+    const listWidth = width >= DETAILS_WIDTH + 25 ? width - DETAILS_WIDTH - 1 : width;
+    return { x, y: headerY, width: listWidth, height: listHeight };
   }
 
   applyFilters(): void {
-    this._selectedIndex = 0;
-    this._scrollOffset = 0;
-    this.clampSelection();
+    this._table.selectedIndex = 0;
+    this._table.scrollOffset = 0;
     this.markDirty();
   }
 
@@ -196,99 +205,64 @@ export class TasksControl extends Control {
 
     super.render();
 
-    const headerY = startY + (this._filterVisible ? 3 : 2);
     const listStartY = startY + (this._filterVisible ? 4 : 3);
     const listHeight = height - (this._filterVisible ? 4 : 3);
 
-    const listWidth = width >= DETAILS_WIDTH + 25 ? width - DETAILS_WIDTH - 1 : width;
-
-    canvas.moveTo(x, headerY);
-    canvas.styleReset();
-    this.renderHeaderRow(listWidth);
-
-    for (let i = 0; i < listHeight; i++) {
-      const taskIdx = i + this._scrollOffset;
-      canvas.moveTo(x, listStartY + i);
-      canvas.styleReset();
-
-      if (taskIdx < tasks.length) {
-        const task = tasks[taskIdx]!;
-        const isSelected = taskIdx === this._selectedIndex && this.focused;
-        this.renderTaskRow(task, isSelected, listWidth);
-      } else {
-        fg(canvas, themeColors.canvas, " ".repeat(listWidth));
-      }
-    }
-
     if (width >= DETAILS_WIDTH + 25) {
-      const dx = x + listWidth + 1;
+      const dx = x + (this.rect.width >= DETAILS_WIDTH + 25 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
       this.renderDetailsPanel({ x: dx, y: listStartY, width: DETAILS_WIDTH, height: listHeight }, tasks);
     }
 
     this.needsRender = false;
   }
 
- renderHeaderRow(width: number): void {
-    const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
-
-    const hasProfile = width >= MIN_ROW_WITH_PROFILE + PROFILE_MIN_WIDTH;
-    const profileWidth = hasProfile ? Math.max(PROFILE_MIN_WIDTH, width - MIN_ROW_WITH_PROFILE) : 0;
-
-    const allCols = [
-      { header: "TIMESTAMP", width: 10, align: "left" as const, sortField: "timestamp" as TaskSortField },
-      { header: "ID", width: 6, align: "right" as const, sortField: "taskId" as TaskSortField },
-      { header: "SLOT", width: 4, align: "left" as const, sortField: "slotId" as TaskSortField },
-      ...(hasProfile ? [{ header: "PROFILE", width: profileWidth, align: "left" as const, sortField: "timestamp" as TaskSortField }] : []),
-      { header: "PP", width: 10, align: "right" as const, sortField: "promptSpeed" as TaskSortField },
-      { header: "TG", width: 10, align: "right" as const, sortField: "outputSpeed" as TaskSortField },
-      { header: "PROMPT", width: 8, align: "right" as const, sortField: "promptTokens" as TaskSortField },
-      { header: "OUTPUT", width: 8, align: "right" as const, sortField: "outputTokens" as TaskSortField },
-      { header: "TIME", width: 8, align: "right" as const, sortField: "totalTimeMs" as TaskSortField },
-    ];
-
-    const parts = allCols.map((col) => {
-      const isSorted = col.sortField && this._sortField === col.sortField;
-      if (isSorted) {
-        const content = col.header + sortIndicator;
-        return col.align === "right" ? content.padStart(col.width) : content.padEnd(col.width);
-      }
-      return col.align === "right" ? col.header.padStart(col.width) : col.header.padEnd(col.width);
-    });
-
-    const row = " " + parts.join(" ");
-
-    fg(this.canvas, themeColors.accent, row);
-    fg(this.canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
-    this.canvas.styleReset();
+  formatTime(timestamp: string): string {
+    const time = new Date(timestamp);
+    return `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
   }
 
-  renderTaskRow(task: TaskMetrics, isSelected: boolean, width: number): void {
+  updateColumns(): void {
+    const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
+
+    this._table.columns = [
+      { label: "TIMESTAMP", width: 10, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined },
+      { label: "ID", width: 6, align: "right" as const, headerSuffix: this._sortField === "taskId" ? sortIndicator : undefined },
+      { label: "SLOT", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined },
+      { label: "PROFILE", width: 8, flex: 1, align: "left" as const },
+      { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined },
+      { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined },
+      { label: "PROMPT", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined },
+      { label: "OUTPUT", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined },
+      { label: "TIME", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined },
+    ];
+  }
+
+  renderTaskRow(task: TaskMetrics, isSelected: boolean, width: number, columns: ComputedColumn[]): void {
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
 
-    const hasProfile = width >= MIN_ROW_WITH_PROFILE + PROFILE_MIN_WIDTH;
-    const profileWidth = hasProfile ? Math.max(PROFILE_MIN_WIDTH, width - MIN_ROW_WITH_PROFILE) : 0;
-
     const profileText = task.profile || "-";
-    const displayProfile = profileText.length > profileWidth
-      ? "…" + profileText.substring(profileText.length - (profileWidth - 1))
-      : profileText;
 
-    const cols: string[] = [
-      timeStr.padEnd(10),
-      `#${task.taskId}`.padStart(6),
-      `S${task.slotId}`.padEnd(4),
-    ];
+    const valMap: Record<string, string> = {
+      TIMESTAMP: timeStr,
+      ID: `#${task.taskId}`,
+      SLOT: `S${task.slotId}`,
+      PROFILE: profileText.length > 0 ? profileText : "-",
+      PP: `${task.promptSpeed.toFixed(1)} tps`,
+      TG: `${task.outputSpeed.toFixed(1)} tps`,
+      PROMPT: `${task.promptTokens}`,
+      OUTPUT: `${task.outputTokens}`,
+      TIME: `${task.totalTimeMs.toFixed(0)}ms`,
+    };
 
-    if (hasProfile) {
-      cols.push(displayProfile.padEnd(profileWidth));
+    const cols: string[] = [];
+    for (const col of columns) {
+      let val = valMap[col.label] ?? "-";
+      if (val.length > col.width) {
+        val = "…" + val.substring(val.length - (col.width - 1));
+      }
+      cols.push(col.align === "right" ? val.padStart(col.width) : val.padEnd(col.width));
     }
-
-    cols.push(`${task.promptSpeed.toFixed(1)} tps`.padStart(10));
-    cols.push(`${task.outputSpeed.toFixed(1)} tps`.padStart(10));
-    cols.push(`${task.promptTokens}`.padStart(8));
-    cols.push(`${task.outputTokens}`.padStart(8));
-    cols.push(`${task.totalTimeMs.toFixed(0)}ms`.padStart(8));
 
     const row = " " + cols.join(" ");
 
@@ -308,8 +282,9 @@ export class TasksControl extends Control {
     if (rect.width === 0) return;
     const { x, y, width, height } = rect;
     const canvas = this.canvas;
+    const selectedIndex = this._table.selectedIndex;
 
-    if (tasks.length === 0 || this._selectedIndex < 0 || this._selectedIndex >= tasks.length) {
+    if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {
       canvas.moveTo(x, y);
       fg(canvas, themeColors.textMuted, "No tasks");
       for (let i = 1; i < height; i++) {
@@ -319,7 +294,7 @@ export class TasksControl extends Control {
       return;
     }
 
-    const task = tasks[this._selectedIndex]!;
+    const task = tasks[selectedIndex]!;
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
 
@@ -387,9 +362,6 @@ export class TasksControl extends Control {
       return false;
     }
 
-    const tasks = this.filteredTasks;
-    const len = tasks.length;
-
     if (key === "f") {
       this.showFilter();
       return true;
@@ -404,9 +376,8 @@ export class TasksControl extends Control {
         this._sortField = SORT_FIELDS[0]!.field;
         this._sortDir = "desc";
       }
-      this._selectedIndex = 0;
-      this._scrollOffset = 0;
-      this.clampSelection();
+      this._table.selectedIndex = 0;
+      this._table.scrollOffset = 0;
       this.markDirty();
       this._ctx?.showMessage(`Sort: ${SORT_FIELDS.find((s) => s.field === this._sortField)?.label} desc`);
       return true;
@@ -419,56 +390,11 @@ export class TasksControl extends Control {
       return true;
     }
 
-    if (len === 0) return false;
+    if (this._table.items.length === 0) return false;
 
-    if (key === "UP" || key === "k") {
-      if (this._selectedIndex > 0) {
-        this._selectedIndex--;
-        if (this._selectedIndex < this._scrollOffset) {
-          this._scrollOffset = this._selectedIndex;
-        }
-        this.markDirty();
-        return true;
-      }
-      return false;
-    }
-    if (key === "DOWN" || key === "j") {
-      if (this._selectedIndex < len - 1) {
-        this._selectedIndex++;
-        const viewportBottom = this._scrollOffset + this.rect.height - (this._filterVisible ? 4 : 3);
-        if (this._selectedIndex >= viewportBottom) {
-          this._scrollOffset = this._selectedIndex - this.rect.height + (this._filterVisible ? 4 : 3) + 1;
-        }
-        this.markDirty();
-        return true;
-      }
-      return false;
-    }
-    if (key === "PAGE_UP") {
-      const listHeight = this.rect.height - (this._filterVisible ? 4 : 3);
-      this._selectedIndex = Math.max(0, this._selectedIndex - listHeight);
-      this._scrollOffset = Math.max(0, this._scrollOffset - listHeight);
-      this.markDirty();
-      return true;
-    }
-    if (key === "PAGE_DOWN") {
-      const listHeight = this.rect.height - (this._filterVisible ? 4 : 3);
-      this._selectedIndex = Math.min(len - 1, this._selectedIndex + listHeight);
-      this._scrollOffset = Math.min(len - listHeight, this._scrollOffset);
-      this.markDirty();
-      return true;
-    }
-    if (key === "HOME") {
-      this._selectedIndex = 0;
-      this._scrollOffset = 0;
-      this.markDirty();
-      return true;
-    }
-    if (key === "END") {
-      this._selectedIndex = len - 1;
-      this._scrollOffset = Math.max(0, len - (this.rect.height - (this._filterVisible ? 4 : 3)));
-      this.markDirty();
-      return true;
+    if (key === "UP" || key === "DOWN" || key === "k" || key === "j" ||
+        key === "PAGE_UP" || key === "PAGE_DOWN" || key === "HOME" || key === "END") {
+      return this._table.handleKey(key);
     }
 
     return false;
@@ -476,10 +402,11 @@ export class TasksControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    this.clampSelection();
+    this._table.focus();
     this.markDirty();
   }
-}
+
+ }
 
 export function createTasksTab(ctx: TabContext): Control {
   return new TasksControl(ctx);
