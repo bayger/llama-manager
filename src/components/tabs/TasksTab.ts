@@ -13,7 +13,8 @@ const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "slotId", label: "Slot" },
   { field: "promptSpeed", label: "PP" },
   { field: "outputSpeed", label: "TG" },
-  { field: "outputTokens", label: "Tokens" },
+  { field: "promptTokens", label: "Prompt" },
+  { field: "outputTokens", label: "Output" },
   { field: "totalTimeMs", label: "Duration" },
 ];
 
@@ -232,7 +233,8 @@ export class TasksControl extends Control {
       { header: "SLOT", width: 4, align: "left" as const, sortField: "slotId" as TaskSortField },
       { header: "PP", width: 10, align: "right" as const, sortField: "promptSpeed" as TaskSortField },
       { header: "TG", width: 10, align: "right" as const, sortField: "outputSpeed" as TaskSortField },
-      { header: "TOKENS", width: 8, align: "right" as const, sortField: "outputTokens" as TaskSortField },
+      { header: "PROMPT", width: 8, align: "right" as const, sortField: "promptTokens" as TaskSortField },
+      { header: "OUTPUT", width: 8, align: "right" as const, sortField: "outputTokens" as TaskSortField },
       { header: "TIME", width: 8, align: "right" as const, sortField: "totalTimeMs" as TaskSortField },
     ];
 
@@ -279,13 +281,15 @@ export class TasksControl extends Control {
 
     const showPp = width >= baseLen + 10;
     const showTg = width >= baseLen + 20;
-    const showTokens = width >= baseLen + 28;
-    const showTime = width >= baseLen + 36;
+    const showPrompt = width >= baseLen + 28;
+    const showOutput = width >= baseLen + 36;
+    const showTime = width >= baseLen + 44;
 
     const cols = [...baseCols];
     if (showPp) cols.push(`${task.promptSpeed.toFixed(1)} tps`.padStart(10));
     if (showTg) cols.push(`${task.outputSpeed.toFixed(1)} tps`.padStart(10));
-    if (showTokens) cols.push(`${task.outputTokens}`.padStart(8));
+    if (showPrompt) cols.push(`${task.promptTokens}`.padStart(8));
+    if (showOutput) cols.push(`${task.outputTokens}`.padStart(8));
     if (showTime) cols.push(`${task.totalTimeMs.toFixed(0)}ms`.padStart(8));
 
     const row = " " + cols.join(" ");
