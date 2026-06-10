@@ -96,7 +96,7 @@ class TaskStore extends EventEmitter {
 
   getStats(tasks: TaskMetrics[]) {
     if (tasks.length === 0)
-      return { avgPromptSpeed: 0, avgOutputSpeed: 0, totalTokens: 0, avgDraftAcceptance: 0, count: 0 };
+      return { avgPromptSpeed: 0, avgOutputSpeed: 0, totalTokens: 0, totalPromptTokens: 0, totalOutputTokens: 0, avgDraftAcceptance: 0, count: 0 };
 
     const sum = tasks.reduce(
       (acc, t) => ({
@@ -122,6 +122,8 @@ class TaskStore extends EventEmitter {
       avgPromptSpeed,
       avgOutputSpeed,
       totalTokens: sum.totalTokens,
+      totalPromptTokens: sum.promptTokens,
+      totalOutputTokens: sum.outputTokens,
       avgDraftAcceptance,
       count: tasks.length,
     };

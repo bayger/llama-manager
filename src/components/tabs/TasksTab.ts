@@ -181,17 +181,13 @@ export class TasksControl extends Control {
     canvas.moveTo(x, startY);
     canvas.styleReset();
 
-    const sortLabel = SORT_FIELDS.find((s) => s.field === this._sortField)?.label || this._sortField;
-    const sortIndicator = this._sortDir === "asc" ? " ▲" : " ▼";
     const filterIndicator = (this._searchValue !== "" || this._slotValue !== "") ? " [F]" : "";
-    fg(canvas, themeColors.text, `Tasks: ${stats.count}`);
-    fg(canvas, themeColors.textMuted, `  Avg PP: ${stats.avgPromptSpeed.toFixed(1)}`);
-    fg(canvas, themeColors.textMuted, `  Avg TG: ${stats.avgOutputSpeed.toFixed(1)}`);
-    fg(canvas, themeColors.accent, `  Sort: ${sortLabel}${sortIndicator}`);
+    const statsText = `Tasks: ${stats.count}  Prompt: ${stats.totalPromptTokens.toLocaleString()}  Output: ${stats.totalOutputTokens.toLocaleString()}  Total: ${stats.totalTokens.toLocaleString()}  Avg PP: ${stats.avgPromptSpeed.toFixed(1)}  Avg TG: ${stats.avgOutputSpeed.toFixed(1)}  Draft: ${(stats.avgDraftAcceptance * 100).toFixed(1)}%`;
+    fg(canvas, themeColors.text, statsText);
     if (filterIndicator) {
       fg(canvas, themeColors.warning, filterIndicator);
     }
-    fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - 60 - String(stats.count).length - String(stats.avgPromptSpeed.toFixed(1)).length - String(stats.avgOutputSpeed.toFixed(1)).length - sortLabel.length)));
+    fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - statsText.length - filterIndicator.length)));
 
     super.render();
 
