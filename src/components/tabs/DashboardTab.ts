@@ -143,6 +143,11 @@ export class DashboardControl extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
+  render(): void {
+    this.updateProfileLabel();
+    super.render();
+  }
+
   onAttach(): void {
     if (!this._ctx || this._attached) return;
     this._attached = true;
