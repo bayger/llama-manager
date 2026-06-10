@@ -19,6 +19,10 @@ const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
 ];
 
 const DETAILS_WIDTH = 40;
+const FIXED_COL_WIDTHS = [10, 6, 4, 10, 10, 8, 8, 8];
+const FIXED_WIDTH = FIXED_COL_WIDTHS.reduce((a, b) => a + b, 0);
+const PROFILE_MIN_WIDTH = 8;
+const MIN_ROW_WITH_PROFILE = 1 + FIXED_WIDTH + FIXED_COL_WIDTHS.length;
 
 function fmtNum(n: number): string {
   return n.toLocaleString();
@@ -227,11 +231,14 @@ export class TasksControl extends Control {
  renderHeaderRow(width: number): void {
     const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
 
+    const hasProfile = width >= MIN_ROW_WITH_PROFILE + PROFILE_MIN_WIDTH;
+    const profileWidth = hasProfile ? Math.max(PROFILE_MIN_WIDTH, width - MIN_ROW_WITH_PROFILE) : 0;
+
     const allCols = [
       { header: "TIMESTAMP", width: 10, align: "left" as const, sortField: "timestamp" as TaskSortField },
       { header: "ID", width: 6, align: "right" as const, sortField: "taskId" as TaskSortField },
       { header: "SLOT", width: 4, align: "left" as const, sortField: "slotId" as TaskSortField },
-      { header: "PROFILE", width: 10, align: "left" as const, sortField: "timestamp" as TaskSortField },
+      ...(hasProfile ? [{ header: "PROFILE", width: profileWidth, align: "left" as const, sortField: "timestamp" as TaskSortField }] : []),
       { header: "PP", width: 10, align: "right" as const, sortField: "promptSpeed" as TaskSortField },
       { header: "TG", width: 10, align: "right" as const, sortField: "outputSpeed" as TaskSortField },
       { header: "PROMPT", width: 8, align: "right" as const, sortField: "promptTokens" as TaskSortField },
@@ -239,21 +246,7 @@ export class TasksControl extends Control {
       { header: "TIME", width: 8, align: "right" as const, sortField: "totalTimeMs" as TaskSortField },
     ];
 
-    const baseCols = allCols.slice(0, 3);
-    const baseLen = baseCols.reduce((sum, c) => sum + c.width, 0) + (baseCols.length - 1) + 2;
-    const extraCols = allCols.slice(3);
-    let runningLen = baseLen;
-    const visibleCols = [...baseCols];
-    for (const col of extraCols) {
-      runningLen += 1 + col.width;
-      if (runningLen <= width) {
-        visibleCols.push(col);
-      } else {
-        break;
-      }
-    }
-
-    const parts = visibleCols.map((col) => {
+    const parts = allCols.map((col) => {
       const isSorted = col.sortField && this._sortField === col.sortField;
       if (isSorted) {
         const content = col.header + sortIndicator;
@@ -273,27 +266,29 @@ export class TasksControl extends Control {
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
 
-    const baseCols = [
+    const hasProfile = width >= MIN_ROW_WITH_PROFILE + PROFILE_MIN_WIDTH;
+    const profileWidth = hasProfile ? Math.max(PROFILE_MIN_WIDTH, width - MIN_ROW_WITH_PROFILE) : 0;
+
+    const profileText = task.profile || "-";
+    const displayProfile = profileText.length > profileWidth
+      ? "…" + profileText.substring(profileText.length - (profileWidth - 1))
+      : profileText;
+
+    const cols: string[] = [
       timeStr.padEnd(10),
       `#${task.taskId}`.padStart(6),
       `S${task.slotId}`.padEnd(4),
     ];
-    const baseLen = baseCols.join(" ").length + 2;
 
-    const showProfile = width >= baseLen + 5;
-    const showPp = width >= baseLen + (showProfile ? 16 : 10);
-    const showTg = width >= baseLen + (showProfile ? 26 : 20);
-    const showPrompt = width >= baseLen + (showProfile ? 34 : 28);
-    const showOutput = width >= baseLen + (showProfile ? 42 : 36);
-    const showTime = width >= baseLen + (showProfile ? 50 : 44);
+    if (hasProfile) {
+      cols.push(displayProfile.padEnd(profileWidth));
+    }
 
-    const cols = [...baseCols];
-    if (showProfile) cols.push((task.profile || "-").padEnd(10));
-    if (showPp) cols.push(`${task.promptSpeed.toFixed(1)} tps`.padStart(10));
-    if (showTg) cols.push(`${task.outputSpeed.toFixed(1)} tps`.padStart(10));
-    if (showPrompt) cols.push(`${task.promptTokens}`.padStart(8));
-    if (showOutput) cols.push(`${task.outputTokens}`.padStart(8));
-    if (showTime) cols.push(`${task.totalTimeMs.toFixed(0)}ms`.padStart(8));
+    cols.push(`${task.promptSpeed.toFixed(1)} tps`.padStart(10));
+    cols.push(`${task.outputSpeed.toFixed(1)} tps`.padStart(10));
+    cols.push(`${task.promptTokens}`.padStart(8));
+    cols.push(`${task.outputTokens}`.padStart(8));
+    cols.push(`${task.totalTimeMs.toFixed(0)}ms`.padStart(8));
 
     const row = " " + cols.join(" ");
 
