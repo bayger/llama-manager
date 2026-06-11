@@ -1,7 +1,7 @@
 import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
-import type { Size } from "../types.js";
+import type { Size, RenderContext } from "../types.js";
 
 export interface ButtonConfig {
   label: string;
@@ -22,13 +22,13 @@ export class Button extends Control {
     if (value === !this.enabled) return;
     if (value && this.focused) {
       this.blur();
-      this.markDirty();
       const sibling = this.findNextEnabledSibling();
       if (sibling) {
         focusManager.setFocus(sibling);
       }
     }
     this.enabled = !value;
+    this.markDirty();
   }
 
   findNextEnabledSibling(): Button | null {
@@ -59,10 +59,10 @@ export class Button extends Control {
     return { width: this.label.length + 4, height: 1 };
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const { canvas, rect } = this;
-    canvas.moveTo(rect.x, rect.y);
+    const { canvas } = ctx;
+    canvas.moveTo(this.rect.x, this.rect.y);
     const text = `[ ${this.label} ]`;
 
     if (this.disabled) {

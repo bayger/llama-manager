@@ -19,7 +19,7 @@ export class OptionsControl extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  onDetach(): void {
+  onDestroy(): void {
     this._ctx = null;
   }
 }

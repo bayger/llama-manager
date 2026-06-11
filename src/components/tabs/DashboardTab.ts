@@ -9,16 +9,16 @@ import { getStatus, startServer, stopServer, serverLogLines, onServerLog } from 
 import { fireAsync, formatUptime } from "../../lib/utils.js";
 import { BACKEND_LABELS } from "../../lib/versions.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 
 class StatusControl extends Control {
   measure(parentSize?: Size): Size {
     return { width: parentSize?.width ?? this.rect.width, height: 1 };
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     canvas.moveTo(this.rect.x, this.rect.y);
 
     const status = getStatus();
@@ -53,7 +53,6 @@ export class DashboardControl extends Control {
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
   protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
-  protected _attached = false;
 
   constructor(ctx: TabContext) {
     super();
@@ -81,14 +80,14 @@ export class DashboardControl extends Control {
     this._profileLabel.focusable = false;
     const profileLbl = this._profileLabel;
     this._profileLabel.measure = () => ({ width: "Profile: ".length + profileLbl.text.length, height: 1 });
-    this._profileLabel.render = () => {
+    this._profileLabel.render = (ctx: RenderContext) => {
       if (!profileLbl.visible || !profileLbl.needsRender) return;
-      const { canvas, rect } = profileLbl;
-      canvas.moveTo(rect.x, rect.y);
+      const canvas = ctx.canvas;
+      canvas.moveTo(profileLbl.rect.x, profileLbl.rect.y);
       fg(canvas, themeColors.textMuted, "Profile: ");
       fg(canvas, themeColors.text, profileLbl.text);
-      const endX = canvas.cursorX ?? rect.x;
-      const padLen = rect.width - (endX - rect.x);
+      const endX = canvas.cursorX ?? profileLbl.rect.x;
+      const padLen = profileLbl.rect.width - (endX - profileLbl.rect.x);
       if (padLen > 0) {
         fg(canvas, themeColors.canvas, " ".repeat(padLen));
       }
@@ -108,14 +107,14 @@ export class DashboardControl extends Control {
     this._versionLabel.focusable = false;
     const versionLbl = this._versionLabel;
     this._versionLabel.measure = () => ({ width: Math.max("Version: ".length + versionLbl.text.length, 1), height: 1 });
-    this._versionLabel.render = () => {
+    this._versionLabel.render = (ctx: RenderContext) => {
       if (!versionLbl.visible || !versionLbl.needsRender) return;
-      const { canvas, rect } = versionLbl;
-      canvas.moveTo(rect.x, rect.y);
+      const canvas = ctx.canvas;
+      canvas.moveTo(versionLbl.rect.x, versionLbl.rect.y);
       fg(canvas, themeColors.textMuted, "Version: ");
       fg(canvas, themeColors.text, versionLbl.text);
-      const endX = canvas.cursorX ?? rect.x;
-      const padLen = rect.width - (endX - rect.x);
+      const endX = canvas.cursorX ?? versionLbl.rect.x;
+      const padLen = versionLbl.rect.width - (endX - versionLbl.rect.x);
       if (padLen > 0) {
         fg(canvas, themeColors.canvas, " ".repeat(padLen));
       }
@@ -143,14 +142,8 @@ export class DashboardControl extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  render(): void {
-    this.updateProfileLabel();
-    super.render();
-  }
-
-  onAttach(): void {
-    if (!this._ctx || this._attached) return;
-    this._attached = true;
+  onInit(): void {
+    if (!this._ctx) return;
     const ctx = this._ctx;
     const buttons = this._buttons;
 
@@ -192,8 +185,7 @@ export class DashboardControl extends Control {
     this.markDirty();
   }
 
-  onDetach(): void {
-    this._attached = false;
+  onDestroy(): void {
     if (this._logUnsub) {
       this._logUnsub();
       this._logUnsub = null;
@@ -203,6 +195,11 @@ export class DashboardControl extends Control {
       this._logRenderTimer = null;
     }
     this._ctx = null;
+  }
+
+  render(ctx: RenderContext): void {
+    this.updateProfileLabel();
+    super.render(ctx);
   }
 
   onFocus(): void {

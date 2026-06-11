@@ -8,3 +8,5 @@ export { Divider } from "./Divider.js";
 export { Spacer } from "./Spacer.js";
 export { ProgressBar } from "./ProgressBar.js";
 export { HelpBar } from "./HelpBar.js";
+export { Table } from "./Table.js";
+export type { TableColumn, TableItem, TableRenderer, ComputedColumn } from "./Table.js";

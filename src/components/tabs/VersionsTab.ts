@@ -25,7 +25,7 @@ import {
 import { saveConfig } from "../../lib/config.js";
 import { fireAsync } from "../../lib/utils.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 
 type ViewMode = "local" | "releases" | "backends" | "installing";
 
@@ -41,9 +41,9 @@ class VersionsHeader extends Control {
     this.markDirty();
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
     canvas.moveTo(x, y);
@@ -85,9 +85,9 @@ class ChangelogView extends Scrollable {
     this.markDirty();
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
     for (let i = 0; i < this._viewportHeight; i++) {
@@ -119,7 +119,6 @@ export class VersionsControl extends Control {
   protected _list: List<any>;
   protected _changelog: ChangelogView;
   protected _progressBar: ProgressBar;
-  protected _attached = false;
 
   protected _mode: ViewMode = "local";
   protected _selectedRelease: RemoteVersion | null = null;
@@ -177,9 +176,8 @@ export class VersionsControl extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  onAttach(): void {
-    if (!this._ctx || this._attached) return;
-    this._attached = true;
+  onInit(): void {
+    if (!this._ctx) return;
     const ctx = this._ctx;
 
     this._btnInstall.setAction(() => {
@@ -231,8 +229,7 @@ export class VersionsControl extends Control {
     this.refreshLocal();
   }
 
-  onDetach(): void {
-    this._attached = false;
+  onDestroy(): void {
     this._ctx = null;
   }
 

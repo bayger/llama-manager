@@ -9,7 +9,7 @@ import { themeColors, fg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { ConfigData, saveConfig } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 
 export class ServerControl extends Control {
   focusable = true;
@@ -20,7 +20,6 @@ export class ServerControl extends Control {
   protected _buttons: Button[];
   protected _settingsPanel: SettingsPanel;
   protected _profileList: ProfileList;
-  protected _attached = false;
   protected _profileEdit: { text: string; cursor: number; mode: "create" | "rename" } | null = null;
   protected _showingList = false;
 
@@ -74,9 +73,8 @@ export class ServerControl extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  onAttach(): void {
-    if (!this._ctx || this._attached) return;
-    this._attached = true;
+  onInit(): void {
+    if (!this._ctx) return;
     const ctx = this._ctx;
 
     this._buttons[0]?.setAction(() => {
@@ -94,8 +92,7 @@ export class ServerControl extends Control {
     this.refreshConfig();
   }
 
-  onDetach(): void {
-    this._attached = false;
+  onDestroy(): void {
     this._ctx = null;
   }
 
@@ -185,14 +182,12 @@ export class ServerControl extends Control {
     };
     focusManager.setFocus(this);
     focusManager.activateTextInput(true);
-    this.canvas.showCursor();
     this.markDirty();
   }
 
   cancelProfileEdit(restoreFocus: boolean = true): void {
     this._profileEdit = null;
     focusManager.activateTextInput(false);
-    this.canvas.hideCursor();
     if (restoreFocus) {
       const firstEnabled = this._buttons.find(b => !b.disabled);
       if (firstEnabled) {
@@ -363,12 +358,12 @@ export class ServerControl extends Control {
     return true;
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    super.render();
+    super.render(ctx);
 
     if (this._profileEdit) {
-      const canvas = this.canvas;
+      const canvas = ctx.canvas;
       const labelRect = this._profileLabel.rect;
       const prefix = this._profileEdit.mode === "create" ? "Create: " : "Rename: ";
       canvas.moveTo(labelRect.x, labelRect.y);

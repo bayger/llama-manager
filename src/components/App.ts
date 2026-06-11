@@ -21,7 +21,7 @@ export class App {
   private _ctx: TabContext | null = null;
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
   private mouseHandler: ((data: any) => void) | null = null;
-  private renderTimer: ReturnType<typeof setTimeout> | null = null;
+  private _renderInterval: ReturnType<typeof setInterval> | null = null;
   private _firstRender = true;
   private helpOverlayVisible = false;
 
@@ -39,7 +39,11 @@ export class App {
 
     this._ctx = {
       canvas: this._canvas,
-      scheduleRender: () => this.scheduleRender(),
+      scheduleRender: () => {
+        if (this._main) {
+          this._main.markDirty();
+        }
+      },
       showMessage: (msg: string) => this.showMessage(msg),
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       getConfig: () => config,
@@ -47,10 +51,12 @@ export class App {
     };
 
     this._main = new MainControl(this._ctx, () => this.quit());
-    this._main.attach(this._ctx);
+    this._main.onInit();
 
     this.setupKeyHandler();
     focusManager.setRoot(this._main);
+
+    this._renderInterval = setInterval(() => this.render(), 1);
   }
 
   showMessage(msg: string): void {
@@ -61,14 +67,6 @@ export class App {
     focusManager.activateTextInput(focused);
   }
 
-  scheduleRender(): void {
-    if (this.renderTimer) return;
-    this.renderTimer = setTimeout(() => {
-      this.renderTimer = null;
-      this.render();
-    }, 0);
-  }
-
   render(): void {
     const { term } = this;
     const fb = this._fb!;
@@ -76,6 +74,8 @@ export class App {
     const main = this._main!;
     const width = process.stdout.columns || 80;
     const height = process.stdout.rows || 24;
+
+    if (!main.needsRender && !this.helpOverlayVisible) return;
 
     fb.resize(width, height);
 
@@ -87,11 +87,13 @@ export class App {
     fb.swap();
     fb.copyRegion(fb.back, 0, 0, width, height, 0, 0);
 
+    const renderCtx: RenderContext = this._ctx!;
+
     if (this.helpOverlayVisible) {
       this.renderHelpOverlay(width, height, canvas);
     } else {
       main.layout({ x: 1, y: 1, width, height });
-      main.render();
+      main.render(renderCtx);
     }
 
     diffToTerminal(fb.back, fb.front, (text) => term(text), width, height);
@@ -185,14 +187,18 @@ export class App {
 
       if (name === "?" && !textActive) {
         this.helpOverlayVisible = !this.helpOverlayVisible;
-        this.scheduleRender();
+        if (this._main) {
+          this._main.markDirty();
+        }
         return;
       }
 
       if (this.helpOverlayVisible) {
         if (name === "?" || name === "Escape") {
           this.helpOverlayVisible = false;
-          this.scheduleRender();
+          if (this._main) {
+            this._main.markDirty();
+          }
         }
         return;
       }
@@ -222,6 +228,10 @@ export class App {
   }
 
   dispose(): void {
+    if (this._renderInterval) {
+      clearInterval(this._renderInterval);
+      this._renderInterval = null;
+    }
     if (this.keyHandler) {
       this.term.removeListener("key", this.keyHandler);
       this.keyHandler = null;
@@ -230,12 +240,8 @@ export class App {
       (this.term as any).removeListener("mouse", this.mouseHandler);
       this.mouseHandler = null;
     }
-    if (this.renderTimer) {
-      clearTimeout(this.renderTimer);
-      this.renderTimer = null;
-    }
     focusManager.clear();
-    this._main?.dispose();
+    this._main?.onDestroy();
     taskStore.dispose();
   }
 }

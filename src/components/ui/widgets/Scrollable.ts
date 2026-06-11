@@ -38,14 +38,6 @@ export class Scrollable extends Control {
     return this.scrollOffset < Math.max(0, this.contentHeight - this._viewportHeight);
   }
 
-  render(): void {
-    if (!this.visible || !this.needsRender) return;
-    for (const child of this.children) {
-      child.render();
-    }
-    this.needsRender = false;
-  }
-
   handleKey(key: string): boolean {
     if (key === "UP" && this.canScrollUp()) {
       this.scrollOffset--;

@@ -1,8 +1,9 @@
 import { Control } from "./Control.js";
-import type { Rect, Size } from "./types.js";
+import type { Rect, Size, RenderContext } from "./types.js";
 
 export class Column extends Control {
   focusable = false;
+
   measure(parentSize: Size): Size {
     let totalHeight = 0;
     let fixedHeight = 0;
@@ -61,10 +62,22 @@ export class Column extends Control {
       }
     }
   }
+
+  render(ctx: RenderContext): void {
+    if (!this.visible || !this.needsRender) return;
+    const prevClip = ctx.canvas.getClipRect();
+    ctx.canvas.setClipRect(this.rect);
+    for (const child of this.children) {
+      child.render(ctx);
+    }
+    ctx.canvas.setClipRect(prevClip);
+    this.needsRender = false;
+  }
 }
 
 export class Row extends Control {
   focusable = false;
+
   measure(parentSize: Size): Size {
     const gap = 1;
     let totalWidth = 0;
@@ -118,9 +131,9 @@ export class Row extends Control {
     for (let i = 0; i < visibleChildren.length; i++) {
       const child = visibleChildren[i]!;
       if (child.flex > 0) {
-        const childWidth = flexSpace > 0 ? Math.floor((child.flex / flexTotal) * flexSpace) : 0;
-        child.layout({ x: currentX, y, width: childWidth, height });
-        currentX += childWidth;
+        const cw = flexSpace > 0 ? Math.floor((child.flex / flexTotal) * flexSpace) : 0;
+        child.layout({ x: currentX, y, width: cw, height });
+        currentX += cw;
       } else {
         const childSize = child.measure({ width, height });
         child.layout({ x: currentX, y, width: childSize.width, height });
@@ -130,5 +143,16 @@ export class Row extends Control {
         currentX += gap;
       }
     }
+  }
+
+  render(ctx: RenderContext): void {
+    if (!this.visible || !this.needsRender) return;
+    const prevClip = ctx.canvas.getClipRect();
+    ctx.canvas.setClipRect(this.rect);
+    for (const child of this.children) {
+      child.render(ctx);
+    }
+    ctx.canvas.setClipRect(prevClip);
+    this.needsRender = false;
   }
 }

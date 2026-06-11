@@ -1,6 +1,6 @@
 import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
-import type { Size } from "../types.js";
+import type { Size, RenderContext } from "../types.js";
 
 const TL = "\u250c";
 const TR = "\u2510";
@@ -40,10 +40,10 @@ export class Box extends Control {
     return { width: this.rect.width || 20, height: this.rect.height || 4 };
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const { canvas, rect } = this;
-    const { x, y, width, height } = rect;
+    const { canvas } = ctx;
+    const { x, y, width, height } = this.rect;
 
     if (width < 4 || height < 3) {
       this.needsRender = false;
@@ -71,7 +71,7 @@ export class Box extends Control {
 
     // Render child
     if (this.children.length > 0) {
-      this.children[0].render();
+      this.children[0].render(ctx);
     }
 
     // Right border

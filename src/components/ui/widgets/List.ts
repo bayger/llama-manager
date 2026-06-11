@@ -1,6 +1,6 @@
 import { Control } from "../Control.js";
 import { fg, fgBg, themeColors } from "../../../lib/theme.js";
-import type { Size } from "../types.js";
+import type { Size, RenderContext } from "../types.js";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
 
 export interface ListItem<T = any> {
@@ -15,11 +15,14 @@ export type ItemRenderer<T> = (canvas: FramebufferCanvas, item: ListItem<T>, ind
 export class List<T = any> extends Control {
   focusable = true;
   public items: ListItem<T>[] = [];
-  public selectedIndex = -1;
+  protected _selectedIndex = -1;
   public itemHeight = 1;
   protected _onSelect: ((item: ListItem<T>) => void) | null = null;
   protected _onHighlight: ((item: ListItem<T> | null) => void) | null = null;
   protected _customRenderer: ItemRenderer<T> | null = null;
+
+  get selectedIndex(): number { return this._selectedIndex; }
+  set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
 
   measure(_parentSize?: Size): Size {
     const h = Math.max(1, this.items.length * this.itemHeight);
@@ -52,10 +55,10 @@ export class List<T = any> extends Control {
     this.markDirty();
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const { canvas, rect } = this;
-    const { x, y, width } = rect;
+    const { canvas } = ctx;
+    const { x, y, width } = this.rect;
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
@@ -116,6 +119,7 @@ export class List<T = any> extends Control {
     if (this.selectedIndex < 0 && this.items.length > 0) {
       this.selectedIndex = 0;
       this._fireHighlight();
+      this.markDirty();
     }
   }
 

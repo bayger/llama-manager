@@ -9,8 +9,7 @@ import {
   ServerPresets,
   saveConfig,
 } from "../../lib/config.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 const KEY_COL_WIDTH = 18;
@@ -130,9 +129,9 @@ export class SettingsPanel extends Control {
     this.clampSelection();
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const presets = this._config?.server.profiles[this._config?.server.activeProfile]?.presets;
 
@@ -451,7 +450,6 @@ export class SettingsPanel extends Control {
       cursor: editValue.length,
     };
     focusManager.activateTextInput(true);
-    this.canvas.showCursor();
     this.markDirty();
   }
 
@@ -470,7 +468,6 @@ export class SettingsPanel extends Control {
 
     this._edit = null;
     focusManager.activateTextInput(false);
-    this.canvas.hideCursor();
 
     if (changed) {
       try {
@@ -494,7 +491,6 @@ export class SettingsPanel extends Control {
     }
     this._edit = null;
     focusManager.activateTextInput(false);
-    this.canvas.hideCursor();
     this.markDirty();
   }
 
@@ -526,7 +522,6 @@ export class SettingsPanel extends Control {
       }
       this._edit = null;
       focusManager.activateTextInput(false);
-      this.canvas.hideCursor();
       this.markDirty();
     }
   }
