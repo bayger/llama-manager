@@ -1,15 +1,30 @@
 import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
-import type { Size } from "../types.js";
+import type { Size, RenderContext } from "../types.js";
 
 export class Label extends Control {
   focusable = false;
-  public text = "";
-  public color = themeColors.text;
-  public bold = false;
-  public padding = 0;
-  public align: "left" | "center" = "left";
+  protected _text = "";
+  protected _color = themeColors.text;
+  protected _bold = false;
+  protected _padding = 0;
+  protected _align: "left" | "center" = "left";
+
+  get text(): string { return this._text; }
+  set text(v: string) { if (v !== this._text) { this._text = v; this.markDirty(); } }
+
+  get color(): string { return this._color; }
+  set color(v: string) { if (v !== this._color) { this._color = v; this.markDirty(); } }
+
+  get bold(): boolean { return this._bold; }
+  set bold(v: boolean) { if (v !== this._bold) { this._bold = v; this.markDirty(); } }
+
+  get padding(): number { return this._padding; }
+  set padding(v: number) { if (v !== this._padding) { this._padding = v; this.markDirty(); } }
+
+  get align(): "left" | "center" { return this._align; }
+  set align(v: "left" | "center") { if (v !== this._align) { this._align = v; this.markDirty(); } }
 
   measure(_parentSize?: Size): Size {
     const len = this.text.length + this.padding * 2;
@@ -26,13 +41,13 @@ export class Label extends Control {
     this.markDirty();
   }
 
-render(): void {
+ render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const { canvas, rect } = this;
-    canvas.moveTo(rect.x, rect.y);
+    const { canvas } = ctx;
+    canvas.moveTo(this.rect.x, this.rect.y);
     if (this.bold) canvas.bold();
     if (this.align === "center") {
-      const pad = Math.max(0, (rect.width - this.text.length) / 2);
+      const pad = Math.max(0, (this.rect.width - this.text.length) / 2);
       canvas.write(" ".repeat(pad));
     } else if (this.padding > 0) {
       canvas.write(" ".repeat(this.padding));

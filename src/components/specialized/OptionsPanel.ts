@@ -3,7 +3,7 @@ import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { ConfigData, saveConfig } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 const KEY_COL_WIDTH = 22;
@@ -179,18 +179,17 @@ export class OptionsPanel extends Control {
     }
   }
 
-  onAttach(): void {
+  onInit(): void {
     this.buildRows();
     this.clampSelection();
   }
 
-  onDetach(): void {
+  onDestroy(): void {
     this._config = null;
     this._ctx = null;
     if (this._edit) {
       this._edit = null;
       focusManager.activateTextInput(false);
-      this.canvas.hideCursor();
     }
   }
 
@@ -202,9 +201,9 @@ export class OptionsPanel extends Control {
     this.clampSelection();
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const config = this._ctx?.getConfig();
 
@@ -497,7 +496,6 @@ export class OptionsPanel extends Control {
       cursor: editValue.length,
     };
     focusManager.activateTextInput(true);
-    this.canvas.showCursor();
     this.markDirty();
   }
 
@@ -514,7 +512,6 @@ export class OptionsPanel extends Control {
 
     this._edit = null;
     focusManager.activateTextInput(false);
-    this.canvas.hideCursor();
 
     if (changed) {
       this.saveAndMessage(config, field);
@@ -531,7 +528,6 @@ export class OptionsPanel extends Control {
     cat.setter(config, { [field.key]: originalValue });
     this._edit = null;
     focusManager.activateTextInput(false);
-    this.canvas.hideCursor();
     this.markDirty();
   }
 

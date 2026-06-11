@@ -1,13 +1,26 @@
 import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
-import type { Size } from "../types.js";
+import { focusManager } from "../FocusManager.js";
+import type { Size, RenderContext } from "../types.js";
 
 export class TextInput extends Control {
   focusable = true;
-  public value = "";
-  public placeholder = "";
-  public cursorPos = 0;
-  public prefix = "";
+  protected _value = "";
+  protected _placeholder = "";
+  protected _cursorPos = 0;
+  protected _prefix = "";
+
+  get value(): string { return this._value; }
+  set value(v: string) { if (v !== this._value) { this._value = v; this.markDirty(); } }
+
+  get placeholder(): string { return this._placeholder; }
+  set placeholder(v: string) { if (v !== this._placeholder) { this._placeholder = v; this.markDirty(); } }
+
+  get cursorPos(): number { return this._cursorPos; }
+  set cursorPos(v: number) { if (v !== this._cursorPos) { this._cursorPos = v; this.markDirty(); } }
+
+  get prefix(): string { return this._prefix; }
+  set prefix(v: string) { if (v !== this._prefix) { this._prefix = v; this.markDirty(); } }
   protected _onSubmit: ((value: string) => void) | null = null;
   protected _onCancel: (() => void) | null = null;
   protected _onChange: ((value: string) => void) | null = null;
@@ -31,19 +44,19 @@ export class TextInput extends Control {
 
   onFocus(): void {
     super.onFocus();
-    this.canvas.showCursor();
+    focusManager.activateTextInput(true);
     this.cursorPos = this.value.length;
   }
 
   onBlur(): void {
     super.onBlur();
-    this.canvas.hideCursor();
+    focusManager.activateTextInput(false);
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const { canvas, rect } = this;
-    canvas.moveTo(rect.x, rect.y);
+    const { canvas } = ctx;
+    canvas.moveTo(this.rect.x, this.rect.y);
     canvas.styleReset();
 
     if (this.prefix) {
@@ -55,12 +68,12 @@ export class TextInput extends Control {
     fg(canvas, displayColor, display);
 
     const contentLen = this.value.length + this.prefix.length;
-    const remaining = Math.max(0, rect.width - contentLen);
+    const remaining = Math.max(0, this.rect.width - contentLen);
     fg(canvas, themeColors.canvas, " ".repeat(remaining));
 
     if (this.focused) {
-      const cursorX = rect.x + this.prefix.length + this.cursorPos;
-      canvas.moveTo(cursorX, rect.y);
+      const cursorX = this.rect.x + this.prefix.length + this.cursorPos;
+      canvas.moveTo(cursorX, this.rect.y);
     }
 
     this.needsRender = false;
@@ -72,7 +85,6 @@ export class TextInput extends Control {
       return true;
     }
     if (key === "ESC" || key === "ESCAPE" || key === "CTRL_C") {
-      this.canvas.hideCursor();
       if (this._onCancel) this._onCancel();
       return true;
     }

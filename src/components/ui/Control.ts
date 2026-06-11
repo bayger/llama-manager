@@ -1,10 +1,8 @@
 import type { Rect, Size, RenderContext, Point } from "./types.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
   public enabled = true;
-  public visible = true;
   public focused = false;
   public focusable = false;
   public tabIndex = 0;
@@ -13,22 +11,20 @@ export class Control {
   public minWidth = 0;
   public minHeight = 0;
 
+  protected _visible = true;
+  get visible(): boolean { return this._visible; }
+  set visible(v: boolean) {
+    if (this._visible === v) return;
+    this._visible = v;
+    if (v) this.onShow(); else this.onHide();
+    this.markDirty();
+  }
+
   protected children: Control[] = [];
   protected _parent: Control | null = null;
-  protected _renderContext: RenderContext | null = null;
 
   get parent(): Control | null {
     return this._parent;
-  }
-
-  get renderContext(): RenderContext {
-    if (!this._renderContext) throw new Error("Control not attached to render context");
-    return this._renderContext;
-  }
-
-  get canvas(): FramebufferCanvas {
-    if (!this._renderContext) throw new Error("Control not attached to render context");
-    return this._renderContext.canvas;
   }
 
   constructor() {
@@ -79,24 +75,6 @@ export class Control {
     this.markDirty();
   }
 
-  // — Attachment —
-
-  attach(renderContext: RenderContext): void {
-    this._renderContext = renderContext;
-    for (const child of this.children) {
-      child.attach(renderContext);
-    }
-    this.onAttach();
-  }
-
-  detach(): void {
-    this.onDetach();
-    for (const child of this.children) {
-      child.detach();
-    }
-    this._renderContext = null;
-  }
-
   // — Layout —
 
   measure(_parentSize?: Size): Size {
@@ -111,17 +89,17 @@ export class Control {
 
   // — Rendering —
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
 
-    const prevClip = this.canvas.getClipRect();
-    this.canvas.setClipRect(this.rect);
+    const prevClip = ctx.canvas.getClipRect();
+    ctx.canvas.setClipRect(this.rect);
 
     for (const child of this.children) {
-      child.render();
+      child.render(ctx);
     }
 
-    this.canvas.setClipRect(prevClip);
+    ctx.canvas.setClipRect(prevClip);
     this.needsRender = false;
   }
 
@@ -166,18 +144,25 @@ export class Control {
 
   markDirty(): void {
     this.needsRender = true;
-    if (this._renderContext) {
-      this._renderContext.scheduleRender();
-    }
     if (this._parent) {
       this._parent.markDirty();
     }
   }
 
-  // — Lifecycle hooks —
+  // — Lifecycle —
 
-  onAttach(): void {}
-  onDetach(): void {}
+  onInit(): void {
+    for (const child of this.children) {
+      child.onInit();
+    }
+  }
+  onDestroy(): void {
+    for (const child of this.children) {
+      child.onDestroy();
+    }
+  }
+  onShow(): void {}
+  onHide(): void {}
   onFocus(): void {}
   onBlur(): void {}
   onMouseDown(_point: Point): boolean {
@@ -188,6 +173,15 @@ export class Control {
       if (child.visible) {
         child.layout(this.rect);
       }
+    }
+  }
+
+  // — Destroy —
+
+  destroy(): void {
+    this.onDestroy();
+    for (const child of this.children) {
+      child.destroy();
     }
   }
 
@@ -224,6 +218,6 @@ export class Control {
   }
 
   fitContent(width: number, height: number): Size {
-    return { width: Math.min(width, this.canvas.width), height: Math.min(height, 999) };
+    return { width: Math.min(width, process.stdout.columns || 80), height: Math.min(height, 999) };
   }
 }

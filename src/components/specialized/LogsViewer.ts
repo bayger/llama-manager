@@ -1,7 +1,7 @@
 import { Control } from "../ui/Control.js";
 import { themeColors, fg } from "../../lib/theme.js";
 import { renderLogLine } from "../../lib/logcolors.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 
 export interface LogsViewerConfig {
   getLines: () => string[];
@@ -19,9 +19,9 @@ export class LogsViewer extends Control {
     return { width: parentSize?.width ?? this.rect.width, height: parentSize?.height ?? this.rect.height };
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     const { x, y, width, height } = this.rect;
 
     if (height <= 0) {

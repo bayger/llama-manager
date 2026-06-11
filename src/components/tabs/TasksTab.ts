@@ -1,4 +1,5 @@
 import { Control } from "../ui/Control.js";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { Table } from "../ui/widgets/Table.js";
@@ -7,7 +8,7 @@ import { focusManager } from "../ui/FocusManager.js";
 import { fireAsync } from "../../lib/utils.js";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, Rect } from "../ui/types.js";
+import type { Size, Rect, RenderContext } from "../ui/types.js";
 import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table.js";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
@@ -34,7 +35,6 @@ export class TasksControl extends Control {
   protected _divider: Divider;
   protected _searchInput: TextInput;
   protected _slotInput: TextInput;
-  protected _attached = false;
   protected _filterVisible = false;
   protected _sortField: TaskSortField = "timestamp";
   protected _sortDir: TaskSortDir = "desc";
@@ -114,9 +114,7 @@ export class TasksControl extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  onAttach(): void {
-    if (this._attached) return;
-    this._attached = true;
+  onInit(): void {
     taskStore.on("updated", () => {
       this._table.selectedIndex = 0;
       this._table.scrollOffset = 0;
@@ -125,8 +123,7 @@ export class TasksControl extends Control {
     this.markDirty();
   }
 
-  onDetach(): void {
-    this._attached = false;
+  onDestroy(): void {
     this._ctx = null;
   }
 
@@ -149,7 +146,7 @@ export class TasksControl extends Control {
     this.updateColumns();
 
     const renderTaskRow: TableRenderer<TaskMetrics> = (canvas, item, _index, isSelected, _x, _y, _width, columns) => {
-      this.renderTaskRow(item.data!, isSelected, _width, columns);
+      this.renderTaskRow(canvas, item.data!, isSelected, _width, columns);
     };
     this._table.setRenderer(renderTaskRow);
   }
@@ -185,9 +182,9 @@ export class TasksControl extends Control {
     this.markDirty();
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const tasks = this.filteredTasks;
     const stats = taskStore.getStats(tasks);
@@ -203,14 +200,14 @@ export class TasksControl extends Control {
     }
     fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - statsText.length - filterIndicator.length)));
 
-    super.render();
+    super.render(ctx);
 
     const listStartY = startY + (this._filterVisible ? 4 : 3);
     const listHeight = height - (this._filterVisible ? 4 : 3);
 
     if (width >= DETAILS_WIDTH + 25) {
       const dx = x + (this.rect.width >= DETAILS_WIDTH + 25 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
-      this.renderDetailsPanel({ x: dx, y: listStartY, width: DETAILS_WIDTH, height: listHeight }, tasks);
+      this.renderDetailsPanel(canvas, { x: dx, y: listStartY, width: DETAILS_WIDTH, height: listHeight }, tasks);
     }
 
     this.needsRender = false;
@@ -237,7 +234,7 @@ export class TasksControl extends Control {
     ];
   }
 
-  renderTaskRow(task: TaskMetrics, isSelected: boolean, width: number, columns: ComputedColumn[]): void {
+  renderTaskRow(canvas: FramebufferCanvas, task: TaskMetrics, isSelected: boolean, width: number, columns: ComputedColumn[]): void {
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
 
@@ -268,20 +265,19 @@ export class TasksControl extends Control {
 
     if (isSelected) {
       const padded = row.padEnd(width);
-      this.canvas.colorRgbHex(themeColors.canvas).bgColorRgbHex(themeColors.accent);
-      this.canvas.write(padded);
-      this.canvas.styleReset();
+      canvas.colorRgbHex(themeColors.canvas).bgColorRgbHex(themeColors.accent);
+      canvas.write(padded);
+      canvas.styleReset();
     } else {
-      fg(this.canvas, themeColors.text, row);
-      fg(this.canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
+      fg(canvas, themeColors.text, row);
+      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
     }
-    this.canvas.styleReset();
+    canvas.styleReset();
   }
 
-  renderDetailsPanel(rect: Rect, tasks: TaskMetrics[]): void {
+  renderDetailsPanel(canvas: FramebufferCanvas, rect: Rect, tasks: TaskMetrics[]): void {
     if (rect.width === 0) return;
     const { x, y, width, height } = rect;
-    const canvas = this.canvas;
     const selectedIndex = this._table.selectedIndex;
 
     if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {

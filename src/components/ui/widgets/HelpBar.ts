@@ -1,6 +1,6 @@
 import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
-import type { Size } from "../types.js";
+import type { Size, RenderContext } from "../types.js";
 
 export class HelpBar extends Control {
   focusable = false;
@@ -12,10 +12,10 @@ export class HelpBar extends Control {
     return { width: this.rect.width || 40, height: 2 };
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
-    const { canvas, rect } = this;
-    const { x, y, width } = rect;
+    const { canvas } = ctx;
+    const { x, y, width } = this.rect;
 
     canvas.moveTo(x, y);
     canvas.eraseLine();

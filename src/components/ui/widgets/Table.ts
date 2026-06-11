@@ -1,6 +1,6 @@
 import { Control } from "../Control.js";
 import { fg, fgBg, themeColors } from "../../../lib/theme.js";
-import type { Size } from "../types.js";
+import type { Size, RenderContext } from "../types.js";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
 
 export interface TableColumn {
@@ -46,7 +46,7 @@ export class Table<T = any> extends Control {
 
   public columns: TableColumn[] = [];
   public items: TableItem<T>[] = [];
-  public selectedIndex = -1;
+  protected _selectedIndex = -1;
   public scrollOffset = 0;
   public contentHeight = 0;
   public showHeader = true;
@@ -56,6 +56,9 @@ export class Table<T = any> extends Control {
   protected _onHighlight: ((item: TableItem<T> | null) => void) | null = null;
   protected _customRenderer: TableRenderer<T> | null = null;
   protected _viewportHeight = 0;
+
+  get selectedIndex(): number { return this._selectedIndex; }
+  set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 40, height: this.rect.height || 10 };
@@ -165,14 +168,14 @@ export class Table<T = any> extends Control {
     return result;
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) {
       if (this.needsRender) this.needsRender = false;
       return;
     }
 
-    const { canvas, rect } = this;
-    const { x, y, width, height } = rect;
+    const { canvas } = ctx;
+    const { x, y, width, height } = this.rect;
     const items = this.items;
 
     if (items.length === 0) {
@@ -343,6 +346,7 @@ export class Table<T = any> extends Control {
     if (this.selectedIndex < 0 && this.items.length > 0) {
       this.selectedIndex = 0;
       this._fireHighlight();
+      this.markDirty();
     }
     this.clampScroll();
   }

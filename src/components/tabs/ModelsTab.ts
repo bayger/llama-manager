@@ -29,7 +29,6 @@ type ViewMode = "local" | "search" | "results" | "files" | "downloading";
 export class ModelsControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
-  protected _attached = false;
 
   protected _view: ViewMode = "local";
 
@@ -230,9 +229,8 @@ export class ModelsControl extends Control {
     this.markDirty();
   }
 
-  onAttach(): void {
-    if (!this._ctx || this._attached) return;
-    this._attached = true;
+  onInit(): void {
+    if (!this._ctx) return;
 
     this._browseBtn.setAction(() => {
       this.enterBrowseMode();
@@ -256,64 +254,63 @@ export class ModelsControl extends Control {
      });
 
 this._hfBackBtn.setAction(() => {
-      this.goBack();
-    });
+     this.goBack();
+   });
 
-    this._hfPrevBtn.setAction(() => {
-      if (this._view === "results" && this._searchPage > 0) {
-        this._searchPage--;
-        this.showPage();
-      }
-    });
+   this._hfPrevBtn.setAction(() => {
+     if (this._view === "results" && this._searchPage > 0) {
+       this._searchPage--;
+       this.showPage();
+     }
+   });
 
-    this._hfNextBtn.setAction(() => {
-       if (this._view === "results") {
-         this._searchPage++;
-         this.showPage();
-       }
-     });
-
-    this._hfCancelBtn.setAction(() => {
-      this.cancelDownload();
-    });
-
-   this._hfSearchInput.setOnSubmit((value) => {
-       this._searchQuery = value;
-       this._searchPage = 0;
-       this.searchRepos();
-     });
-
-this._hfResultsList.handleKey = (key: string) => {
-      if (key === "n") {
+   this._hfNextBtn.setAction(() => {
+      if (this._view === "results") {
         this._searchPage++;
         this.showPage();
-        return true;
       }
-      if (key === "p" && this._searchPage > 0) {
-        this._searchPage--;
-        this.showPage();
-        return true;
-      }
-      if (key === "g" && !focusManager.isTextInputActive()) {
-        this.goBack();
-        return true;
-      }
-      return List.prototype.handleKey.call(this._hfResultsList, key);
-    };
+    });
 
-    this._hfFilesList.handleKey = (key: string) => {
-      if (key === "g" && !focusManager.isTextInputActive()) {
-        this.goBack();
-        return true;
-      }
-      return List.prototype.handleKey.call(this._hfFilesList, key);
-    };
+   this._hfCancelBtn.setAction(() => {
+     this.cancelDownload();
+   });
 
-    this.refreshModels();
+  this._hfSearchInput.setOnSubmit((value) => {
+      this._searchQuery = value;
+      this._searchPage = 0;
+      this.searchRepos();
+    });
+
+this._hfResultsList.handleKey = (key: string) => {
+     if (key === "n") {
+       this._searchPage++;
+       this.showPage();
+       return true;
+     }
+     if (key === "p" && this._searchPage > 0) {
+       this._searchPage--;
+       this.showPage();
+       return true;
+     }
+     if (key === "g" && !focusManager.isTextInputActive()) {
+       this.goBack();
+       return true;
+     }
+     return List.prototype.handleKey.call(this._hfResultsList, key);
+   };
+
+   this._hfFilesList.handleKey = (key: string) => {
+     if (key === "g" && !focusManager.isTextInputActive()) {
+       this.goBack();
+       return true;
+     }
+     return List.prototype.handleKey.call(this._hfFilesList, key);
+   };
+
+   this.refreshModels();
   }
 
-  onDetach(): void {
-    this._attached = false;
+  onDestroy(): void {
     this._ctx = null;
     if (this._downloadAbortController) {
       this._downloadAbortController.abort();

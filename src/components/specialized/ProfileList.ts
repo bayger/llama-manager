@@ -1,7 +1,7 @@
 import { Control } from "../ui/Control.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { ConfigData } from "../../lib/config.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 
 export class ProfileList extends Control {
   focusable = true;
@@ -33,9 +33,9 @@ export class ProfileList extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  render(): void {
+  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender || !this._config) return;
-    const canvas = this.canvas;
+    const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const names = Object.keys(this._config.server.profiles);
 
