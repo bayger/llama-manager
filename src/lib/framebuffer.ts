@@ -5,13 +5,16 @@ export interface Cell {
   bold: boolean;
 }
 
-export const DEFAULT_FG = '#7f7f7f';
-export const DEFAULT_BG = '#000000';
+export let DEFAULT_FG = '#7f7f7f';
+export let DEFAULT_BG = '#000000';
 
-const defaultCell: Cell = { ch: ' ', fg: DEFAULT_FG, bg: DEFAULT_BG, bold: false };
+export function setFramebufferDefaults(fg: string, bg: string): void {
+  DEFAULT_FG = fg;
+  DEFAULT_BG = bg;
+}
 
 function createCell(): Cell {
-  return { ...defaultCell };
+  return { ch: ' ', fg: DEFAULT_FG, bg: DEFAULT_BG, bold: false };
 }
 
 function createRow(width: number): Cell[] {
@@ -76,8 +79,8 @@ export class Framebuffer {
       for (let x = 0; x < this._width; x++) {
         const c = row[x]!;
         c.ch = ' ';
-        c.fg = '';
-        c.bg = '';
+        c.fg = DEFAULT_FG;
+        c.bg = DEFAULT_BG;
         c.bold = false;
       }
     }
