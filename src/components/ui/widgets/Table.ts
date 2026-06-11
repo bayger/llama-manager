@@ -146,10 +146,10 @@ export class Table<T = any> extends Control {
     const flexCols = workingCols.filter((wc) => wc.col.flex && wc.col.flex > 0);
     const fixedCols = workingCols.filter((wc) => !wc.col.flex || wc.col.flex === 0);
 
-    const fixedWidth = fixedCols.reduce((sum, wc) => sum + wc.col.width, 0);
+    const allBaseWidth = workingCols.reduce((sum, wc) => sum + wc.col.width, 0);
     const usedGaps = workingCols.length - 1;
-    const usedByFixed = fixedWidth + usedGaps;
-    const excessSpace = Math.max(0, contentWidth - usedByFixed);
+    const usedByBase = allBaseWidth + usedGaps;
+    const excessSpace = Math.max(0, contentWidth - usedByBase);
 
     const totalFlex = flexCols.reduce((sum, wc) => sum + (wc.col.flex || 0), 0);
 

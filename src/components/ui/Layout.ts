@@ -32,33 +32,36 @@ export class Column extends Control {
     const { x, y, width, height } = this.rect;
     const padding = 1;
     let currentY = y;
-    let remainingHeight = height;
+    let fixedTotal = 0;
+    let flexTotal = 0;
     const innerWidth = width - padding * 2;
 
     const visibleChildren = this.children.filter(c => c.visible);
 
-    let fixedTotal = 0;
-    let flexTotal = 0;
     for (const child of visibleChildren) {
       if (child.flex > 0) {
         flexTotal += child.flex;
       } else {
-        const childSize = child.measure({ width: innerWidth, height: remainingHeight });
+        const childSize = child.measure({ width: innerWidth, height: height });
         fixedTotal += childSize.height;
       }
     }
 
     const flexSpace = Math.max(0, height - fixedTotal);
+    let measuredHeight = 0;
 
     for (const child of visibleChildren) {
       if (child.flex > 0) {
         const childHeight = flexSpace > 0 ? Math.floor((child.flex / flexTotal) * flexSpace) : 0;
         child.layout({ x: x + padding, y: currentY, width: innerWidth, height: childHeight });
         currentY += childHeight;
+        measuredHeight += childHeight;
       } else {
-        const childSize = child.measure({ width: innerWidth, height: remainingHeight });
+        const remainingHeight = height - measuredHeight;
+        const childSize = child.measure({ width: innerWidth, height: Math.max(0, remainingHeight) });
         child.layout({ x: x + padding, y: currentY, width: innerWidth, height: childSize.height });
         currentY += childSize.height;
+        measuredHeight += childSize.height;
       }
     }
   }

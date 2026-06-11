@@ -155,7 +155,7 @@ export class TasksControl extends Control {
     const { x, y, width, height } = this.rect;
     const headerY = y + (this._filterVisible ? 3 : 2);
     const listHeight = height - (this._filterVisible ? 4 : 3);
-    const listWidth = width >= DETAILS_WIDTH + 25 ? width - DETAILS_WIDTH - 1 : width;
+    const listWidth = width >= DETAILS_WIDTH + 26 ? width - DETAILS_WIDTH - 2 : width;
     return { x, y: headerY, width: listWidth, height: listHeight };
   }
 
@@ -203,10 +203,10 @@ export class TasksControl extends Control {
     super.render(ctx);
 
     const listStartY = startY + (this._filterVisible ? 4 : 3);
-    const listHeight = height - (this._filterVisible ? 4 : 3);
+    const listHeight = height - (this._filterVisible ? 5 : 4);
 
-    if (width >= DETAILS_WIDTH + 25) {
-      const dx = x + (this.rect.width >= DETAILS_WIDTH + 25 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
+    if (width >= DETAILS_WIDTH + 26) {
+      const dx = x + (this.rect.width >= DETAILS_WIDTH + 26 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
       this.renderDetailsPanel(canvas, { x: dx, y: listStartY, width: DETAILS_WIDTH, height: listHeight }, tasks);
     }
 
