@@ -440,12 +440,12 @@ export class VersionsControl extends Control {
     const line = ` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
       canvas.styleReset();
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, v.active ? themeColors.success : themeColors.text, line);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 
@@ -455,12 +455,12 @@ export class VersionsControl extends Control {
     const line = ` ${r.tag}  ${date}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
       canvas.styleReset();
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 
@@ -469,12 +469,12 @@ export class VersionsControl extends Control {
     const line = ` ${b.label}  ${b.assetName}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
       canvas.styleReset();
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 }

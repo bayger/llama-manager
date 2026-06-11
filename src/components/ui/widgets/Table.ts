@@ -228,7 +228,7 @@ export class Table<T = any> extends Control {
     const row = " " + parts.join(" ");
 
     fg(canvas, themeColors.accent, row);
-    fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
+    fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - row.length)));
   }
 
   protected renderRow(
@@ -260,11 +260,11 @@ export class Table<T = any> extends Control {
     const display = ` ${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, display.substring(0, width));
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, display.substring(0, width));
       canvas.styleReset();
     } else {
       fg(canvas, themeColors.text, display);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - display.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - display.length)));
     }
   }
 

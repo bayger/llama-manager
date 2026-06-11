@@ -187,10 +187,10 @@ export class SettingsPanel extends Control {
 
     if (isSelected) {
       const padded = headerText.padEnd(width);
-      fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded);
     } else {
       fg(canvas, themeColors.accent, headerText);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - headerText.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - headerText.length)));
     }
     canvas.styleReset();
   }
@@ -205,7 +205,7 @@ export class SettingsPanel extends Control {
       const value = this._edit.text;
       fg(canvas, themeColors.warning, keyStr);
       fg(canvas, themeColors.selected, value);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
     } else {
       const value = formatFieldValue(field, presetData?.[field.key]);
 
@@ -221,7 +221,7 @@ export class SettingsPanel extends Control {
 
       if (isSelected) {
         const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-        fgBg(canvas, themeColors.canvas, themeColors.accent, padded.substring(0, width));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded.substring(0, width));
       } else {
         fg(canvas, themeColors.textMuted, keyStr);
         fg(canvas, themeColors.text, value);
@@ -229,7 +229,7 @@ export class SettingsPanel extends Control {
       }
 
       const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - drawn)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - drawn)));
     }
     canvas.styleReset();
   }

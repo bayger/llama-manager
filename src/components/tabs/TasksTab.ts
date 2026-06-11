@@ -198,7 +198,7 @@ export class TasksControl extends Control {
     if (filterIndicator) {
       fg(canvas, themeColors.warning, filterIndicator);
     }
-    fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - statsText.length - filterIndicator.length)));
+    fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - statsText.length - filterIndicator.length)));
 
     super.render(ctx);
 
@@ -265,12 +265,12 @@ export class TasksControl extends Control {
 
     if (isSelected) {
       const padded = row.padEnd(width);
-      canvas.colorRgbHex(themeColors.canvas).bgColorRgbHex(themeColors.accent);
+      canvas.colorRgbHex(themeColors.selectedText).bgColorRgbHex(themeColors.selectedBg);
       canvas.write(padded);
       canvas.styleReset();
     } else {
       fg(canvas, themeColors.text, row);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - row.length)));
     }
     canvas.styleReset();
   }
@@ -345,7 +345,7 @@ export class TasksControl extends Control {
           const row = ` ${formattedLabel} ${value}`;
           fg(canvas, themeColors.textMuted, formattedLabel);
           fg(canvas, themeColors.text, " " + value);
-          fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
+          fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - row.length)));
         }
       } else {
         fg(canvas, themeColors.canvas, " ".repeat(width));

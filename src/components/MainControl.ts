@@ -303,8 +303,9 @@ class StatusBar extends Control {
     canvas.eraseLine();
 
     if (this._message) {
-      fg(canvas, themeColors.success, this._message);
-      fg(canvas, themeColors.textMuted, " | ? help");
+      const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
+      fg(canvas, isError ? themeColors.danger : themeColors.success, this._message);
+      fg(canvas, themeColors.canvas, " | ? help");
     } else {
       fg(canvas, themeColors.textMuted, `${this._activeTab} | F1-F6 navigate | q quit | ? help`);
     }

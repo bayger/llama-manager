@@ -289,10 +289,10 @@ export class OptionsPanel extends Control {
 
     if (isSelected) {
       const padded = headerText.padEnd(width);
-      fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded);
     } else {
       fg(canvas, themeColors.accent, headerText);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - headerText.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - headerText.length)));
     }
     canvas.styleReset();
   }
@@ -307,7 +307,7 @@ export class OptionsPanel extends Control {
       const value = this._edit.text;
       fg(canvas, themeColors.warning, keyStr);
       fg(canvas, themeColors.selected, value);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
     } else {
       const value = formatFieldValue(field, data?.[field.key]);
 
@@ -321,7 +321,7 @@ export class OptionsPanel extends Control {
 
       if (isSelected) {
         const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-        fgBg(canvas, themeColors.canvas, themeColors.accent, padded.substring(0, width));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded.substring(0, width));
       } else {
         fg(canvas, themeColors.textMuted, keyStr);
         fg(canvas, themeColors.text, value);
@@ -329,7 +329,7 @@ export class OptionsPanel extends Control {
       }
 
       const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - drawn)));
+      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - drawn)));
     }
     canvas.styleReset();
   }
@@ -704,14 +704,14 @@ export class OptionsPanel extends Control {
       const resolved = loadTheme(name);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.canvas, themeColors.accent, ` > `);
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` > `);
         if (resolved) {
           fgBg(canvas, resolved.canvas, resolved.text, "█");
           fgBg(canvas, resolved.text, resolved.canvas, "█");
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
         }
-        fgBg(canvas, themeColors.canvas, themeColors.accent, ` ${name}`);
-        fgBg(canvas, themeColors.canvas, themeColors.accent, " ".repeat(Math.max(0, width - 9 - name.length)));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` ${name}`);
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, " ".repeat(Math.max(0, width - 9 - name.length)));
       } else {
         if (resolved) {
           fg(canvas, themeColors.textMuted, `   `);
@@ -719,10 +719,10 @@ export class OptionsPanel extends Control {
           fgBg(canvas, resolved.text, resolved.canvas, "█");
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
           fg(canvas, themeColors.textMuted, ` ${name}`);
-          fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - 9 - name.length)));
+          fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - 9 - name.length)));
         } else {
           fg(canvas, themeColors.textMuted, `       ${name}`);
-          fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - 9 - name.length)));
+          fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - 9 - name.length)));
         }
       }
     }
