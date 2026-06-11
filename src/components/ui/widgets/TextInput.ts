@@ -73,7 +73,8 @@ export class TextInput extends Control {
 
     if (this.focused) {
       const cursorX = this.rect.x + this.prefix.length + this.cursorPos;
-      canvas.moveTo(cursorX, this.rect.y);
+      canvas.setTerminalCursor(cursorX, this.rect.y);
+      canvas.showTerminalCursor();
     }
 
     this.needsRender = false;

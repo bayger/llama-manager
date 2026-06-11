@@ -23,7 +23,9 @@ export class FramebufferCanvas {
   private _bg = DEFAULT_BG;
   private _bold = false;
   private _clip: ClipRect | null = null;
-  private _cursorVisible = false;
+  private _terminalCursorX = 1;
+  private _terminalCursorY = 1;
+  private _terminalCursorVisible = false;
 
   constructor(private _fb: Framebuffer) {}
 
@@ -35,16 +37,29 @@ export class FramebufferCanvas {
     return this._cursorY;
   }
 
-  get cursorVisible(): boolean {
-    return this._cursorVisible;
+  get terminalCursorX(): number {
+    return this._terminalCursorX;
   }
 
-  showCursor(): void {
-    this._cursorVisible = true;
+  get terminalCursorY(): number {
+    return this._terminalCursorY;
   }
 
-  hideCursor(): void {
-    this._cursorVisible = false;
+  get terminalCursorVisible(): boolean {
+    return this._terminalCursorVisible;
+  }
+
+  setTerminalCursor(x: number, y: number): void {
+    this._terminalCursorX = x;
+    this._terminalCursorY = y;
+  }
+
+  showTerminalCursor(): void {
+    this._terminalCursorVisible = true;
+  }
+
+  hideTerminalCursor(): void {
+    this._terminalCursorVisible = false;
   }
 
   get width(): number {

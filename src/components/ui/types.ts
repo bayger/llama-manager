@@ -22,6 +22,7 @@ export interface RenderContext {
   scheduleRender(): void;
   showMessage(msg: string): void;
   getConfig(): any | null;
+  showCursor(): void;
 }
 
 export type ControlCallback = (value: any) => void;

@@ -49,6 +49,11 @@ export class App {
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       getConfig: () => config,
       setConfig: (c: any) => { /* handled by config module */ },
+      showCursor: () => {
+        if (this._canvas) {
+          this._canvas.showTerminalCursor();
+        }
+      },
     };
 
     this._main = new MainControl(this._ctx, () => this.quit());
@@ -89,6 +94,8 @@ export class App {
     fb.swap();
     fb.copyRegion(fb.back, 0, 0, width, height, 0, 0);
 
+    canvas.hideTerminalCursor();
+
     const renderCtx: RenderContext = this._ctx!;
 
     if (this.helpOverlayVisible) {
@@ -98,13 +105,12 @@ export class App {
       main.render(renderCtx);
     }
 
+    term(CURSOR_HIDE);
     diffToTerminal(fb.back, fb.front, (text) => term(text), width, height);
 
-    if (canvas.cursorVisible) {
-      term(`\x1b[${canvas.cursorY};${canvas.cursorX}H`);
+    term(`\x1b[${canvas.terminalCursorY};${canvas.terminalCursorX}H`);
+    if (canvas.terminalCursorVisible) {
       term(CURSOR_SHOW);
-    } else {
-      term(CURSOR_HIDE);
     }
   }
 

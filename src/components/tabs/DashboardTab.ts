@@ -185,6 +185,7 @@ export class DashboardControl extends Control {
 
     this._statusUnsub = onServerStatusChange(() => {
       this.markDirty();
+      this._ctx?.showCursor();
     });
 
     this.markDirty();
