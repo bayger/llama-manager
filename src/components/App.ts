@@ -21,6 +21,7 @@ export class App {
   private _ctx: TabContext | null = null;
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
   private mouseHandler: ((data: any) => void) | null = null;
+  private resizeHandler: (() => void) | null = null;
   private _renderInterval: ReturnType<typeof setInterval> | null = null;
   private _firstRender = true;
   private helpOverlayVisible = false;
@@ -54,6 +55,7 @@ export class App {
     this._main.onInit();
 
     this.setupKeyHandler();
+    this.setupResizeHandler();
     focusManager.setRoot(this._main);
 
     this._renderInterval = setInterval(() => this.render(), 1);
@@ -219,6 +221,15 @@ export class App {
     (this.term as any).on("mouse", this.mouseHandler);
   }
 
+  private setupResizeHandler(): void {
+    this.resizeHandler = () => {
+      if (this._main) {
+        this._main.markDirty();
+      }
+    };
+    this.term.on("resize", this.resizeHandler);
+  }
+
   private quit(): void {
     this.dispose();
     this.term.grabInput(false);
@@ -239,6 +250,10 @@ export class App {
     if (this.mouseHandler) {
       (this.term as any).removeListener("mouse", this.mouseHandler);
       this.mouseHandler = null;
+    }
+    if (this.resizeHandler) {
+      this.term.removeListener("resize", this.resizeHandler);
+      this.resizeHandler = null;
     }
     focusManager.clear();
     this._main?.onDestroy();
