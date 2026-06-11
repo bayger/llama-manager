@@ -11,12 +11,20 @@ let serverStartTime: number | null = null;
 const logEmitter = new EventEmitter();
 logEmitter.setMaxListeners(10);
 
+const statusEmitter = new EventEmitter();
+statusEmitter.setMaxListeners(10);
+
 const MAX_LOG_LINES = 2000;
 export const serverLogLines: string[] = [];
 
 export function onServerLog(listener: (line: string) => void): () => void {
   logEmitter.on("log", listener);
   return () => { logEmitter.off("log", listener); };
+}
+
+export function onServerStatusChange(listener: () => void): () => void {
+  statusEmitter.on("change", listener);
+  return () => { statusEmitter.off("change", listener); };
 }
 
 export function clearServerLogs() {
@@ -108,9 +116,20 @@ export function startServer(config: ConfigData): Promise<number> {
     relay(serverProcess.stderr);
 
     serverProcess.on("error", (err) => reject(err));
-    serverProcess.on("exit", (code) => {
-      if (code !== 0 && code !== null) {
-        // Server exited with error
+    serverProcess.on("exit", (code, signal) => {
+      const wasRunning = serverProcess !== null;
+      serverProcess = null;
+      serverStartTime = null;
+      if (wasRunning) {
+        statusEmitter.emit("change");
+      }
+      if (wasRunning && code !== 0 && code !== null) {
+        serverLogLines.push(`[server] Process exited with code ${code}`);
+        logEmitter.emit("log", `[server] Process exited with code ${code}`);
+      }
+      if (wasRunning && signal && signal !== "SIGTERM" && signal !== "SIGKILL") {
+        serverLogLines.push(`[server] Process terminated by signal ${signal}`);
+        logEmitter.emit("log", `[server] Process terminated by signal ${signal}`);
       }
     });
 
@@ -143,10 +162,23 @@ export function stopServer(): Promise<void> {
 }
 
 export function getStatus(): ServerStatus {
+  if (!serverProcess?.pid) {
+    return { running: false, pid: null, uptime: 0 };
+  }
+
+  let alive = false;
+  try {
+    process.kill(serverProcess.pid, 0);
+    alive = true;
+  }
+  catch {
+    alive = false;
+  }
+
   return {
-    running: !!(serverProcess?.pid && !serverProcess.killed),
-    pid: serverProcess?.pid || null,
-    uptime: serverProcess?.pid && serverStartTime ? Date.now() - serverStartTime : 0,
+    running: alive,
+    pid: serverProcess.pid,
+    uptime: alive && serverStartTime ? Date.now() - serverStartTime : 0,
   };
 }
 

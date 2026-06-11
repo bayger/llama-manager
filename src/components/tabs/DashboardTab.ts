@@ -5,7 +5,7 @@ import { Divider } from "../ui/widgets/Divider.js";
 import { Label } from "../ui/widgets/Label.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
 import { themeColors, fg } from "../../lib/theme.js";
-import { getStatus, startServer, stopServer, serverLogLines, onServerLog } from "../../lib/server.js";
+import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server.js";
 import { fireAsync, formatUptime } from "../../lib/utils.js";
 import { BACKEND_LABELS } from "../../lib/versions.js";
 import type { TabContext } from "../../lib/tabcontext.js";
@@ -52,6 +52,7 @@ export class DashboardControl extends Control {
   protected _statusControl: StatusControl;
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
+  protected _statusUnsub: (() => void) | null = null;
   protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: TabContext) {
@@ -182,6 +183,10 @@ export class DashboardControl extends Control {
       }, 200);
     });
 
+    this._statusUnsub = onServerStatusChange(() => {
+      this.markDirty();
+    });
+
     this.markDirty();
   }
 
@@ -189,6 +194,10 @@ export class DashboardControl extends Control {
     if (this._logUnsub) {
       this._logUnsub();
       this._logUnsub = null;
+    }
+    if (this._statusUnsub) {
+      this._statusUnsub();
+      this._statusUnsub = null;
     }
     if (this._logRenderTimer) {
       clearTimeout(this._logRenderTimer);
