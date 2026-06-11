@@ -46,6 +46,7 @@ export interface ServerProfile {
 }
 
 export interface ConfigData {
+  themeName: string;
   versionsDir: string | null;
   modelsDir: string | null;
   tasksFile: string | null;
@@ -397,6 +398,7 @@ const DEFAULT_PRESETS: ServerPresets = {
 };
 
 const DEFAULT_CONFIG: ConfigData = {
+  themeName: "opencode",
   versionsDir: null,
   modelsDir: null,
   tasksFile: null,

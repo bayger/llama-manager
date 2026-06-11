@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors } from "../lib/theme.js";
+import { themeColors, setActiveTheme } from "../lib/theme.js";
 import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
 import { focusManager } from "./ui/FocusManager.js";
@@ -30,6 +30,7 @@ export class App {
 
   async start(): Promise<void> {
     const config = await loadConfig();
+    setActiveTheme(config.themeName);
     taskStore.init(config);
 
     this._fb = new Framebuffer();
@@ -47,6 +48,7 @@ export class App {
       },
       showMessage: (msg: string) => this.showMessage(msg),
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
+      forceRender: () => this.forceRender(),
       getConfig: () => config,
       setConfig: (c: any) => { /* handled by config module */ },
       showCursor: () => {
@@ -72,6 +74,12 @@ export class App {
 
   setTextInputFocused(focused: boolean): void {
     focusManager.activateTextInput(focused);
+  }
+
+  forceRender(): void {
+    if (this._main) {
+      this._main.markAllDirty();
+    }
   }
 
   render(): void {

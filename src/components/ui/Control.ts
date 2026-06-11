@@ -149,6 +149,13 @@ export class Control {
     }
   }
 
+  markAllDirty(): void {
+    this.needsRender = true;
+    for (const child of this.children) {
+      child.markAllDirty();
+    }
+  }
+
   // — Lifecycle —
 
   onInit(): void {
