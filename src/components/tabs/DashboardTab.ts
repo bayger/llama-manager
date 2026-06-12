@@ -25,7 +25,8 @@ class StatusControl extends Control {
     const stateText = status.running ? "Running" : "Stopped";
     const stateColor = status.running ? themeColors.success : themeColors.danger;
 
-    fg(canvas, stateColor, `${status.running ? "\u25cf" : "\u25cb"} ${stateText}`);
+    fg(canvas, themeColors.textMuted, "Status: ");
+     fg(canvas, stateColor, `${status.running ? "\u25cf" : "\u25cb"} ${stateText}`);
 
     if (status.running && status.pid) {
       fg(canvas, themeColors.text, `  PID: ${status.pid}`);
@@ -209,11 +210,13 @@ export class DashboardControl extends Control {
 
   render(ctx: RenderContext): void {
     this.updateProfileLabel();
+    this.updateButtons();
     super.render(ctx);
   }
 
   onFocus(): void {
     super.onFocus();
+    this.updateButtons();
     const firstEnabled = this._buttons.find(b => !b.disabled);
     if (firstEnabled) {
       firstEnabled.focus();
@@ -232,6 +235,13 @@ export class DashboardControl extends Control {
     } else {
       this._versionLabel.text = "";
     }
+  }
+
+  updateButtons(): void {
+    const status = getStatus();
+    this._buttons[0].disabled = status.running;
+    this._buttons[1].disabled = !status.running;
+    this._buttons[2].disabled = !status.running;
   }
 }
 
