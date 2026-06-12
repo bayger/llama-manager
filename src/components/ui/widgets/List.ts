@@ -60,8 +60,7 @@ export class List<T = any> extends Control {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    canvas.moveTo(x, y);
-    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
+    canvas.clearRect(x, y, width, height, themeColors.canvas);
     canvas.moveTo(x, y);
 
     for (let i = 0; i < this.items.length; i++) {

@@ -44,8 +44,7 @@ export class ProfileList extends Control {
       return;
     }
 
-    canvas.moveTo(x, startY);
-    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
+    canvas.clearRect(x, startY, width, height, themeColors.canvas);
     canvas.moveTo(x, startY);
 
     for (let i = 0; i < height; i++) {

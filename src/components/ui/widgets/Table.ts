@@ -178,8 +178,7 @@ export class Table<T = any> extends Control {
     const { x, y, width, height } = this.rect;
     const items = this.items;
 
-    canvas.moveTo(x, y);
-    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
+    canvas.clearRect(x, y, width, height, themeColors.canvas);
     canvas.moveTo(x, y);
 
     if (items.length === 0) {

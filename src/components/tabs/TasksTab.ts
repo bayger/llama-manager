@@ -284,8 +284,7 @@ export class TasksControl extends Control {
     const { x, y, width, height } = rect;
     const selectedIndex = this._table.selectedIndex;
 
-    canvas.moveTo(x, y);
-    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width * height));
+    canvas.clearRect(x, y, width, height, themeColors.canvasSubtle);
     canvas.moveTo(x, y);
 
     if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {

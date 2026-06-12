@@ -1,6 +1,6 @@
 import { Control } from "./ui/Control.js";
 import { Column } from "./ui/Layout.js";
-import { fg, fgBg, themeColors } from "../lib/theme.js";
+import { fg, themeColors } from "../lib/theme.js";
 import type { Rect, RenderContext, Size } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
 
@@ -157,10 +157,7 @@ class TabBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.moveTo(x, y);
-    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
-    canvas.moveTo(x, y + 1);
-    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
+    canvas.clearRect(x, y, width, 2, themeColors.canvasSubtle);
     canvas.moveTo(x, y);
 
     let pos = 0;
@@ -244,10 +241,7 @@ class TabContent extends Control {
     const { x, y, width, height } = this.rect;
     const canvas = ctx.canvas;
 
-    for (let row = 0; row < height; row++) {
-      canvas.moveTo(x, y + row);
-      canvas.write(' '.repeat(width));
-    }
+    canvas.clearRect(x, y, width, height, themeColors.canvas);
 
     const control = this.getActiveControl();
     if (control) {
@@ -299,8 +293,7 @@ class StatusBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.moveTo(x, y);
-    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
+    canvas.clearRect(x, y, width, 1, themeColors.canvasSubtle);
     canvas.moveTo(x, y);
 
     if (this._message) {

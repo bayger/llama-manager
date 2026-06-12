@@ -1,5 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { themeColors, fg } from "../../lib/theme.js";
 import { renderLogLine } from "../../lib/logcolors.js";
 import type { Size, RenderContext } from "../ui/types.js";
 
@@ -29,8 +29,7 @@ export class LogsViewer extends Control {
       return;
     }
 
-    canvas.moveTo(x, y);
-    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
+    canvas.clearRect(x, y, width, height, themeColors.canvas);
     canvas.moveTo(x, y);
 
     const lines = this._config.getLines();

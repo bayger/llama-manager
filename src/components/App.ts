@@ -175,10 +175,7 @@ export class App {
     const contentHeight = contentLines.length;
     const startY = overlayY + Math.max(1, Math.floor((overlayHeight - contentHeight) / 2));
 
-    for (let y = overlayY; y < height; y++) {
-      canvas.moveTo(1, y);
-      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
-    }
+    canvas.clearRect(1, overlayY, width, height - overlayY, themeColors.canvasSubtle);
 
     for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
       const line = contentLines[i]!;
