@@ -23,9 +23,9 @@ class StatusControl extends Control {
 
     const status = getStatus();
     const stateText = status.running ? "Running" : "Stopped";
-    const stateColor = status.running ? themeColors.success : themeColors.textMuted;
+    const stateColor = status.running ? themeColors.success : themeColors.danger;
 
-    fg(canvas, stateColor, ` ${stateText}`);
+    fg(canvas, stateColor, `${status.running ? "\u25cf" : "\u25cb"} ${stateText}`);
 
     if (status.running && status.pid) {
       fg(canvas, themeColors.text, `  PID: ${status.pid}`);
