@@ -284,7 +284,7 @@ export class TasksControl extends Control {
       for (let i = 0; i < height; i++) {
         canvas.moveTo(x, y + i);
         fg(canvas, themeColors.textMuted, "No tasks");
-        fg(canvas, themeColors.canvasSubtle, " ".repeat(width - 8));
+        fg(canvas, themeColors.sidebar, " ".repeat(width - 8));
       }
       return;
     }
@@ -328,9 +328,9 @@ export class TasksControl extends Control {
       if (i < lines.length) {
         const line = lines[i]!;
         if (i === 0) {
-          fgBg(canvas, themeColors.accent, themeColors.canvasSubtle, line.label.padEnd(width));
+          fgBg(canvas, themeColors.accent, themeColors.sidebar, line.label.padEnd(width));
         } else if (line.label === "") {
-          fg(canvas, themeColors.canvasSubtle, " ".repeat(width));
+          fg(canvas, themeColors.sidebar, " ".repeat(width));
         } else {
           const label = line.label + ":";
           let value = line.value;
@@ -343,10 +343,10 @@ export class TasksControl extends Control {
           const row = ` ${formattedLabel} ${value}`;
           fg(canvas, themeColors.textMuted, formattedLabel);
           fg(canvas, themeColors.text, " " + value);
-          fg(canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - row.length)));
+          fg(canvas, themeColors.sidebar, " ".repeat(Math.max(0, width - row.length)));
         }
       } else {
-        fg(canvas, themeColors.canvasSubtle, " ".repeat(width));
+        fg(canvas, themeColors.sidebar, " ".repeat(width));
       }
     }
   }
