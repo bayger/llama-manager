@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, setActiveTheme } from "../lib/theme.js";
+import { themeColors, setActiveTheme, popThemeChanged } from "../lib/theme.js";
 import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
 import { focusManager } from "./ui/FocusManager.js";
@@ -100,7 +100,11 @@ export class App {
     }
 
     fb.swap();
-    fb.copyRegion(fb.back, 0, 0, width, height, 0, 0);
+    if (popThemeChanged()) {
+      fb.clearFront();
+    } else {
+      fb.copyRegion(fb.back, 0, 0, width, height, 0, 0);
+    }
 
     canvas.hideTerminalCursor();
 

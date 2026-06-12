@@ -125,7 +125,15 @@ export function setActiveTheme(name: string): boolean {
   if (!resolved) return false;
   Object.assign(themeColors, resolved);
   setFramebufferDefaults(resolved.text, resolved.canvas);
+  themeChanged = true;
   return true;
+}
+
+let themeChanged = false;
+export function popThemeChanged(): boolean {
+  const v = themeChanged;
+  themeChanged = false;
+  return v;
 }
 
 // Keep backward compat for lib files that import theme colors
