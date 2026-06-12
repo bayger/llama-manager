@@ -57,13 +57,14 @@ export class TextInput extends Control {
     if (!this.visible || !this.needsRender) return;
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
-    canvas.moveTo(x, y);
     canvas.styleReset();
 
     const bg = this.focused ? themeColors.canvasSubtle : themeColors.canvas;
     const borderColor = this.focused ? themeColors.borderActive : themeColors.borderMuted;
 
-    fgBg(canvas, themeColors.canvas, bg, " ".repeat(width));
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(bg);
+    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
     fgBg(canvas, borderColor, bg, "│");
 

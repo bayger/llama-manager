@@ -14,11 +14,9 @@ export class HelpBar extends Control {
 
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
+    super.render(ctx);
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
-
-    canvas.moveTo(x, y);
-    canvas.eraseLine();
 
     const left = Math.floor((width - this.text.length) / 2);
     canvas.moveTo(x + left, y + 1);

@@ -1,4 +1,5 @@
 import { Control } from "../Control.js";
+import { themeColors } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 export class Spacer extends Control {
@@ -10,11 +11,10 @@ export class Spacer extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const { canvas } = ctx;
-    const { x, y, height } = this.rect;
-    for (let row = 0; row < height; row++) {
-      canvas.moveTo(x, y + row);
-      canvas.eraseLine();
-    }
+    const { x, y, width, height } = this.rect;
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
     this.needsRender = false;
   }
 }
