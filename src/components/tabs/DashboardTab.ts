@@ -1,7 +1,7 @@
 import { Control } from "../ui/Control.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
 import { themeColors, fg } from "../../lib/theme.js";
@@ -131,9 +131,9 @@ export class DashboardControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._statusControl);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._logsControl);
 
     this.add(this._column);

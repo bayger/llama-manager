@@ -4,7 +4,7 @@ import type { Size, RenderContext } from "../types.js";
 export class Spacer extends Control {
   focusable = false;
   measure(_parentSize?: Size): Size {
-    return { width: 0, height: 0 };
+    return { width: this.rect.width || 0, height: 1 };
   }
 
   render(ctx: RenderContext): void {

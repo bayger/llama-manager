@@ -2,7 +2,7 @@ import { Control } from "../ui/Control.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { Scrollable } from "../ui/widgets/Scrollable.js";
@@ -110,7 +110,7 @@ export class VersionsControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _header: VersionsHeader;
-  protected _dividerButtons: Divider;
+  protected _dividerButtons: Spacer;
   protected _prompt: VersionsHeader;
   protected _buttonRow: Row;
   protected _btnInstall: Button;
@@ -149,7 +149,7 @@ export class VersionsControl extends Control {
     this._progressBar.emptyColor = themeColors.border;
     this._progressBar.labelColor = themeColors.textMuted;
 
-    this._dividerButtons = new Divider();
+    this._dividerButtons = new Spacer();
     this._prompt = new VersionsHeader();
     this._prompt.visible = false;
 
@@ -164,7 +164,7 @@ export class VersionsControl extends Control {
     this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
     this._column.add(this._prompt);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
     this._column.add(this._progressBar);

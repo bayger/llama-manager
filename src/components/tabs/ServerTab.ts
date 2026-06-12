@@ -1,7 +1,7 @@
 import { Control } from "../ui/Control.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
 import { SettingsPanel } from "../specialized/SettingsPanel.js";
 import { ProfileList } from "../specialized/ProfileList.js";
@@ -60,9 +60,9 @@ export class ServerControl extends Control {
 
     this._column = new Column();
     this._column.add(this._profileLabel);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._buttonRow);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._settingsPanel);
     this._column.add(this._profileList);
 

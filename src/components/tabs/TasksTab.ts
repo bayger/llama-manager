@@ -1,6 +1,6 @@
 import { Control } from "../ui/Control.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { Table } from "../ui/widgets/Table.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
@@ -32,7 +32,7 @@ export class TasksControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
   protected _table: Table<TaskMetrics>;
-  protected _divider: Divider;
+  protected _divider: Spacer;
   protected _searchInput: TextInput;
   protected _slotInput: TextInput;
   protected _filterVisible = false;
@@ -51,7 +51,7 @@ export class TasksControl extends Control {
     this._table.setOnSelect(() => {
       fireAsync(async () => {}, ctx);
     });
-    this._divider = new Divider();
+    this._divider = new Spacer();
     this._searchInput = new TextInput();
     this._slotInput = new TextInput();
     this._searchInput.prefix = "ID: ";

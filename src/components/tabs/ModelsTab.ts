@@ -2,7 +2,7 @@ import { Control } from "../ui/Control.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
@@ -108,9 +108,9 @@ export class ModelsControl extends Control {
 
     this._column = new Column();
     this._column.add(this._headerLabel);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._buttonRow);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._modelList);
 
     // --- HF Browser view ---
@@ -200,11 +200,11 @@ export class ModelsControl extends Control {
 
     this._hfColumn = new Column();
     this._hfColumn.add(this._hfHeaderLabel);
-    this._hfColumn.add(new Divider());
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfSearchRow);
-    this._hfColumn.add(new Divider());
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfButtonRow);
-    this._hfColumn.add(new Divider());
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 
