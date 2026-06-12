@@ -29,7 +29,9 @@ export class LogsViewer extends Control {
       return;
     }
 
-    canvas.clearRect(x, y, width, height, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
     canvas.moveTo(x, y);
 
     const lines = this._config.getLines();

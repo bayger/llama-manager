@@ -238,7 +238,9 @@ export class OptionsPanel extends Control {
     const pickerVisible = this._themePickerMode && width >= THEME_PICKER_WIDTH + 26;
     const mainWidth = pickerVisible ? width - THEME_PICKER_WIDTH - 1 : width;
 
-    canvas.clearRect(x, startY, mainWidth, height, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, startY, mainWidth, height);
     canvas.moveTo(x, startY);
 
     for (let i = 0; i < height; i++) {
@@ -689,7 +691,9 @@ export class OptionsPanel extends Control {
 
   renderThemePickerSidebar(canvas: FramebufferCanvas, startX: number, startY: number, width: number, height: number): void {
     const names = getThemeNames();
-    canvas.clearRect(startX, startY, width, height, themeColors.canvasSubtle);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.clearRect(startX, startY, width, height);
     canvas.moveTo(startX, startY);
     fgBg(canvas, themeColors.accent, themeColors.canvasSubtle, ` THEME PICKER `.padEnd(width).substring(0, width));
 

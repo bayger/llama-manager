@@ -181,7 +181,7 @@ export class FramebufferCanvas {
     return this;
   }
 
-  clearRect(x: number, y: number, w: number, h: number, bgColor: string): this {
+  clearRect(x: number, y: number, w: number, h: number): this {
     const buf = this._fb.front;
     const sx = toBuf(this._clip ? Math.max(this._clip.x, x) : x);
     const ex = toBuf(this._clip ? Math.min(this._clip.x + this._clip.width, x + w) : x + w);
@@ -195,8 +195,8 @@ export class FramebufferCanvas {
         if (col < 0 || col >= this._fb.width) continue;
         const cell = line[col]!;
         cell.ch = ' ';
-        cell.fg = bgColor;
-        cell.bg = bgColor;
+        cell.fg = this._fg;
+        cell.bg = this._bg;
         cell.bold = false;
       }
     }

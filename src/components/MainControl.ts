@@ -157,7 +157,9 @@ class TabBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.clearRect(x, y, width, 2, themeColors.canvasSubtle);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.clearRect(x, y, width, 2);
     canvas.moveTo(x, y);
 
     let pos = 0;
@@ -167,9 +169,7 @@ class TabBar extends Control {
       const labelLen = `F${i + 1} ${TABS[i]}`.length;
       if (i === this._selectedIndex) {
         fg(canvas, themeColors.textMuted, `F${i + 1}`);
-        canvas.bold();
         fg(canvas, themeColors.accent, ` ${TABS[i]}`);
-        canvas.styleReset();
         activeStart = pos;
         activeEnd = pos + labelLen;
       } else {
@@ -241,7 +241,9 @@ class TabContent extends Control {
     const { x, y, width, height } = this.rect;
     const canvas = ctx.canvas;
 
-    canvas.clearRect(x, y, width, height, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
 
     const control = this.getActiveControl();
     if (control) {
@@ -293,7 +295,9 @@ class StatusBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.clearRect(x, y, width, 1, themeColors.canvasSubtle);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
 
     if (this._message) {

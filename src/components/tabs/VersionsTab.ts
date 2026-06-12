@@ -84,7 +84,9 @@ class ChangelogView extends Scrollable {
     const canvas = ctx.canvas;
     const { x, y, width, height } = this.rect;
 
-    canvas.clearRect(x, y, width, height, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
     canvas.moveTo(x, y);
 
     for (let i = 0; i < this._viewportHeight; i++) {

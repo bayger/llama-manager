@@ -63,7 +63,9 @@ export class Button extends Control {
     if (!this.visible || !this.needsRender) return;
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
-    canvas.clearRect(x, y, width, 1, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
     const padded = ` ${this.label} `;
 

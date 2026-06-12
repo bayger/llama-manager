@@ -175,7 +175,9 @@ export class App {
     const contentHeight = contentLines.length;
     const startY = overlayY + Math.max(1, Math.floor((overlayHeight - contentHeight) / 2));
 
-    canvas.clearRect(1, overlayY, width, height - overlayY, themeColors.canvasSubtle);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.clearRect(1, overlayY, width, height - overlayY);
 
     for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
       const line = contentLines[i]!;

@@ -178,7 +178,9 @@ export class Table<T = any> extends Control {
     const { x, y, width, height } = this.rect;
     const items = this.items;
 
-    canvas.clearRect(x, y, width, height, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
     canvas.moveTo(x, y);
 
     if (items.length === 0) {

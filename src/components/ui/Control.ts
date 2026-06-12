@@ -97,7 +97,9 @@ export class Control {
     ctx.canvas.setClipRect(this.rect);
 
     const { x, y, width, height } = this.rect;
-    ctx.canvas.clearRect(x, y, width, height, themeColors.canvas);
+    ctx.canvas.colorRgbHex(themeColors.canvas);
+    ctx.canvas.bgColorRgbHex(themeColors.canvas);
+    ctx.canvas.clearRect(x, y, width, height);
 
     for (const child of this.children) {
       child.render(ctx);

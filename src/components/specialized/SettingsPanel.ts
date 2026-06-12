@@ -140,7 +140,9 @@ export class SettingsPanel extends Control {
       return;
     }
 
-    canvas.clearRect(x, startY, width, height, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, startY, width, height);
     canvas.moveTo(x, startY);
 
     for (let i = 0; i < height; i++) {

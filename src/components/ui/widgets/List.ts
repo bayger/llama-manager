@@ -60,7 +60,9 @@ export class List<T = any> extends Control {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    canvas.clearRect(x, y, width, height, themeColors.canvas);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
     canvas.moveTo(x, y);
 
     for (let i = 0; i < this.items.length; i++) {
