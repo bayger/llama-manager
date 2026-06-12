@@ -1,6 +1,6 @@
 import { Control } from "./ui/Control.js";
 import { Column } from "./ui/Layout.js";
-import { fg, themeColors } from "../lib/theme.js";
+import { fg, fgBg, themeColors } from "../lib/theme.js";
 import type { Rect, RenderContext, Size } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
 
@@ -158,41 +158,41 @@ class TabBar extends Control {
     const { x, y, width } = this.rect;
 
     canvas.moveTo(x, y);
-    canvas.eraseLine();
-
-    for (let i = 0; i < TABS.length; i++) {
-      if (i === this._selectedIndex) {
-        fg(canvas, themeColors.textMuted, `F${i + 1}`);
-        canvas.bold();
-        fg(canvas, themeColors.accent, ` ${TABS[i]}`);
-        canvas.styleReset();
-      } else {
-        fg(canvas, themeColors.border, `F${i + 1}`);
-        fg(canvas, themeColors.textMuted, ` ${TABS[i]}`);
-      }
-      if (i < TABS.length - 1) {
-        canvas.write("  ");
-      }
-    }
-
+    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
     canvas.moveTo(x, y + 1);
-    canvas.eraseLine();
+    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
+    canvas.moveTo(x, y);
 
     let pos = 0;
     let activeStart = 0;
     let activeEnd = 0;
     for (let i = 0; i < TABS.length; i++) {
-      const label = `F${i + 1} ${TABS[i]}`;
+      const labelLen = `F${i + 1} ${TABS[i]}`.length;
       if (i === this._selectedIndex) {
+        fg(canvas, themeColors.textMuted, `F${i + 1}`);
+        canvas.bold();
+        fg(canvas, themeColors.accent, ` ${TABS[i]}`);
+        canvas.styleReset();
         activeStart = pos;
-        activeEnd = pos + label.length;
+        activeEnd = pos + labelLen;
+      } else {
+        fg(canvas, themeColors.border, `F${i + 1}`);
+        fg(canvas, themeColors.textMuted, ` ${TABS[i]}`);
       }
-      pos += label.length + 2;
+      pos += labelLen;
+      if (i < TABS.length - 1) {
+        fg(canvas, themeColors.borderMuted, " │ ");
+        pos += 3;
+      }
     }
 
+    canvas.moveTo(x, y + 1);
     for (let i = 0; i < width; i++) {
-      const color = i >= activeStart && i < activeEnd ? themeColors.accent : themeColors.border;
-      fg(canvas, color, "\u2501");
+      if (i >= activeStart && i < activeEnd) {
+        fg(canvas, themeColors.accent, "\u2501");
+      } else {
+        fg(canvas, themeColors.borderMuted, "\u2501");
+      }
     }
 
     this.needsRender = false;
@@ -297,17 +297,25 @@ class StatusBar extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const canvas = ctx.canvas;
-    const { x, y } = this.rect;
+    const { x, y, width } = this.rect;
 
     canvas.moveTo(x, y);
-    canvas.eraseLine();
+    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
+    canvas.moveTo(x, y);
 
     if (this._message) {
       const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
       fg(canvas, isError ? themeColors.danger : themeColors.success, this._message);
-      fg(canvas, themeColors.canvas, " | ? help");
+      fg(canvas, themeColors.borderMuted, "  │  ");
+      fg(canvas, themeColors.textMuted, "? help");
     } else {
-      fg(canvas, themeColors.textMuted, `${this._activeTab} | F1-F6 navigate | q quit | ? help`);
+      fg(canvas, themeColors.accentColor, this._activeTab);
+      fg(canvas, themeColors.borderMuted, "  │  ");
+      fg(canvas, themeColors.textMuted, "F1-F6 navigate");
+      fg(canvas, themeColors.borderMuted, "  │  ");
+      fg(canvas, themeColors.textMuted, "q quit");
+      fg(canvas, themeColors.borderMuted, "  │  ");
+      fg(canvas, themeColors.textMuted, "? help");
     }
 
     this.needsRender = false;

@@ -238,6 +238,10 @@ export class OptionsPanel extends Control {
     const pickerVisible = this._themePickerMode && width >= THEME_PICKER_WIDTH + 26;
     const mainWidth = pickerVisible ? width - THEME_PICKER_WIDTH - 1 : width;
 
+    canvas.moveTo(x, startY);
+    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(mainWidth * height));
+    canvas.moveTo(x, startY);
+
     for (let i = 0; i < height; i++) {
       const visualRow = i + this._scrollOffset;
       if (visualRow >= this._rows.length) break;
@@ -253,13 +257,6 @@ export class OptionsPanel extends Control {
       } else if (row.type === "field" && row.field) {
         this.renderField(canvas, row, isSelected, isEditing, mainWidth, config);
       }
-    }
-
-    const lastVisualRow = Math.min(this._scrollOffset + height, this._rows.length);
-    for (let i = lastVisualRow - this._scrollOffset; i < height; i++) {
-      canvas.moveTo(x, startY + i);
-      canvas.styleReset();
-      fg(canvas, themeColors.canvas, " ".repeat(mainWidth));
     }
 
     if (this._edit) {
@@ -288,11 +285,11 @@ export class OptionsPanel extends Control {
     const headerText = ` ${arrow} ${cat.name}`;
 
     if (isSelected) {
-      const padded = headerText.padEnd(width);
-      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded);
+      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, headerText);
+      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - headerText.length)));
+      canvas.styleReset();
     } else {
-      fg(canvas, themeColors.accent, headerText);
-      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - headerText.length)));
+      fg(canvas, themeColors.accentColor, headerText);
     }
     canvas.styleReset();
   }
@@ -306,31 +303,34 @@ export class OptionsPanel extends Control {
     if (isEditing && this._edit) {
       const value = this._edit.text;
       fg(canvas, themeColors.warning, keyStr);
-      fg(canvas, themeColors.selected, value);
-      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
-    } else {
-      const value = formatFieldValue(field, data?.[field.key]);
+      fg(canvas, themeColors.accent, value);
+  } else {
+        const value = formatFieldValue(field, data?.[field.key]);
 
-      let extra = "";
-      if (isSelected && field.type === "boolean") {
-        extra = " (toggle)";
+        let extra = "";
+        if (isSelected && field.type === "boolean") {
+          extra = " (toggle)";
+        }
+
+        const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
+        const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
+
+        if (isSelected) {
+          fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, keyStr);
+          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, value);
+          fgBg(canvas, themeColors.info, themeColors.canvasSubtle, extra);
+          if (desc) {
+            fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, "  " + desc);
+          }
+          const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
+          fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - drawn)));
+          canvas.styleReset();
+        } else {
+          fg(canvas, themeColors.textMuted, keyStr);
+          fg(canvas, themeColors.text, value);
+          fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
+        }
       }
-
-      const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
-      const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
-
-      if (isSelected) {
-        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded.substring(0, width));
-      } else {
-        fg(canvas, themeColors.textMuted, keyStr);
-        fg(canvas, themeColors.text, value);
-        fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
-      }
-
-      const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - drawn)));
-    }
     canvas.styleReset();
   }
 
@@ -691,7 +691,9 @@ export class OptionsPanel extends Control {
   renderThemePickerSidebar(canvas: FramebufferCanvas, startX: number, startY: number, width: number, height: number): void {
     const names = getThemeNames();
     canvas.moveTo(startX, startY);
-    fgBg(canvas, themeColors.text, themeColors.sidebar, ` THEME PICKER `.padEnd(width).substring(0, width));
+    fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width * height));
+    canvas.moveTo(startX, startY);
+    fgBg(canvas, themeColors.accent, themeColors.canvasSubtle, ` THEME PICKER `.padEnd(width).substring(0, width));
 
     for (let i = 1; i < height; i++) {
       const themeIdx = i - 1 + this._themePickerScroll;
@@ -704,33 +706,25 @@ export class OptionsPanel extends Control {
       const resolved = loadTheme(name);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` > `);
+        fgBg(canvas, themeColors.borderMuted, themeColors.canvasSubtle, " ");
         if (resolved) {
           fgBg(canvas, resolved.canvas, resolved.text, "█");
           fgBg(canvas, resolved.text, resolved.canvas, "█");
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
         }
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` ${name}`);
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, " ".repeat(Math.max(0, width - 9 - name.length)));
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, ` ${name}`);
+        fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - 5 - name.length)));
       } else {
         if (resolved) {
-          fg(canvas, themeColors.textMuted, `   `);
+          fg(canvas, themeColors.borderMuted, " ");
           fgBg(canvas, resolved.canvas, resolved.text, "█");
           fgBg(canvas, resolved.text, resolved.canvas, "█");
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
           fg(canvas, themeColors.textMuted, ` ${name}`);
-          fg(canvas, themeColors.sidebar, " ".repeat(Math.max(0, width - 9 - name.length)));
         } else {
-          fg(canvas, themeColors.textMuted, `       ${name}`);
-          fg(canvas, themeColors.sidebar, " ".repeat(Math.max(0, width - 9 - name.length)));
+          fg(canvas, themeColors.textMuted, `     ${name}`);
         }
       }
-    }
-
-    const lastRow = Math.min(names.length - this._themePickerScroll, height - 1);
-    for (let i = lastRow; i < height; i++) {
-      canvas.moveTo(startX, startY + i);
-      fg(canvas, themeColors.sidebar, " ".repeat(width));
     }
   }
 

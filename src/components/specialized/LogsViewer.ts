@@ -1,5 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg } from "../../lib/theme.js";
+import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { renderLogLine } from "../../lib/logcolors.js";
 import type { Size, RenderContext } from "../ui/types.js";
 
@@ -29,6 +29,10 @@ export class LogsViewer extends Control {
       return;
     }
 
+    canvas.moveTo(x, y);
+    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
+    canvas.moveTo(x, y);
+
     const lines = this._config.getLines();
     const totalLines = lines.length;
     const startIdx = Math.max(0, totalLines - height);
@@ -37,9 +41,6 @@ export class LogsViewer extends Control {
     for (let i = 0; i < height; i++) {
       if (i < visibleLines.length) {
         renderLogLine(canvas, x, y + i, width, visibleLines[i]!);
-      } else {
-        canvas.moveTo(x, y + i);
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 

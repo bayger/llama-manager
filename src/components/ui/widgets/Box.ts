@@ -56,8 +56,10 @@ export class Box extends Control {
     canvas.moveTo(x, y);
     fg(canvas, this.borderColor, TL);
     if (this.title) {
-      const titlePadded = ` ${this.title} `.padEnd(innerW);
-      fg(canvas, this.borderColor, titlePadded);
+      fg(canvas, this.borderColor, H);
+      fg(canvas, themeColors.accentColor, ` ${this.title} `);
+      fg(canvas, this.borderColor, H.repeat(Math.max(0, innerW - this.title.length - 2)));
+      fg(canvas, this.borderColor, H);
     } else {
       fg(canvas, this.borderColor, H.repeat(innerW));
     }

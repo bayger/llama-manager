@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, setActiveTheme, popThemeChanged } from "../lib/theme.js";
+import { themeColors, setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme.js";
 import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
 import { focusManager } from "./ui/FocusManager.js";
@@ -177,27 +177,24 @@ export class App {
 
     for (let y = overlayY; y < height; y++) {
       canvas.moveTo(1, y);
-      canvas.bgColorRgbHex(themeColors.canvasSubtle);
-      canvas.colorRgbHex(themeColors.canvasSubtle);
-      canvas.write(" ".repeat(width));
-      canvas.styleReset();
+      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(width));
     }
 
     for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
       const line = contentLines[i]!;
       const y = startY + i;
       canvas.moveTo(1, y);
-      canvas.bgColorRgbHex(themeColors.canvasSubtle);
 
-      if (line.isTitle || line.isHeader) {
-        canvas.colorRgbHex(themeColors.accent).write(line.text);
+      if (line.isTitle) {
+        fg(canvas, themeColors.accent, line.text);
+      } else if (line.isHeader) {
+        fg(canvas, themeColors.accentColor, line.text);
       } else if (line.key) {
-        canvas.colorRgbHex(themeColors.textLink).write(`    ${line.key}`);
-        canvas.colorRgbHex(themeColors.text).write(`     ${line.desc}`);
+        fg(canvas, themeColors.accent, `    ${line.key}`);
+        fg(canvas, themeColors.text, `     ${line.desc}`);
       } else {
-        canvas.colorRgbHex(themeColors.text).write(line.text);
+        fg(canvas, themeColors.canvasSubtle, line.text);
       }
-      canvas.styleReset();
     }
   }
 

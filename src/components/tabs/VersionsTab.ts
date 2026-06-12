@@ -44,16 +44,10 @@ class VersionsHeader extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const canvas = ctx.canvas;
-    const { x, y, width } = this.rect;
+    const { x, y } = this.rect;
 
     canvas.moveTo(x, y);
     fg(canvas, themeColors.text, this._text);
-
-    const endX = canvas.cursorX ?? x;
-    const padLen = width - (endX - x);
-    if (padLen > 0) {
-      fg(canvas, themeColors.canvas, " ".repeat(padLen));
-    }
 
     this.needsRender = false;
   }
@@ -88,7 +82,11 @@ class ChangelogView extends Scrollable {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const canvas = ctx.canvas;
-    const { x, y, width } = this.rect;
+    const { x, y, width, height } = this.rect;
+
+    canvas.moveTo(x, y);
+    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
+    canvas.moveTo(x, y);
 
     for (let i = 0; i < this._viewportHeight; i++) {
       const lineIdx = this.scrollOffset + i;
@@ -97,8 +95,6 @@ class ChangelogView extends Scrollable {
         const line = this._lines[lineIdx] || "";
         const display = line.padEnd(width).substring(0, width);
         fg(canvas, themeColors.textMuted, display);
-      } else {
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 
@@ -445,7 +441,6 @@ export class VersionsControl extends Control {
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, v.active ? themeColors.success : themeColors.text, line);
-      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 
@@ -460,7 +455,6 @@ export class VersionsControl extends Control {
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
-      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 
@@ -474,7 +468,6 @@ export class VersionsControl extends Control {
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
-      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 }

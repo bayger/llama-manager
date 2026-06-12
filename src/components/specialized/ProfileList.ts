@@ -44,6 +44,10 @@ export class ProfileList extends Control {
       return;
     }
 
+    canvas.moveTo(x, startY);
+    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
+    canvas.moveTo(x, startY);
+
     for (let i = 0; i < height; i++) {
       canvas.moveTo(x, startY + i);
       canvas.styleReset();
@@ -64,8 +68,6 @@ export class ProfileList extends Control {
           const line = ("  " + name).padEnd(width);
           fg(canvas, themeColors.text, line.substring(0, width));
         }
-      } else {
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 

@@ -1,4 +1,5 @@
 import type { Rect, Size, RenderContext, Point } from "./types.js";
+import { fgBg, themeColors } from "../../lib/theme.js";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -94,6 +95,10 @@ export class Control {
 
     const prevClip = ctx.canvas.getClipRect();
     ctx.canvas.setClipRect(this.rect);
+
+    const { x, y, width, height } = this.rect;
+    ctx.canvas.moveTo(x, y);
+    fgBg(ctx.canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width * height));
 
     for (const child of this.children) {
       child.render(ctx);

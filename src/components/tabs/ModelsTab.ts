@@ -102,7 +102,6 @@ export class ModelsControl extends Control {
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, model.active ? themeColors.success : themeColors.text, line);
-        fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 
@@ -144,7 +143,6 @@ export class ModelsControl extends Control {
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, themeColors.text, line);
-        fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 
@@ -166,7 +164,6 @@ export class ModelsControl extends Control {
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, themeColors.text, line);
-        fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 

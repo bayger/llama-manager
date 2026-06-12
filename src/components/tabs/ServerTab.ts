@@ -371,7 +371,6 @@ export class ServerControl extends Control {
       fg(canvas, themeColors.warning, prefix);
       fg(canvas, themeColors.selected, this._profileEdit.text);
       const drawn = labelRect.x + prefix.length + this._profileEdit.text.length;
-      fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, labelRect.width - prefix.length - this._profileEdit.text.length)));
       canvas.moveTo(drawn, labelRect.y);
     }
 

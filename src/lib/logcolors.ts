@@ -23,7 +23,7 @@ export function parseLogLine(line: string): LogSegment[] {
   const sevColor =
     severity === "E" ? themeColors.danger :
     severity === "W" ? themeColors.warning :
-    themeColors.accentSubtle;
+    themeColors.info;
 
   return [
     { text: timestamp, color: themeColors.textMuted },
@@ -46,9 +46,5 @@ export function renderLogLine(canvas: FramebufferCanvas, x: number, y: number, w
     const truncated = seg.text.substring(0, remainingWidth);
     fg(canvas, seg.color, truncated);
     remainingWidth -= truncated.length;
-  }
-
-  if (remainingWidth > 0) {
-    fg(canvas, themeColors.canvas, " ".repeat(remainingWidth));
   }
 }

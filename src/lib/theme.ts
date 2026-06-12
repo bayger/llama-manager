@@ -19,17 +19,22 @@ export interface ThemeColors {
   sidebar: string;
   border: string;
   borderMuted: string;
+  borderActive: string;
   text: string;
   textMuted: string;
   textLink: string;
   accent: string;
   accentSubtle: string;
+  accentColor: string;
   success: string;
   successText: string;
+  successBg: string;
   danger: string;
   dangerText: string;
+  dangerBg: string;
   warning: string;
   warningText: string;
+  info: string;
   selected: string;
   selectedBg: string;
   selectedText: string;
@@ -63,17 +68,22 @@ function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
     sidebar: dark("backgroundElement"),
     border: dark("border"),
     borderMuted: dark("borderSubtle"),
+    borderActive: dark("borderActive"),
     text: dark("text"),
     textMuted: dark("textMuted"),
     textLink: dark("primary"),
     accent: dark("primary"),
     accentSubtle: dark("secondary"),
+    accentColor: dark("accent"),
     success: dark("success"),
     successText: dark("success"),
+    successBg: dark("diffAddedBg"),
     danger: dark("error"),
     dangerText: dark("error"),
+    dangerBg: dark("diffRemovedBg"),
     warning: dark("warning"),
     warningText: dark("warning"),
+    info: dark("info"),
     selected: dark("primary"),
     selectedBg: dark("border"),
     selectedText: dark("background"),
@@ -88,17 +98,22 @@ export const themeColors: ThemeColors = {
   sidebar: "#1e1e1e",
   border: "#30363d",
   borderMuted: "#21262d",
+  borderActive: "#58a6ff",
   text: "#c9d1d9",
   textMuted: "#8b949e",
   textLink: "#58a6ff",
   accent: "#58a6ff",
   accentSubtle: "#1f6feb",
+  accentColor: "#39c5cf",
   success: "#3fb950",
   successText: "#3fb950",
+  successBg: "#033a16",
   danger: "#f85149",
   dangerText: "#f85149",
+  dangerBg: "#67060c",
   warning: "#d29922",
   warningText: "#d29922",
+  info: "#d29922",
   selected: "#ffffff",
   selectedBg: "#ffffff",
   selectedText: "#0d1117",

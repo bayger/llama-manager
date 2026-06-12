@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
+import { fg, fgBg, themeColors } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
 import type { Size, RenderContext } from "../types.js";
 
@@ -62,17 +62,20 @@ export class Button extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const { canvas } = ctx;
-    canvas.moveTo(this.rect.x, this.rect.y);
-    const text = `[ ${this.label} ]`;
+    const { x, y, width } = this.rect;
+    canvas.moveTo(x, y);
+    fgBg(canvas, themeColors.canvas, themeColors.canvas, " ".repeat(width));
+    canvas.moveTo(x, y);
+    const padded = ` ${this.label} `;
 
     if (this.disabled) {
-      fg(canvas, themeColors.borderMuted, text);
+      fg(canvas, themeColors.borderMuted, `( ${this.label} )`);
     } else if (this.focused) {
       canvas.bold();
-      fg(canvas, themeColors.success, text);
+      fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
       canvas.styleReset();
     } else {
-      fg(canvas, themeColors.textMuted, text);
+      fg(canvas, themeColors.textMuted, padded);
     }
 
     this.needsRender = false;

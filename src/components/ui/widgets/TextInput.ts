@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
+import { fg, fgBg, themeColors } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
 import type { Size, RenderContext } from "../types.js";
 
@@ -56,8 +56,16 @@ export class TextInput extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const { canvas } = ctx;
-    canvas.moveTo(this.rect.x, this.rect.y);
+    const { x, y, width } = this.rect;
+    canvas.moveTo(x, y);
     canvas.styleReset();
+
+    const bg = this.focused ? themeColors.canvasSubtle : themeColors.canvas;
+    const borderColor = this.focused ? themeColors.borderActive : themeColors.borderMuted;
+
+    fgBg(canvas, themeColors.canvas, bg, " ".repeat(width));
+    canvas.moveTo(x, y);
+    fgBg(canvas, borderColor, bg, "│");
 
     if (this.prefix) {
       fg(canvas, themeColors.textMuted, this.prefix);
@@ -67,13 +75,11 @@ export class TextInput extends Control {
     const displayColor = this.value ? themeColors.text : themeColors.textMuted;
     fg(canvas, displayColor, display);
 
-    const contentLen = this.value.length + this.prefix.length;
-    const remaining = Math.max(0, this.rect.width - contentLen);
-    fg(canvas, themeColors.canvas, " ".repeat(remaining));
+    fgBg(canvas, borderColor, bg, "│");
 
     if (this.focused) {
-      const cursorX = this.rect.x + this.prefix.length + this.cursorPos;
-      canvas.setTerminalCursor(cursorX, this.rect.y);
+      const cursorX = x + 1 + this.prefix.length + this.cursorPos;
+      canvas.setTerminalCursor(cursorX, y);
       canvas.showTerminalCursor();
     }
 
