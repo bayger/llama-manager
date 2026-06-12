@@ -16,6 +16,7 @@ const THEMES_DIR = path.join(__dirname, "..", "..", "themes");
 export interface ThemeColors {
   canvas: string;
   canvasSubtle: string;
+  sidebar: string;
   border: string;
   borderMuted: string;
   text: string;
@@ -59,6 +60,7 @@ function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
   return {
     canvas: dark("background"),
     canvasSubtle: dark("backgroundPanel"),
+    sidebar: dark("backgroundElement"),
     border: dark("border"),
     borderMuted: dark("borderSubtle"),
     text: dark("text"),
@@ -83,6 +85,7 @@ function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
 export const themeColors: ThemeColors = {
   canvas: "#0d1117",
   canvasSubtle: "#161b22",
+  sidebar: "#1e1e1e",
   border: "#30363d",
   borderMuted: "#21262d",
   text: "#c9d1d9",
