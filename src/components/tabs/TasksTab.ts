@@ -3,7 +3,7 @@ import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Divider } from "../ui/widgets/Divider.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { Table } from "../ui/widgets/Table.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { themeColors, fg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { fireAsync } from "../../lib/utils.js";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
@@ -281,10 +281,11 @@ export class TasksControl extends Control {
     const selectedIndex = this._table.selectedIndex;
 
     if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {
-      for (let i = 0; i < height; i++) {
+      canvas.moveTo(x, y);
+      fg(canvas, themeColors.textMuted, "No tasks");
+      for (let i = 1; i < height; i++) {
         canvas.moveTo(x, y + i);
-        fg(canvas, themeColors.textMuted, "No tasks");
-        fg(canvas, themeColors.canvasSubtle, " ".repeat(width - 8));
+        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
       return;
     }
@@ -328,9 +329,10 @@ export class TasksControl extends Control {
       if (i < lines.length) {
         const line = lines[i]!;
         if (i === 0) {
-          fgBg(canvas, themeColors.accent, themeColors.canvasSubtle, line.label.padEnd(width));
+          const title = line.label.padEnd(width);
+          fg(canvas, themeColors.accent, title);
         } else if (line.label === "") {
-          fg(canvas, themeColors.canvasSubtle, " ".repeat(width));
+          fg(canvas, themeColors.canvas, " ".repeat(width));
         } else {
           const label = line.label + ":";
           let value = line.value;
@@ -343,10 +345,10 @@ export class TasksControl extends Control {
           const row = ` ${formattedLabel} ${value}`;
           fg(canvas, themeColors.textMuted, formattedLabel);
           fg(canvas, themeColors.text, " " + value);
-          fg(canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - row.length)));
+          fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - row.length)));
         }
       } else {
-        fg(canvas, themeColors.canvasSubtle, " ".repeat(width));
+        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
   }

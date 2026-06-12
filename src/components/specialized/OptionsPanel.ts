@@ -691,7 +691,7 @@ export class OptionsPanel extends Control {
   renderThemePickerSidebar(canvas: FramebufferCanvas, startX: number, startY: number, width: number, height: number): void {
     const names = getThemeNames();
     canvas.moveTo(startX, startY);
-    fgBg(canvas, themeColors.text, themeColors.canvasSubtle, ` THEME PICKER `.padEnd(width).substring(0, width));
+    fgBg(canvas, themeColors.text, themeColors.accent, ` THEME PICKER `.padEnd(width).substring(0, width));
 
     for (let i = 1; i < height; i++) {
       const themeIdx = i - 1 + this._themePickerScroll;
@@ -719,10 +719,10 @@ export class OptionsPanel extends Control {
           fgBg(canvas, resolved.text, resolved.canvas, "█");
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
           fg(canvas, themeColors.textMuted, ` ${name}`);
-          fg(canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - 9 - name.length)));
+          fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - 9 - name.length)));
         } else {
           fg(canvas, themeColors.textMuted, `       ${name}`);
-          fg(canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - 9 - name.length)));
+          fg(canvas, themeColors.canvas, " ".repeat(Math.max(0, width - 9 - name.length)));
         }
       }
     }
@@ -730,7 +730,7 @@ export class OptionsPanel extends Control {
     const lastRow = Math.min(names.length - this._themePickerScroll, height - 1);
     for (let i = lastRow; i < height; i++) {
       canvas.moveTo(startX, startY + i);
-      fg(canvas, themeColors.canvasSubtle, " ".repeat(width));
+      fg(canvas, themeColors.canvas, " ".repeat(width));
     }
   }
 
