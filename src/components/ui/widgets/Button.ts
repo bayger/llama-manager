@@ -71,13 +71,13 @@ export class Button extends Control {
     const padded = ` ${this.label} `;
 
     if (this.disabled) {
-      fg(canvas, themeColors.borderMuted, `( ${this.label} )`);
+      fgBg(canvas, themeColors.borderMuted, themeColors.canvas, padded);
     } else if (this.focused) {
       canvas.bold();
       fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
       canvas.styleReset();
     } else {
-      fg(canvas, themeColors.textMuted, padded);
+      fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, padded);
     }
 
     this.needsRender = false;
