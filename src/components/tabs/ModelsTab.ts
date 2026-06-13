@@ -7,6 +7,7 @@ import { List, ListItem } from "../ui/widgets/List.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
 import {
   listLocalModels,
@@ -21,7 +22,7 @@ import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf.js
 import { saveConfig } from "../../lib/config.js";
 import { fireAsync } from "../../lib/utils.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import type { Size } from "../ui/types.js";
 
 type ViewMode = "local" | "search" | "results" | "files" | "downloading";
 
@@ -37,8 +38,7 @@ export class ModelsControl extends Control {
   protected _browseBtn: Button;
   protected _removeBtn: Button;
   protected _modelList: List<string>;
-  protected _modelCount = 0;
-  protected _modelSize = "0 B";
+  protected _summary: StyledText;
 
   // HF Browser
   protected _hfColumn: Column;
@@ -55,7 +55,6 @@ export class ModelsControl extends Control {
   protected _hfPrevBtn: Button;
   protected _hfNextBtn: Button;
   protected _hfCancelBtn: Button;
-  protected _hfHeaderText = "HuggingFace Browser";
 
   // HF Browser state
   protected _searchQuery = "";
@@ -71,6 +70,8 @@ export class ModelsControl extends Control {
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+
+    this._summary = new StyledText();
 
     // --- Local models view ---
     this._browseBtn = new Button({ label: "Browse HF" });
@@ -102,8 +103,6 @@ export class ModelsControl extends Control {
     });
 
     this._column = new Column();
-    this._column.add(new Spacer());
-    this._column.add(new Spacer());
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
     this._column.add(this._modelList);
@@ -189,8 +188,6 @@ export class ModelsControl extends Control {
     this._hfButtonRow.add(this._hfCancelBtn);
 
     this._hfColumn = new Column();
-    this._hfColumn.add(new Spacer());
-    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfSearchRow);
     this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfButtonRow);
@@ -198,6 +195,7 @@ export class ModelsControl extends Control {
     this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 
+    this.add(this._summary);
     this.add(this._column);
     this.add(this._hfColumn);
   }
@@ -207,14 +205,24 @@ export class ModelsControl extends Control {
   }
 
   onLayout(): void {
+    const summaryH = 1;
+    this._summary.layout({ x: this.rect.x, y: this.rect.y, width: this.rect.width, height: summaryH });
+
+    const contentRect = {
+      x: this.rect.x,
+      y: this.rect.y + summaryH + 1,
+      width: this.rect.width,
+      height: this.rect.height - summaryH - 1,
+    };
+
     if (this._view === "local") {
       this._column.visible = true;
       this._hfColumn.visible = false;
-      this._column.layout(this.rect);
+      this._column.layout(contentRect);
     } else {
       this._column.visible = false;
       this._hfColumn.visible = true;
-      this._hfColumn.layout(this.rect);
+      this._hfColumn.layout(contentRect);
     }
     this.markDirty();
   }
@@ -387,13 +395,13 @@ this._hfResultsList.handleKey = (key: string) => {
 
     // Header
     if (isSearch) {
-      this._hfHeaderText = "HuggingFace Browser";
+      this._summary.builder.muted("HuggingFace Browser");
     } else if (isResults) {
-      this._hfHeaderText = `Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`;
+      this._summary.builder.muted(`Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`);
     } else if (isFiles) {
-      this._hfHeaderText = this._selectedRepo ? this._selectedRepo.id : "Files";
+      this._summary.builder.muted(this._selectedRepo ? this._selectedRepo.id : "Files");
     } else if (isDownloading) {
-      this._hfHeaderText = "Downloading...";
+      this._summary.builder.muted("Downloading...");
     }
 
     // Focus
@@ -549,8 +557,11 @@ this._hfResultsList.handleKey = (key: string) => {
       }));
 
       this._modelList.updateItems(items);
-      this._modelCount = models.length;
-      this._modelSize = formatSize(totalSize);
+      this._summary.builder
+        .muted("Models ")
+        .accentColor(String(models.length))
+        .muted("  Size ")
+        .text(formatSize(totalSize));
       this.markDirty();
     })();
   }
@@ -589,26 +600,6 @@ this._hfResultsList.handleKey = (key: string) => {
     })();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
-    const canvas = ctx.canvas;
-    const { x, y: startY } = this.rect;
-
-    canvas.moveTo(x, startY);
-    canvas.styleReset();
-
-    if (this._view === "local") {
-      fg(canvas, themeColors.textMuted, "Models ");
-      fg(canvas, themeColors.accentColor, `${this._modelCount}`);
-      fg(canvas, themeColors.textMuted, "  Size ");
-      fg(canvas, themeColors.text, this._modelSize);
-    } else {
-      fg(canvas, themeColors.textMuted, this._hfHeaderText);
-    }
-
-    this.needsRender = false;
-  }
 }
 
 export function createModelsTab(ctx: TabContext): Control {

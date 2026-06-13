@@ -7,6 +7,7 @@ import { List, ListItem } from "../ui/widgets/List.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { Scrollable } from "../ui/widgets/Scrollable.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
 import {
   listVersions,
@@ -95,20 +96,20 @@ export class VersionsControl extends Control {
   protected _list: List<any>;
   protected _changelog: ChangelogView;
   protected _progressBar: ProgressBar;
+  protected _summary: StyledText;
+  protected _prompt: StyledText;
 
   protected _mode: ViewMode = "local";
   protected _selectedRelease: RemoteVersion | null = null;
   protected _availableBackends: AvailableBackend[] = [];
-  protected _headerLabel = "";
-  protected _headerCount = 0;
-  protected _headerSubText = "";
-  protected _headerInfoText = "";
-  protected _promptText = "";
-  protected _promptVisible = false;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+
+    this._summary = new StyledText();
+    this._prompt = new StyledText();
+    this._prompt.visible = false;
 
     this._list = new List();
     this._list.tabIndex = 0;
@@ -137,10 +138,10 @@ export class VersionsControl extends Control {
     this._changelog.flex = 1;
 
     this._column = new Column();
-    this._column.add(new Spacer());
+    this._column.add(this._summary);
+    this._column.add(this._prompt);
     this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
-    this._column.add(new Spacer());
     this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
@@ -223,7 +224,7 @@ export class VersionsControl extends Control {
     this._mode = "local";
     this._dividerButtons.visible = true;
     this._buttonRow.visible = true;
-    this._promptVisible = false;
+    this._prompt.visible = false;
     this._changelog.visible = false;
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
@@ -247,15 +248,15 @@ export class VersionsControl extends Control {
     this._mode = "releases";
     this._dividerButtons.visible = true;
     this._buttonRow.visible = false;
-    this._promptVisible = true;
-    this._promptText = "Select version";
+    this._prompt.visible = true;
+    this._prompt.builder.warning("Select version");
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
     this._changelog.visible = true;
     this._list.selectedIndex = -1;
     this._list.items = [];
-    this._headerInfoText = "GitHub Releases (press g for local)";
+    this._summary.builder.muted("GitHub Releases (press g for local)");
     this.markDirty();
 
     try {
@@ -276,9 +277,10 @@ export class VersionsControl extends Control {
         }
       });
       this._list.updateItems(items);
-      this._headerLabel = "Releases";
-      this._headerCount = items.length;
-      this._headerInfoText = "(press g for local)";
+      this._summary.builder
+        .muted("Releases")
+        .accentColor(` ${items.length}`)
+        .muted("  (press g for local)");
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
@@ -294,8 +296,8 @@ export class VersionsControl extends Control {
     this._mode = "backends";
     this._dividerButtons.visible = true;
     this._buttonRow.visible = false;
-    this._promptVisible = true;
-    this._promptText = "Select backend";
+    this._prompt.visible = true;
+    this._prompt.builder.warning("Select backend");
     this._changelog.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
@@ -324,7 +326,7 @@ export class VersionsControl extends Control {
 
       this._list.setRenderer(this._backendRenderer.bind(this));
       this._list.updateItems(items);
-      this._headerInfoText = `Backends for ${release.tag}  (press g for releases)`;
+      this._summary.builder.muted(`Backends for ${release.tag}  (press g for releases)`);
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
@@ -343,7 +345,7 @@ export class VersionsControl extends Control {
     this._mode = "installing";
     this._dividerButtons.visible = false;
     this._buttonRow.visible = false;
-    this._promptVisible = false;
+    this._prompt.visible = false;
     this._changelog.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
@@ -352,7 +354,7 @@ export class VersionsControl extends Control {
     this._progressBar.progress = 0;
     this._progressBar.label = "Preparing...";
     this._progressBar.extraLabel = "";
-    this._headerInfoText = `Installing ${this._selectedRelease.tag} (${backendId})`;
+    this._summary.builder.muted(`Installing ${this._selectedRelease.tag} (${backendId})`);
     this.markDirty();
 
     try {
@@ -386,9 +388,11 @@ export class VersionsControl extends Control {
       const versions = await listVersions(config);
       const totalSize = await getTotalVersionsSize(config);
 
-      this._headerLabel = "Versions";
-      this._headerCount = versions.length;
-      this._headerSubText = formatSize(totalSize);
+      this._summary.builder
+        .muted("Versions ")
+        .accentColor(String(versions.length))
+        .muted("  Size ")
+        .text(formatSize(totalSize));
 
       const items: ListItem<any>[] = versions.map(v => ({
         id: v.version,
@@ -454,41 +458,6 @@ export class VersionsControl extends Control {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
     }
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
-    const canvas = ctx.canvas;
-    const { x, y: startY } = this.rect;
-
-    canvas.moveTo(x, startY);
-    canvas.styleReset();
-
-    if (this._mode === "local") {
-      fg(canvas, themeColors.textMuted, "Versions ");
-      fg(canvas, themeColors.accentColor, `${this._headerCount}`);
-      if (this._headerSubText) {
-        fg(canvas, themeColors.textMuted, "  Size ");
-        fg(canvas, themeColors.text, this._headerSubText);
-      }
-    } else if (this._headerLabel) {
-      fg(canvas, themeColors.textMuted, this._headerLabel);
-      fg(canvas, themeColors.accentColor, ` ${this._headerCount}`);
-      if (this._headerInfoText) {
-        fg(canvas, themeColors.textMuted, `  ${this._headerInfoText}`);
-      }
-    } else {
-      fg(canvas, themeColors.textMuted, this._headerInfoText);
-    }
-
-    if (this._promptVisible) {
-      const promptY = startY + 2;
-      canvas.moveTo(x, promptY);
-      fg(canvas, themeColors.warning, this._promptText);
-    }
-
-    this.needsRender = false;
   }
 }
 
