@@ -97,9 +97,9 @@ export class MetricsPanel extends Control {
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "Tasks ");
       fg(canvas, themeColors.accent, String(global.tasksCompleted));
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Prompt `);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  PP `);
       fg(canvas, themeColors.info, `${global.avgPromptSpeed.toFixed(1)} t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Gen `);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
       fg(canvas, themeColors.success, `${global.avgGenSpeed.toFixed(1)} t/s`);
       fg(canvas, themeColors.textMuted, `  ${SEP}  Tokens `);
       fg(canvas, themeColors.info, `${formatNum(global.totalPromptTokens)}p`);
@@ -185,10 +185,10 @@ export class MetricsPanel extends Control {
     canvas.moveTo(x, cy);
     fg(canvas, themeColors.textMuted, "  ");
     if (slot.generationSpeed !== null) {
-      fg(canvas, themeColors.textMuted, "Gen ");
+      fg(canvas, themeColors.textMuted, "TG ");
       fg(canvas, themeColors.success, `${slot.generationSpeed.toFixed(1)} t/s`);
     } else if (slot.promptSpeed !== null && slot.state === "prompting") {
-      fg(canvas, themeColors.textMuted, "Prompt ");
+      fg(canvas, themeColors.textMuted, "PP ");
       fg(canvas, themeColors.info, `${slot.promptSpeed.toFixed(0)} t/s`);
     } else {
       fg(canvas, themeColors.textMuted, "...");
@@ -216,9 +216,9 @@ export class MetricsPanel extends Control {
     } else if (slot.lastTask) {
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "  ");
-      fg(canvas, themeColors.textMuted, "P ");
+      fg(canvas, themeColors.textMuted, "PP ");
       fg(canvas, themeColors.info, `${padLeft(slot.lastTask.promptTokens, 5)}t @ ${slot.lastTask.promptSpeed.toFixed(1)}t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  G `);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
       fg(canvas, themeColors.success, `${padLeft(slot.lastTask.outputTokens, 5)}t @ ${slot.lastTask.outputSpeed.toFixed(1)}t/s`);
       fg(canvas, themeColors.textMuted, `  ${SEP}  ${formatMs(slot.lastTask.totalTimeMs)}`);
       cy++;
