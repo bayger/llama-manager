@@ -16,10 +16,12 @@ export const TABS = ["Dashboard", "Profiles", "Tasks", "Versions", "Models", "Op
 export type TabId = (typeof TABS)[number];
 
 export class MainControl extends Column {
-  protected _topBar: TopBar;
+  protected _topBar: HalfBar;
   protected _tabBar: TabBar;
   protected _tabContent: TabContent;
+  protected _statusBarHalfBar: HalfBar;
   protected _statusBar: StatusBar;
+  protected _bottomBar: HalfBar;
   protected _activeTab: TabId = "Dashboard";
   protected _message: string | null = null;
   protected _messageTimer: ReturnType<typeof setTimeout> | null = null;
@@ -30,17 +32,23 @@ export class MainControl extends Column {
   ) {
     super();
 
-    this._topBar = new TopBar();
+    this._topBar = new HalfBar();
     this._tabBar = new TabBar((index) => {
       this.setActiveTab(TABS[index]);
     });
     this._tabContent = new TabContent(_ctx);
+    this._statusBarHalfBar = new HalfBar();
+    this._statusBarHalfBar.mode = 'top';
     this._statusBar = new StatusBar();
+    this._bottomBar = new HalfBar();
+    this._bottomBar.mode = 'bottom';
 
     this.add(this._topBar);
     this.add(this._tabBar);
     this.add(this._tabContent);
+    this.add(this._statusBarHalfBar);
     this.add(this._statusBar);
+    this.add(this._bottomBar);
 
     this._tabContent.flex = 1;
   }
@@ -144,8 +152,9 @@ export class MainControl extends Column {
   }
 }
 
-class TopBar extends Control {
+class HalfBar extends Control {
   focusable = false;
+  mode: 'top' | 'bottom' = 'top';
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 80, height: 1 };
@@ -156,12 +165,14 @@ class TopBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.colorRgbHex(themeColors.canvasSubtle);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, 1);
+    const topColor = this.mode === 'top' ? themeColors.canvasSubtle : themeColors.canvas;
+    const bottomColor = this.mode === 'top' ? themeColors.canvas : themeColors.canvasSubtle;
+
+    canvas.colorRgbHex(topColor);
+    canvas.bgColorRgbHex(bottomColor);
     canvas.moveTo(x, y);
     for (let i = 0; i < width; i++) {
-      fg(canvas, themeColors.canvasSubtle, "\u2584");
+      fgBg(canvas, topColor, bottomColor, "\u2584");
     }
 
     this.needsRender = false;
@@ -221,9 +232,6 @@ class TabBar extends Control {
       }
     }
 
-    canvas.moveTo(x, y + 1);
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.moveTo(x, y + 1);
     for (let i = 0; i < width; i++) {
       fg(canvas, themeColors.canvas, "\u2584");
@@ -297,9 +305,8 @@ class TabContent extends Control {
 
     const control = this.getActiveControl();
     if (control) {
-      const padH = 1;
-      const padBottom = 1;
-      control.layout({ x: x + padH, y: y, width: Math.max(0, width - padH * 2), height: Math.max(0, height - padBottom) });
+      const pad = 1;
+      control.layout({ x: x + pad, y: y, width: Math.max(0, width - pad * 2), height });
       control.render(ctx);
     }
 
@@ -329,7 +336,7 @@ class StatusBar extends Control {
   protected _activeTab: TabId = "Dashboard";
 
   measure(_parentSize?: Size): Size {
-    return { width: this.rect.width || 80, height: 2 };
+    return { width: this.rect.width || 80, height: 1 };
   }
 
   setMessage(msg: string | null): void {
@@ -349,14 +356,8 @@ class StatusBar extends Control {
 
     canvas.colorRgbHex(themeColors.canvas);
     canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, 2);
-
+    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
-    for (let i = 0; i < width; i++) {
-      fg(canvas, themeColors.canvasSubtle, "\u2580");
-    }
-
-    canvas.moveTo(x, y + 1);
     fg(canvas, themeColors.text, " ");
     if (this._message) {
       const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
