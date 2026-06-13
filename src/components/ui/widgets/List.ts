@@ -58,7 +58,12 @@ export class List<T = any> extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const { canvas } = ctx;
-    const { x, y, width } = this.rect;
+    const { x, y, width, height } = this.rect;
+
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
+    canvas.moveTo(x, y);
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
@@ -69,14 +74,14 @@ export class List<T = any> extends Control {
         this._customRenderer(canvas, item, i, isSelected, x, y + i, width);
       } else {
         const label = item.label;
-        const display = ` ${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
+        const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
         if (isSelected) {
-          fgBg(canvas, themeColors.canvas, themeColors.accent, display.substring(0, width));
+          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, display);
+          fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - display.length)));
           canvas.styleReset();
         } else {
           fg(canvas, themeColors.text, display);
-          fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - display.length)));
         }
       }
     }

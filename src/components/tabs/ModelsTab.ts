@@ -2,7 +2,7 @@ import { Control } from "../ui/Control.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
@@ -97,20 +97,19 @@ export class ModelsControl extends Control {
       const line = ` ${prefix}${name}  ${size}`;
 
       if (isSelected) {
-        fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
         canvas.styleReset();
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, model.active ? themeColors.success : themeColors.text, line);
-        fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 
     this._column = new Column();
     this._column.add(this._headerLabel);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._buttonRow);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._modelList);
 
     // --- HF Browser view ---
@@ -139,12 +138,11 @@ export class ModelsControl extends Control {
       const line = ` ${repo.id}${meta ? `  ${meta}` : ""}`;
 
       if (isSelected) {
-        fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
         canvas.styleReset();
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, themeColors.text, line);
-        fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 
@@ -161,12 +159,11 @@ export class ModelsControl extends Control {
       const line = ` ${file.path}  ${size}`;
 
       if (isSelected) {
-        fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
         canvas.styleReset();
       } else {
         canvas.moveTo(_x, rowY);
         fg(canvas, themeColors.text, line);
-        fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
       }
     });
 
@@ -200,11 +197,11 @@ export class ModelsControl extends Control {
 
     this._hfColumn = new Column();
     this._hfColumn.add(this._hfHeaderLabel);
-    this._hfColumn.add(new Divider());
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfSearchRow);
-    this._hfColumn.add(new Divider());
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfButtonRow);
-    this._hfColumn.add(new Divider());
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 

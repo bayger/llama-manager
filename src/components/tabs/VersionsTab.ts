@@ -2,7 +2,7 @@ import { Control } from "../ui/Control.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { Scrollable } from "../ui/widgets/Scrollable.js";
@@ -44,16 +44,10 @@ class VersionsHeader extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const canvas = ctx.canvas;
-    const { x, y, width } = this.rect;
+    const { x, y } = this.rect;
 
     canvas.moveTo(x, y);
     fg(canvas, themeColors.text, this._text);
-
-    const endX = canvas.cursorX ?? x;
-    const padLen = width - (endX - x);
-    if (padLen > 0) {
-      fg(canvas, themeColors.canvas, " ".repeat(padLen));
-    }
 
     this.needsRender = false;
   }
@@ -88,7 +82,12 @@ class ChangelogView extends Scrollable {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     const canvas = ctx.canvas;
-    const { x, y, width } = this.rect;
+    const { x, y, width, height } = this.rect;
+
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
+    canvas.moveTo(x, y);
 
     for (let i = 0; i < this._viewportHeight; i++) {
       const lineIdx = this.scrollOffset + i;
@@ -97,8 +96,6 @@ class ChangelogView extends Scrollable {
         const line = this._lines[lineIdx] || "";
         const display = line.padEnd(width).substring(0, width);
         fg(canvas, themeColors.textMuted, display);
-      } else {
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 
@@ -110,7 +107,7 @@ export class VersionsControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _header: VersionsHeader;
-  protected _dividerButtons: Divider;
+  protected _dividerButtons: Spacer;
   protected _prompt: VersionsHeader;
   protected _buttonRow: Row;
   protected _btnInstall: Button;
@@ -149,7 +146,7 @@ export class VersionsControl extends Control {
     this._progressBar.emptyColor = themeColors.border;
     this._progressBar.labelColor = themeColors.textMuted;
 
-    this._dividerButtons = new Divider();
+    this._dividerButtons = new Spacer();
     this._prompt = new VersionsHeader();
     this._prompt.visible = false;
 
@@ -164,7 +161,7 @@ export class VersionsControl extends Control {
     this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
     this._column.add(this._prompt);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
     this._column.add(this._progressBar);
@@ -440,12 +437,11 @@ export class VersionsControl extends Control {
     const line = ` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
       canvas.styleReset();
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, v.active ? themeColors.success : themeColors.text, line);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 
@@ -455,12 +451,11 @@ export class VersionsControl extends Control {
     const line = ` ${r.tag}  ${date}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
       canvas.styleReset();
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 
@@ -469,12 +464,11 @@ export class VersionsControl extends Control {
     const line = ` ${b.label}  ${b.assetName}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
       canvas.styleReset();
     } else {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - line.length)));
     }
   }
 }

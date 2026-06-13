@@ -1,4 +1,5 @@
 import type { Rect, Size, RenderContext, Point } from "./types.js";
+import { themeColors } from "../../lib/theme.js";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -95,6 +96,11 @@ export class Control {
     const prevClip = ctx.canvas.getClipRect();
     ctx.canvas.setClipRect(this.rect);
 
+    const { x, y, width, height } = this.rect;
+    ctx.canvas.colorRgbHex(themeColors.canvas);
+    ctx.canvas.bgColorRgbHex(themeColors.canvas);
+    ctx.canvas.clearRect(x, y, width, height);
+
     for (const child of this.children) {
       child.render(ctx);
     }
@@ -146,6 +152,13 @@ export class Control {
     this.needsRender = true;
     if (this._parent) {
       this._parent.markDirty();
+    }
+  }
+
+  markAllDirty(): void {
+    this.needsRender = true;
+    for (const child of this.children) {
+      child.markAllDirty();
     }
   }
 

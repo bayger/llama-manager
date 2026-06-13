@@ -44,6 +44,11 @@ export class ProfileList extends Control {
       return;
     }
 
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, startY, width, height);
+    canvas.moveTo(x, startY);
+
     for (let i = 0; i < height; i++) {
       canvas.moveTo(x, startY + i);
       canvas.styleReset();
@@ -56,7 +61,7 @@ export class ProfileList extends Control {
         if (isSelected) {
           const prefix = isActive ? "● " : "  ";
           const line = (prefix + name).padEnd(width);
-          fgBg(canvas, themeColors.canvas, themeColors.accent, line.substring(0, width));
+          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
         } else if (isActive) {
           const line = ("● " + name).padEnd(width);
           fg(canvas, themeColors.success, line.substring(0, width));
@@ -64,8 +69,6 @@ export class ProfileList extends Control {
           const line = ("  " + name).padEnd(width);
           fg(canvas, themeColors.text, line.substring(0, width));
         }
-      } else {
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 

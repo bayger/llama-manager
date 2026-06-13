@@ -50,7 +50,7 @@ export class Table<T = any> extends Control {
   public scrollOffset = 0;
   public contentHeight = 0;
   public showHeader = true;
-  public headerHeight = 1;
+  public headerHeight = 2;
 
   protected _onSelect: ((item: TableItem<T>) => void) | null = null;
   protected _onHighlight: ((item: TableItem<T> | null) => void) | null = null;
@@ -178,6 +178,11 @@ export class Table<T = any> extends Control {
     const { x, y, width, height } = this.rect;
     const items = this.items;
 
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
+    canvas.moveTo(x, y);
+
     if (items.length === 0) {
       this.needsRender = false;
       return;
@@ -190,6 +195,9 @@ export class Table<T = any> extends Control {
       canvas.moveTo(x, y);
       canvas.styleReset();
       this.renderHeader(canvas, x, y, width, visibleCols);
+      // Separator line below header
+      canvas.moveTo(x, y + 1);
+      fg(canvas, themeColors.borderActive, "\u2501".repeat(width));
     }
 
     const bodyStartY = y + (hasHeader ? this.headerHeight : 0);
@@ -203,8 +211,6 @@ export class Table<T = any> extends Control {
         const item = items[itemIndex]!;
         const isSelected = itemIndex === this.selectedIndex && this.focused;
         this.renderRow(canvas, x, bodyStartY + i, width, item, itemIndex, isSelected, visibleCols);
-      } else {
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 
@@ -228,7 +234,6 @@ export class Table<T = any> extends Control {
     const row = " " + parts.join(" ");
 
     fg(canvas, themeColors.accent, row);
-    fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
   }
 
   protected renderRow(
@@ -242,7 +247,6 @@ export class Table<T = any> extends Control {
     _visibleCols: VisibleColumn[]
   ): void {
     if (!item) {
-      fg(canvas, themeColors.canvas, " ".repeat(width));
       return;
     }
 
@@ -257,14 +261,14 @@ export class Table<T = any> extends Control {
     }
 
     const label = item.label;
-    const display = ` ${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
+    const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.canvas, themeColors.accent, display.substring(0, width));
+      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, display);
+      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - display.length)));
       canvas.styleReset();
     } else {
       fg(canvas, themeColors.text, display);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - display.length)));
     }
   }
 

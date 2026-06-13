@@ -37,6 +37,7 @@ export class ProgressBar extends Control {
 
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
+    super.render(ctx);
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
 

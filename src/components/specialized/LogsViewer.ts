@@ -29,6 +29,11 @@ export class LogsViewer extends Control {
       return;
     }
 
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
+    canvas.moveTo(x, y);
+
     const lines = this._config.getLines();
     const totalLines = lines.length;
     const startIdx = Math.max(0, totalLines - height);
@@ -37,9 +42,6 @@ export class LogsViewer extends Control {
     for (let i = 0; i < height; i++) {
       if (i < visibleLines.length) {
         renderLogLine(canvas, x, y + i, width, visibleLines[i]!);
-      } else {
-        canvas.moveTo(x, y + i);
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
 

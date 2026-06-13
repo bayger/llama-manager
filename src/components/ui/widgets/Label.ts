@@ -43,6 +43,7 @@ export class Label extends Control {
 
  render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
+    super.render(ctx);
     const { canvas } = ctx;
     canvas.moveTo(this.rect.x, this.rect.y);
     if (this.bold) canvas.bold();

@@ -30,7 +30,7 @@ export class Column extends Control {
 
   onLayout(): void {
     const { x, y, width, height } = this.rect;
-    const padding = 1;
+    const padding = 0;
     let currentY = y;
     let fixedTotal = 0;
     let flexTotal = 0;

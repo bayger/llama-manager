@@ -1,5 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { themeColors, fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { ConfigData, saveConfig } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
@@ -7,6 +7,7 @@ import type { Size, RenderContext } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 const KEY_COL_WIDTH = 22;
+const THEME_PICKER_WIDTH = 26;
 
 export interface OptionFieldDef {
   key: string;
@@ -83,6 +84,24 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
       if (values.autoParse !== undefined) config.tasks.autoParse = values.autoParse as boolean;
     },
   },
+  {
+    name: "Appearance",
+    fields: [
+      { key: "themeName", type: "string", default: "opencode", description: "UI theme (Enter to browse themes)" },
+    ],
+    getter: (config) => ({
+      themeName: config.themeName,
+    }),
+    setter: (config, values) => {
+      if (values.themeName !== undefined) {
+        const name = values.themeName as string;
+        if (name && getThemeNames().includes(name)) {
+          config.themeName = name;
+          setActiveTheme(name);
+        }
+      }
+    },
+  },
 ];
 
 interface RowInfo {
@@ -142,6 +161,10 @@ export class OptionsPanel extends Control {
   protected _collapsed = new Set<number>();
   protected _rows: RowInfo[] = [];
   protected _edit: EditState | null = null;
+  protected _themePickerMode = false;
+  protected _themePickerIndex = 0;
+  protected _themePickerScroll = 0;
+  protected _themePickerOriginal = "";
 
   constructor(ctx: TabContext) {
     super();
@@ -212,6 +235,14 @@ export class OptionsPanel extends Control {
       return;
     }
 
+    const pickerVisible = this._themePickerMode && width >= THEME_PICKER_WIDTH + 26;
+    const mainWidth = pickerVisible ? width - THEME_PICKER_WIDTH - 1 : width;
+
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, startY, mainWidth, height);
+    canvas.moveTo(x, startY);
+
     for (let i = 0; i < height; i++) {
       const visualRow = i + this._scrollOffset;
       if (visualRow >= this._rows.length) break;
@@ -219,25 +250,22 @@ export class OptionsPanel extends Control {
       canvas.moveTo(x, startY + i);
       canvas.styleReset();
       const row = this._rows[visualRow]!;
-      const isSelected = visualRow === this._selectedIndex && this.focused;
+      const isSelected = visualRow === this._selectedIndex && this.focused && !this._themePickerMode;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
 
       if (row.type === "header") {
-        this.renderHeader(canvas, row, isSelected, width);
+        this.renderHeader(canvas, row, isSelected, mainWidth);
       } else if (row.type === "field" && row.field) {
-        this.renderField(canvas, row, isSelected, isEditing, width, config);
+        this.renderField(canvas, row, isSelected, isEditing, mainWidth, config);
       }
-    }
-
-    const lastVisualRow = Math.min(this._scrollOffset + height, this._rows.length);
-    for (let i = lastVisualRow - this._scrollOffset; i < height; i++) {
-      canvas.moveTo(x, startY + i);
-      canvas.styleReset();
-      fg(canvas, themeColors.canvas, " ".repeat(width));
     }
 
     if (this._edit) {
       this.renderCursor(canvas);
+    }
+
+    if (pickerVisible) {
+      this.renderThemePickerSidebar(canvas, x + mainWidth + 1, startY, THEME_PICKER_WIDTH, height);
     }
 
     this.needsRender = false;
@@ -258,11 +286,11 @@ export class OptionsPanel extends Control {
     const headerText = ` ${arrow} ${cat.name}`;
 
     if (isSelected) {
-      const padded = headerText.padEnd(width);
-      fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
+      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, headerText);
+      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - headerText.length)));
+      canvas.styleReset();
     } else {
-      fg(canvas, themeColors.accent, headerText);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - headerText.length)));
+      fg(canvas, themeColors.accentColor, headerText);
     }
     canvas.styleReset();
   }
@@ -276,35 +304,41 @@ export class OptionsPanel extends Control {
     if (isEditing && this._edit) {
       const value = this._edit.text;
       fg(canvas, themeColors.warning, keyStr);
-      fg(canvas, themeColors.selected, value);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
-    } else {
-      const value = formatFieldValue(field, data?.[field.key]);
+      fg(canvas, themeColors.accent, value);
+  } else {
+        const value = formatFieldValue(field, data?.[field.key]);
 
-      let extra = "";
-      if (isSelected && field.type === "boolean") {
-        extra = " (toggle)";
+        let extra = "";
+        if (isSelected && field.type === "boolean") {
+          extra = " (toggle)";
+        }
+
+        const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
+        const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
+
+        if (isSelected) {
+          fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, keyStr);
+          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, value);
+          fgBg(canvas, themeColors.info, themeColors.canvasSubtle, extra);
+          if (desc) {
+            fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, "  " + desc);
+          }
+          const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
+          fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - drawn)));
+          canvas.styleReset();
+        } else {
+          fg(canvas, themeColors.textMuted, keyStr);
+          fg(canvas, themeColors.text, value);
+          fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
+        }
       }
-
-      const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
-      const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
-
-      if (isSelected) {
-        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-        fgBg(canvas, themeColors.canvas, themeColors.accent, padded.substring(0, width));
-      } else {
-        fg(canvas, themeColors.textMuted, keyStr);
-        fg(canvas, themeColors.text, value);
-        fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
-      }
-
-      const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - drawn)));
-    }
     canvas.styleReset();
   }
 
   handleKey(key: string): boolean {
+    if (this._themePickerMode) {
+      return this.handleThemePickerKey(key);
+    }
     if (this._edit) {
       return this.handleEditKey(key);
     }
@@ -371,6 +405,10 @@ export class OptionsPanel extends Control {
       if (row.type === "field" && row.field) {
         if (row.field.type === "boolean") {
           this.toggleBoolean(row);
+          return true;
+        }
+        if (row.field.key === "themeName") {
+          this.openThemePicker();
           return true;
         }
         this.startEdit(row);
@@ -552,6 +590,146 @@ export class OptionsPanel extends Control {
     }
   }
 
+  openThemePicker(): void {
+    if (!this._ctx) return;
+    const config = this._ctx.getConfig();
+    this._themePickerOriginal = config.themeName;
+    this._themePickerMode = true;
+    this._themePickerIndex = 0;
+    this._themePickerScroll = 0;
+    const names = getThemeNames();
+    const idx = names.indexOf(config.themeName);
+    if (idx >= 0) this._themePickerIndex = idx;
+    this._themePickerScroll = Math.max(0, this._themePickerIndex - Math.floor(this.rect.height / 2));
+    // Already on current theme, no need to re-apply
+    this._ctx.forceRender();
+    this.markDirty();
+  }
+
+  closeThemePicker(cancel: boolean): void {
+    if (cancel) {
+      setActiveTheme(this._themePickerOriginal);
+      const config = this._ctx?.getConfig();
+      if (config) config.themeName = this._themePickerOriginal;
+    } else {
+      const config = this._ctx?.getConfig();
+      if (config) {
+        saveConfig(config);
+      }
+    }
+    this._themePickerMode = false;
+    this._ctx?.forceRender();
+    this.markDirty();
+  }
+
+  handleThemePickerKey(key: string): boolean {
+    const names = getThemeNames();
+    const apply = () => {
+      const name = names[this._themePickerIndex]!;
+      setActiveTheme(name);
+      const config = this._ctx?.getConfig();
+      if (config) config.themeName = name;
+      this._ctx?.forceRender();
+    };
+    if (key === "UP" || key === "k") {
+      if (this._themePickerIndex > 0) {
+        this._themePickerIndex--;
+        if (this._themePickerIndex < this._themePickerScroll) {
+          this._themePickerScroll = this._themePickerIndex;
+        }
+        apply();
+        return true;
+      }
+      return false;
+    }
+    if (key === "DOWN" || key === "j") {
+      if (this._themePickerIndex < names.length - 1) {
+        this._themePickerIndex++;
+        const bottom = this._themePickerScroll + this.rect.height;
+        if (this._themePickerIndex >= bottom) {
+          this._themePickerScroll = this._themePickerIndex - this.rect.height + 1;
+        }
+        apply();
+        return true;
+      }
+      return false;
+    }
+    if (key === "PAGE_UP") {
+      this._themePickerIndex = Math.max(0, this._themePickerIndex - this.rect.height);
+      this._themePickerScroll = Math.max(0, this._themePickerScroll - this.rect.height);
+      apply();
+      return true;
+    }
+    if (key === "PAGE_DOWN") {
+      this._themePickerIndex = Math.min(names.length - 1, this._themePickerIndex + this.rect.height);
+      this._themePickerScroll = Math.min(names.length - this.rect.height, this._themePickerScroll + this.rect.height);
+      apply();
+      return true;
+    }
+    if (key === "HOME") {
+      this._themePickerIndex = 0;
+      this._themePickerScroll = 0;
+      apply();
+      return true;
+    }
+    if (key === "END") {
+      this._themePickerIndex = names.length - 1;
+      this._themePickerScroll = Math.max(0, names.length - this.rect.height);
+      apply();
+      return true;
+    }
+    if (key === "RETURN" || key === "ENTER") {
+      this.closeThemePicker(false);
+      return true;
+    }
+    if (key === "ESCAPE") {
+      this.closeThemePicker(true);
+      return true;
+    }
+    return false;
+  }
+
+  renderThemePickerSidebar(canvas: FramebufferCanvas, startX: number, startY: number, width: number, height: number): void {
+    const names = getThemeNames();
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.clearRect(startX, startY, width, height);
+    canvas.moveTo(startX, startY);
+    fgBg(canvas, themeColors.accent, themeColors.canvasSubtle, ` THEME PICKER `.padEnd(width).substring(0, width));
+
+    for (let i = 1; i < height; i++) {
+      const themeIdx = i - 1 + this._themePickerScroll;
+      if (themeIdx >= names.length) break;
+
+      canvas.moveTo(startX, startY + i);
+      canvas.styleReset();
+      const name = names[themeIdx]!;
+      const isSelected = themeIdx === this._themePickerIndex;
+      const resolved = loadTheme(name);
+
+      if (isSelected) {
+        fgBg(canvas, themeColors.borderMuted, themeColors.canvasSubtle, " ");
+        if (resolved) {
+          fgBg(canvas, resolved.canvas, resolved.text, "█");
+          fgBg(canvas, resolved.text, resolved.canvas, "█");
+          fgBg(canvas, resolved.accent, resolved.canvas, "█");
+        }
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, ` ${name}`);
+        fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - 5 - name.length)));
+      } else {
+        if (resolved) {
+          fg(canvas, themeColors.borderMuted, " ");
+          fgBg(canvas, resolved.canvas, resolved.text, "█");
+          fgBg(canvas, resolved.text, resolved.canvas, "█");
+          fgBg(canvas, resolved.accent, resolved.canvas, "█");
+          fg(canvas, themeColors.textMuted, ` ${name}`);
+        } else {
+          fg(canvas, themeColors.textMuted, `     ${name}`);
+        }
+      }
+    }
+  }
+
   onFocus(): void {
     super.onFocus();
     this.clampSelection();
@@ -562,6 +740,9 @@ export class OptionsPanel extends Control {
     super.onBlur();
     if (this._edit) {
       this.cancelEdit();
+    }
+    if (this._themePickerMode) {
+      this.closeThemePicker(true);
     }
   }
 }

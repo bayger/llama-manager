@@ -180,4 +180,26 @@ export class FramebufferCanvas {
     this._fb.fillRect(toBuf(x), toBuf(y), w, h, defaultCell);
     return this;
   }
+
+  clearRect(x: number, y: number, w: number, h: number): this {
+    const buf = this._fb.front;
+    const sx = toBuf(this._clip ? Math.max(this._clip.x, x) : x);
+    const ex = toBuf(this._clip ? Math.min(this._clip.x + this._clip.width, x + w) : x + w);
+    const sy = toBuf(this._clip ? Math.max(this._clip.y, y) : y);
+    const ey = toBuf(this._clip ? Math.min(this._clip.y + this._clip.height, y + h) : y + h);
+
+    for (let row = sy; row < ey; row++) {
+      if (row < 0 || row >= this._fb.height) continue;
+      const line = buf[row]!;
+      for (let col = sx; col < ex; col++) {
+        if (col < 0 || col >= this._fb.width) continue;
+        const cell = line[col]!;
+        cell.ch = ' ';
+        cell.fg = this._fg;
+        cell.bg = this._bg;
+        cell.bold = false;
+      }
+    }
+    return this;
+  }
 }

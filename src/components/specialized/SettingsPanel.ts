@@ -140,6 +140,11 @@ export class SettingsPanel extends Control {
       return;
     }
 
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, startY, width, height);
+    canvas.moveTo(x, startY);
+
     for (let i = 0; i < height; i++) {
       const visualRow = i + this._scrollOffset;
       if (visualRow >= this._rows.length) break;
@@ -155,13 +160,6 @@ export class SettingsPanel extends Control {
       } else if (row.type === "field" && row.field) {
         this.renderField(canvas, row, isSelected, isEditing, width, presets);
       }
-    }
-
-    const lastVisualRow = Math.min(this._scrollOffset + height, this._rows.length);
-    for (let i = lastVisualRow - this._scrollOffset; i < height; i++) {
-      canvas.moveTo(x, startY + i);
-      canvas.styleReset();
-      fg(canvas, themeColors.canvas, " ".repeat(width));
     }
 
     if (this._edit) {
@@ -187,10 +185,9 @@ export class SettingsPanel extends Control {
 
     if (isSelected) {
       const padded = headerText.padEnd(width);
-      fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded);
     } else {
       fg(canvas, themeColors.accent, headerText);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - headerText.length)));
     }
     canvas.styleReset();
   }
@@ -201,36 +198,32 @@ export class SettingsPanel extends Control {
     const presetData = presets[cat.presetKey];
     const keyStr = ` ${field.key}`.padEnd(KEY_COL_WIDTH);
 
-    if (isEditing && this._edit) {
+   if (isEditing && this._edit) {
       const value = this._edit.text;
       fg(canvas, themeColors.warning, keyStr);
       fg(canvas, themeColors.selected, value);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - KEY_COL_WIDTH - value.length)));
-    } else {
-      const value = formatFieldValue(field, presetData?.[field.key]);
+  } else {
+        const value = formatFieldValue(field, presetData?.[field.key]);
 
-      let extra = "";
-      if (isSelected && field.type === "boolean") {
-        extra = " (toggle)";
-      } else if (isSelected && field.type === "enum" && field.options) {
-        extra = ` [${field.options.join(" | ")}]`;
+        let extra = "";
+        if (isSelected && field.type === "boolean") {
+          extra = " (toggle)";
+        } else if (isSelected && field.type === "enum" && field.options) {
+          extra = ` [${field.options.join(" | ")}]`;
+        }
+
+        const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
+        const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
+
+        if (isSelected) {
+          const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
+          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded.substring(0, width));
+        } else {
+          fg(canvas, themeColors.textMuted, keyStr);
+          fg(canvas, themeColors.text, value);
+          fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
+        }
       }
-
-      const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
-      const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
-
-      if (isSelected) {
-        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-        fgBg(canvas, themeColors.canvas, themeColors.accent, padded.substring(0, width));
-      } else {
-        fg(canvas, themeColors.textMuted, keyStr);
-        fg(canvas, themeColors.text, value);
-        fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
-      }
-
-      const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - drawn)));
-    }
     canvas.styleReset();
   }
 

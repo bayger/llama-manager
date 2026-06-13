@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors } from "../lib/theme.js";
+import { themeColors, setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme.js";
 import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
 import { focusManager } from "./ui/FocusManager.js";
@@ -30,6 +30,7 @@ export class App {
 
   async start(): Promise<void> {
     const config = await loadConfig();
+    setActiveTheme(config.themeName);
     taskStore.init(config);
 
     this._fb = new Framebuffer();
@@ -47,6 +48,7 @@ export class App {
       },
       showMessage: (msg: string) => this.showMessage(msg),
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
+      forceRender: () => this.forceRender(),
       getConfig: () => config,
       setConfig: (c: any) => { /* handled by config module */ },
       showCursor: () => {
@@ -74,6 +76,12 @@ export class App {
     focusManager.activateTextInput(focused);
   }
 
+  forceRender(): void {
+    if (this._main) {
+      this._main.markAllDirty();
+    }
+  }
+
   render(): void {
     const { term } = this;
     const fb = this._fb!;
@@ -92,7 +100,11 @@ export class App {
     }
 
     fb.swap();
-    fb.copyRegion(fb.back, 0, 0, width, height, 0, 0);
+    if (popThemeChanged()) {
+      fb.clearFront();
+    } else {
+      fb.copyRegion(fb.back, 0, 0, width, height, 0, 0);
+    }
 
     canvas.hideTerminalCursor();
 
@@ -163,29 +175,25 @@ export class App {
     const contentHeight = contentLines.length;
     const startY = overlayY + Math.max(1, Math.floor((overlayHeight - contentHeight) / 2));
 
-    for (let y = overlayY; y < height; y++) {
-      canvas.moveTo(1, y);
-      canvas.bgColorRgbHex(themeColors.canvasSubtle);
-      canvas.colorRgbHex(themeColors.canvasSubtle);
-      canvas.write(" ".repeat(width));
-      canvas.styleReset();
-    }
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.clearRect(1, overlayY, width, height - overlayY);
 
     for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
       const line = contentLines[i]!;
       const y = startY + i;
       canvas.moveTo(1, y);
-      canvas.bgColorRgbHex(themeColors.canvasSubtle);
 
-      if (line.isTitle || line.isHeader) {
-        canvas.colorRgbHex(themeColors.accent).write(line.text);
+      if (line.isTitle) {
+        fg(canvas, themeColors.accent, line.text);
+      } else if (line.isHeader) {
+        fg(canvas, themeColors.accentColor, line.text);
       } else if (line.key) {
-        canvas.colorRgbHex(themeColors.textLink).write(`    ${line.key}`);
-        canvas.colorRgbHex(themeColors.text).write(`     ${line.desc}`);
+        fg(canvas, themeColors.accent, `    ${line.key}`);
+        fg(canvas, themeColors.text, `     ${line.desc}`);
       } else {
-        canvas.colorRgbHex(themeColors.text).write(line.text);
+        fg(canvas, themeColors.canvasSubtle, line.text);
       }
-      canvas.styleReset();
     }
   }
 

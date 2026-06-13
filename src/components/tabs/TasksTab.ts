@@ -1,9 +1,9 @@
 import { Control } from "../ui/Control.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { Table } from "../ui/widgets/Table.js";
-import { themeColors, fg } from "../../lib/theme.js";
+import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { fireAsync } from "../../lib/utils.js";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
@@ -32,7 +32,7 @@ export class TasksControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
   protected _table: Table<TaskMetrics>;
-  protected _divider: Divider;
+  protected _divider: Spacer;
   protected _searchInput: TextInput;
   protected _slotInput: TextInput;
   protected _filterVisible = false;
@@ -46,12 +46,11 @@ export class TasksControl extends Control {
     this._ctx = ctx;
     this._table = new Table();
     this._table.showHeader = true;
-    this._table.headerHeight = 1;
     this._table.setOnHighlight(() => this.markDirty());
     this._table.setOnSelect(() => {
       fireAsync(async () => {}, ctx);
     });
-    this._divider = new Divider();
+    this._divider = new Spacer();
     this._searchInput = new TextInput();
     this._slotInput = new TextInput();
     this._searchInput.prefix = "ID: ";
@@ -184,6 +183,7 @@ export class TasksControl extends Control {
 
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
+    super.render(ctx);
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const tasks = this.filteredTasks;
@@ -193,17 +193,22 @@ export class TasksControl extends Control {
     canvas.styleReset();
 
     const filterIndicator = (this._searchValue !== "" || this._slotValue !== "") ? " [F]" : "";
-    const statsText = `Tasks: ${stats.count}  Prompt: ${stats.totalPromptTokens.toLocaleString()}  Output: ${stats.totalOutputTokens.toLocaleString()}  Total: ${stats.totalTokens.toLocaleString()}  Avg PP: ${stats.avgPromptSpeed.toFixed(1)}  Avg TG: ${stats.avgOutputSpeed.toFixed(1)}  Draft: ${(stats.avgDraftAcceptance * 100).toFixed(1)}%`;
-    fg(canvas, themeColors.text, statsText);
+    fg(canvas, themeColors.textMuted, "Tasks ");
+    fg(canvas, themeColors.accentColor, `${stats.count}`);
+    fg(canvas, themeColors.textMuted, "  Prompt ");
+    fg(canvas, themeColors.text, `${stats.totalPromptTokens.toLocaleString()}`);
+    fg(canvas, themeColors.textMuted, "  Output ");
+    fg(canvas, themeColors.text, `${stats.totalOutputTokens.toLocaleString()}`);
+    fg(canvas, themeColors.textMuted, "  Avg PP ");
+    fg(canvas, themeColors.accentColor, `${stats.avgPromptSpeed.toFixed(1)}`);
+    fg(canvas, themeColors.textMuted, "  Avg TG ");
+    fg(canvas, themeColors.accentColor, `${stats.avgOutputSpeed.toFixed(1)}`);
     if (filterIndicator) {
       fg(canvas, themeColors.warning, filterIndicator);
     }
-    fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - statsText.length - filterIndicator.length)));
 
-    super.render(ctx);
-
-    const listStartY = startY + (this._filterVisible ? 4 : 3);
-    const listHeight = height - (this._filterVisible ? 5 : 4);
+    const listStartY = startY + (this._filterVisible ? 3 : 2);
+    const listHeight = height - (this._filterVisible ? 4 : 3);
 
     if (width >= DETAILS_WIDTH + 26) {
       const dx = x + (this.rect.width >= DETAILS_WIDTH + 26 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
@@ -261,16 +266,14 @@ export class TasksControl extends Control {
       cols.push(col.align === "right" ? val.padStart(col.width) : val.padEnd(col.width));
     }
 
-    const row = " " + cols.join(" ");
+    const row = cols.join(" ");
 
     if (isSelected) {
-      const padded = row.padEnd(width);
-      canvas.colorRgbHex(themeColors.canvas).bgColorRgbHex(themeColors.accent);
-      canvas.write(padded);
+      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, row);
+      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - row.length)));
       canvas.styleReset();
     } else {
       fg(canvas, themeColors.text, row);
-      fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
     }
     canvas.styleReset();
   }
@@ -280,12 +283,15 @@ export class TasksControl extends Control {
     const { x, y, width, height } = rect;
     const selectedIndex = this._table.selectedIndex;
 
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.clearRect(x, y, width, height);
+    canvas.moveTo(x, y);
+
     if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {
-      canvas.moveTo(x, y);
-      fg(canvas, themeColors.textMuted, "No tasks");
-      for (let i = 1; i < height; i++) {
-        canvas.moveTo(x, y + i);
-        fg(canvas, themeColors.canvas, " ".repeat(width));
+      for (let i = 0; i < height; i++) {
+        canvas.moveTo(x + 1, y + i);
+        fg(canvas, themeColors.textMuted, "No tasks");
       }
       return;
     }
@@ -322,33 +328,29 @@ export class TasksControl extends Control {
       { label: "Truncated", value: task.truncated ? "Yes" : "No" },
     ];
 
+    const pad = 1;
+    const innerW = width - pad * 2;
+
     for (let i = 0; i < height; i++) {
-      canvas.moveTo(x, y + i);
-      canvas.styleReset();
+      canvas.moveTo(x + pad, y + i);
+      //canvas.styleReset();
 
       if (i < lines.length) {
         const line = lines[i]!;
         if (i === 0) {
-          const title = line.label.padEnd(width);
-          fg(canvas, themeColors.accent, title);
-        } else if (line.label === "") {
-          fg(canvas, themeColors.canvas, " ".repeat(width));
-        } else {
+          fg(canvas, themeColors.accentColor, line.label.padEnd(innerW));
+        } else if (line.label !== "") {
           const label = line.label + ":";
           let value = line.value;
           const labelWidth = 14;
           const formattedLabel = label.padEnd(labelWidth);
-          const valueWidth = width - labelWidth - 2;
+          const valueWidth = innerW - labelWidth - 2;
           if (value.length > valueWidth) {
             value = "…" + value.substring(value.length - (valueWidth - 1));
           }
-          const row = ` ${formattedLabel} ${value}`;
           fg(canvas, themeColors.textMuted, formattedLabel);
           fg(canvas, themeColors.text, " " + value);
-          fg(canvas, themeColors.textMuted, " ".repeat(Math.max(0, width - row.length)));
         }
-      } else {
-        fg(canvas, themeColors.canvas, " ".repeat(width));
       }
     }
   }

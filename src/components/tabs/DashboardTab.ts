@@ -1,7 +1,7 @@
 import { Control } from "../ui/Control.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
-import { Divider } from "../ui/widgets/Divider.js";
+import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
 import { themeColors, fg } from "../../lib/theme.js";
@@ -23,19 +23,15 @@ class StatusControl extends Control {
 
     const status = getStatus();
     const stateText = status.running ? "Running" : "Stopped";
-    const stateColor = status.running ? themeColors.success : themeColors.textMuted;
+    const fgColor = status.running ? themeColors.success : themeColors.danger;
 
-    fg(canvas, stateColor, ` ${stateText}`);
+    fg(canvas, themeColors.textMuted, "Status ");
+    fg(canvas, fgColor, `${status.running ? "\u25cf" : "\u25cb"} ${stateText}`);
 
     if (status.running && status.pid) {
-      fg(canvas, themeColors.text, `  PID: ${status.pid}`);
-      fg(canvas, themeColors.textMuted, `  Uptime: ${formatUptime(status.uptime)}`);
-    }
-
-    const endX = canvas.cursorX ?? this.rect.x;
-    const padLen = this.rect.width - (endX - this.rect.x);
-    if (padLen > 0) {
-      fg(canvas, themeColors.canvas, " ".repeat(padLen));
+      fg(canvas, themeColors.textMuted, "  ");
+      fg(canvas, themeColors.text, `PID ${status.pid}`);
+      fg(canvas, themeColors.textMuted, `  Uptime ${formatUptime(status.uptime)}`);
     }
 
     this.needsRender = false;
@@ -71,7 +67,7 @@ export class DashboardControl extends Control {
 
     const sep1 = new Label();
     sep1.text = "│";
-    sep1.color = themeColors.border;
+    sep1.color = themeColors.borderMuted;
     sep1.focusable = false;
     this._buttonRow.add(sep1);
 
@@ -85,20 +81,15 @@ export class DashboardControl extends Control {
       if (!profileLbl.visible || !profileLbl.needsRender) return;
       const canvas = ctx.canvas;
       canvas.moveTo(profileLbl.rect.x, profileLbl.rect.y);
-      fg(canvas, themeColors.textMuted, "Profile: ");
-      fg(canvas, themeColors.text, profileLbl.text);
-      const endX = canvas.cursorX ?? profileLbl.rect.x;
-      const padLen = profileLbl.rect.width - (endX - profileLbl.rect.x);
-      if (padLen > 0) {
-        fg(canvas, themeColors.canvas, " ".repeat(padLen));
-      }
+      fg(canvas, themeColors.textMuted, "Profile ");
+      fg(canvas, themeColors.accentColor, profileLbl.text);
       profileLbl.needsRender = false;
     };
     this._buttonRow.add(this._profileLabel);
 
     const sep2 = new Label();
     sep2.text = "│";
-    sep2.color = themeColors.border;
+    sep2.color = themeColors.borderMuted;
     sep2.focusable = false;
     this._buttonRow.add(sep2);
 
@@ -112,13 +103,8 @@ export class DashboardControl extends Control {
       if (!versionLbl.visible || !versionLbl.needsRender) return;
       const canvas = ctx.canvas;
       canvas.moveTo(versionLbl.rect.x, versionLbl.rect.y);
-      fg(canvas, themeColors.textMuted, "Version: ");
+      fg(canvas, themeColors.textMuted, "Version ");
       fg(canvas, themeColors.text, versionLbl.text);
-      const endX = canvas.cursorX ?? versionLbl.rect.x;
-      const padLen = versionLbl.rect.width - (endX - versionLbl.rect.x);
-      if (padLen > 0) {
-        fg(canvas, themeColors.canvas, " ".repeat(padLen));
-      }
       versionLbl.needsRender = false;
     };
     this._buttonRow.add(this._versionLabel);
@@ -131,9 +117,9 @@ export class DashboardControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._statusControl);
-    this._column.add(new Divider());
+    this._column.add(new Spacer());
     this._column.add(this._logsControl);
 
     this.add(this._column);
@@ -209,11 +195,13 @@ export class DashboardControl extends Control {
 
   render(ctx: RenderContext): void {
     this.updateProfileLabel();
+    this.updateButtons();
     super.render(ctx);
   }
 
   onFocus(): void {
     super.onFocus();
+    this.updateButtons();
     const firstEnabled = this._buttons.find(b => !b.disabled);
     if (firstEnabled) {
       firstEnabled.focus();
@@ -232,6 +220,13 @@ export class DashboardControl extends Control {
     } else {
       this._versionLabel.text = "";
     }
+  }
+
+  updateButtons(): void {
+    const status = getStatus();
+    this._buttons[0].disabled = status.running;
+    this._buttons[1].disabled = !status.running;
+    this._buttons[2].disabled = !status.running;
   }
 }
 
