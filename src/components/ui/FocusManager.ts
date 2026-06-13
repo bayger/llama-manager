@@ -132,10 +132,6 @@ export class FocusManager {
   handleKey(key: string): boolean {
     if (!this._root) return false;
 
-    if (this._textInputActive && this._focused) {
-      if (this._focused.handleKey(key)) return true;
-      return this._focused.handleChar(key) || this._root.handleKey(key);
-    }
     if (key === "TAB") {
       this.nextFocus();
       return true;
@@ -143,6 +139,15 @@ export class FocusManager {
     if (key === "SHIFT_TAB") {
       this.previousFocus();
       return true;
+    }
+
+    if (this._textInputActive && this._focused) {
+      if (this._focused.handleKey(key)) return true;
+      // Only pass printable single characters to handleChar
+      if (key.length === 1 && key >= " " && key <= "~") {
+        if (this._focused.handleChar(key)) return true;
+      }
+      return this._root.handleKey(key);
     }
     if (this._root.handleKey(key)) return true;
     if ((key === "UP" || key === "k") && this._focused) {

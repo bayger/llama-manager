@@ -88,6 +88,9 @@ export class TextInput extends Control {
   }
 
   handleKey(key: string): boolean {
+    if (key === "TAB") {
+      return false; // Let FocusManager handle focus navigation
+    }
     if (key === "RETURN" || key === "ENTER") {
       if (this._onSubmit) this._onSubmit(this.value);
       return true;
