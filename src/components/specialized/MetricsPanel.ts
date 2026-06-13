@@ -136,11 +136,6 @@ export class MetricsPanel extends Control {
       cy = this.renderSlot(canvas, x, cy, width, slot);
     }
 
-    if (slots.length > 0 && cy < y + this.rect.height) {
-      canvas.moveTo(x, cy);
-      fg(canvas, themeColors.canvas, " ".repeat(width));
-    }
-
     this.needsRender = false;
   }
 
