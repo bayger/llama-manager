@@ -19,6 +19,8 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _profileLabel: Label;
   protected _versionLabel: Label;
+  protected _metricsHeader: Label;
+  protected _logsHeader: Label;
   protected _metricsPanel: MetricsPanel;
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
@@ -89,11 +91,25 @@ export class DashboardControl extends Control {
     });
     this._logsControl.flex = 1;
 
+    this._metricsHeader = new Label();
+    this._metricsHeader.text = "▎Realtime Metrics";
+    this._metricsHeader.color = themeColors.accent;
+    this._metricsHeader.bold = true;
+    this._metricsHeader.measure = (parentSize) => ({ width: parentSize?.width ?? 80, height: 1 });
+
+    this._logsHeader = new Label();
+    this._logsHeader.text = "▎Live Logs";
+    this._logsHeader.color = themeColors.accent;
+    this._logsHeader.bold = true;
+    this._logsHeader.measure = (parentSize) => ({ width: parentSize?.width ?? 80, height: 1 });
+
     this._column = new Column();
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
+    this._column.add(this._metricsHeader);
     this._column.add(this._metricsPanel);
     this._column.add(new Spacer());
+    this._column.add(this._logsHeader);
     this._column.add(this._logsControl);
 
     this.add(this._column);
