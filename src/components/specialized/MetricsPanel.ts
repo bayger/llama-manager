@@ -1,6 +1,6 @@
 import { Control } from "../ui/Control.js";
 import { fg, themeColors } from "../../lib/theme.js";
-import { getGlobal, getSlots, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker.js";
+import { getGlobal, getSlots, getCache, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker.js";
 import { formatNum, formatDraftRate, formatMs } from "../../lib/utils.js";
 import type { RenderContext, Size } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
@@ -52,8 +52,9 @@ export class MetricsPanel extends Control {
   measure(parentSize?: Size): Size {
     const slots = getSlots();
     const global = getGlobal();
+    const cache = getCache();
     const numSlots = slots.length;
-    const globalLines = global ? 2 : 1;
+    const globalLines = global ? (cache ? 3 : 2) : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
     const slotLines = numSlots * 4;
     const gapBetweenSlots = Math.max(0, numSlots - 1);
@@ -103,6 +104,19 @@ export class MetricsPanel extends Control {
           fg(canvas, themeColors.textMuted, `  ${SEP}  Active `);
           fg(canvas, themeColors.warning, String(global.activeSlots));
         }
+        cy++;
+      }
+
+      const cache = getCache();
+      if (cache && cy < y + this.rect.height) {
+        const barWidth = Math.max(10, Math.min(30, width - 50));
+        const ratio = cache.limitMiB > 0 ? cache.usedMiB / cache.limitMiB : 0;
+        const bar = progressBar(barWidth, Math.min(1, ratio));
+        canvas.moveTo(x, cy);
+        fg(canvas, themeColors.textMuted, "  Cache ");
+        fg(canvas, ratio > 0.9 ? themeColors.danger : themeColors.accent, bar);
+        fg(canvas, themeColors.textMuted, `  ${cache.usedMiB.toFixed(1)} / ${cache.limitMiB.toFixed(0)} MiB`);
+        fg(canvas, themeColors.textMuted, `  ${SEP}  ${cache.numPrompts} prompts`);
         cy++;
       }
     } else {

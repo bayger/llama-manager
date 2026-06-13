@@ -37,6 +37,12 @@ export interface GlobalMetrics {
   activeSlots: number;
 }
 
+export interface CacheMetrics {
+  usedMiB: number;
+  limitMiB: number;
+  numPrompts: number;
+}
+
 const emitter = new EventEmitter();
 emitter.setMaxListeners(10);
 
@@ -47,6 +53,7 @@ export function onMetricsChange(listener: () => void): () => void {
 
 const slots = new Map<number, SlotMetrics>();
 const completedTasks: CompletedTask[] = [];
+let cacheMetrics: CacheMetrics | null = null;
 
 const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*processing task/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
@@ -57,6 +64,7 @@ const evalTimeRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*
 const totalTimeRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*total time\s*=\s*([\d.]+)\s*ms\s*\/\s*(\d+)\s*tokens/;
 const draftRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*draft acceptance\s*=\s*([\d.]+)\s*\(\s*(\d+)\s*accepted\s*\/\s*(\d+)\s*generated\)/;
 const releaseRegex = /slot\s+release: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*stop processing: n_tokens\s*=\s*(\d+),\s*truncated\s*=\s*(\d)/;
+const cacheStateRegex = /cache state:\s*(\d+)\s+prompts,\s*([\d.]+)\s+MiB\s*\(limits:\s*([\d.]+)\s+MiB/;
 
 const taskAccumulators = new Map<number, Partial<CompletedTask>>();
 
@@ -83,6 +91,16 @@ function notify() {
 
 export function processLine(line: string) {
   let m: RegExpMatchArray | null;
+
+  if ((m = line.match(cacheStateRegex))) {
+    cacheMetrics = {
+      numPrompts: parseInt(m[1]),
+      usedMiB: parseFloat(m[2]),
+      limitMiB: parseFloat(m[3]),
+    };
+    notify();
+    return;
+  }
 
   if ((m = line.match(launchRegex))) {
     const slotId = parseInt(m[1]);
@@ -217,6 +235,7 @@ export function reset() {
   slots.clear();
   completedTasks.length = 0;
   taskAccumulators.clear();
+  cacheMetrics = null;
   notify();
 }
 
@@ -256,4 +275,8 @@ export function getGlobal(): GlobalMetrics | null {
     avgDraftAcceptance: draftCount > 0 ? totalDraftAcceptance / draftCount : 0,
     activeSlots,
   };
+}
+
+export function getCache(): CacheMetrics | null {
+  return cacheMetrics;
 }
