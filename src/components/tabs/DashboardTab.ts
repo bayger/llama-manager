@@ -4,39 +4,13 @@ import { Button } from "../ui/widgets/Button.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
+import { MetricsPanel } from "../specialized/MetricsPanel.js";
 import { themeColors, fg } from "../../lib/theme.js";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server.js";
-import { fireAsync, formatUptime } from "../../lib/utils.js";
+import { fireAsync } from "../../lib/utils.js";
 import { BACKEND_LABELS } from "../../lib/versions.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size, RenderContext } from "../ui/types.js";
-
-class StatusControl extends Control {
-  measure(parentSize?: Size): Size {
-    return { width: parentSize?.width ?? this.rect.width, height: 1 };
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    const canvas = ctx.canvas;
-    canvas.moveTo(this.rect.x, this.rect.y);
-
-    const status = getStatus();
-    const stateText = status.running ? "Running" : "Stopped";
-    const fgColor = status.running ? themeColors.success : themeColors.danger;
-
-    fg(canvas, themeColors.textMuted, "Status ");
-    fg(canvas, fgColor, `${status.running ? "\u25cf" : "\u25cb"} ${stateText}`);
-
-    if (status.running && status.pid) {
-      fg(canvas, themeColors.textMuted, "  ");
-      fg(canvas, themeColors.text, `PID ${status.pid}`);
-      fg(canvas, themeColors.textMuted, `  Uptime ${formatUptime(status.uptime)}`);
-    }
-
-    this.needsRender = false;
-  }
-}
 
 export class DashboardControl extends Control {
   protected _ctx: TabContext | null = null;
@@ -45,7 +19,7 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _profileLabel: Label;
   protected _versionLabel: Label;
-  protected _statusControl: StatusControl;
+  protected _metricsPanel: MetricsPanel;
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
   protected _statusUnsub: (() => void) | null = null;
@@ -109,7 +83,7 @@ export class DashboardControl extends Control {
     };
     this._buttonRow.add(this._versionLabel);
 
-    this._statusControl = new StatusControl();
+    this._metricsPanel = new MetricsPanel();
     this._logsControl = new LogsViewer({
       getLines: () => serverLogLines,
     });
@@ -118,7 +92,7 @@ export class DashboardControl extends Control {
     this._column = new Column();
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
-    this._column.add(this._statusControl);
+    this._column.add(this._metricsPanel);
     this._column.add(new Spacer());
     this._column.add(this._logsControl);
 

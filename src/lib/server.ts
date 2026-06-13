@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs-extra";
 import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config.js";
 import { logParser } from "./logparser.js";
+import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker.js";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -108,6 +109,7 @@ export function startServer(config: ConfigData): Promise<number> {
             }
             logEmitter.emit("log", part);
             logParser.processLine(part);
+            processMetricLine(part);
           }
         }
       });
@@ -120,6 +122,9 @@ export function startServer(config: ConfigData): Promise<number> {
       const wasRunning = serverProcess !== null;
       serverProcess = null;
       serverStartTime = null;
+      if (wasRunning) {
+        resetMetrics();
+      }
       if (wasRunning) {
         statusEmitter.emit("change");
       }
