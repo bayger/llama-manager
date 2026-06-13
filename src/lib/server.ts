@@ -125,9 +125,6 @@ export function startServer(config: ConfigData): Promise<number> {
       if (wasRunning) {
         resetMetrics();
       }
-      if (wasRunning) {
-        statusEmitter.emit("change");
-      }
       if (wasRunning && code !== 0 && code !== null) {
         serverLogLines.push(`[server] Process exited with code ${code}`);
         logEmitter.emit("log", `[server] Process exited with code ${code}`);
@@ -135,6 +132,10 @@ export function startServer(config: ConfigData): Promise<number> {
       if (wasRunning && signal && signal !== "SIGTERM" && signal !== "SIGKILL") {
         serverLogLines.push(`[server] Process terminated by signal ${signal}`);
         logEmitter.emit("log", `[server] Process terminated by signal ${signal}`);
+      }
+      if (wasRunning) {
+        clearServerLogs();
+        statusEmitter.emit("change");
       }
     });
 

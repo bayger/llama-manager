@@ -5,6 +5,7 @@ import type { Size, RenderContext } from "../ui/types.js";
 
 export interface LogsViewerConfig {
   getLines: () => string[];
+  emptyMessage?: string;
 }
 
 export class LogsViewer extends Control {
@@ -39,9 +40,16 @@ export class LogsViewer extends Control {
     const startIdx = Math.max(0, totalLines - height);
     const visibleLines = lines.slice(startIdx);
 
-    for (let i = 0; i < height; i++) {
-      if (i < visibleLines.length) {
-        renderLogLine(canvas, x, y + i, width, visibleLines[i]!);
+    if (totalLines === 0 && this._config.emptyMessage) {
+      const midY = y + Math.floor(height / 2);
+      const pad = Math.max(0, Math.floor((width - this._config.emptyMessage.length) / 2));
+      canvas.moveTo(x + pad, midY);
+      fg(canvas, themeColors.textMuted, this._config.emptyMessage);
+    } else {
+      for (let i = 0; i < height; i++) {
+        if (i < visibleLines.length) {
+          renderLogLine(canvas, x, y + i, width, visibleLines[i]!);
+        }
       }
     }
 

@@ -88,6 +88,7 @@ export class DashboardControl extends Control {
     this._metricsPanel = new MetricsPanel();
     this._logsControl = new LogsViewer({
       getLines: () => serverLogLines,
+      emptyMessage: "Start the server to see logs",
     });
     this._logsControl.flex = 1;
 
