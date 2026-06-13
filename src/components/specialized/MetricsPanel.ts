@@ -170,8 +170,14 @@ export class MetricsPanel extends Control {
     }
     cy++;
 
-    // Compact idle slot with no tasks — stop here
-    if (!slot.lastTask) {
+    // Compact idle slot with no tasks and no live data — stop here
+    if (
+      !slot.lastTask &&
+      slot.generationSpeed === null &&
+      slot.promptSpeed === null &&
+      slot.contextSize === 0 &&
+      slot.checkpoints.length === 0
+    ) {
       return cy;
     }
 
@@ -198,8 +204,6 @@ export class MetricsPanel extends Control {
     }
     cy++;
 
-    const lt = slot.lastTask;
-
     // Line 3: Prompt progress bar or last task summary
     if (slot.promptProgress !== null && slot.state === "prompting") {
       const barWidth = Math.max(10, Math.min(40, width - 40));
@@ -209,29 +213,31 @@ export class MetricsPanel extends Control {
       fg(canvas, themeColors.accent, bar);
       fg(canvas, themeColors.textMuted, ` ${(slot.promptProgress * 100).toFixed(0)}%`);
       cy++;
-    } else {
+    } else if (slot.lastTask) {
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "  ");
       fg(canvas, themeColors.textMuted, "P ");
-      fg(canvas, themeColors.info, `${padLeft(lt.promptTokens, 5)}t @ ${lt.promptSpeed.toFixed(1)}t/s`);
+      fg(canvas, themeColors.info, `${padLeft(slot.lastTask.promptTokens, 5)}t @ ${slot.lastTask.promptSpeed.toFixed(1)}t/s`);
       fg(canvas, themeColors.textMuted, `  ${SEP}  G `);
-      fg(canvas, themeColors.success, `${padLeft(lt.outputTokens, 5)}t @ ${lt.outputSpeed.toFixed(1)}t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  ${formatMs(lt.totalTimeMs)}`);
+      fg(canvas, themeColors.success, `${padLeft(slot.lastTask.outputTokens, 5)}t @ ${slot.lastTask.outputSpeed.toFixed(1)}t/s`);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  ${formatMs(slot.lastTask.totalTimeMs)}`);
       cy++;
     }
 
-    // Line 4: Draft + truncation + thinking
-    canvas.moveTo(x, cy);
-    fg(canvas, themeColors.textMuted, "  ");
-    if (lt.draftGenerated > 0) {
-      fg(canvas, themeColors.textMuted, "Draft ");
-      fg(canvas, themeColors.accentColor, `${formatDraftRate(lt.draftAcceptance)} (${lt.draftAccepted}/${lt.draftGenerated})`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Truncated `);
-      fg(canvas, lt.truncated ? themeColors.danger : themeColors.success, lt.truncated ? "yes" : "no");
-    } else {
-      fg(canvas, themeColors.textMuted, "No speculative decoding");
+    // Line 4: Draft + truncation (last task data only)
+    if (slot.lastTask) {
+      canvas.moveTo(x, cy);
+      fg(canvas, themeColors.textMuted, "  ");
+      if (slot.lastTask.draftGenerated > 0) {
+        fg(canvas, themeColors.textMuted, "Draft ");
+        fg(canvas, themeColors.accentColor, `${formatDraftRate(slot.lastTask.draftAcceptance)} (${slot.lastTask.draftAccepted}/${slot.lastTask.draftGenerated})`);
+        fg(canvas, themeColors.textMuted, `  ${SEP}  Truncated `);
+        fg(canvas, slot.lastTask.truncated ? themeColors.danger : themeColors.success, slot.lastTask.truncated ? "yes" : "no");
+      } else {
+        fg(canvas, themeColors.textMuted, "No speculative decoding");
+      }
+      cy++;
     }
-    cy++;
 
     return cy;
   }
