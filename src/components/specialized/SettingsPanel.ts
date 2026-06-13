@@ -72,10 +72,15 @@ export class SettingsPanel extends Control {
   protected _collapsed = new Set<number>();
   protected _rows: RowInfo[] = [];
   protected _onMessage: ((msg: string) => void) | null = null;
+  protected _onEscape: (() => void) | null = null;
   protected _edit: EditState | null = null;
 
   setMessageCallback(cb: (msg: string) => void): void {
     this._onMessage = cb;
+  }
+
+  setOnEscape(cb: () => void): void {
+    this._onEscape = cb;
   }
 
   setConfig(config: ConfigData): void {
@@ -228,6 +233,13 @@ export class SettingsPanel extends Control {
   }
 
   handleKey(key: string): boolean {
+    if (key === "ESCAPE") {
+      if (this._edit) {
+        this.commitEdit();
+      }
+      this._onEscape?.();
+      return true;
+    }
     if (this._edit) {
       return this.handleEditKey(key);
     }

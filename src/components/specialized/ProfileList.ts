@@ -8,10 +8,15 @@ export class ProfileList extends Control {
   protected _config: ConfigData | null = null;
   protected _selectedIndex = 0;
   protected _onSelect: ((name: string) => void) | null = null;
+  protected _onEdit: (() => void) | null = null;
   protected _onCancel: (() => void) | null = null;
 
   setSelectCallback(cb: (name: string) => void): void {
     this._onSelect = cb;
+  }
+
+  setEditCallback(cb: () => void): void {
+    this._onEdit = cb;
   }
 
   setCancelCallback(cb: () => void): void {
@@ -107,6 +112,10 @@ export class ProfileList extends Control {
       return true;
     }
     if (key === "RETURN" || key === "ENTER") {
+      if (this._onEdit) this._onEdit();
+      return true;
+    }
+    if (key === "SPACE" || key === " ") {
       const name = names[this._selectedIndex];
       if (name && this._onSelect) {
         this._onSelect(name);
