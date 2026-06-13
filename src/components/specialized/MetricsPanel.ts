@@ -56,9 +56,8 @@ export class MetricsPanel extends Control {
     const globalLines = global ? 2 : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
     const slotLines = numSlots * 5;
-    const separatorLines = Math.max(0, numSlots - 1);
-    const gapAfterSeparators = Math.max(0, numSlots - 1);
-    const totalHeight = globalLines + gapAfterGlobal + slotLines + separatorLines + gapAfterSeparators;
+    const gapBetweenSlots = Math.max(0, numSlots - 1);
+    const totalHeight = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     return {
       width: parentSize?.width ?? this.rect.width,
       height: Math.min(totalHeight, parentSize?.height ?? 999),
@@ -128,13 +127,8 @@ export class MetricsPanel extends Control {
 
       if (i > 0 && cy < y + this.rect.height) {
         canvas.moveTo(x, cy);
-        fg(canvas, themeColors.borderMuted, "\u2500".repeat(width));
+        fg(canvas, themeColors.canvas, " ".repeat(width));
         cy++;
-        if (cy < y + this.rect.height) {
-          canvas.moveTo(x, cy);
-          fg(canvas, themeColors.canvas, " ".repeat(width));
-          cy++;
-        }
       }
 
       if (cy >= y + this.rect.height) break;
