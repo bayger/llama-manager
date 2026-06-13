@@ -85,16 +85,21 @@ class ChangelogView extends Scrollable {
     const { x, y, width, height } = this.rect;
 
     canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
 
-    for (let i = 0; i < this._viewportHeight; i++) {
-      const lineIdx = this.scrollOffset + i;
-      canvas.moveTo(x, y + i);
+    const pad = 1;
+
+    canvas.moveTo(x + pad, y);
+    fg(canvas, themeColors.accentColor, "Changelog".padEnd(width - pad * 2).substring(0, width - pad * 2));
+
+    for (let i = 2; i < height; i++) {
+      const lineIdx = i - 2 + this.scrollOffset;
+      canvas.moveTo(x + pad, y + i);
       if (lineIdx < this._lines.length) {
         const line = this._lines[lineIdx] || "";
-        const display = line.padEnd(width).substring(0, width);
+        const innerW = width - pad * 2;
+        const display = line.padEnd(innerW).substring(0, innerW);
         fg(canvas, themeColors.textMuted, display);
       }
     }

@@ -7,7 +7,7 @@ import type { Size, RenderContext } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 const KEY_COL_WIDTH = 22;
-const THEME_PICKER_WIDTH = 26;
+const THEME_PICKER_WIDTH = 30;
 
 export interface OptionFieldDef {
   key: string;
@@ -715,7 +715,7 @@ export class OptionsPanel extends Control {
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
         }
         fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` ${name}`);
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, " ".repeat(Math.max(0, width - 5 - name.length)));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, " ".repeat(Math.max(0, width - 6 - name.length))+"<");
       } else {
         if (resolved) {
           fgBg(canvas, themeColors.borderMuted, themeColors.canvasSubtle, " ");
