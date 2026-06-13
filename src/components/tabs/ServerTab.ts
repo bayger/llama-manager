@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { Control } from "../ui/Control.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
@@ -21,7 +22,7 @@ export class ServerControl extends Control {
   protected _settingsPanel: SettingsPanel;
   protected _profileList: ProfileList;
   protected _profileEdit: { text: string; cursor: number; mode: "create" | "rename" } | null = null;
-  protected _showingList = false;
+  protected _showingSettings = false;
 
   constructor(ctx: TabContext) {
     super();
@@ -30,7 +31,6 @@ export class ServerControl extends Control {
     this._profileLabel = new Label();
     this._profileLabel.text = "Loading...";
     this._profileLabel.color = themeColors.text;
-    this._profileLabel.focusable = true;
 
     this._buttonRow = new Row();
     this._buttons = [
@@ -44,17 +44,20 @@ export class ServerControl extends Control {
 
     this._settingsPanel = new SettingsPanel();
     this._settingsPanel.flex = 1;
+    this._settingsPanel.visible = false;
     this._settingsPanel.setMessageCallback((msg: string) => {
       this._ctx?.showMessage(msg);
+    });
+    this._settingsPanel.setOnEscape(() => {
+      this.showProfileList();
     });
 
     this._profileList = new ProfileList();
     this._profileList.flex = 1;
-    this._profileList.visible = false;
     this._profileList.setSelectCallback((name: string) => {
       this.switchProfile(name);
     });
-    this._profileList.setCancelCallback(() => {
+    this._profileList.setEditCallback(() => {
       this.showSettings();
     });
 
@@ -75,7 +78,6 @@ export class ServerControl extends Control {
 
   onInit(): void {
     if (!this._ctx) return;
-    const ctx = this._ctx;
 
     this._buttons[0]?.setAction(() => {
       this.startProfileEdit("create");
@@ -98,22 +100,11 @@ export class ServerControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    if (!this._profileEdit) {
-      if (this._showingList && this._profileList.visible) {
-        focusManager.setFocus(this._profileList);
-      } else {
-        const firstEnabled = this._buttons.find(b => !b.disabled);
-        if (firstEnabled) {
-          focusManager.setFocus(firstEnabled);
-        }
-      }
-    }
-  }
-
-  onBlur(): void {
-    super.onBlur();
-    if (this._profileEdit) {
-      this.cancelProfileEdit(false);
+    if (this._profileEdit) return;
+    if (this._showingSettings) {
+      focusManager.setFocus(this._settingsPanel);
+    } else {
+      focusManager.setFocus(this._profileList);
     }
   }
 
@@ -121,7 +112,8 @@ export class ServerControl extends Control {
     const config = this._ctx?.getConfig();
     if (!config) return;
 
-    this._profileLabel.text = `Profile: ${config.server.activeProfile}`;
+    const count = Object.keys(config.server.profiles).length;
+    this._profileLabel.text = `Profiles: ${count} | Current: ${config.server.activeProfile}`;
     this._settingsPanel.setConfig(config);
     this._profileList.setConfig(config);
     const isDefault = config.server.activeProfile === "Default";
@@ -131,7 +123,7 @@ export class ServerControl extends Control {
   }
 
   showProfileList(): void {
-    this._showingList = true;
+    this._showingSettings = false;
     this._settingsPanel.visible = false;
     this._profileList.visible = true;
     this._profileList.setConfig(this._ctx?.getConfig() || null);
@@ -140,13 +132,11 @@ export class ServerControl extends Control {
   }
 
   showSettings(): void {
-    this._showingList = false;
+    this._showingSettings = true;
     this._settingsPanel.visible = true;
     this._profileList.visible = false;
-    const firstEnabled = this._buttons.find(b => !b.disabled);
-    if (firstEnabled) {
-      focusManager.setFocus(firstEnabled);
-    }
+    this._settingsPanel.setConfig(this._ctx?.getConfig() || null);
+    focusManager.setFocus(this._settingsPanel);
     this.markDirty();
   }
 
@@ -163,7 +153,6 @@ export class ServerControl extends Control {
     }
 
     this.refreshConfig();
-    this.showSettings();
   }
 
   startProfileEdit(mode: "create" | "rename"): void {
@@ -281,13 +270,6 @@ export class ServerControl extends Control {
   handleKey(key: string): boolean {
     if (this._profileEdit) {
       return this.handleProfileEditKey(key);
-    }
-    if (focusManager.getFocused() === this._profileLabel) {
-      if (key === "RETURN" || key === "ENTER") {
-        this.showProfileList();
-        return true;
-      }
-      return false;
     }
     return super.handleKey(key);
   }
