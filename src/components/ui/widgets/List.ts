@@ -1,6 +1,6 @@
 import { Control } from "../Control.js";
 import { fg, fgBg, themeColors } from "../../../lib/theme.js";
-import type { Size, RenderContext } from "../types.js";
+import type { Point, Size, RenderContext } from "../types.js";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
 
 export interface ListItem<T = any> {
@@ -133,5 +133,17 @@ export class List<T = any> extends Control {
       return this.items[this.selectedIndex]!;
     }
     return null;
+  }
+
+  onMouseDown(point: Point): boolean {
+    if (this.items.length === 0) return false;
+    const row = point.y - this.rect.y;
+    if (row >= 0 && row < this.items.length) {
+      this.selectedIndex = row;
+      this._fireHighlight();
+      this.markDirty();
+      return true;
+    }
+    return false;
   }
 }
