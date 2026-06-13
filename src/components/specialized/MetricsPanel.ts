@@ -1,6 +1,6 @@
 import { Control } from "../ui/Control.js";
 import { fg, themeColors } from "../../lib/theme.js";
-import { getGlobal, getSlots, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker.js";
+import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker.js";
 import { formatNum, formatDraftRate, formatMs } from "../../lib/utils.js";
 import type { RenderContext, Size } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
@@ -26,12 +26,48 @@ function progressBar(width: number, progress: number): string {
   return "\u2588".repeat(filled) + "\u2591".repeat(empty);
 }
 
+function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
+  const segments = 10;
+  let bar = "";
+  for (let i = segments - 1; i >= 0; i--) {
+    const lo = (i / segments) * contextSize;
+    const hi = ((i + 1) / segments) * contextSize;
+    const hasCp = checkpoints.some(cp => cp.pos >= lo && cp.pos < hi);
+    bar += hasCp ? "\u2588" : "\u2591";
+  }
+  return bar;
+}
+
 function padLeft(n: number, w: number): string {
   return String(n).padStart(w);
 }
 
-function speedStr(speed: number): string {
-  return speed.toFixed(1).padStart(7);
+function slotHeight(s: SlotMetrics): number {
+  // Line 1: header (always)
+  let h = 1;
+  // Early return if truly idle (no lastTask, no live data)
+  if (
+    !s.lastTask &&
+    s.generationSpeed === null &&
+    s.promptSpeed === null &&
+    s.contextSize === 0 &&
+    s.checkpoints.length === 0
+  ) {
+    return h;
+  }
+  // Line 2: speed + context + checkpoints
+  h++;
+  // Line 3: prompt progress (if prompting) or last task summary
+  if (s.promptProgress !== null && s.state === "prompting") {
+    h++;
+  } else if (s.lastTask) {
+    h++;
+  }
+  // Line 4: draft + truncation (only with lastTask)
+  if (s.lastTask) {
+    h++;
+  }
+  return h;
 }
 
 export class MetricsPanel extends Control {
@@ -55,7 +91,7 @@ export class MetricsPanel extends Control {
     const numSlots = slots.length;
     const globalLines = global ? 2 : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
-    const slotLines = numSlots * 4;
+    const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
     const gapBetweenSlots = Math.max(0, numSlots - 1);
     const totalHeight = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     return {
@@ -88,16 +124,19 @@ export class MetricsPanel extends Control {
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "Tasks ");
       fg(canvas, themeColors.accent, String(global.tasksCompleted));
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Avg prompt `);
-      fg(canvas, themeColors.info, speedStr(global.avgPromptSpeed));
-      fg(canvas, themeColors.textMuted, ` t/s  ${SEP}  Avg gen `);
-      fg(canvas, themeColors.success, speedStr(global.avgGenSpeed));
-      fg(canvas, themeColors.textMuted, " t/s");
+      fg(canvas, themeColors.textMuted, `  ${SEP}  PP `);
+      fg(canvas, themeColors.info, `${global.avgPromptSpeed.toFixed(1)} t/s`);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
+      fg(canvas, themeColors.success, `${global.avgGenSpeed.toFixed(1)} t/s`);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  Tokens `);
+      fg(canvas, themeColors.info, `${formatNum(global.totalPromptTokens)}p`);
+      fg(canvas, themeColors.textMuted, " / ");
+      fg(canvas, themeColors.success, `${formatNum(global.totalOutputTokens)}o`);
       cy++;
 
       if (cy < y + this.rect.height) {
         canvas.moveTo(x, cy);
-        fg(canvas, themeColors.textMuted, `  Tokens  ${formatNum(global.totalPromptTokens)}p / ${formatNum(global.totalOutputTokens)}o  ${SEP}  Draft `);
+        fg(canvas, themeColors.textMuted, "  Draft ");
         fg(canvas, themeColors.accentColor, formatDraftRate(global.avgDraftAcceptance));
         if (global.activeSlots > 0) {
           fg(canvas, themeColors.textMuted, `  ${SEP}  Active `);
@@ -116,14 +155,9 @@ export class MetricsPanel extends Control {
       return;
     }
 
+    cy += 1; // gap after global metrics
     for (let i = 0; i < numSlots; i++) {
       const slot = slots[i];
-
-      if (i === 0 && cy < y + this.rect.height) {
-        canvas.moveTo(x, cy);
-        fg(canvas, themeColors.canvas, " ".repeat(width));
-        cy++;
-      }
 
       if (i > 0 && cy < y + this.rect.height) {
         canvas.moveTo(x, cy);
@@ -150,90 +184,85 @@ export class MetricsPanel extends Control {
     const stateColor = STATE_COLOR[slot.state as keyof typeof STATE_COLOR] || themeColors.textMuted;
     const dot = STATE_DOT[slot.state as keyof typeof STATE_DOT] || "\u25cb";
 
-    // Line 1: Slot N  ● State  Task #N  Draft: X%  [thinking]
-    if (cy < startY + 5) {
-      canvas.moveTo(x, cy);
-      fg(canvas, themeColors.textMuted, `Slot ${slot.slotId}  `);
-      fg(canvas, stateColor, `${dot} ${slot.state}`);
-      if (slot.taskId !== null) {
-        fg(canvas, themeColors.textMuted, `  Task #`);
-        fg(canvas, themeColors.text, String(slot.taskId));
-      }
-      if (slot.lastTask && slot.lastTask.draftGenerated > 0) {
-        fg(canvas, themeColors.textMuted, `  ${SEP}  Draft `);
-        fg(canvas, themeColors.accentColor, formatDraftRate(slot.lastTask.draftAcceptance));
-      }
-      if (slot.thinking) {
-        fg(canvas, themeColors.accentColor, `  ${THINKING_ICON}`);
-      }
-      cy++;
+    // Line 1: Slot N  ● State  Task #N  ∞
+    canvas.moveTo(x, cy);
+    fg(canvas, themeColors.textMuted, `Slot ${slot.slotId}  `);
+    fg(canvas, stateColor, `${dot} ${slot.state}`);
+    if (slot.taskId !== null) {
+      fg(canvas, themeColors.textMuted, `  Task #`);
+      fg(canvas, themeColors.text, String(slot.taskId));
+    }
+    if (slot.thinking) {
+      fg(canvas, themeColors.accentColor, `  ${THINKING_ICON}`);
+    }
+    cy++;
+
+    // Compact idle slot with no tasks and no live data — stop here
+    if (
+      !slot.lastTask &&
+      slot.generationSpeed === null &&
+      slot.promptSpeed === null &&
+      slot.contextSize === 0 &&
+      slot.checkpoints.length === 0
+    ) {
+      return cy;
     }
 
-    // Line 2: Live speed + context
-    if (cy < startY + 5) {
+    // Line 2: Live speed + context + checkpoints
+    canvas.moveTo(x, cy);
+    fg(canvas, themeColors.textMuted, "  ");
+    if (slot.generationSpeed !== null) {
+      fg(canvas, themeColors.textMuted, "TG ");
+      fg(canvas, themeColors.success, `${slot.generationSpeed.toFixed(1)} t/s`);
+    } else if (slot.promptSpeed !== null && slot.state === "prompting") {
+      fg(canvas, themeColors.textMuted, "PP ");
+      fg(canvas, themeColors.info, `${slot.promptSpeed.toFixed(0)} t/s`);
+    } else {
+      fg(canvas, themeColors.textMuted, "...");
+    }
+    fg(canvas, themeColors.textMuted, `  ${SEP}  Context `);
+    fg(canvas, themeColors.text, `${formatNum(slot.contextSize)} tok`);
+    if (slot.checkpoints.length > 0) {
+      const bar = checkpointBar(slot.contextSize, slot.checkpoints);
+      const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  Chk: `);
+      fg(canvas, themeColors.accent, bar);
+      fg(canvas, themeColors.textMuted, `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
+    }
+    cy++;
+
+    // Line 3: Prompt progress bar or last task summary
+    if (slot.promptProgress !== null && slot.state === "prompting") {
+      const barWidth = Math.max(10, Math.min(40, width - 40));
+      const bar = progressBar(barWidth, Math.min(1, slot.promptProgress));
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "  ");
-      if (slot.generationSpeed !== null) {
-        fg(canvas, themeColors.textMuted, "Gen ");
-        fg(canvas, themeColors.success, `${slot.generationSpeed.toFixed(1)} t/s`);
-      } else if (slot.promptSpeed !== null && slot.state === "prompting") {
-        fg(canvas, themeColors.textMuted, "Prompt ");
-        fg(canvas, themeColors.info, `${slot.promptSpeed.toFixed(0)} t/s`);
-      } else {
-        fg(canvas, themeColors.textMuted, "...");
-      }
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Context `);
-      fg(canvas, themeColors.text, `${formatNum(slot.contextSize)} tok`);
+      fg(canvas, themeColors.accent, bar);
+      fg(canvas, themeColors.textMuted, ` ${(slot.promptProgress * 100).toFixed(0)}%`);
       cy++;
-    }
-
-    // Line 3: Progress bar (if prompting) or last task summary
-    if (cy < startY + 5) {
-      canvas.moveTo(x, cy);
-      if (slot.promptProgress !== null && slot.state === "prompting") {
-        const barWidth = Math.max(10, Math.min(40, width - 40));
-        const bar = progressBar(barWidth, Math.min(1, slot.promptProgress));
-        fg(canvas, themeColors.textMuted, "  ");
-        fg(canvas, themeColors.accent, bar);
-        fg(canvas, themeColors.textMuted, ` ${(slot.promptProgress * 100).toFixed(0)}%`);
-      } else if (slot.lastTask) {
-        const lt = slot.lastTask;
-        fg(canvas, themeColors.textMuted, "  Last: ");
-        fg(canvas, themeColors.info, `${padLeft(lt.promptTokens, 5)}p`);
-        fg(canvas, themeColors.textMuted, " / ");
-        fg(canvas, themeColors.success, `${padLeft(lt.outputTokens, 5)}o`);
-        fg(canvas, themeColors.textMuted, "  ");
-        fg(canvas, themeColors.info, `${speedStr(lt.promptSpeed)}p`);
-        fg(canvas, themeColors.textMuted, "/");
-        fg(canvas, themeColors.success, `${speedStr(lt.outputSpeed)}o`);
-        fg(canvas, themeColors.textMuted, `  ${SEP}  ${formatMs(lt.totalTimeMs)}`);
-        if (lt.draftGenerated > 0) {
-          fg(canvas, themeColors.textMuted, "  ");
-          fg(canvas, themeColors.accentColor, `${lt.draftAccepted}/${lt.draftGenerated}d`);
-        }
-      } else {
-        fg(canvas, themeColors.textMuted, "  No completed tasks");
-      }
-      cy++;
-    }
-
-    // Line 4-5: Additional context for last task or draft details
-    if (cy < startY + 5 && slot.lastTask) {
-      const lt = slot.lastTask;
+    } else if (slot.lastTask) {
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "  ");
-      if (lt.draftGenerated > 0) {
-        fg(canvas, themeColors.textMuted, "Draft rate ");
-        fg(canvas, themeColors.accentColor, formatDraftRate(lt.draftAcceptance));
+      fg(canvas, themeColors.textMuted, "PP ");
+      fg(canvas, themeColors.info, `${padLeft(slot.lastTask.promptTokens, 5)}t @ ${slot.lastTask.promptSpeed.toFixed(1)}t/s`);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
+      fg(canvas, themeColors.success, `${padLeft(slot.lastTask.outputTokens, 5)}t @ ${slot.lastTask.outputSpeed.toFixed(1)}t/s`);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  ${formatMs(slot.lastTask.totalTimeMs)}`);
+      cy++;
+    }
+
+    // Line 4: Draft + truncation (last task data only)
+    if (slot.lastTask) {
+      canvas.moveTo(x, cy);
+      fg(canvas, themeColors.textMuted, "  ");
+      if (slot.lastTask.draftGenerated > 0) {
+        fg(canvas, themeColors.textMuted, "Draft ");
+        fg(canvas, themeColors.accentColor, `${formatDraftRate(slot.lastTask.draftAcceptance)} (${slot.lastTask.draftAccepted}/${slot.lastTask.draftGenerated})`);
         fg(canvas, themeColors.textMuted, `  ${SEP}  Truncated `);
-        fg(canvas, lt.truncated ? themeColors.danger : themeColors.success, lt.truncated ? "yes" : "no");
+        fg(canvas, slot.lastTask.truncated ? themeColors.danger : themeColors.success, slot.lastTask.truncated ? "yes" : "no");
       } else {
         fg(canvas, themeColors.textMuted, "No speculative decoding");
       }
-      cy++;
-    }
-
-    if (cy < startY + 5) {
       cy++;
     }
 
