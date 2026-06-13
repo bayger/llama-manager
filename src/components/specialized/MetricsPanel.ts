@@ -1,6 +1,6 @@
 import { Control } from "../ui/Control.js";
 import { fg, themeColors } from "../../lib/theme.js";
-import { getGlobal, getSlots, getCache, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker.js";
+import { getGlobal, getSlots, getCache, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker.js";
 import { formatNum, formatDraftRate, formatMs } from "../../lib/utils.js";
 import type { RenderContext, Size } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
@@ -24,6 +24,18 @@ function progressBar(width: number, progress: number): string {
   const filled = Math.round(progress * width);
   const empty = width - filled;
   return "\u2588".repeat(filled) + "\u2591".repeat(empty);
+}
+
+function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
+  const segments = 10;
+  let bar = "";
+  for (let i = 0; i < segments; i++) {
+    const lo = (i / segments) * contextSize;
+    const hi = ((i + 1) / segments) * contextSize;
+    const hasCp = checkpoints.some(cp => cp.pos >= lo && cp.pos < hi);
+    bar += hasCp ? "\u2588" : "\u2591";
+  }
+  return bar;
 }
 
 function padLeft(n: number, w: number): string {
@@ -198,6 +210,13 @@ export class MetricsPanel extends Control {
       }
       fg(canvas, themeColors.textMuted, `  ${SEP}  Context `);
       fg(canvas, themeColors.text, `${formatNum(slot.contextSize)} tok`);
+      if (slot.checkpoints.length > 0) {
+        const bar = checkpointBar(slot.contextSize, slot.checkpoints);
+        const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
+        fg(canvas, themeColors.textMuted, `  ${SEP}  Chk: `);
+        fg(canvas, themeColors.accent, bar);
+        fg(canvas, themeColors.textMuted, `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
+      }
       cy++;
     }
 
