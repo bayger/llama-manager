@@ -161,7 +161,7 @@ class TabBar extends Control {
     canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.clearRect(x, y, width, 2);
     canvas.moveTo(x, y);
-
+    fg(canvas, themeColors.text, " ");
     let pos = 0;
     let activeStart = 0;
     let activeEnd = 0;
@@ -185,7 +185,7 @@ class TabBar extends Control {
 
     canvas.moveTo(x, y + 1);
     for (let i = 0; i < width; i++) {
-      if (i >= activeStart && i < activeEnd) {
+      if (i >= activeStart + 1 && i < activeEnd + 1) {
         fg(canvas, themeColors.accent, "\u2501");
       } else {
         fg(canvas, themeColors.borderMuted, "\u2501");
@@ -300,7 +300,7 @@ class StatusBar extends Control {
     canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
-
+    fg(canvas, themeColors.text, " ");
     if (this._message) {
       const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
       fg(canvas, isError ? themeColors.danger : themeColors.success, this._message);

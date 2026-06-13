@@ -142,6 +142,9 @@ export class TasksControl extends Control {
       data: t,
     }));
     this._table.contentHeight = tasks.length;
+    if (tasks.length > 0 && this._table.selectedIndex < 0) {
+      this._table.selectedIndex = 0;
+    }
     this.updateColumns();
 
     const renderTaskRow: TableRenderer<TaskMetrics> = (canvas, item, _index, isSelected, _x, _y, _width, columns) => {
@@ -289,10 +292,8 @@ export class TasksControl extends Control {
     canvas.moveTo(x, y);
 
     if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {
-      for (let i = 0; i < height; i++) {
-        canvas.moveTo(x + 1, y + i);
-        fg(canvas, themeColors.textMuted, "No tasks");
-      }
+      canvas.moveTo(x + 1, y);
+      fg(canvas, themeColors.textMuted, "No tasks");
       return;
     }
 
