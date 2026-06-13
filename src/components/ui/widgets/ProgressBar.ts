@@ -2,7 +2,7 @@ import { Control } from "../Control.js";
 import { fg, themeColors } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
-const SPINNER_FRAMES = ["\u240b", "\u2413", "\u2419", "\u2418", "\u243c", "\u2434", "\u2426", "\u2427", "\u2407", "\u240f"];
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠇"];
 
 export class ProgressBar extends Control {
   focusable = false;
