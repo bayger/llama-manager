@@ -247,7 +247,8 @@ class TabContent extends Control {
 
     const control = this.getActiveControl();
     if (control) {
-      control.layout({ x, y, width, height });
+      const pad = 1;
+      control.layout({ x: x + pad, y: y + pad, width: Math.max(0, width - pad * 2), height: Math.max(0, height - pad * 2) });
       control.render(ctx);
     }
 

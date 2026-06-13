@@ -183,6 +183,7 @@ export class TasksControl extends Control {
 
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
+    super.render(ctx);
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const tasks = this.filteredTasks;
@@ -206,10 +207,8 @@ export class TasksControl extends Control {
       fg(canvas, themeColors.warning, filterIndicator);
     }
 
-    super.render(ctx);
-
-    const listStartY = startY + (this._filterVisible ? 4 : 3);
-    const listHeight = height - (this._filterVisible ? 5 : 4);
+    const listStartY = startY + (this._filterVisible ? 3 : 2);
+    const listHeight = height - (this._filterVisible ? 4 : 3);
 
     if (width >= DETAILS_WIDTH + 26) {
       const dx = x + (this.rect.width >= DETAILS_WIDTH + 26 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
@@ -291,7 +290,7 @@ export class TasksControl extends Control {
 
     if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {
       for (let i = 0; i < height; i++) {
-        canvas.moveTo(x, y + i);
+        canvas.moveTo(x + 1, y + i);
         fg(canvas, themeColors.textMuted, "No tasks");
       }
       return;
@@ -329,20 +328,23 @@ export class TasksControl extends Control {
       { label: "Truncated", value: task.truncated ? "Yes" : "No" },
     ];
 
+    const pad = 1;
+    const innerW = width - pad * 2;
+
     for (let i = 0; i < height; i++) {
-      canvas.moveTo(x, y + i);
-      canvas.styleReset();
+      canvas.moveTo(x + pad, y + i);
+      //canvas.styleReset();
 
       if (i < lines.length) {
         const line = lines[i]!;
         if (i === 0) {
-          fg(canvas, themeColors.accentColor, line.label.padEnd(width));
+          fg(canvas, themeColors.accentColor, line.label.padEnd(innerW));
         } else if (line.label !== "") {
           const label = line.label + ":";
           let value = line.value;
           const labelWidth = 14;
           const formattedLabel = label.padEnd(labelWidth);
-          const valueWidth = width - labelWidth - 2;
+          const valueWidth = innerW - labelWidth - 2;
           if (value.length > valueWidth) {
             value = "…" + value.substring(value.length - (valueWidth - 1));
           }
