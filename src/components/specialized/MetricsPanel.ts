@@ -55,7 +55,7 @@ export class MetricsPanel extends Control {
     const numSlots = slots.length;
     const globalLines = global ? 2 : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
-    const slotLines = numSlots * 5;
+    const slotLines = numSlots * 4;
     const gapBetweenSlots = Math.max(0, numSlots - 1);
     const totalHeight = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     return {
