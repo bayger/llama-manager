@@ -29,7 +29,7 @@ function progressBar(width: number, progress: number): string {
 function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
   const segments = 10;
   let bar = "";
-  for (let i = 0; i < segments; i++) {
+  for (let i = segments - 1; i >= 0; i--) {
     const lo = (i / segments) * contextSize;
     const hi = ((i + 1) / segments) * contextSize;
     const hasCp = checkpoints.some(cp => cp.pos >= lo && cp.pos < hi);
