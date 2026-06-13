@@ -128,6 +128,7 @@ export class MetricsPanel extends Control {
       return;
     }
 
+    cy += 1; // gap after global metrics
     for (let i = 0; i < numSlots; i++) {
       const slot = slots[i];
 
