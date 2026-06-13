@@ -708,17 +708,17 @@ export class OptionsPanel extends Control {
       const resolved = loadTheme(name);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.borderMuted, themeColors.canvasSubtle, " ");
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ">");
         if (resolved) {
           fgBg(canvas, resolved.canvas, resolved.text, "█");
           fgBg(canvas, resolved.text, resolved.canvas, "█");
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
         }
-        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, ` ${name}`);
-        fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - 5 - name.length)));
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` ${name}`);
+        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, " ".repeat(Math.max(0, width - 5 - name.length)));
       } else {
         if (resolved) {
-          fg(canvas, themeColors.borderMuted, " ");
+          fgBg(canvas, themeColors.borderMuted, themeColors.canvasSubtle, " ");
           fgBg(canvas, resolved.canvas, resolved.text, "█");
           fgBg(canvas, resolved.text, resolved.canvas, "█");
           fgBg(canvas, resolved.accent, resolved.canvas, "█");
