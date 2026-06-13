@@ -1,6 +1,7 @@
 import { Control } from "./ui/Control.js";
 import { Column } from "./ui/Layout.js";
-import { fg, fgBg, themeColors } from "../lib/theme.js";
+import { HalfBar } from "./ui/widgets/HalfBar.js";
+import { fg, themeColors } from "../lib/theme.js";
 import type { Point, Rect, RenderContext, Size } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
 
@@ -149,33 +150,6 @@ export class MainControl extends Column {
 
   render(ctx: RenderContext): void {
     super.render(ctx);
-  }
-}
-
-class HalfBar extends Control {
-  focusable = false;
-  mode: 'top' | 'bottom' = 'top';
-
-  measure(_parentSize?: Size): Size {
-    return { width: this.rect.width || 80, height: 1 };
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    const canvas = ctx.canvas;
-    const { x, y, width } = this.rect;
-
-    const topColor = this.mode === 'top' ? themeColors.canvasSubtle : themeColors.canvas;
-    const bottomColor = this.mode === 'top' ? themeColors.canvas : themeColors.canvasSubtle;
-
-    canvas.colorRgbHex(topColor);
-    canvas.bgColorRgbHex(bottomColor);
-    canvas.moveTo(x, y);
-    for (let i = 0; i < width; i++) {
-      fgBg(canvas, topColor, bottomColor, "\u2584");
-    }
-
-    this.needsRender = false;
   }
 }
 
