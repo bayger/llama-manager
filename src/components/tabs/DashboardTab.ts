@@ -91,6 +91,7 @@ export class DashboardControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
+    this._column.add(new Spacer());
     this._column.add(this._metricsPanel);
     this._column.add(new Spacer());
     this._column.add(this._logsControl);

@@ -54,9 +54,11 @@ export class MetricsPanel extends Control {
     const global = getGlobal();
     const numSlots = slots.length || 1;
     const globalLines = global ? 2 : 1;
+    const gapAfterGlobal = slots.length > 0 ? 1 : 0;
     const slotLines = numSlots * 5;
     const separatorLines = Math.max(0, numSlots - 1);
-    const totalHeight = globalLines + slotLines + separatorLines;
+    const gapAfterSeparators = Math.max(0, numSlots - 1);
+    const totalHeight = globalLines + gapAfterGlobal + slotLines + separatorLines + gapAfterSeparators;
     return {
       width: parentSize?.width ?? this.rect.width,
       height: Math.min(totalHeight, parentSize?.height ?? 999),
@@ -118,10 +120,21 @@ export class MetricsPanel extends Control {
     for (let i = 0; i < numSlots; i++) {
       const slot = slots[i] ?? null;
 
+      if (i === 0 && slots.length > 0 && cy < y + this.rect.height) {
+        canvas.moveTo(x, cy);
+        fg(canvas, themeColors.canvas, " ".repeat(width));
+        cy++;
+      }
+
       if (i > 0 && cy < y + this.rect.height) {
         canvas.moveTo(x, cy);
         fg(canvas, themeColors.borderMuted, "\u2500".repeat(width));
         cy++;
+        if (cy < y + this.rect.height) {
+          canvas.moveTo(x, cy);
+          fg(canvas, themeColors.canvas, " ".repeat(width));
+          cy++;
+        }
       }
 
       if (cy >= y + this.rect.height) break;
@@ -133,6 +146,11 @@ export class MetricsPanel extends Control {
         fg(canvas, themeColors.textMuted, `Slot ${i} — not initialized`);
         cy += 5;
       }
+    }
+
+    if (slots.length > 0 && cy < y + this.rect.height) {
+      canvas.moveTo(x, cy);
+      fg(canvas, themeColors.canvas, " ".repeat(width));
     }
 
     this.needsRender = false;
