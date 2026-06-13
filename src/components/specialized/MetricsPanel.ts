@@ -42,6 +42,34 @@ function padLeft(n: number, w: number): string {
   return String(n).padStart(w);
 }
 
+function slotHeight(s: SlotMetrics): number {
+  // Line 1: header (always)
+  let h = 1;
+  // Early return if truly idle (no lastTask, no live data)
+  if (
+    !s.lastTask &&
+    s.generationSpeed === null &&
+    s.promptSpeed === null &&
+    s.contextSize === 0 &&
+    s.checkpoints.length === 0
+  ) {
+    return h;
+  }
+  // Line 2: speed + context + checkpoints
+  h++;
+  // Line 3: prompt progress (if prompting) or last task summary
+  if (s.promptProgress !== null && s.state === "prompting") {
+    h++;
+  } else if (s.lastTask) {
+    h++;
+  }
+  // Line 4: draft + truncation (only with lastTask)
+  if (s.lastTask) {
+    h++;
+  }
+  return h;
+}
+
 export class MetricsPanel extends Control {
   focusable = false;
   protected _unsub: (() => void) | null = null;
@@ -63,8 +91,7 @@ export class MetricsPanel extends Control {
     const numSlots = slots.length;
     const globalLines = global ? 2 : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
-    // Each slot is 4 lines. Idle slots with no tasks are 1 line.
-    const slotLines = slots.reduce((sum, s) => sum + (s.lastTask ? 4 : 1), 0);
+    const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
     const gapBetweenSlots = Math.max(0, numSlots - 1);
     const totalHeight = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     return {
@@ -97,9 +124,9 @@ export class MetricsPanel extends Control {
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "Tasks ");
       fg(canvas, themeColors.accent, String(global.tasksCompleted));
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Prompt `);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  PP `);
       fg(canvas, themeColors.info, `${global.avgPromptSpeed.toFixed(1)} t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Gen `);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
       fg(canvas, themeColors.success, `${global.avgGenSpeed.toFixed(1)} t/s`);
       fg(canvas, themeColors.textMuted, `  ${SEP}  Tokens `);
       fg(canvas, themeColors.info, `${formatNum(global.totalPromptTokens)}p`);
@@ -185,10 +212,10 @@ export class MetricsPanel extends Control {
     canvas.moveTo(x, cy);
     fg(canvas, themeColors.textMuted, "  ");
     if (slot.generationSpeed !== null) {
-      fg(canvas, themeColors.textMuted, "Gen ");
+      fg(canvas, themeColors.textMuted, "TG ");
       fg(canvas, themeColors.success, `${slot.generationSpeed.toFixed(1)} t/s`);
     } else if (slot.promptSpeed !== null && slot.state === "prompting") {
-      fg(canvas, themeColors.textMuted, "Prompt ");
+      fg(canvas, themeColors.textMuted, "PP ");
       fg(canvas, themeColors.info, `${slot.promptSpeed.toFixed(0)} t/s`);
     } else {
       fg(canvas, themeColors.textMuted, "...");
@@ -216,9 +243,9 @@ export class MetricsPanel extends Control {
     } else if (slot.lastTask) {
       canvas.moveTo(x, cy);
       fg(canvas, themeColors.textMuted, "  ");
-      fg(canvas, themeColors.textMuted, "P ");
+      fg(canvas, themeColors.textMuted, "PP ");
       fg(canvas, themeColors.info, `${padLeft(slot.lastTask.promptTokens, 5)}t @ ${slot.lastTask.promptSpeed.toFixed(1)}t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  G `);
+      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
       fg(canvas, themeColors.success, `${padLeft(slot.lastTask.outputTokens, 5)}t @ ${slot.lastTask.outputSpeed.toFixed(1)}t/s`);
       fg(canvas, themeColors.textMuted, `  ${SEP}  ${formatMs(slot.lastTask.totalTimeMs)}`);
       cy++;
