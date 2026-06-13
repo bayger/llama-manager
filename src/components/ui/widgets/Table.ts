@@ -231,7 +231,7 @@ export class Table<T = any> extends Control {
       return vc.col.align === "right" ? label.padStart(vc.width) : label.padEnd(vc.width);
     });
 
-    const row = " " + parts.join(" ");
+    const row = parts.join(" ");
 
     fg(canvas, themeColors.accent, row);
   }
