@@ -181,6 +181,9 @@ export class Control {
   onMouseDown(_point: Point): boolean {
     return false;
   }
+  onMouseUp(_point: Point): boolean {
+    return false;
+  }
   onLayout(): void {
     for (const child of this.children) {
       if (child.visible) {

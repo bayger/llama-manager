@@ -1,7 +1,7 @@
 import { Control } from "../ui/Control.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { ConfigData } from "../../lib/config.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import type { Point, Size, RenderContext } from "../ui/types.js";
 
 export class ProfileList extends Control {
   focusable = true;
@@ -128,5 +128,18 @@ export class ProfileList extends Control {
   onBlur(): void {
     super.onBlur();
     this.markDirty();
+  }
+
+  onMouseDown(point: Point): boolean {
+    if (!this._config) return false;
+    const names = Object.keys(this._config.server.profiles);
+    if (names.length === 0) return false;
+    const row = point.y - this.rect.y;
+    if (row >= 0 && row < names.length) {
+      this._selectedIndex = row;
+      this.markDirty();
+      return true;
+    }
+    return false;
   }
 }

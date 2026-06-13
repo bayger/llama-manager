@@ -9,7 +9,7 @@ import {
   ServerPresets,
   saveConfig,
 } from "../../lib/config.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import type { Point, Size, RenderContext } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 const KEY_COL_WIDTH = 18;
@@ -517,5 +517,19 @@ export class SettingsPanel extends Control {
       focusManager.activateTextInput(false);
       this.markDirty();
     }
+  }
+
+  onMouseDown(point: Point): boolean {
+    if (this._rows.length === 0) return false;
+    const row = point.y - this.rect.y;
+    if (row < 0) return false;
+    const visualRow = row + this._scrollOffset;
+    if (visualRow >= 0 && visualRow < this._rows.length) {
+      this._selectedIndex = visualRow;
+      this.clampSelection();
+      this.markDirty();
+      return true;
+    }
+    return false;
   }
 }

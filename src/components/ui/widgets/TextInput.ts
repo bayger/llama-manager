@@ -1,7 +1,7 @@
 import { Control } from "../Control.js";
 import { fg, fgBg, themeColors } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
-import type { Size, RenderContext } from "../types.js";
+import type { Point, Size, RenderContext } from "../types.js";
 
 export class TextInput extends Control {
   focusable = true;
@@ -144,6 +144,21 @@ export class TextInput extends Control {
       return true;
     }
     return false;
+  }
+
+  onMouseDown(point: Point): boolean {
+    const { x, y } = this.rect;
+    if (point.x < x || point.x >= x + this.rect.width || point.y !== y) return false;
+
+    // Layout: left border (1) + prefix + value + right border (1)
+    const offsetX = point.x - x;
+    if (offsetX === 0) {
+      this.cursorPos = 0;
+    } else {
+      this.cursorPos = Math.min(this.value.length, Math.max(0, offsetX - 1 - this.prefix.length));
+    }
+    this.markDirty();
+    return true;
   }
 
   handleChar(char: string): boolean {

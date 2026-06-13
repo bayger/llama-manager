@@ -20,7 +20,7 @@ export class App {
   private _main: MainControl | null = null;
   private _ctx: TabContext | null = null;
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
-  private mouseHandler: ((data: any) => void) | null = null;
+  private mouseHandler: ((action: string, data: any) => void) | null = null;
   private resizeHandler: (() => void) | null = null;
   private _renderInterval: ReturnType<typeof setInterval> | null = null;
   private _firstRender = true;
@@ -224,12 +224,13 @@ export class App {
 
     this.term.on("key", this.keyHandler);
 
-    this.mouseHandler = (data: any) => {
-      const nx = (data as any).nx;
-      const ny = (data as any).ny;
-      const button = (data as any).button;
-      if (button === 0 && typeof nx === "number" && typeof ny === "number") {
-        focusManager.handleMouse({ x: nx + 1, y: ny + 1 });
+    this.mouseHandler = (action: string, data: any) => {
+      if (typeof data?.x !== "number" || typeof data?.y !== "number") return;
+      const point = { x: data.x, y: data.y };
+      if (action === "MOUSE_LEFT_BUTTON_PRESSED") {
+        focusManager.handleMouseDown(point);
+      } else if (action === "MOUSE_LEFT_BUTTON_RELEASED") {
+        focusManager.handleMouseUp(point);
       }
     };
     (this.term as any).on("mouse", this.mouseHandler);

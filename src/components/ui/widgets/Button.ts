@@ -1,7 +1,7 @@
 import { Control } from "../Control.js";
 import { fg, fgBg, themeColors } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
-import type { Size, RenderContext } from "../types.js";
+import type { Point, Size, RenderContext } from "../types.js";
 
 export interface ButtonConfig {
   label: string;
@@ -13,6 +13,7 @@ export class Button extends Control {
   focusable = true;
   public label = "";
   protected _action: (() => void) | null = null;
+  protected _pressed = false;
 
   get disabled(): boolean {
     return !this.enabled;
@@ -101,5 +102,18 @@ export class Button extends Control {
 
   setAction(action: () => void): void {
     this._action = action;
+  }
+
+  onMouseDown(_point: Point): boolean {
+    this._pressed = true;
+    return true;
+  }
+
+  onMouseUp(_point: Point): boolean {
+    if (this._pressed && !this.disabled && this._action) {
+      this._action();
+    }
+    this._pressed = false;
+    return true;
   }
 }

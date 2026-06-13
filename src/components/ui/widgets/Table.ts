@@ -1,6 +1,6 @@
 import { Control } from "../Control.js";
 import { fg, fgBg, themeColors } from "../../../lib/theme.js";
-import type { Size, RenderContext } from "../types.js";
+import type { Point, Size, RenderContext } from "../types.js";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
 
 export interface TableColumn {
@@ -353,6 +353,23 @@ export class Table<T = any> extends Control {
       this.markDirty();
     }
     this.clampScroll();
+  }
+
+  onMouseDown(point: Point): boolean {
+    if (this.items.length === 0) return false;
+    const hasHeader = this.showHeader && this.columns.length > 0;
+    const bodyStartY = this.rect.y + (hasHeader ? this.headerHeight : 0);
+    const row = point.y - bodyStartY;
+    if (row >= 0 && row < this._viewportHeight) {
+      const itemIndex = row + this.scrollOffset;
+      if (itemIndex >= 0 && itemIndex < this.items.length) {
+        this.selectedIndex = itemIndex;
+        this._fireHighlight();
+        this.markDirty();
+        return true;
+      }
+    }
+    return false;
   }
 
  }
