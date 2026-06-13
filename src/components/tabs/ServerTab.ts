@@ -4,24 +4,28 @@ import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
+import { TextInput } from "../ui/widgets/TextInput.js";
 import { SettingsPanel } from "../specialized/SettingsPanel.js";
 import { ProfileList } from "../specialized/ProfileList.js";
-import { themeColors, fg } from "../../lib/theme.js";
+import { themeColors } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { ConfigData, saveConfig } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import type { Size } from "../ui/types.js";
 
 export class ServerControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _profileLabel: Label;
+  protected _editRow: Row;
+  protected _editLabel: Label;
+  protected _editInput: TextInput;
   protected _buttonRow: Row;
   protected _buttons: Button[];
   protected _settingsPanel: SettingsPanel;
   protected _profileList: ProfileList;
-  protected _profileEdit: { text: string; cursor: number; mode: "create" | "rename" } | null = null;
+  protected _editMode: "create" | "rename" | null = null;
   protected _showingSettings = false;
 
   constructor(ctx: TabContext) {
@@ -31,6 +35,19 @@ export class ServerControl extends Control {
     this._profileLabel = new Label();
     this._profileLabel.text = "Loading...";
     this._profileLabel.color = themeColors.text;
+
+    this._editLabel = new Label();
+    this._editLabel.color = themeColors.warning;
+
+    this._editInput = new TextInput();
+    this._editInput.placeholder = "Profile name";
+    this._editInput.setOnSubmit((value: string) => this.commitProfileEdit(value));
+    this._editInput.setOnCancel(() => this.cancelProfileEdit());
+
+    this._editRow = new Row();
+    this._editRow.add(this._editLabel);
+    this._editRow.add(this._editInput);
+    this._editRow.visible = false;
 
     this._buttonRow = new Row();
     this._buttons = [
@@ -63,6 +80,7 @@ export class ServerControl extends Control {
 
     this._column = new Column();
     this._column.add(this._profileLabel);
+    this._column.add(this._editRow);
     this._column.add(new Spacer());
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
@@ -100,7 +118,7 @@ export class ServerControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    if (this._profileEdit) return;
+    if (this._editMode) return;
     if (this._showingSettings) {
       focusManager.setFocus(this._settingsPanel);
     } else {
@@ -164,37 +182,33 @@ export class ServerControl extends Control {
       return;
     }
 
+    this._editMode = mode;
+    this._editLabel.text = mode === "create" ? "Create: " : "Rename: ";
     this._profileLabel.visible = false;
-    this._profileEdit = {
-      text: mode === "create" ? "" : config.server.activeProfile,
-      cursor: mode === "create" ? 0 : config.server.activeProfile.length,
-      mode,
-    };
-    focusManager.setFocus(this);
-    focusManager.activateTextInput(true);
+    this._editRow.visible = true;
+    this._editInput.value = mode === "create" ? "" : config.server.activeProfile;
+    this._editInput.cursorPos = mode === "create" ? 0 : config.server.activeProfile.length;
+    focusManager.setFocus(this._editInput);
     this.markDirty();
   }
 
-  cancelProfileEdit(restoreFocus: boolean = true): void {
-    this._profileEdit = null;
+  cancelProfileEdit(): void {
+    this._editMode = null;
+    this._editRow.visible = false;
     this._profileLabel.visible = true;
     this.refreshConfig();
-    focusManager.activateTextInput(false);
-    if (restoreFocus) {
-      const firstEnabled = this._buttons.find(b => !b.disabled);
-      if (firstEnabled) {
-        focusManager.setFocus(firstEnabled);
-      }
+    const firstEnabled = this._buttons.find(b => !b.disabled);
+    if (firstEnabled) {
+      focusManager.setFocus(firstEnabled);
     }
     this.markDirty();
   }
 
-  commitProfileEdit(): void {
-    if (!this._profileEdit) return;
+  commitProfileEdit(name: string): void {
     const config = this._ctx?.getConfig();
-    if (!config) return;
+    if (!config || !this._editMode) return;
 
-    const name = this._profileEdit.text.trim();
+    name = name.trim();
     if (!name) {
       this._ctx?.showMessage("Profile name cannot be empty");
       this.cancelProfileEdit();
@@ -211,7 +225,7 @@ export class ServerControl extends Control {
       return;
     }
 
-    if (this._profileEdit.mode === "create") {
+    if (this._editMode === "create") {
       const current = config.server.profiles[config.server.activeProfile];
       if (!current) {
         this.cancelProfileEdit();
@@ -232,7 +246,7 @@ export class ServerControl extends Control {
 
     try {
       saveConfig(config);
-      this._ctx?.showMessage(`${this._profileEdit.mode === "create" ? "Created" : "Renamed"} profile: ${name}`);
+      this._ctx?.showMessage(`${this._editMode === "create" ? "Created" : "Renamed"} profile: ${name}`);
     } catch (e) {
       this._ctx?.showMessage(`Error saving: ${e}`);
     }
@@ -267,98 +281,6 @@ export class ServerControl extends Control {
     }
 
     this.refreshConfig();
-  }
-
-  handleKey(key: string): boolean {
-    if (this._profileEdit) {
-      return this.handleProfileEditKey(key);
-    }
-    return super.handleKey(key);
-  }
-
-  handleProfileEditKey(key: string): boolean {
-    if (!this._profileEdit) return false;
-
-    if (key === "ESCAPE") {
-      this.cancelProfileEdit();
-      return true;
-    }
-    if (key === "RETURN" || key === "ENTER") {
-      this.commitProfileEdit();
-      return true;
-    }
-    if (key === "LEFT" || key === "CTRL_A" || key === "HOME") {
-      if (key === "LEFT") {
-        this._profileEdit.cursor = Math.max(0, this._profileEdit.cursor - 1);
-      } else {
-        this._profileEdit.cursor = 0;
-      }
-      this.markDirty();
-      return true;
-    }
-    if (key === "RIGHT" || key === "CTRL_E" || key === "END") {
-      if (key === "RIGHT") {
-        this._profileEdit.cursor = Math.min(this._profileEdit.text.length, this._profileEdit.cursor + 1);
-      } else {
-        this._profileEdit.cursor = this._profileEdit.text.length;
-      }
-      this.markDirty();
-      return true;
-    }
-    if (key === "BACKSPACE" || key === "CTRL_H" || key === "\u007f") {
-      if (this._profileEdit.cursor > 0) {
-        this._profileEdit.text = this._profileEdit.text.slice(0, this._profileEdit.cursor - 1) + this._profileEdit.text.slice(this._profileEdit.cursor);
-        this._profileEdit.cursor--;
-      }
-      this.markDirty();
-      return true;
-    }
-    if (key === "DELETE" || key === "CTRL_D") {
-      if (this._profileEdit.cursor < this._profileEdit.text.length) {
-        this._profileEdit.text = this._profileEdit.text.slice(0, this._profileEdit.cursor) + this._profileEdit.text.slice(this._profileEdit.cursor + 1);
-      }
-      this.markDirty();
-      return true;
-    }
-    if (key === "CTRL_W") {
-      const before = this._profileEdit.text.slice(0, this._profileEdit.cursor);
-      const match = before.match(/\S+\s*$/);
-      const newCursor = match ? this._profileEdit.cursor - match[0].length : 0;
-      this._profileEdit.text = this._profileEdit.text.slice(0, newCursor) + this._profileEdit.text.slice(this._profileEdit.cursor);
-      this._profileEdit.cursor = newCursor;
-      this.markDirty();
-      return true;
-    }
-    return false;
-  }
-
-  handleChar(char: string): boolean {
-    if (!this._profileEdit) return false;
-    if (char.length !== 1) return false;
-
-    this._profileEdit.text = this._profileEdit.text.slice(0, this._profileEdit.cursor) + char + this._profileEdit.text.slice(this._profileEdit.cursor);
-    this._profileEdit.cursor++;
-    this.markDirty();
-    return true;
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
-
-    if (this._profileEdit) {
-      const canvas = ctx.canvas;
-      const labelRect = this._profileLabel.rect;
-      const prefix = this._profileEdit.mode === "create" ? "Create: " : "Rename: ";
-      canvas.moveTo(labelRect.x, labelRect.y);
-      canvas.styleReset();
-      fg(canvas, themeColors.warning, prefix);
-      fg(canvas, themeColors.selected, this._profileEdit.text);
-      const drawn = labelRect.x + prefix.length + this._profileEdit.text.length;
-      canvas.moveTo(drawn, labelRect.y);
-    }
-
-    this.needsRender = false;
   }
 }
 
