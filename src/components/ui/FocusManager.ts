@@ -110,12 +110,22 @@ export class FocusManager {
     this._textInputActive = false;
   }
 
-  handleMouse(point: Point): boolean {
+  handleMouseDown(point: Point): boolean {
     if (!this._root) return false;
     const target = this._root.hitTest(point);
     if (!target) return false;
-    this.setFocus(target);
+    if (target.focusable) {
+      this.setFocus(target);
+    }
     target.onMouseDown(point);
+    return true;
+  }
+
+  handleMouseUp(point: Point): boolean {
+    if (!this._root) return false;
+    const target = this._root.hitTest(point);
+    if (!target) return false;
+    target.onMouseUp(point);
     return true;
   }
 

@@ -225,8 +225,12 @@ export class App {
     this.term.on("key", this.keyHandler);
 
     this.mouseHandler = (action: string, data: any) => {
-      if (action === "MOUSE_LEFT_BUTTON_PRESSED" && typeof data?.x === "number" && typeof data?.y === "number") {
-        focusManager.handleMouse({ x: data.x, y: data.y });
+      if (typeof data?.x !== "number" || typeof data?.y !== "number") return;
+      const point = { x: data.x, y: data.y };
+      if (action === "MOUSE_LEFT_BUTTON_PRESSED") {
+        focusManager.handleMouseDown(point);
+      } else if (action === "MOUSE_LEFT_BUTTON_RELEASED") {
+        focusManager.handleMouseUp(point);
       }
     };
     (this.term as any).on("mouse", this.mouseHandler);

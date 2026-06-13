@@ -1,7 +1,7 @@
 import { Control } from "./ui/Control.js";
 import { Column } from "./ui/Layout.js";
 import { fg, themeColors } from "../lib/theme.js";
-import type { Rect, RenderContext, Size } from "./ui/types.js";
+import type { Point, Rect, RenderContext, Size } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
 
 import { createServerTab } from "./tabs/ServerTab.js";
@@ -29,7 +29,9 @@ export class MainControl extends Column {
   ) {
     super();
 
-    this._tabBar = new TabBar();
+    this._tabBar = new TabBar((index) => {
+      this.setActiveTab(TABS[index]);
+    });
     this._tabContent = new TabContent(_ctx);
     this._statusBar = new StatusBar();
 
@@ -142,6 +144,13 @@ export class MainControl extends Column {
 class TabBar extends Control {
   focusable = false;
   protected _selectedIndex = 0;
+  protected _tabRects: { start: number; end: number }[] = [];
+  protected _onTabClick: ((index: number) => void) | null = null;
+
+  constructor(onTabClick?: (index: number) => void) {
+    super();
+    this._onTabClick = onTabClick || null;
+  }
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 80, height: 2 };
@@ -162,11 +171,13 @@ class TabBar extends Control {
     canvas.clearRect(x, y, width, 2);
     canvas.moveTo(x, y);
     fg(canvas, themeColors.text, " ");
+    this._tabRects = [];
     let pos = 0;
     let activeStart = 0;
     let activeEnd = 0;
     for (let i = 0; i < TABS.length; i++) {
       const labelLen = `F${i + 1} ${TABS[i]}`.length;
+      this._tabRects.push({ start: pos, end: pos + labelLen });
       if (i === this._selectedIndex) {
         fg(canvas, themeColors.textMuted, `F${i + 1}`);
         fg(canvas, themeColors.accent, ` ${TABS[i]}`);
@@ -193,6 +204,19 @@ class TabBar extends Control {
     }
 
     this.needsRender = false;
+  }
+
+  onMouseDown(point: Point): boolean {
+    if (point.y !== this.rect.y) return false;
+    const offset = point.x - this.rect.x - 1;
+    for (let i = 0; i < this._tabRects.length; i++) {
+      const rect = this._tabRects[i]!;
+      if (offset >= rect.start && offset < rect.end) {
+        this._onTabClick?.(i);
+        return true;
+      }
+    }
+    return false;
   }
 }
 
