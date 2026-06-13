@@ -164,6 +164,7 @@ export class ServerControl extends Control {
       return;
     }
 
+    this._profileLabel.visible = false;
     this._profileEdit = {
       text: mode === "create" ? "" : config.server.activeProfile,
       cursor: mode === "create" ? 0 : config.server.activeProfile.length,
@@ -176,6 +177,8 @@ export class ServerControl extends Control {
 
   cancelProfileEdit(restoreFocus: boolean = true): void {
     this._profileEdit = null;
+    this._profileLabel.visible = true;
+    this.refreshConfig();
     focusManager.activateTextInput(false);
     if (restoreFocus) {
       const firstEnabled = this._buttons.find(b => !b.disabled);
@@ -235,7 +238,6 @@ export class ServerControl extends Control {
     }
 
     this.cancelProfileEdit();
-    this.refreshConfig();
   }
 
   deleteProfile(): void {
