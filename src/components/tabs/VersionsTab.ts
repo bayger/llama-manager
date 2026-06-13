@@ -29,30 +29,6 @@ import type { Size, RenderContext } from "../ui/types.js";
 
 type ViewMode = "local" | "releases" | "backends" | "installing";
 
-class VersionsHeader extends Control {
-  protected _text = "";
-
-  measure(parentSize?: Size): Size {
-    return { width: parentSize?.width ?? this.rect.width, height: 1 };
-  }
-
-  update(text: string): void {
-    this._text = text;
-    this.markDirty();
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    const canvas = ctx.canvas;
-    const { x, y } = this.rect;
-
-    canvas.moveTo(x, y);
-    fg(canvas, themeColors.text, this._text);
-
-    this.needsRender = false;
-  }
-}
-
 class ChangelogView extends Scrollable {
   protected _lines: string[] = [];
 
@@ -111,9 +87,7 @@ class ChangelogView extends Scrollable {
 export class VersionsControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
-  protected _header: VersionsHeader;
   protected _dividerButtons: Spacer;
-  protected _prompt: VersionsHeader;
   protected _buttonRow: Row;
   protected _btnInstall: Button;
   protected _btnDelete: Button;
@@ -125,13 +99,16 @@ export class VersionsControl extends Control {
   protected _mode: ViewMode = "local";
   protected _selectedRelease: RemoteVersion | null = null;
   protected _availableBackends: AvailableBackend[] = [];
+  protected _headerLabel = "";
+  protected _headerCount = 0;
+  protected _headerSubText = "";
+  protected _headerInfoText = "";
+  protected _promptText = "";
+  protected _promptVisible = false;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
-
-    this._header = new VersionsHeader();
-    this._header.update("Versions: 0  Size: 0 B");
 
     this._list = new List();
     this._list.tabIndex = 0;
@@ -152,8 +129,6 @@ export class VersionsControl extends Control {
     this._progressBar.labelColor = themeColors.textMuted;
 
     this._dividerButtons = new Spacer();
-    this._prompt = new VersionsHeader();
-    this._prompt.visible = false;
 
     this._contentRow = new Row();
     this._contentRow.add(this._list);
@@ -162,10 +137,10 @@ export class VersionsControl extends Control {
     this._changelog.flex = 1;
 
     this._column = new Column();
-    this._column.add(this._header);
+    this._column.add(new Spacer());
     this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
-    this._column.add(this._prompt);
+    this._column.add(new Spacer());
     this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
@@ -248,7 +223,7 @@ export class VersionsControl extends Control {
     this._mode = "local";
     this._dividerButtons.visible = true;
     this._buttonRow.visible = true;
-    this._prompt.visible = false;
+    this._promptVisible = false;
     this._changelog.visible = false;
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
@@ -272,15 +247,15 @@ export class VersionsControl extends Control {
     this._mode = "releases";
     this._dividerButtons.visible = true;
     this._buttonRow.visible = false;
-    this._prompt.visible = true;
-    this._prompt.update("Select version");
+    this._promptVisible = true;
+    this._promptText = "Select version";
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
     this._changelog.visible = true;
     this._list.selectedIndex = -1;
     this._list.items = [];
-    this._header.update("GitHub Releases (press g for local)");
+    this._headerInfoText = "GitHub Releases (press g for local)";
     this.markDirty();
 
     try {
@@ -301,7 +276,9 @@ export class VersionsControl extends Control {
         }
       });
       this._list.updateItems(items);
-      this._header.update(`Releases: ${items.length}  (press g for local)`);
+      this._headerLabel = "Releases";
+      this._headerCount = items.length;
+      this._headerInfoText = "(press g for local)";
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
@@ -317,8 +294,8 @@ export class VersionsControl extends Control {
     this._mode = "backends";
     this._dividerButtons.visible = true;
     this._buttonRow.visible = false;
-    this._prompt.visible = true;
-    this._prompt.update("Select backend");
+    this._promptVisible = true;
+    this._promptText = "Select backend";
     this._changelog.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
@@ -347,7 +324,7 @@ export class VersionsControl extends Control {
 
       this._list.setRenderer(this._backendRenderer.bind(this));
       this._list.updateItems(items);
-      this._header.update(`Backends for ${release.tag}  (press g for releases)`);
+      this._headerInfoText = `Backends for ${release.tag}  (press g for releases)`;
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
@@ -366,7 +343,7 @@ export class VersionsControl extends Control {
     this._mode = "installing";
     this._dividerButtons.visible = false;
     this._buttonRow.visible = false;
-    this._prompt.visible = false;
+    this._promptVisible = false;
     this._changelog.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
@@ -375,7 +352,7 @@ export class VersionsControl extends Control {
     this._progressBar.progress = 0;
     this._progressBar.label = "Preparing...";
     this._progressBar.extraLabel = "";
-    this._header.update(`Installing ${this._selectedRelease.tag} (${backendId})`);
+    this._headerInfoText = `Installing ${this._selectedRelease.tag} (${backendId})`;
     this.markDirty();
 
     try {
@@ -409,7 +386,9 @@ export class VersionsControl extends Control {
       const versions = await listVersions(config);
       const totalSize = await getTotalVersionsSize(config);
 
-      this._header.update(`Versions: ${versions.length}  Size: ${formatSize(totalSize)}`);
+      this._headerLabel = "Versions";
+      this._headerCount = versions.length;
+      this._headerSubText = formatSize(totalSize);
 
       const items: ListItem<any>[] = versions.map(v => ({
         id: v.version,
@@ -475,6 +454,41 @@ export class VersionsControl extends Control {
       canvas.moveTo(_x, rowY);
       fg(canvas, themeColors.text, line);
     }
+  }
+
+  render(ctx: RenderContext): void {
+    if (!this.visible || !this.needsRender) return;
+    super.render(ctx);
+    const canvas = ctx.canvas;
+    const { x, y: startY } = this.rect;
+
+    canvas.moveTo(x, startY);
+    canvas.styleReset();
+
+    if (this._mode === "local") {
+      fg(canvas, themeColors.textMuted, "Versions ");
+      fg(canvas, themeColors.accentColor, `${this._headerCount}`);
+      if (this._headerSubText) {
+        fg(canvas, themeColors.textMuted, "  Size ");
+        fg(canvas, themeColors.text, this._headerSubText);
+      }
+    } else if (this._headerLabel) {
+      fg(canvas, themeColors.textMuted, this._headerLabel);
+      fg(canvas, themeColors.accentColor, ` ${this._headerCount}`);
+      if (this._headerInfoText) {
+        fg(canvas, themeColors.textMuted, `  ${this._headerInfoText}`);
+      }
+    } else {
+      fg(canvas, themeColors.textMuted, this._headerInfoText);
+    }
+
+    if (this._promptVisible) {
+      const promptY = startY + 2;
+      canvas.moveTo(x, promptY);
+      fg(canvas, themeColors.warning, this._promptText);
+    }
+
+    this.needsRender = false;
   }
 }
 

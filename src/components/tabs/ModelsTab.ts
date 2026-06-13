@@ -3,7 +3,6 @@ import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
-import { Label } from "../ui/widgets/Label.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
@@ -22,7 +21,7 @@ import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf.js
 import { saveConfig } from "../../lib/config.js";
 import { fireAsync } from "../../lib/utils.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 
 type ViewMode = "local" | "search" | "results" | "files" | "downloading";
 
@@ -34,15 +33,15 @@ export class ModelsControl extends Control {
 
   // Local models
   protected _column: Column;
-  protected _headerLabel: Label;
   protected _buttonRow: Row;
   protected _browseBtn: Button;
   protected _removeBtn: Button;
   protected _modelList: List<string>;
+  protected _modelCount = 0;
+  protected _modelSize = "0 B";
 
   // HF Browser
   protected _hfColumn: Column;
-  protected _hfHeaderLabel: Label;
   protected _hfSearchRow: Row;
   protected _hfSearchInput: TextInput;
   protected _hfSearchBtn: Button;
@@ -56,6 +55,7 @@ export class ModelsControl extends Control {
   protected _hfPrevBtn: Button;
   protected _hfNextBtn: Button;
   protected _hfCancelBtn: Button;
+  protected _hfHeaderText = "HuggingFace Browser";
 
   // HF Browser state
   protected _searchQuery = "";
@@ -73,10 +73,6 @@ export class ModelsControl extends Control {
     this._ctx = ctx;
 
     // --- Local models view ---
-    this._headerLabel = new Label();
-    this._headerLabel.text = "Models: 0  Size: 0 B";
-    this._headerLabel.color = themeColors.text;
-
     this._browseBtn = new Button({ label: "Browse HF" });
     this._removeBtn = new Button({ label: "Remove" });
     this._buttonRow = new Row();
@@ -106,16 +102,13 @@ export class ModelsControl extends Control {
     });
 
     this._column = new Column();
-    this._column.add(this._headerLabel);
+    this._column.add(new Spacer());
     this._column.add(new Spacer());
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
     this._column.add(this._modelList);
 
     // --- HF Browser view ---
-    this._hfHeaderLabel = new Label();
-    this._hfHeaderLabel.text = "HuggingFace Browser";
-    this._hfHeaderLabel.color = themeColors.accent;
 
     this._hfSearchInput = new TextInput();
     this._hfSearchInput.placeholder = "Search models...";
@@ -196,7 +189,7 @@ export class ModelsControl extends Control {
     this._hfButtonRow.add(this._hfCancelBtn);
 
     this._hfColumn = new Column();
-    this._hfColumn.add(this._hfHeaderLabel);
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfSearchRow);
     this._hfColumn.add(new Spacer());
@@ -394,13 +387,13 @@ this._hfResultsList.handleKey = (key: string) => {
 
     // Header
     if (isSearch) {
-      this._hfHeaderLabel.text = "HuggingFace Browser";
+      this._hfHeaderText = "HuggingFace Browser";
     } else if (isResults) {
-      this._hfHeaderLabel.text = `Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`;
+      this._hfHeaderText = `Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`;
     } else if (isFiles) {
-      this._hfHeaderLabel.text = this._selectedRepo ? this._selectedRepo.id : "Files";
+      this._hfHeaderText = this._selectedRepo ? this._selectedRepo.id : "Files";
     } else if (isDownloading) {
-      this._hfHeaderLabel.text = "Downloading...";
+      this._hfHeaderText = "Downloading...";
     }
 
     // Focus
@@ -556,7 +549,8 @@ this._hfResultsList.handleKey = (key: string) => {
       }));
 
       this._modelList.updateItems(items);
-      this._headerLabel.text = `Models: ${models.length}  Size: ${formatSize(totalSize)}`;
+      this._modelCount = models.length;
+      this._modelSize = formatSize(totalSize);
       this.markDirty();
     })();
   }
@@ -593,6 +587,27 @@ this._hfResultsList.handleKey = (key: string) => {
       this._ctx?.showMessage(`Removed ${model.filename}`);
       this.refreshModels();
     })();
+  }
+
+  render(ctx: RenderContext): void {
+    if (!this.visible || !this.needsRender) return;
+    super.render(ctx);
+    const canvas = ctx.canvas;
+    const { x, y: startY } = this.rect;
+
+    canvas.moveTo(x, startY);
+    canvas.styleReset();
+
+    if (this._view === "local") {
+      fg(canvas, themeColors.textMuted, "Models ");
+      fg(canvas, themeColors.accentColor, `${this._modelCount}`);
+      fg(canvas, themeColors.textMuted, "  Size ");
+      fg(canvas, themeColors.text, this._modelSize);
+    } else {
+      fg(canvas, themeColors.textMuted, this._hfHeaderText);
+    }
+
+    this.needsRender = false;
   }
 }
 
