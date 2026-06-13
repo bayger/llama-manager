@@ -6,6 +6,7 @@ export { Scrollable } from "./Scrollable.js";
 export { Box } from "./Box.js";
 export { Spacer } from "./Spacer.js";
 export { ProgressBar } from "./ProgressBar.js";
+export { HalfBar } from "./HalfBar.js";
 export { HelpBar } from "./HelpBar.js";
 export { Table } from "./Table.js";
 export type { TableColumn, TableItem, TableRenderer, ComputedColumn } from "./Table.js";

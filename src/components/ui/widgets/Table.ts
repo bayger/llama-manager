@@ -197,7 +197,7 @@ export class Table<T = any> extends Control {
       this.renderHeader(canvas, x, y, width, visibleCols);
       // Separator line below header
       canvas.moveTo(x, y + 1);
-      fg(canvas, themeColors.borderActive, "\u2501".repeat(width));
+      fg(canvas, themeColors.borderActive, "\u2500".repeat(width));
     }
 
     const bodyStartY = y + (hasHeader ? this.headerHeight : 0);
@@ -231,7 +231,7 @@ export class Table<T = any> extends Control {
       return vc.col.align === "right" ? label.padStart(vc.width) : label.padEnd(vc.width);
     });
 
-    const row = " " + parts.join(" ");
+    const row = parts.join(" ");
 
     fg(canvas, themeColors.accent, row);
   }
