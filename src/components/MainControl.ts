@@ -4,6 +4,7 @@ import { HalfBar } from "./ui/widgets/HalfBar.js";
 import { Color, fg } from "../lib/theme.js";
 import type { Point, Rect, RenderContext, Size } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
+import pkg from "../../package.json";
 
 import { createServerTab } from "./tabs/ServerTab.js";
 import { createTasksTab } from "./tabs/TasksTab.js";
@@ -296,6 +297,8 @@ class TabContent extends Control {
   }
 }
 
+const APP_VERSION = pkg.version;
+
 class StatusBar extends Control {
   focusable = false;
   backgroundColor: Color = "canvasSubtle";
@@ -318,15 +321,19 @@ class StatusBar extends Control {
 
   draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
-    const { x, y } = this.rect;
+    const { x, y, width } = this.rect;
+    const versionStr = `v${APP_VERSION} `;
 
     canvas.moveTo(x, y);
     fg(canvas, "text", " ");
+
+    let leftLen = 0;
     if (this._message) {
       const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
       fg(canvas, isError ? "danger" : "success", this._message);
       fg(canvas, "borderMuted", "  │  ");
       fg(canvas, "textMuted", "? help");
+      leftLen = this._message.length + 10;
     } else {
       fg(canvas, "accentColor", this._activeTab);
       fg(canvas, "borderMuted", "  │  ");
@@ -335,6 +342,14 @@ class StatusBar extends Control {
       fg(canvas, "textMuted", "q quit");
       fg(canvas, "borderMuted", "  │  ");
       fg(canvas, "textMuted", "? help");
+      leftLen = this._activeTab.length + 40;
     }
+
+    const padding = 2;
+    const padLen = width - leftLen - versionStr.length - padding;
+    if (padLen > 0) {
+      fg(canvas, "borderMuted", " ".repeat(padLen));
+    }
+    fg(canvas, "textMuted", versionStr);
   }
 }
