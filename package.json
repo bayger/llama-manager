@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "dev": "tsx src/main.ts",
     "start": "node dist/main.js",
     "lint": "tsc --noEmit"
