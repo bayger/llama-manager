@@ -61,6 +61,7 @@ interface ServerStatus {
 
 
 export function startServer(config: ConfigData): Promise<number> {
+  resetMetrics();
   return new Promise(async (resolve, reject) => {
     if (serverProcess?.pid) {
       reject(new Error("Server already running"));

@@ -3,6 +3,8 @@ import { themeColors, setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/t
 import { loadConfig } from "../lib/config.js";
 import { taskStore } from "../lib/tasks.js";
 import { focusManager } from "./ui/FocusManager.js";
+import { logParser } from "../lib/logparser.js";
+import { stopServer } from "../lib/server.js";
 import type { RenderContext } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
 import { Framebuffer } from "../lib/framebuffer.js";
@@ -273,5 +275,9 @@ export class App {
     focusManager.clear();
     this._main?.onDestroy();
     taskStore.dispose();
+    logParser.stop();
+    if (this._ctx?.getConfig().dashboard.killServerOnExit) {
+      stopServer().catch(() => {});
+    }
   }
 }

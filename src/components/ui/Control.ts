@@ -1,5 +1,6 @@
 import type { Rect, Size, RenderContext, Point } from "./types.js";
 import { themeColors } from "../../lib/theme.js";
+import { focusManager } from "./FocusManager.js";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -64,13 +65,21 @@ export class Control {
     if (idx !== -1) {
       this.children.splice(idx, 1);
       child._parent = null;
+      if (focusManager.getFocused() === child || child.isAncestorOf(focusManager.getFocused())) {
+        focusManager.clear();
+      }
       this.markDirty();
     }
   }
 
   clear(): void {
+    const focused = focusManager.getFocused();
     for (const child of this.children) {
       child._parent = null;
+      if (focused === child || child.isAncestorOf(focused)) {
+        focusManager.clear();
+        break;
+      }
     }
     this.children.length = 0;
     this.markDirty();
@@ -235,5 +244,14 @@ export class Control {
 
   fitContent(width: number, height: number): Size {
     return { width: Math.min(width, process.stdout.columns || 80), height: Math.min(height, 999) };
+  }
+
+  isAncestorOf(control: Control | null): boolean {
+    let current = control;
+    while (current) {
+      if (current === this) return true;
+      current = current._parent;
+    }
+    return false;
   }
 }

@@ -169,6 +169,7 @@ export async function downloadModel(
   try {
     while (true) {
       if (signal?.aborted) {
+        readerObj.cancel().catch(() => {});
         writeStream.end();
         await fs.remove(tmpPath).catch(() => {});
         throw new Error("Download cancelled");
@@ -205,6 +206,7 @@ export async function downloadModel(
       }
     }
   } catch (err) {
+    readerObj.cancel().catch(() => {});
     writeStream.end();
     await fs.remove(tmpPath).catch(() => {});
     throw err;
