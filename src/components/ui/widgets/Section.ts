@@ -21,7 +21,7 @@ export class Section extends Control {
         hasFlex = true;
         flexTotal += child.flex;
       } else {
-        const s = child.measure({ width: Math.max(0, p.width - 2), height: p.height });
+        const s = child.measure({ width: Math.max(0, p.width - 3), height: p.height });
         fixedHeight += s.height;
       }
     }
@@ -34,7 +34,7 @@ export class Section extends Control {
 
   onLayout(): void {
     const { x, y, width, height } = this.rect;
-    const innerW = Math.max(0, width - 2);
+    const innerW = Math.max(0, width - 3);
     let curY = y + 2;
 
     let fixedTotal = 2;

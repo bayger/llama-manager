@@ -6,6 +6,7 @@ import { Spacer } from "../ui/widgets/Spacer.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
+import { Section } from "../ui/widgets/Section.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
@@ -37,6 +38,7 @@ export class ModelsControl extends Control {
   protected _buttonRow: Row;
   protected _browseBtn: Button;
   protected _removeBtn: Button;
+  protected _modelsSection: Section;
   protected _modelList: List<string>;
   protected _summary: StyledText;
 
@@ -81,7 +83,12 @@ export class ModelsControl extends Control {
     this._buttonRow.add(this._removeBtn);
 
     this._modelList = new List<string>();
+
+    this._modelsSection = new Section();
+    this._modelsSection.title = "Installed Models";
+    this._modelsSection.add(this._modelList);
     this._modelList.flex = 1;
+
     this._modelList.setOnSelect((item) => {
       const model = (item as any).data as LocalModel;
       this.selectModel(model);
@@ -91,21 +98,22 @@ export class ModelsControl extends Control {
       const prefix = model.active ? "\u25cf " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
-      const line = ` ${prefix}${name}  ${size}`;
+      const line = (` ${prefix}${name}  ${size}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
+      } else if (model.active) {
+        fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, model.active ? themeColors.success : themeColors.text, line);
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
       }
     });
 
     this._column = new Column();
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
-    this._column.add(this._modelList);
+    this._column.add(this._modelsSection);
+    this._modelsSection.flex = 1;
 
     // --- HF Browser view ---
 
