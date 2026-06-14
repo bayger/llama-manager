@@ -1,6 +1,7 @@
 import { Control } from "../ui/Control.js";
 import { themeColors, fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
+import { Section } from "../ui/widgets/Section.js";
 import { ConfigData, saveConfig } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Point, Size, RenderContext } from "../ui/types.js";
@@ -8,6 +9,82 @@ import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
 const KEY_COL_WIDTH = 22;
 const THEME_PICKER_WIDTH = 30;
+
+const V = "\u2502";
+
+class ThemePickerControl extends Section {
+  protected _index = 0;
+  protected _scroll = 0;
+
+  measure(parentSize: Size): Size {
+    return { width: THEME_PICKER_WIDTH, height: parentSize.height };
+  }
+
+  setState(index: number, scroll: number): void {
+    this._index = index;
+    this._scroll = scroll;
+    this.markDirty();
+  }
+
+  render(ctx: RenderContext): void {
+    if (!this.visible || !this.needsRender) return;
+    const { canvas } = ctx;
+    const { x, y, width, height } = this.rect;
+    const names = getThemeNames();
+
+    const prevClip = canvas.getClipRect();
+    canvas.setClipRect(this.rect);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
+
+    canvas.moveTo(x, y);
+    canvas.bold();
+    fg(canvas, themeColors.accent, `${V}`);
+    fg(canvas, themeColors.accent, ` ${this.title}`);
+    canvas.styleReset();
+
+    for (let row = 1; row < height; row++) {
+      canvas.moveTo(x, y + row);
+      canvas.colorRgbHex(themeColors.borderMuted);
+      canvas.write(V);
+    }
+
+    for (let i = 1; i < height; i++) {
+      const themeIdx = i - 1 + this._scroll;
+      if (themeIdx >= names.length) break;
+
+      canvas.moveTo(x + 2, y + i);
+      canvas.styleReset();
+      const name = names[themeIdx]!;
+      const isSelected = themeIdx === this._index;
+      const resolved = loadTheme(name);
+
+      if (isSelected) {
+        fg(canvas, themeColors.accent, ">");
+        if (resolved) {
+          fgBg(canvas, resolved.canvas, resolved.text, "█");
+          fgBg(canvas, resolved.text, resolved.canvas, "█");
+          fgBg(canvas, resolved.accent, resolved.canvas, "█");
+        }
+        fg(canvas, themeColors.accentColor, ` ${name}`);
+      } else {
+        fg(canvas, themeColors.borderMuted, " ");
+        if (resolved) {
+          fgBg(canvas, resolved.canvas, resolved.text, "█");
+          fgBg(canvas, resolved.text, resolved.canvas, "█");
+          fgBg(canvas, resolved.accent, resolved.canvas, "█");
+          fg(canvas, themeColors.textMuted, ` ${name}`);
+        } else {
+          fg(canvas, themeColors.textMuted, `     ${name}`);
+        }
+      }
+    }
+
+    canvas.setClipRect(prevClip);
+    this.needsRender = false;
+  }
+}
 
 export interface OptionFieldDef {
   key: string;
@@ -165,10 +242,15 @@ export class OptionsPanel extends Control {
   protected _themePickerIndex = 0;
   protected _themePickerScroll = 0;
   protected _themePickerOriginal = "";
+  protected _themePicker: ThemePickerControl;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._themePicker = new ThemePickerControl();
+    this._themePicker.title = "THEMES";
+    this._themePicker.visible = false;
+    this.add(this._themePicker);
   }
 
   buildRows(): void {
@@ -222,6 +304,13 @@ export class OptionsPanel extends Control {
 
   onLayout(): void {
     this.clampSelection();
+    const { x, y, width, height } = this.rect;
+    const pickerVisible = this._themePickerMode && width >= THEME_PICKER_WIDTH + 26;
+    this._themePicker.visible = pickerVisible;
+    if (pickerVisible) {
+      this._themePicker.setState(this._themePickerIndex, this._themePickerScroll);
+      this._themePicker.layout({ x: x + width - THEME_PICKER_WIDTH, y, width: THEME_PICKER_WIDTH, height });
+    }
   }
 
   render(ctx: RenderContext): void {
@@ -235,8 +324,8 @@ export class OptionsPanel extends Control {
       return;
     }
 
-    const pickerVisible = this._themePickerMode && width >= THEME_PICKER_WIDTH + 26;
-    const mainWidth = pickerVisible ? width - THEME_PICKER_WIDTH - 1 : width;
+    const pickerVisible = this._themePicker.visible;
+    const mainWidth = pickerVisible ? width - THEME_PICKER_WIDTH : width;
 
     canvas.colorRgbHex(themeColors.canvas);
     canvas.bgColorRgbHex(themeColors.canvas);
@@ -264,8 +353,8 @@ export class OptionsPanel extends Control {
       this.renderCursor(canvas);
     }
 
-    if (pickerVisible) {
-      this.renderThemePickerSidebar(canvas, x + mainWidth + 1, startY, THEME_PICKER_WIDTH, height);
+    for (const child of this.children) {
+      child.render(ctx);
     }
 
     this.needsRender = false;
@@ -687,47 +776,6 @@ export class OptionsPanel extends Control {
       return true;
     }
     return false;
-  }
-
-  renderThemePickerSidebar(canvas: FramebufferCanvas, startX: number, startY: number, width: number, height: number): void {
-    const names = getThemeNames();
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(startX, startY, width, height);
-    canvas.moveTo(startX, startY);
-    fgBg(canvas, themeColors.accent, themeColors.canvasSubtle, ` THEME PICKER `.padEnd(width).substring(0, width));
-
-    for (let i = 1; i < height; i++) {
-      const themeIdx = i - 1 + this._themePickerScroll;
-      if (themeIdx >= names.length) break;
-
-      canvas.moveTo(startX, startY + i);
-      canvas.styleReset();
-      const name = names[themeIdx]!;
-      const isSelected = themeIdx === this._themePickerIndex;
-      const resolved = loadTheme(name);
-
-      if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ">");
-        if (resolved) {
-          fgBg(canvas, resolved.canvas, resolved.text, "█");
-          fgBg(canvas, resolved.text, resolved.canvas, "█");
-          fgBg(canvas, resolved.accent, resolved.canvas, "█");
-        }
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` ${name}`);
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, " ".repeat(Math.max(0, width - 6 - name.length))+"<");
-      } else {
-        if (resolved) {
-          fgBg(canvas, themeColors.borderMuted, themeColors.canvasSubtle, " ");
-          fgBg(canvas, resolved.canvas, resolved.text, "█");
-          fgBg(canvas, resolved.text, resolved.canvas, "█");
-          fgBg(canvas, resolved.accent, resolved.canvas, "█");
-          fg(canvas, themeColors.textMuted, ` ${name}`);
-        } else {
-          fg(canvas, themeColors.textMuted, `     ${name}`);
-        }
-      }
-    }
   }
 
   onFocus(): void {
