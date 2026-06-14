@@ -13,7 +13,7 @@ import { createModelsTab } from "./tabs/ModelsTab.js";
 import { createOptionsTab } from "./tabs/OptionsTab.js";
 import { focusManager } from "./ui/FocusManager.js";
 
-export const TABS = ["Dashboard", "Profiles", "Tasks", "Versions", "Models", "Options"] as const;
+export const TABS = ["Dashboard", "Tasks", "Profiles", "Versions", "Models", "Options"] as const;
 export type TabId = (typeof TABS)[number];
 
 export class MainControl extends Column {
