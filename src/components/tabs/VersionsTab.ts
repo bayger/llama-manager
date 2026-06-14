@@ -6,6 +6,7 @@ import { Spacer } from "../ui/widgets/Spacer.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { Scrollable } from "../ui/widgets/Scrollable.js";
+import { Section } from "../ui/widgets/Section.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
@@ -61,22 +62,12 @@ class ChangelogView extends Scrollable {
     const canvas = ctx.canvas;
     const { x, y, width, height } = this.rect;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, height);
-
-    const pad = 1;
-
-    canvas.moveTo(x + pad, y);
-    fg(canvas, themeColors.accentColor, "Changelog".padEnd(width - pad * 2).substring(0, width - pad * 2));
-
-    for (let i = 2; i < height; i++) {
-      const lineIdx = i - 2 + this.scrollOffset;
-      canvas.moveTo(x + pad, y + i);
+    for (let i = 0; i < height; i++) {
+      const lineIdx = i + this.scrollOffset;
+      canvas.moveTo(x, y + i);
       if (lineIdx < this._lines.length) {
         const line = this._lines[lineIdx] || "";
-        const innerW = width - pad * 2;
-        const display = line.padEnd(innerW).substring(0, innerW);
+        const display = line.padEnd(width).substring(0, width);
         fg(canvas, themeColors.textMuted, display);
       }
     }
@@ -94,6 +85,7 @@ export class VersionsControl extends Control {
   protected _btnDelete: Button;
   protected _contentRow: Row;
   protected _list: List<any>;
+  protected _changelogSection: Section;
   protected _changelog: ChangelogView;
   protected _progressBar: ProgressBar;
   protected _summary: StyledText;
@@ -115,7 +107,11 @@ export class VersionsControl extends Control {
     this._list.tabIndex = 0;
 
     this._changelog = new ChangelogView();
-    this._changelog.visible = false;
+    this._changelogSection = new Section();
+    this._changelogSection.title = "Changelog";
+    this._changelogSection.visible = false;
+    this._changelogSection.add(this._changelog);
+    this._changelog.flex = 1;
 
     this._btnInstall = new Button({ label: "Install" });
     this._btnDelete = new Button({ label: "Delete" });
@@ -134,8 +130,8 @@ export class VersionsControl extends Control {
     this._contentRow = new Row();
     this._contentRow.add(this._list);
     this._list.flex = 1;
-    this._contentRow.add(this._changelog);
-    this._changelog.flex = 1;
+    this._contentRow.add(this._changelogSection);
+    this._changelogSection.flex = 1;
 
     this._column = new Column();
     this._column.add(this._summary);
@@ -225,7 +221,7 @@ export class VersionsControl extends Control {
     this._dividerButtons.visible = true;
     this._buttonRow.visible = true;
     this._prompt.visible = false;
-    this._changelog.visible = false;
+    this._changelogSection.visible = false;
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
     this._btnDelete.visible = true;
@@ -253,7 +249,7 @@ export class VersionsControl extends Control {
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
-    this._changelog.visible = true;
+    this._changelogSection.visible = true;
     this._list.selectedIndex = -1;
     this._list.items = [];
     this._summary.builder.muted("GitHub Releases (press g for local)");
@@ -298,7 +294,7 @@ export class VersionsControl extends Control {
     this._buttonRow.visible = false;
     this._prompt.visible = true;
     this._prompt.builder.warning("Select backend");
-    this._changelog.visible = false;
+    this._changelogSection.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._progressBar.visible = false;
@@ -346,7 +342,7 @@ export class VersionsControl extends Control {
     this._dividerButtons.visible = false;
     this._buttonRow.visible = false;
     this._prompt.visible = false;
-    this._changelog.visible = false;
+    this._changelogSection.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._list.items = [];

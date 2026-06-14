@@ -3,12 +3,14 @@ import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { Table } from "../ui/widgets/Table.js";
+import { Section } from "../ui/widgets/Section.js";
+import { Row } from "../ui/Layout.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { fireAsync } from "../../lib/utils.js";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, Rect, RenderContext } from "../ui/types.js";
+import type { Size, RenderContext } from "../ui/types.js";
 import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table.js";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
@@ -28,11 +30,132 @@ function fmtNum(n: number): string {
   return n.toLocaleString();
 }
 
+class TaskDetailsControl extends Section {
+  protected _task: TaskMetrics | null = null;
+  protected _scrollOffset = 0;
+
+  measure(parentSize: Size): Size {
+    return { width: DETAILS_WIDTH, height: parentSize.height };
+  }
+
+  update(task: TaskMetrics | null): void {
+    this._task = task;
+    this._scrollOffset = 0;
+    this.markDirty();
+  }
+
+  scroll(delta: number): void {
+    if (!this._task) return;
+    const lines = this._getLines();
+    const { height } = this.rect;
+    const maxOffset = Math.max(0, lines.length - height);
+    this._scrollOffset = Math.max(0, Math.min(maxOffset, this._scrollOffset + delta));
+    this.markDirty();
+  }
+
+  _getLines(): { label: string; value: string }[] {
+    if (!this._task) return [{ label: "No selection", value: "" }];
+    const task = this._task;
+    const time = new Date(task.timestamp);
+    const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
+
+    return [
+      { label: "Task Details", value: "" },
+      { label: "", value: "" },
+      { label: "ID", value: `#${task.taskId}` },
+      { label: "Slot", value: `S${task.slotId}` },
+      { label: "Time", value: timeStr },
+      { label: "", value: "" },
+      { label: "Profile", value: task.profile || "-" },
+      { label: "Model", value: task.model || "-" },
+      { label: "Version", value: task.version || "-" },
+      { label: "", value: "" },
+      { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
+      { label: "Prompt Time", value: `${fmtNum(Math.round(task.promptTimeMs))}ms` },
+      { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
+      { label: "", value: "" },
+      { label: "Output Tokens", value: fmtNum(task.outputTokens) },
+      { label: "Eval Time", value: `${fmtNum(Math.round(task.evalTimeMs))}ms` },
+      { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
+      { label: "", value: "" },
+      { label: "Total Tokens", value: fmtNum(task.totalTokens) },
+      { label: "Total Time", value: `${fmtNum(Math.round(task.totalTimeMs))}ms` },
+      { label: "", value: "" },
+      { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
+      { label: "Context Size", value: fmtNum(task.contextSize) },
+      { label: "Truncated", value: task.truncated ? "Yes" : "No" },
+    ];
+  }
+
+  render(ctx: RenderContext): void {
+    if (!this.visible || !this.needsRender) return;
+    const { canvas } = ctx;
+    const { x, y, width, height } = this.rect;
+
+    const prevClip = canvas.getClipRect();
+    canvas.setClipRect(this.rect);
+    canvas.colorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.clearRect(x, y, width, height);
+
+    if (width < 3 || height < 2) {
+      canvas.setClipRect(prevClip);
+      this.needsRender = false;
+      return;
+    }
+
+    canvas.moveTo(x, y);
+    canvas.bold();
+    fg(canvas, themeColors.accent, `${V}`);
+    fg(canvas, themeColors.accent, ` ${this.title}`);
+    canvas.styleReset();
+
+    for (let row = 1; row < height; row++) {
+      canvas.moveTo(x, y + row);
+      canvas.colorRgbHex(themeColors.borderMuted);
+      canvas.write(V);
+    }
+
+    const lines = this._getLines();
+    const innerW = width - 2;
+    const labelWidth = 14;
+
+    for (let i = 0; i < height - 1; i++) {
+      const lineIdx = i - 1 + this._scrollOffset;
+      canvas.moveTo(x + 2, y + i + 1);
+
+      if (lineIdx >= 0 && lineIdx < lines.length) {
+        const line = lines[lineIdx]!;
+        if (line.label === "Task Details") {
+          fg(canvas, themeColors.accentColor, line.label.padEnd(innerW));
+        } else if (line.label !== "") {
+          const label = `${line.label}:`.padEnd(labelWidth);
+          let value = line.value;
+          const valueWidth = innerW - labelWidth - 2;
+          if (value.length > valueWidth) {
+            value = "…" + value.substring(value.length - (valueWidth - 1));
+          }
+          fg(canvas, themeColors.textMuted, label);
+          fg(canvas, themeColors.text, ` ${value}`);
+        }
+      }
+    }
+
+    canvas.setClipRect(prevClip);
+    this.needsRender = false;
+  }
+}
+
+const V = "\u2502";
+
 export class TasksControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
   protected _table: Table<TaskMetrics>;
+  protected _detailsPanel: TaskDetailsControl;
+  protected _contentRow: Row;
   protected _divider: Spacer;
+  protected _filterRow: Row;
   protected _searchInput: TextInput;
   protected _slotInput: TextInput;
   protected _filterVisible = false;
@@ -46,21 +169,35 @@ export class TasksControl extends Control {
     this._ctx = ctx;
     this._table = new Table();
     this._table.showHeader = true;
+    this._table.tabIndex = 0;
     this._table.setOnHighlight(() => this.markDirty());
     this._table.setOnSelect(() => {
       fireAsync(async () => {}, ctx);
     });
+    this._detailsPanel = new TaskDetailsControl();
+    this._detailsPanel.title = "Task Details";
+    this._contentRow = new Row();
+    this._contentRow.add(this._table);
+    this._table.flex = 1;
+    this._contentRow.add(this._detailsPanel);
+    this._detailsPanel.layout({ x: 0, y: 0, width: DETAILS_WIDTH, height: 1 });
     this._divider = new Spacer();
+    this._filterRow = new Row();
     this._searchInput = new TextInput();
     this._slotInput = new TextInput();
     this._searchInput.prefix = "ID: ";
     this._slotInput.prefix = "Slot: ";
     this._searchInput.visible = false;
     this._slotInput.visible = false;
-    this.add(this._table);
+    this._filterRow.add(this._searchInput);
+    this._searchInput.flex = 1;
+    this._filterRow.add(this._slotInput);
+    this._slotInput.flex = 1;
+    this._filterRow.visible = false;
+    this.add(this._filterRow);
     this.add(this._divider);
-    this.add(this._searchInput);
-    this.add(this._slotInput);
+    this.add(this._contentRow);
+    this._contentRow.flex = 1;
 
     this._searchInput.setOnSubmit((v) => {
       this._searchValue = v;
@@ -128,11 +265,13 @@ export class TasksControl extends Control {
 
   onLayout(): void {
     const { x, y, width, height } = this.rect;
-    const tableLayout = this.getTableLayout();
-    this._table.layout(tableLayout);
-    this._divider.layout({ x, y: y + (this._filterVisible ? 2 : 1), width, height: 1 });
-    this._searchInput.layout({ x: x + 1, y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
-    this._slotInput.layout({ x: x + 1 + Math.floor(width / 2), y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
+    const showDetails = width >= DETAILS_WIDTH + 26;
+    this._detailsPanel.visible = showDetails;
+    this._filterRow.layout({ x, y: y, width, height: 1 });
+    this._divider.layout({ x, y: y + 1, width, height: 1 });
+    const contentY = y + (this._filterVisible ? 3 : 2);
+    const contentHeight = height - (this._filterVisible ? 4 : 3);
+    this._contentRow.layout({ x, y: contentY, width, height: contentHeight });
 
     const tasks = this.filteredTasks;
     this._table.items = tasks.map((t) => ({
@@ -151,14 +290,9 @@ export class TasksControl extends Control {
       this.renderTaskRow(canvas, item.data!, isSelected, _width, columns);
     };
     this._table.setRenderer(renderTaskRow);
-  }
 
-  getTableLayout(): Rect {
-    const { x, y, width, height } = this.rect;
-    const headerY = y + (this._filterVisible ? 3 : 2);
-    const listHeight = height - (this._filterVisible ? 4 : 3);
-    const listWidth = width >= DETAILS_WIDTH + 26 ? width - DETAILS_WIDTH - 2 : width;
-    return { x, y: headerY, width: listWidth, height: listHeight };
+    const selectedTask = tasks[this._table.selectedIndex] ?? null;
+    this._detailsPanel.update(selectedTask);
   }
 
   applyFilters(): void {
@@ -169,8 +303,7 @@ export class TasksControl extends Control {
 
   showFilter(): void {
     this._filterVisible = true;
-    this._searchInput.visible = true;
-    this._slotInput.visible = true;
+    this._filterRow.visible = true;
     this._searchInput.value = this._searchValue;
     this._slotInput.value = this._slotValue;
     focusManager.setFocus(this._searchInput);
@@ -179,8 +312,7 @@ export class TasksControl extends Control {
 
   hideFilter(): void {
     this._filterVisible = false;
-    this._searchInput.visible = false;
-    this._slotInput.visible = false;
+    this._filterRow.visible = false;
     this.markDirty();
   }
 
@@ -208,14 +340,6 @@ export class TasksControl extends Control {
     fg(canvas, themeColors.accentColor, `${stats.avgOutputSpeed.toFixed(1)}`);
     if (filterIndicator) {
       fg(canvas, themeColors.warning, filterIndicator);
-    }
-
-    const listStartY = startY + (this._filterVisible ? 3 : 2);
-    const listHeight = height - (this._filterVisible ? 4 : 3);
-
-    if (width >= DETAILS_WIDTH + 26) {
-      const dx = x + (this.rect.width >= DETAILS_WIDTH + 26 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
-      this.renderDetailsPanel(canvas, { x: dx, y: listStartY, width: DETAILS_WIDTH, height: listHeight }, tasks);
     }
 
     this.needsRender = false;
@@ -281,82 +405,7 @@ export class TasksControl extends Control {
     canvas.styleReset();
   }
 
-  renderDetailsPanel(canvas: FramebufferCanvas, rect: Rect, tasks: TaskMetrics[]): void {
-    if (rect.width === 0) return;
-    const { x, y, width, height } = rect;
-    const selectedIndex = this._table.selectedIndex;
-
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
-
-    if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {
-      canvas.moveTo(x + 1, y);
-      fg(canvas, themeColors.textMuted, "No tasks");
-      return;
-    }
-
-    const task = tasks[selectedIndex]!;
-    const time = new Date(task.timestamp);
-    const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
-
-    const lines: { label: string; value: string }[] = [
-      { label: "Task Details", value: "" },
-      { label: "", value: "" },
-      { label: "ID", value: `#${task.taskId}` },
-      { label: "Slot", value: `S${task.slotId}` },
-      { label: "Time", value: timeStr },
-      { label: "", value: "" },
-      { label: "Profile", value: task.profile || "-" },
-      { label: "Model", value: task.model || "-" },
-      { label: "Version", value: task.version || "-" },
-      { label: "", value: "" },
-      { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
-      { label: "Prompt Time", value: `${fmtNum(Math.round(task.promptTimeMs))}ms` },
-      { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
-      { label: "", value: "" },
-      { label: "Output Tokens", value: fmtNum(task.outputTokens) },
-      { label: "Eval Time", value: `${fmtNum(Math.round(task.evalTimeMs))}ms` },
-      { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
-      { label: "", value: "" },
-      { label: "Total Tokens", value: fmtNum(task.totalTokens) },
-      { label: "Total Time", value: `${fmtNum(Math.round(task.totalTimeMs))}ms` },
-      { label: "", value: "" },
-      { label: "Graphs Reused", value: String(task.graphsReused) },
-      { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
-      { label: "Context Size", value: fmtNum(task.contextSize) },
-      { label: "Truncated", value: task.truncated ? "Yes" : "No" },
-    ];
-
-    const pad = 1;
-    const innerW = width - pad * 2;
-
-    for (let i = 0; i < height; i++) {
-      canvas.moveTo(x + pad, y + i);
-      //canvas.styleReset();
-
-      if (i < lines.length) {
-        const line = lines[i]!;
-        if (i === 0) {
-          fg(canvas, themeColors.accentColor, line.label.padEnd(innerW));
-        } else if (line.label !== "") {
-          const label = line.label + ":";
-          let value = line.value;
-          const labelWidth = 14;
-          const formattedLabel = label.padEnd(labelWidth);
-          const valueWidth = innerW - labelWidth - 2;
-          if (value.length > valueWidth) {
-            value = "…" + value.substring(value.length - (valueWidth - 1));
-          }
-          fg(canvas, themeColors.textMuted, formattedLabel);
-          fg(canvas, themeColors.text, " " + value);
-        }
-      }
-    }
-  }
-
-  handleKey(key: string): boolean {
+ handleKey(key: string): boolean {
     if (this._filterVisible) {
       return false;
     }
