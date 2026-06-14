@@ -84,6 +84,7 @@ export class VersionsControl extends Control {
   protected _btnInstall: Button;
   protected _btnDelete: Button;
   protected _contentRow: Row;
+  protected _versionsSection: Section;
   protected _list: List<any>;
   protected _changelogSection: Section;
   protected _changelog: ChangelogView;
@@ -105,6 +106,10 @@ export class VersionsControl extends Control {
 
     this._list = new List();
     this._list.tabIndex = 0;
+
+    this._versionsSection = new Section();
+    this._versionsSection.title = "Versions";
+    this._versionsSection.add(this._list);
 
     this._changelog = new ChangelogView();
     this._changelogSection = new Section();
@@ -128,8 +133,8 @@ export class VersionsControl extends Control {
     this._dividerButtons = new Spacer();
 
     this._contentRow = new Row();
-    this._contentRow.add(this._list);
-    this._list.flex = 1;
+    this._contentRow.add(this._versionsSection);
+    this._versionsSection.flex = 1;
     this._contentRow.add(this._changelogSection);
     this._changelogSection.flex = 1;
 
@@ -417,42 +422,38 @@ export class VersionsControl extends Control {
 
   _localRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const v = item.data as VersionInfo;
-    const prefix = v.active ? "● " : "  ";
-    const line = ` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`;
+    const prefix = v.active ? "✓ " : "  ";
+    const line = (` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
 
     if (isSelected) {
       fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-      canvas.styleReset();
+    } else if (v.active) {
+      fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
     } else {
-      canvas.moveTo(_x, rowY);
-      fg(canvas, v.active ? themeColors.success : themeColors.text, line);
+      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
     }
   }
 
   _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const r = item.data as RemoteVersion;
     const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
-    const line = ` ${r.tag}  ${date}`;
+    const line = (` ${r.tag}  ${date}`).padEnd(width);
 
     if (isSelected) {
       fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-      canvas.styleReset();
     } else {
-      canvas.moveTo(_x, rowY);
-      fg(canvas, themeColors.text, line);
+      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
     }
   }
 
   _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const b = item.data as AvailableBackend;
-    const line = ` ${b.label}  ${b.assetName}`;
+    const line = (` ${b.label}  ${b.assetName}`).padEnd(width);
 
     if (isSelected) {
       fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-      canvas.styleReset();
     } else {
-      canvas.moveTo(_x, rowY);
-      fg(canvas, themeColors.text, line);
+      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
     }
   }
 }

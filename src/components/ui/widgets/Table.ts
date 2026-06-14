@@ -179,7 +179,7 @@ export class Table<T = any> extends Control {
     const items = this.items;
 
     canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.clearRect(x, y, width, height);
     canvas.moveTo(x, y);
 
@@ -193,7 +193,7 @@ export class Table<T = any> extends Control {
 
     if (hasHeader) {
       canvas.moveTo(x, y);
-      canvas.styleReset();
+      canvas.bgColorRgbHex(themeColors.canvasSubtle);
       this.renderHeader(canvas, x, y, width, visibleCols);
       // Separator line below header
       canvas.moveTo(x, y + 1);
@@ -264,11 +264,11 @@ export class Table<T = any> extends Control {
     const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
     if (isSelected) {
+      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, display);
+      fgBg(canvas, themeColors.canvas, themeColors.selectedBg, " ".repeat(Math.max(0, width - display.length)));
+    } else {
       fgBg(canvas, themeColors.text, themeColors.canvasSubtle, display);
       fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - display.length)));
-      canvas.styleReset();
-    } else {
-      fg(canvas, themeColors.text, display);
     }
   }
 

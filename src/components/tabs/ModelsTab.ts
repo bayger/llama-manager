@@ -6,6 +6,7 @@ import { Spacer } from "../ui/widgets/Spacer.js";
 import { List, ListItem } from "../ui/widgets/List.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
+import { Section } from "../ui/widgets/Section.js";
 import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
@@ -37,6 +38,7 @@ export class ModelsControl extends Control {
   protected _buttonRow: Row;
   protected _browseBtn: Button;
   protected _removeBtn: Button;
+  protected _modelsSection: Section;
   protected _modelList: List<string>;
   protected _summary: StyledText;
 
@@ -47,7 +49,9 @@ export class ModelsControl extends Control {
   protected _hfSearchBtn: Button;
   protected _hfBrowseBtn: Button;
   protected _hfContentColumn: Column;
+  protected _hfResultsSection: Section;
   protected _hfResultsList: List<string>;
+  protected _hfFilesSection: Section;
   protected _hfFilesList: List<string>;
   protected _hfProgressBar: ProgressBar;
   protected _hfButtonRow: Row;
@@ -81,31 +85,37 @@ export class ModelsControl extends Control {
     this._buttonRow.add(this._removeBtn);
 
     this._modelList = new List<string>();
+
+    this._modelsSection = new Section();
+    this._modelsSection.title = "Installed Models";
+    this._modelsSection.add(this._modelList);
     this._modelList.flex = 1;
+
     this._modelList.setOnSelect((item) => {
       const model = (item as any).data as LocalModel;
       this.selectModel(model);
     });
     this._modelList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const model = (item as any).data as LocalModel;
-      const prefix = model.active ? "\u25cf " : "  ";
+      const prefix = model.active ? "✓ " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
-      const line = ` ${prefix}${name}  ${size}`;
+      const line = (` ${prefix}${name}  ${size}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
+      } else if (model.active) {
+        fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, model.active ? themeColors.success : themeColors.text, line);
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
       }
     });
 
     this._column = new Column();
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
-    this._column.add(this._modelList);
+    this._column.add(this._modelsSection);
+    this._modelsSection.flex = 1;
 
     // --- HF Browser view ---
 
@@ -117,7 +127,11 @@ export class ModelsControl extends Control {
     this._hfSearchRow.add(this._hfSearchInput);
 
     this._hfResultsList = new List<string>();
-    this._hfResultsList.flex = 1;
+
+    this._hfResultsSection = new Section();
+    this._hfResultsSection.title = "Results";
+    this._hfResultsSection.add(this._hfResultsList);
+
     this._hfResultsList.setOnSelect((item) => {
       const repo = (item as any).data as HFRepoInfo;
       this.openRepoFiles(repo);
@@ -127,20 +141,22 @@ export class ModelsControl extends Control {
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
       const meta = [likes, downloads].filter(Boolean).join("  ");
-      const line = ` ${repo.id}${meta ? `  ${meta}` : ""}`;
+      const line = (` ${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, themeColors.text, line);
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
       }
     });
 
     this._hfFilesList = new List<string>();
-    this._hfFilesList.flex = 1;
-    this._hfFilesList.visible = false;
+
+    this._hfFilesSection = new Section();
+    this._hfFilesSection.title = "Files";
+    this._hfFilesSection.visible = false;
+    this._hfFilesSection.add(this._hfFilesList);
+
     this._hfFilesList.setOnSelect((item) => {
       const file = (item as any).data as HFFileInfo;
       this.downloadSelectedFile(file);
@@ -148,14 +164,12 @@ export class ModelsControl extends Control {
     this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const file = (item as any).data as HFFileInfo;
       const size = formatSize(file.size);
-      const line = ` ${file.path}  ${size}`;
+      const line = (` ${file.path}  ${size}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, themeColors.text, line);
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
       }
     });
 
@@ -165,8 +179,10 @@ export class ModelsControl extends Control {
 
     this._hfContentColumn = new Column();
     this._hfContentColumn.flex = 1;
-    this._hfContentColumn.add(this._hfResultsList);
-    this._hfContentColumn.add(this._hfFilesList);
+    this._hfContentColumn.add(this._hfResultsSection);
+    this._hfResultsSection.flex = 1;
+    this._hfContentColumn.add(this._hfFilesSection);
+    this._hfFilesSection.flex = 1;
     this._hfContentColumn.add(this._hfProgressBar);
 
     this._hfBackBtn = new Button({ label: "Back" });
@@ -380,12 +396,12 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfSearchRow.visible = true;
 
     // Content visibility
-    this._hfResultsList.visible = isResults;
-    this._hfFilesList.visible = isFiles;
+    this._hfResultsSection.visible = isResults;
+    this._hfFilesSection.visible = isFiles;
     this._hfProgressBar.visible = isDownloading;
 
     // Button visibility
-    this._hfBackBtn.visible = !isSearch;
+    this._hfBackBtn.visible = true;
     this._hfSearchBtn.visible = isSearch;
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;

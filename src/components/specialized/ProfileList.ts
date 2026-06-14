@@ -49,14 +49,8 @@ export class ProfileList extends Control {
       return;
     }
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, startY, width, height);
-    canvas.moveTo(x, startY);
-
     for (let i = 0; i < height; i++) {
       canvas.moveTo(x, startY + i);
-      canvas.styleReset();
 
       if (i < names.length) {
         const name = names[i]!;
@@ -64,15 +58,15 @@ export class ProfileList extends Control {
         const isSelected = i === this._selectedIndex && this.focused;
 
         if (isSelected) {
-          const prefix = isActive ? "● " : "  ";
+          const prefix = isActive ? "✓ " : "  ";
           const line = (prefix + name).padEnd(width);
           fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
         } else if (isActive) {
-          const line = ("● " + name).padEnd(width);
-          fg(canvas, themeColors.success, line.substring(0, width));
+          const line = ("✓ " + name).padEnd(width);
+          fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
         } else {
           const line = ("  " + name).padEnd(width);
-          fg(canvas, themeColors.text, line.substring(0, width));
+          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
         }
       }
     }

@@ -4,6 +4,7 @@ import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
+import { Section } from "../ui/widgets/Section.js";
 import { SettingsPanel } from "../specialized/SettingsPanel.js";
 import { ProfileList } from "../specialized/ProfileList.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
@@ -20,6 +21,7 @@ export class ServerControl extends Control {
   protected _editInput: TextInput;
   protected _buttonRow: Row;
   protected _buttons: Button[];
+  protected _section: Section;
   protected _settingsPanel: SettingsPanel;
   protected _profileList: ProfileList;
   protected _summary: StyledText;
@@ -70,14 +72,19 @@ export class ServerControl extends Control {
       this.showSettings();
     });
 
+    this._section = new Section();
+    this._section.title = "Available Profiles";
+    this._section.flex = 1;
+    this._section.add(this._settingsPanel);
+    this._section.add(this._profileList);
+
     this._column = new Column();
     this._column.add(this._summary);
     this._column.add(this._editRow);
     this._column.add(new Spacer());
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
-    this._column.add(this._settingsPanel);
-    this._column.add(this._profileList);
+    this._column.add(this._section);
 
     this.add(this._column);
   }
