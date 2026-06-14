@@ -10,3 +10,4 @@ export { HalfBar } from "./HalfBar.js";
 export { HelpBar } from "./HelpBar.js";
 export { Table } from "./Table.js";
 export type { TableColumn, TableItem, TableRenderer, ComputedColumn } from "./Table.js";
+export { Section } from "./Section.js";

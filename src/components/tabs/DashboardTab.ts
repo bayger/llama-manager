@@ -3,6 +3,7 @@ import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
 import { Label } from "../ui/widgets/Label.js";
+import { Section } from "../ui/widgets/Section.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
 import { MetricsPanel } from "../specialized/MetricsPanel.js";
 import { themeColors, fg } from "../../lib/theme.js";
@@ -19,8 +20,8 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _profileLabel: Label;
   protected _versionLabel: Label;
-  protected _metricsHeader: Label;
-  protected _logsHeader: Label;
+  protected _metricsSection: Section;
+  protected _logsSection: Section;
   protected _metricsPanel: MetricsPanel;
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
@@ -47,7 +48,7 @@ export class DashboardControl extends Control {
     sep1.focusable = false;
     this._buttonRow.add(sep1);
 
-      this._profileLabel = new Label();
+    this._profileLabel = new Label();
     this._profileLabel.text = "";
     this._profileLabel.color = themeColors.textMuted;
     this._profileLabel.focusable = false;
@@ -69,7 +70,7 @@ export class DashboardControl extends Control {
     sep2.focusable = false;
     this._buttonRow.add(sep2);
 
-     this._versionLabel = new Label();
+    this._versionLabel = new Label();
     this._versionLabel.text = "";
     this._versionLabel.color = themeColors.textMuted;
     this._versionLabel.focusable = false;
@@ -92,26 +93,21 @@ export class DashboardControl extends Control {
     });
     this._logsControl.flex = 1;
 
-    this._metricsHeader = new Label();
-    this._metricsHeader.text = "▎Realtime Metrics";
-    this._metricsHeader.color = themeColors.accent;
-    this._metricsHeader.bold = true;
-    this._metricsHeader.measure = (parentSize) => ({ width: parentSize?.width ?? 80, height: 1 });
+    this._metricsSection = new Section();
+    this._metricsSection.title = "Realtime Metrics";
+    this._metricsSection.add(this._metricsPanel);
 
-    this._logsHeader = new Label();
-    this._logsHeader.text = "▎Live Logs";
-    this._logsHeader.color = themeColors.accent;
-    this._logsHeader.bold = true;
-    this._logsHeader.measure = (parentSize) => ({ width: parentSize?.width ?? 80, height: 1 });
+    this._logsSection = new Section();
+    this._logsSection.title = "Live Logs";
+    this._logsSection.add(this._logsControl);
+    this._logsSection.flex = 1;
 
     this._column = new Column();
     this._column.add(this._buttonRow);
     this._column.add(new Spacer());
-    this._column.add(this._metricsHeader);
-    this._column.add(this._metricsPanel);
+    this._column.add(this._metricsSection);
     this._column.add(new Spacer());
-    this._column.add(this._logsHeader);
-    this._column.add(this._logsControl);
+    this._column.add(this._logsSection);
 
     this.add(this._column);
   }
