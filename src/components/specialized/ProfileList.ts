@@ -58,11 +58,11 @@ export class ProfileList extends Control {
         const isSelected = i === this._selectedIndex && this.focused;
 
         if (isSelected) {
-          const prefix = isActive ? "● " : "  ";
+          const prefix = isActive ? "✓ " : "  ";
           const line = (prefix + name).padEnd(width);
           fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
         } else if (isActive) {
-          const line = ("● " + name).padEnd(width);
+          const line = ("✓ " + name).padEnd(width);
           fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
         } else {
           const line = ("  " + name).padEnd(width);

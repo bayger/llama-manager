@@ -95,7 +95,7 @@ export class ModelsControl extends Control {
     });
     this._modelList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const model = (item as any).data as LocalModel;
-      const prefix = model.active ? "\u25cf " : "  ";
+      const prefix = model.active ? "✓ " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
       const line = (` ${prefix}${name}  ${size}`).padEnd(width);

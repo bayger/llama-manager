@@ -422,7 +422,7 @@ export class VersionsControl extends Control {
 
   _localRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const v = item.data as VersionInfo;
-    const prefix = v.active ? "● " : "  ";
+    const prefix = v.active ? "✓ " : "  ";
     const line = (` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
 
     if (isSelected) {
