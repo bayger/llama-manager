@@ -200,7 +200,6 @@ export class TasksControl extends Control {
     this._column = new Column();
     this._column.add(this._summary);
     this._column.add(this._filterRow);
-    this._column.add(this._divider);
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
 
