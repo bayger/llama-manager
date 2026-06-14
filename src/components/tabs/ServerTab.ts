@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 import { Control } from "../ui/Control.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 import { Column, Row } from "../ui/Layout.js";
 import { Button } from "../ui/widgets/Button.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { SettingsPanel } from "../specialized/SettingsPanel.js";
 import { ProfileList } from "../specialized/ProfileList.js";
-import { themeColors, fg } from "../../lib/theme.js";
+import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { ConfigData, saveConfig } from "../../lib/config.js";
 import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import type { Size } from "../ui/types.js";
 
 export class ServerControl extends Control {
   focusable = true;
@@ -23,15 +22,15 @@ export class ServerControl extends Control {
   protected _buttons: Button[];
   protected _settingsPanel: SettingsPanel;
   protected _profileList: ProfileList;
+  protected _summary: StyledText;
   protected _editMode: "create" | "rename" | null = null;
   protected _showingSettings = false;
-  protected _editLabelText = "";
-  protected _profileCount = 0;
-  protected _activeProfile = "";
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+
+    this._summary = new StyledText();
 
     this._editInput = new TextInput();
     this._editInput.placeholder = "Profile name";
@@ -72,7 +71,7 @@ export class ServerControl extends Control {
     });
 
     this._column = new Column();
-    this._column.add(new Spacer());
+    this._column.add(this._summary);
     this._column.add(this._editRow);
     this._column.add(new Spacer());
     this._column.add(this._buttonRow);
@@ -124,13 +123,16 @@ export class ServerControl extends Control {
     if (!config) return;
 
     const count = Object.keys(config.server.profiles).length;
-    this._profileCount = count;
-    this._activeProfile = config.server.activeProfile;
     this._settingsPanel.setConfig(config);
     this._profileList.setConfig(config);
     const isDefault = config.server.activeProfile === "Default";
     this._buttons[1].disabled = isDefault;
     this._buttons[2].disabled = isDefault;
+    this._summary.builder
+      .muted("Profiles ")
+      .accentColor(String(count))
+      .muted("  Current ")
+      .text(config.server.activeProfile);
     this.markDirty();
   }
 
@@ -177,7 +179,7 @@ export class ServerControl extends Control {
     }
 
     this._editMode = mode;
-    this._editLabelText = mode === "create" ? "Create: " : "Rename: ";
+    this._summary.builder.warning(mode === "create" ? "Create: " : "Rename: ");
     this._editRow.visible = true;
     this._editInput.value = mode === "create" ? "" : config.server.activeProfile;
     this._editInput.cursorPos = mode === "create" ? 0 : config.server.activeProfile.length;
@@ -187,7 +189,6 @@ export class ServerControl extends Control {
 
   cancelProfileEdit(): void {
     this._editMode = null;
-    this._editLabelText = "";
     this._editRow.visible = false;
     this.refreshConfig();
     const firstEnabled = this._buttons.find(b => !b.disabled);
@@ -274,27 +275,6 @@ export class ServerControl extends Control {
     }
 
     this.refreshConfig();
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
-    const canvas = ctx.canvas;
-    const { x, y: startY, width } = this.rect;
-
-    canvas.moveTo(x, startY);
-    canvas.styleReset();
-
-    if (this._editMode) {
-      fg(canvas, themeColors.warning, this._editLabelText);
-    } else {
-      fg(canvas, themeColors.textMuted, "Profiles ");
-      fg(canvas, themeColors.accentColor, `${this._profileCount}`);
-      fg(canvas, themeColors.textMuted, "  Current ");
-      fg(canvas, themeColors.text, this._activeProfile);
-    }
-
-    this.needsRender = false;
   }
 }
 
