@@ -141,8 +141,8 @@ export class FramebufferCanvas {
     return this;
   }
 
-  bold(): this {
-    this._bold = true;
+  bold(enabled: boolean = true): this {
+    this._bold = enabled;
     return this;
   }
 

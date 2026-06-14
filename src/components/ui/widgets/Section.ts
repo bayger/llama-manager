@@ -11,7 +11,7 @@ export class Section extends Control {
   measure(parentSize?: Size): Size {
     const p = parentSize || { width: this.rect.width || 80, height: this.rect.height || 4 };
 
-    let fixedHeight = 1;
+    let fixedHeight = 2;
     let flexTotal = 0;
     let hasFlex = false;
 
@@ -35,9 +35,9 @@ export class Section extends Control {
   onLayout(): void {
     const { x, y, width, height } = this.rect;
     const innerW = Math.max(0, width - 2);
-    let curY = y + 1;
+    let curY = y + 2;
 
-    let fixedTotal = 1;
+    let fixedTotal = 2;
     let flexTotal = 0;
     const visibleChildren = this.children.filter(c => c.visible);
 
@@ -88,6 +88,7 @@ export class Section extends Control {
     canvas.bold();
     fg(canvas, themeColors.accent, V);
     fg(canvas, themeColors.accent, ` ${this.title}`);
+    canvas.bold(false);
 
     // Left border
     for (let row = 1; row < height; row++) {
