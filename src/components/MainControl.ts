@@ -191,12 +191,16 @@ class TabBar extends Control {
       this._tabRects.push({ start: pos, end: pos + labelLen });
       if (i === this._selectedIndex) {
         fg(canvas, "textMuted", `F${i + 1}`);
+        canvas.bold();
         fg(canvas, "accent", ` ${TABS[i]}`);
+        canvas.bold(false);
         activeStart = pos;
         activeEnd = pos + labelLen;
       } else {
         fg(canvas, "border", `F${i + 1}`);
+        canvas.bold();
         fg(canvas, "textMuted", ` ${TABS[i]}`);
+        canvas.bold(false);
       }
       pos += labelLen;
       if (i < TABS.length - 1) {

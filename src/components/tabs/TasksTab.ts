@@ -90,29 +90,19 @@ class TaskDetailsControl extends Section {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    if (width < 3 || height < 2) {
+    if (width < 3 || height < 4) {
       return;
     }
 
-    canvas.moveTo(x, y);
-    canvas.bold();
-    fg(canvas, "accent", `${V}`);
-    fg(canvas, "accent", ` ${this.title}`);
-    canvas.bold(false);
-
-    for (let row = 1; row < height; row++) {
-      canvas.moveTo(x, y + row);
-      canvas.setForegroundColor("borderMuted");
-      canvas.write(V);
-    }
+    super.draw(ctx);
 
     const lines = this._getLines();
     const innerW = width - 2;
     const labelWidth = 14;
 
-    for (let i = 0; i < height - 1; i++) {
-      const lineIdx = i - 1 + this._scrollOffset;
-      canvas.moveTo(x + 2, y + i + 1);
+    for (let i = 0; i < height - 3; i++) {
+      const lineIdx = i + this._scrollOffset;
+      canvas.moveTo(x + 2, y + i + 2);
 
       if (lineIdx >= 0 && lineIdx < lines.length) {
         const line = lines[lineIdx]!;
@@ -133,7 +123,6 @@ class TaskDetailsControl extends Section {
   }
 }
 
-const V = "\u2502";
 
 export class TasksControl extends Control {
   focusable = true;
