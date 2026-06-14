@@ -75,18 +75,18 @@ export class Section extends Control {
 
     // Half bar row
     canvas.moveTo(x, y);
-    fg(canvas, "accent", V);
+    //fg(canvas, "accent", V);
     canvas.setForegroundColor("canvasSubtle");
     canvas.setBackgroundColor("canvas");
-    for (let col = 1; col < width; col++) {
+    for (let col = 0; col < width; col++) {
       fgBg(canvas, "canvasSubtle", "canvas", HALF_BLOCK);
     }
 
     // Caption row
     canvas.moveTo(x, y + 1);
     canvas.bold();
-    fg(canvas, "accent", V);
-    fg(canvas, "accent", ` ${this.title}`);
+    fgBg(canvas, "accent", "canvasSubtle", V);
+    fgBg(canvas, "accent", "canvasSubtle", ` ${this.title}`);
     canvas.bold(false);
 
     // Left border

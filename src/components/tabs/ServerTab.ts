@@ -79,12 +79,10 @@ export class ServerControl extends Control {
     this._section.add(this._profileList);
 
     this._column = new Column();
-    this._column.add(this._summary);
     this._column.add(this._editRow);
-    this._column.add(new Spacer());
     this._column.add(this._buttonRow);
-    this._column.add(new Spacer());
     this._column.add(this._section);
+    this._buttonRow.add(this._summary);
 
     this.add(this._column);
   }

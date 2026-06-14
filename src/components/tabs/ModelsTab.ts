@@ -113,7 +113,7 @@ export class ModelsControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
-    this._column.add(new Spacer());
+    //this._column.add(new Spacer());
     this._column.add(this._modelsSection);
     this._modelsSection.flex = 1;
 
@@ -207,11 +207,11 @@ export class ModelsControl extends Control {
     this._hfColumn.add(this._hfSearchRow);
     this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfButtonRow);
-    this._hfColumn.add(new Spacer());
+    //this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 
-    this.add(this._summary);
+    this._buttonRow.add(this._summary);
     this.add(this._column);
     this.add(this._hfColumn);
   }
@@ -221,14 +221,11 @@ export class ModelsControl extends Control {
   }
 
   onLayout(): void {
-    const summaryH = 1;
-    this._summary.layout({ x: this.rect.x, y: this.rect.y, width: this.rect.width, height: summaryH });
-
     const contentRect = {
       x: this.rect.x,
-      y: this.rect.y + summaryH + 1,
+      y: this.rect.y,
       width: this.rect.width,
-      height: this.rect.height - summaryH - 1,
+      height: this.rect.height,
     };
 
     if (this._view === "local") {

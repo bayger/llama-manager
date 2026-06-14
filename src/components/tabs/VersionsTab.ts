@@ -136,11 +136,11 @@ export class VersionsControl extends Control {
     this._changelogSection.flex = 1;
 
     this._column = new Column();
-    this._column.add(this._summary);
+    this._buttonRow.add(this._summary);
     this._column.add(this._prompt);
-    this._column.add(this._dividerButtons);
+    //this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
-    this._column.add(new Spacer());
+    //this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
     this._column.add(this._progressBar);
