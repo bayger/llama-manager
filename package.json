@@ -17,12 +17,14 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "better-sqlite3": "^12.10.1",
     "chalk": "^4.1.2",
     "fs-extra": "^11.3.0",
     "terminal-kit": "^3.1.2",
     "undici": "^7.11.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.15.32",
     "@types/terminal-kit": "^2.5.0",

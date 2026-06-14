@@ -36,6 +36,8 @@ export type TableRenderer<T> = (
   columns: ComputedColumn[]
 ) => void;
 
+export type VirtualLoader<T> = (start: number, end: number) => TableItem<T>[];
+
 interface VisibleColumn {
   col: TableColumn;
   width: number;
@@ -56,6 +58,10 @@ export class Table<T = any> extends Control {
   protected _onHighlight: ((item: TableItem<T> | null) => void) | null = null;
   protected _customRenderer: TableRenderer<T> | null = null;
   protected _viewportHeight = 0;
+  protected _virtualTotal = 0;
+  protected _virtualLoader: VirtualLoader<T> | null = null;
+  protected _virtualCacheStart = -1;
+  protected _virtualCache: TableItem<T>[] = [];
 
   get selectedIndex(): number { return this._selectedIndex; }
   set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
@@ -82,7 +88,32 @@ export class Table<T = any> extends Control {
     this._customRenderer = renderer;
   }
 
+  setVirtualLoader(total: number, loader: VirtualLoader<T>): void {
+    this._virtualTotal = total;
+    this._virtualLoader = loader;
+    this._virtualCacheStart = -1;
+    this.contentHeight = total;
+    this.clampScroll();
+    this.markDirty();
+  }
+
+  protected _loadVirtualRange(): void {
+    if (!this._virtualLoader) return;
+    const end = Math.min(this._virtualTotal, this.scrollOffset + this._viewportHeight);
+    if (this._virtualCacheStart === this.scrollOffset &&
+        this._virtualCache.length >= this._viewportHeight) {
+      return;
+    }
+    this._virtualCacheStart = this.scrollOffset;
+    this._virtualCache = this._virtualLoader(this.scrollOffset, end);
+    this.items = this._virtualCache;
+  }
+
   updateItems(items: TableItem<T>[]): void {
+    this._virtualLoader = null;
+    this._virtualTotal = 0;
+    this._virtualCacheStart = -1;
+    this._virtualCache = [];
     this.items = items;
     this.contentHeight = items.length;
     if (this.selectedIndex >= items.length) {
@@ -172,6 +203,10 @@ export class Table<T = any> extends Control {
     if (!this.visible || !this.needsRender) {
       if (this.needsRender) this.needsRender = false;
       return;
+    }
+
+    if (this._virtualLoader) {
+      this._loadVirtualRange();
     }
 
     const { canvas } = ctx;
@@ -273,7 +308,8 @@ export class Table<T = any> extends Control {
   }
 
   handleKey(key: string): boolean {
-    if (this.items.length === 0) return false;
+    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    if (total === 0) return false;
 
     if (key === "UP" || key === "k") {
       if (this.selectedIndex > 0) {
@@ -289,7 +325,7 @@ export class Table<T = any> extends Control {
     }
 
     if (key === "DOWN" || key === "j") {
-      if (this.selectedIndex < this.items.length - 1) {
+      if (this.selectedIndex < total - 1) {
         this.selectedIndex++;
         const viewportBottom = this.scrollOffset + this._viewportHeight;
         if (this.selectedIndex >= viewportBottom) {
@@ -311,8 +347,8 @@ export class Table<T = any> extends Control {
     }
 
     if (key === "PAGE_DOWN") {
-      this.selectedIndex = Math.min(this.items.length - 1, this.selectedIndex + this._viewportHeight);
-      const maxScroll = Math.max(0, this.items.length - this._viewportHeight);
+      this.selectedIndex = Math.min(total - 1, this.selectedIndex + this._viewportHeight);
+      const maxScroll = Math.max(0, total - this._viewportHeight);
       this.scrollOffset = Math.min(maxScroll, this.scrollOffset + this._viewportHeight);
       this._fireHighlight();
       this.markDirty();
@@ -328,8 +364,8 @@ export class Table<T = any> extends Control {
     }
 
     if (key === "END") {
-      this.selectedIndex = this.items.length - 1;
-      this.scrollOffset = Math.max(0, this.items.length - this._viewportHeight);
+      this.selectedIndex = total - 1;
+      this.scrollOffset = Math.max(0, total - this._viewportHeight);
       this._fireHighlight();
       this.markDirty();
       return true;
@@ -347,7 +383,8 @@ export class Table<T = any> extends Control {
 
   onFocus(): void {
     super.onFocus();
-    if (this.selectedIndex < 0 && this.items.length > 0) {
+    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    if (this.selectedIndex < 0 && total > 0) {
       this.selectedIndex = 0;
       this._fireHighlight();
       this.markDirty();
@@ -356,13 +393,14 @@ export class Table<T = any> extends Control {
   }
 
   onMouseDown(point: Point): boolean {
-    if (this.items.length === 0) return false;
+    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    if (total === 0) return false;
     const hasHeader = this.showHeader && this.columns.length > 0;
     const bodyStartY = this.rect.y + (hasHeader ? this.headerHeight : 0);
     const row = point.y - bodyStartY;
     if (row >= 0 && row < this._viewportHeight) {
       const itemIndex = row + this.scrollOffset;
-      if (itemIndex >= 0 && itemIndex < this.items.length) {
+      if (itemIndex >= 0 && itemIndex < total) {
         this.selectedIndex = itemIndex;
         this._fireHighlight();
         this.markDirty();
