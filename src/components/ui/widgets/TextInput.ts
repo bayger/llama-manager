@@ -53,18 +53,14 @@ export class TextInput extends Control {
     focusManager.activateTextInput(false);
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+ draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width } = this.rect;
+    const { x, y } = this.rect;
     canvas.styleReset();
 
     const bg = this.focused ? "canvasSubtle" : "canvas";
     const borderColor = this.focused ? "borderActive" : "borderMuted";
 
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor(bg);
-    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
     fgBg(canvas, borderColor, bg, "│");
 
@@ -83,8 +79,6 @@ export class TextInput extends Control {
       canvas.setTerminalCursor(cursorX, y);
       canvas.showTerminalCursor();
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {

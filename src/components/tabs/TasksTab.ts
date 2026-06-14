@@ -86,20 +86,11 @@ class TaskDetailsControl extends Section {
     ];
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvasSubtle");
-    canvas.clearRect(x, y, width, height);
-
     if (width < 3 || height < 2) {
-      canvas.setClipRect(prevClip);
-      this.needsRender = false;
       return;
     }
 
@@ -139,9 +130,6 @@ class TaskDetailsControl extends Section {
         }
       }
     }
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }
 
@@ -334,9 +322,7 @@ export class TasksControl extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
+  draw(_ctx: RenderContext): void {
     const filter = this.getFilter();
     const stats = taskStore.getStats(filter);
 
@@ -355,8 +341,6 @@ export class TasksControl extends Control {
     if (filterIndicator) {
       this._summary.builder.warning(filterIndicator);
     }
-
-    this.needsRender = false;
   }
 
   formatTime(timestamp: string): string {

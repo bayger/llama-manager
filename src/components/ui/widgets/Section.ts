@@ -1,11 +1,12 @@
 import { Control } from "../Control.js";
-import { fg } from "../../../lib/theme.js";
+import { Color, fg } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 const V = "\u2502";
 
 export class Section extends Control {
   focusable = false;
+  backgroundColor = "canvasSubtle" as Color;
   public title = "";
 
   measure(parentSize?: Size): Size {
@@ -65,23 +66,11 @@ export class Section extends Control {
     }
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvasSubtle");
-    canvas.clearRect(x, y, width, height);
-
-    if (width < 3 || height < 2) {
-      canvas.setClipRect(prevClip);
-      this.needsRender = false;
-      return;
-    }
+    if (width < 3 || height < 2) return;
 
     // Caption row
     canvas.moveTo(x, y);
@@ -96,13 +85,5 @@ export class Section extends Control {
       canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
-
-    // Children
-    for (const child of this.children) {
-      child.render(ctx);
-    }
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }

@@ -54,13 +54,11 @@ export class DashboardControl extends Control {
     this._profileLabel.focusable = false;
     const profileLbl = this._profileLabel;
     this._profileLabel.measure = () => ({ width: "Profile: ".length + profileLbl.text.length, height: 1 });
-    this._profileLabel.render = (ctx: RenderContext) => {
-      if (!profileLbl.visible || !profileLbl.needsRender) return;
+    profileLbl.draw = (ctx: RenderContext) => {
       const canvas = ctx.canvas;
       canvas.moveTo(profileLbl.rect.x, profileLbl.rect.y);
       fg(canvas, "textMuted", "Profile ");
       fg(canvas, "accentColor", profileLbl.text);
-      profileLbl.needsRender = false;
     };
     this._buttonRow.add(this._profileLabel);
 
@@ -76,13 +74,11 @@ export class DashboardControl extends Control {
     this._versionLabel.focusable = false;
     const versionLbl = this._versionLabel;
     this._versionLabel.measure = () => ({ width: Math.max("Version: ".length + versionLbl.text.length, 1), height: 1 });
-    this._versionLabel.render = (ctx: RenderContext) => {
-      if (!versionLbl.visible || !versionLbl.needsRender) return;
+    versionLbl.draw = (ctx: RenderContext) => {
       const canvas = ctx.canvas;
       canvas.moveTo(versionLbl.rect.x, versionLbl.rect.y);
       fg(canvas, "textMuted", "Version ");
       fg(canvas, "text", versionLbl.text);
-      versionLbl.needsRender = false;
     };
     this._buttonRow.add(this._versionLabel);
 
@@ -180,10 +176,9 @@ export class DashboardControl extends Control {
     this._ctx = null;
   }
 
-  render(ctx: RenderContext): void {
+  draw(ctx: RenderContext): void {
     this.updateProfileLabel();
     this.updateButtons();
-    super.render(ctx);
   }
 
   onFocus(): void {

@@ -60,13 +60,9 @@ export class Button extends Control {
     return { width: this.label.length + 4, height: 1 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width } = this.rect;
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvas");
-    canvas.clearRect(x, y, width, 1);
+    const { x, y } = this.rect;
     canvas.moveTo(x, y);
     const padded = ` ${this.label} `;
 
@@ -79,8 +75,6 @@ export class Button extends Control {
     } else {
       fgBg(canvas, "textMuted", "canvasSubtle", padded);
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {

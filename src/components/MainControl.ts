@@ -1,7 +1,7 @@
 import { Control } from "./ui/Control.js";
 import { Column } from "./ui/Layout.js";
 import { HalfBar } from "./ui/widgets/HalfBar.js";
-import { fg } from "../lib/theme.js";
+import { Color, fg } from "../lib/theme.js";
 import type { Point, Rect, RenderContext, Size } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
 
@@ -17,6 +17,7 @@ export const TABS = ["Dashboard", "Tasks", "Profiles", "Versions", "Models", "Op
 export type TabId = (typeof TABS)[number];
 
 export class MainControl extends Column {
+  backgroundColor = 'canvas' as Color;
   protected _topBar: HalfBar;
   protected _tabBar: TabBar;
   protected _tabContent: TabContent;
@@ -148,8 +149,8 @@ export class MainControl extends Column {
     return [];
   }
 
-  render(ctx: RenderContext): void {
-    super.render(ctx);
+  draw(_ctx: RenderContext): void {
+    super.draw(_ctx);
   }
 }
 
@@ -173,14 +174,10 @@ class TabBar extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvasSubtle");
-    canvas.clearRect(x, y, width, 2);
     canvas.moveTo(x, y);
     fg(canvas, "text", " ");
     this._tabRects = [];
@@ -210,8 +207,6 @@ class TabBar extends Control {
     for (let i = 0; i < width; i++) {
       fg(canvas, "canvas", "\u2584");
     }
-
-    this.needsRender = false;
   }
 
   onMouseDown(point: Point): boolean {
@@ -268,23 +263,14 @@ class TabContent extends Control {
     return this._tabs.get(this._activeTab) || null;
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { x, y, width, height } = this.rect;
-    const canvas = ctx.canvas;
-
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvas");
-    canvas.clearRect(x, y, width, height);
 
     const control = this.getActiveControl();
     if (control) {
       const pad = 1;
       control.layout({ x: x + pad, y: y, width: Math.max(0, width - pad * 2), height });
-      control.render(ctx);
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {
@@ -323,14 +309,10 @@ class StatusBar extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
-    const { x, y, width } = this.rect;
+    const { x, y } = this.rect;
 
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvasSubtle");
-    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
     fg(canvas, "text", " ");
     if (this._message) {
@@ -347,7 +329,5 @@ class StatusBar extends Control {
       fg(canvas, "borderMuted", "  │  ");
       fg(canvas, "textMuted", "? help");
     }
-
-    this.needsRender = false;
   }
 }

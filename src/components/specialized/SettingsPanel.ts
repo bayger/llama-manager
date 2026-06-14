@@ -134,20 +134,15 @@ export class SettingsPanel extends Control {
     this.clampSelection();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const presets = this._config?.server.profiles[this._config?.server.activeProfile]?.presets;
 
     if (!presets || !this._config || this._rows.length === 0) {
-      this.needsRender = false;
       return;
     }
 
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvas");
-    canvas.clearRect(x, startY, width, height);
     canvas.moveTo(x, startY);
 
     for (let i = 0; i < height; i++) {
@@ -170,8 +165,6 @@ export class SettingsPanel extends Control {
     if (this._edit) {
       this.renderCursor(canvas);
     }
-
-    this.needsRender = false;
   }
 
   renderCursor(canvas: FramebufferCanvas): void {

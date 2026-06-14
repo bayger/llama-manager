@@ -55,15 +55,9 @@ export class List<T = any> extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width, height } = this.rect;
-
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvasSubtle");
-    canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
+    const { x, y, width } = this.rect;
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
@@ -85,8 +79,6 @@ export class List<T = any> extends Control {
         }
       }
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {

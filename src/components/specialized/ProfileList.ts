@@ -38,14 +38,13 @@ export class ProfileList extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender || !this._config) return;
+  draw(ctx: RenderContext): void {
+    if (!this._config) return;
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const names = Object.keys(this._config.server.profiles);
 
     if (names.length === 0) {
-      this.needsRender = false;
       return;
     }
 
@@ -70,8 +69,6 @@ export class ProfileList extends Control {
         }
       }
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {

@@ -13,9 +13,7 @@ export class HelpBar extends Control {
     return { width: this.rect.width || 40, height: 2 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
 
@@ -25,7 +23,5 @@ export class HelpBar extends Control {
     if (this.prefix) {
       fg(canvas, this.prefixColor, this.prefix);
     }
-
-    this.needsRender = false;
   }
 }

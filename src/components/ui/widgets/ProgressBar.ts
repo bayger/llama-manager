@@ -36,9 +36,7 @@ export class ProgressBar extends Control {
     return { width: this.rect.width || 60, height: 2 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
 
@@ -56,7 +54,5 @@ export class ProgressBar extends Control {
     canvas.moveTo(x, y + 1);
     fg(canvas, this.filledColor, "\u2588".repeat(filled));
     fg(canvas, this.emptyColor, "\u2591".repeat(empty));
-
-    this.needsRender = false;
   }
 }

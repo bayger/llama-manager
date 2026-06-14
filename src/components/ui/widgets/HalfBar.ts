@@ -10,8 +10,7 @@ export class HalfBar extends Control {
     return { width: this.rect.width || 80, height: 1 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
@@ -24,7 +23,5 @@ export class HalfBar extends Control {
     for (let i = 0; i < width; i++) {
       fgBg(canvas, topColor, bottomColor, "\u2584");
     }
-
-    this.needsRender = false;
   }
 }

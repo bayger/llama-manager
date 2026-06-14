@@ -59,15 +59,12 @@ export class StyledText extends Control {
     return { width: len || this.rect.width, height: 1 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     canvas.moveTo(this.rect.x, this.rect.y);
     for (const seg of this.segments) {
       fg(canvas, seg.color, seg.text);
     }
     canvas.styleReset();
-    this.needsRender = false;
   }
 }

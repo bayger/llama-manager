@@ -20,13 +20,11 @@ export class LogsViewer extends Control {
     return { width: parentSize?.width ?? this.rect.width, height: parentSize?.height ?? this.rect.height };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width, height } = this.rect;
 
     if (height <= 0) {
-      this.needsRender = false;
       return;
     }
 
@@ -49,7 +47,5 @@ export class LogsViewer extends Control {
         }
       }
     }
-
-    this.needsRender = false;
   }
 }

@@ -57,8 +57,7 @@ class ChangelogView extends Scrollable {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width, height } = this.rect;
 
@@ -71,8 +70,6 @@ class ChangelogView extends Scrollable {
         fg(canvas, "textMuted", display);
       }
     }
-
-    this.needsRender = false;
   }
 }
 

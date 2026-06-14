@@ -27,17 +27,10 @@ class ThemePickerControl extends Section {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
     const names = getThemeNames();
-
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvas");
-    canvas.clearRect(x, y, width, height);
 
     canvas.moveTo(x, y);
     canvas.bold();
@@ -81,9 +74,6 @@ class ThemePickerControl extends Section {
         }
       }
     }
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }
 
@@ -314,14 +304,12 @@ export class OptionsPanel extends Control {
     }
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const config = this._ctx?.getConfig();
 
     if (!config || this._rows.length === 0) {
-      this.needsRender = false;
       return;
     }
 
@@ -353,12 +341,6 @@ export class OptionsPanel extends Control {
     if (this._edit) {
       this.renderCursor(canvas);
     }
-
-    for (const child of this.children) {
-      child.render(ctx);
-    }
-
-    this.needsRender = false;
   }
 
   renderCursor(canvas: FramebufferCanvas): void {

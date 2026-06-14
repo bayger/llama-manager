@@ -42,9 +42,7 @@ export class Label extends Control {
     this.markDirty();
   }
 
- render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     canvas.moveTo(this.rect.x, this.rect.y);
     if (this.bold) canvas.bold();
@@ -58,6 +56,5 @@ export class Label extends Control {
     const prefix = isFocused ? "> " : "";
     fg(canvas, this.color, prefix + this.text);
     canvas.styleReset();
-    this.needsRender = false;
   }
 }

@@ -199,12 +199,7 @@ export class Table<T = any> extends Control {
     return result;
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) {
-      if (this.needsRender) this.needsRender = false;
-      return;
-    }
-
+  draw(ctx: RenderContext): void {
     if (this._virtualLoader) {
       this._loadVirtualRange();
     }
@@ -213,15 +208,7 @@ export class Table<T = any> extends Control {
     const { x, y, width, height } = this.rect;
     const items = this.items;
 
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvasSubtle");
-    canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
-
-    if (items.length === 0) {
-      this.needsRender = false;
-      return;
-    }
+    if (items.length === 0) return;
 
     const visibleCols = this.computeVisibleColumns(width);
     const   hasHeader = this.showHeader && visibleCols.length > 0;
@@ -248,8 +235,6 @@ export class Table<T = any> extends Control {
         this.renderRow(canvas, x, bodyStartY + i, width, item, itemIndex, isSelected, visibleCols);
       }
     }
-
-    this.needsRender = false;
   }
 
   protected renderHeader(

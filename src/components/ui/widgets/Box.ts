@@ -41,22 +41,11 @@ export class Box extends Control {
     return { width: this.rect.width || 20, height: this.rect.height || 4 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvas");
-    canvas.clearRect(x, y, width, height);
-
-    if (width < 4 || height < 3) {
-      canvas.setClipRect(prevClip);
-      this.needsRender = false;
-      return;
-    }
+    if (width < 4 || height < 3) return;
 
     const innerW = width - 2;
 
@@ -79,11 +68,6 @@ export class Box extends Control {
       fg(canvas, this.borderColor, V);
     }
 
-    // Render child
-    if (this.children.length > 0) {
-      this.children[0].render(ctx);
-    }
-
     // Right border
     for (let row = 1; row < height - 1; row++) {
       canvas.moveTo(x + width - 1, y + row);
@@ -95,8 +79,5 @@ export class Box extends Control {
     fg(canvas, this.borderColor, BL);
     fg(canvas, this.borderColor, H.repeat(innerW));
     fg(canvas, this.borderColor, BR);
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }

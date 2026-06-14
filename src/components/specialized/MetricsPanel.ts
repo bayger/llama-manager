@@ -101,8 +101,7 @@ export class MetricsPanel extends Control {
     };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
 
@@ -113,7 +112,6 @@ export class MetricsPanel extends Control {
     let cy = y;
 
     if (cy >= y + this.rect.height) {
-      this.needsRender = false;
       return;
     }
 
@@ -148,7 +146,6 @@ export class MetricsPanel extends Control {
     }
 
     if (cy >= y + this.rect.height) {
-      this.needsRender = false;
       return;
     }
 
@@ -166,8 +163,6 @@ export class MetricsPanel extends Control {
 
       cy = this.renderSlot(canvas, x, cy, width, slot);
     }
-
-    this.needsRender = false;
   }
 
   renderSlot(

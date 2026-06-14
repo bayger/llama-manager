@@ -1,4 +1,5 @@
 import type { Rect, Size, RenderContext, Point } from "./types.js";
+import type { Color } from "../../lib/theme.js";
 
 import { focusManager } from "./FocusManager.js";
 
@@ -12,6 +13,8 @@ export class Control {
   public flex = 0;
   public minWidth = 0;
   public minHeight = 0;
+  public foregroundColor: Color = "None";
+  public backgroundColor: Color = "None";
 
   protected _visible = true;
   get visible(): boolean { return this._visible; }
@@ -100,15 +103,17 @@ export class Control {
   // - Rendering -
 
   render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+    if (!this.visible) return;
 
     const prevClip = ctx.canvas.getClipRect();
     ctx.canvas.setClipRect(this.rect);
 
     const { x, y, width, height } = this.rect;
-    ctx.canvas.setForegroundColor("canvas");
-    ctx.canvas.setBackgroundColor("canvas");
+    ctx.canvas.setForegroundColor(this.foregroundColor);
+    ctx.canvas.setBackgroundColor(this.backgroundColor);
     ctx.canvas.clearRect(x, y, width, height);
+
+    this.draw(ctx);
 
     for (const child of this.children) {
       child.render(ctx);
@@ -117,6 +122,8 @@ export class Control {
     ctx.canvas.setClipRect(prevClip);
     this.needsRender = false;
   }
+
+  draw(_ctx: RenderContext): void {}
 
   // - Input -
 
