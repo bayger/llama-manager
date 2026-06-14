@@ -40,6 +40,8 @@ export interface ThemeColors {
   selectedText: string;
 }
 
+export type Color = keyof ThemeColors | `#${string}` | "None";
+
 interface OpencodeThemeRaw {
   defs: Record<string, string>;
   theme: Record<string, string | { dark: string; light: string }>;
@@ -157,21 +159,28 @@ export function popThemeChanged(): boolean {
 // Keep backward compat for lib files that import theme colors
 export const theme = themeColors;
 
+// ─── Color resolution ────────────────────────────────────────────────────────
+
+export function resolveColor(color: Color): string {
+  if (color.startsWith("#")) return color;
+  return (themeColors as unknown as Record<string, string>)[color] || "#000000";
+}
+
 // ─── Rendering helpers ───────────────────────────────────────────────────────
 
-export function fg(target: FramebufferCanvas, hex: string, text: string): void {
-  target.colorRgbHex(hex);
+export function fg(target: FramebufferCanvas, color: Color, text: string): void {
+  if (color !== "None") target.setForegroundColor(color);
   target.write(text);
 }
 
-export function bg(target: FramebufferCanvas, hex: string, text: string): void {
-  target.bgColorRgbHex(hex);
+export function bg(target: FramebufferCanvas, color: Color, text: string): void {
+  if (color !== "None") target.setBackgroundColor(color);
   target.write(text);
 }
 
-export function fgBg(target: FramebufferCanvas, fgHex: string, bgHex: string, text: string): void {
-  target.colorRgbHex(fgHex);
-  target.bgColorRgbHex(bgHex);
+export function fgBg(target: FramebufferCanvas, fgColor: Color, bgColor: Color, text: string): void {
+  if (fgColor !== "None") target.setForegroundColor(fgColor);
+  if (bgColor !== "None") target.setBackgroundColor(bgColor);
   target.write(text);
 }
 
@@ -193,7 +202,7 @@ export function renderLine(target: FramebufferCanvas, y: number, fn: () => void)
   fn();
 }
 
-export function renderDivider(target: FramebufferCanvas, y: number, color: string): void {
+export function renderDivider(target: FramebufferCanvas, y: number, color: Color): void {
   const width = termWidth(target);
   renderLine(target, y, () => {
     fg(target, color, "\u2500".repeat(width));
@@ -218,18 +227,18 @@ export interface BoxLine {
 export interface BoxOptions {
   target: FramebufferCanvas;
   width: number;
-  borderColor: string;
+  borderColor: Color;
   startY: number;
 }
 
-function hBorder(target: FramebufferCanvas, width: number, color: string, left: string, right: string): void {
+function hBorder(target: FramebufferCanvas, width: number, color: Color, left: string, right: string): void {
   const inner = Math.max(0, width - 2);
   fg(target, color, left);
   fg(target, color, H.repeat(inner));
   fg(target, color, right);
 }
 
-function vBorder(target: FramebufferCanvas, color: string): void {
+function vBorder(target: FramebufferCanvas, color: Color): void {
   fg(target, color, V);
 }
 

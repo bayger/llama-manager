@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fg, fgBg, themeColors } from "../../../lib/theme.js";
+import { fg, fgBg } from "../../../lib/theme.js";
 import type { Point, Size, RenderContext } from "../types.js";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
 
@@ -55,15 +55,9 @@ export class List<T = any> extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width, height } = this.rect;
-
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
+    const { x, y, width } = this.rect;
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
@@ -77,16 +71,14 @@ export class List<T = any> extends Control {
         const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
         if (isSelected) {
-          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, display);
-          fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - display.length)));
+          fgBg(canvas, "text", "canvasSubtle", display);
+          fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - display.length)));
           canvas.styleReset();
         } else {
-          fg(canvas, themeColors.text, display);
+          fg(canvas, "text", display);
         }
       }
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {

@@ -7,7 +7,7 @@ import { List, ListItem } from "../ui/widgets/List.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { Section } from "../ui/widgets/Section.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { fg, fgBg } from "../../lib/theme.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
 import {
@@ -103,11 +103,11 @@ export class ModelsControl extends Control {
       const line = (` ${prefix}${name}  ${size}`).padEnd(width);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
       } else if (model.active) {
-        fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
+        fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
       } else {
-        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
       }
     });
 
@@ -144,9 +144,9 @@ export class ModelsControl extends Control {
       const line = (` ${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
       } else {
-        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
       }
     });
 
@@ -167,15 +167,15 @@ export class ModelsControl extends Control {
       const line = (` ${file.path}  ${size}`).padEnd(width);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
       } else {
-        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
       }
     });
 
     this._hfProgressBar = new ProgressBar();
     this._hfProgressBar.visible = false;
-    this._hfProgressBar.filledColor = themeColors.success;
+    this._hfProgressBar.filledColor = "success";
 
     this._hfContentColumn = new Column();
     this._hfContentColumn.flex = 1;

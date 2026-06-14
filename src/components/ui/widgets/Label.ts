@@ -1,12 +1,13 @@
 import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
+import { fg } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
+import type { Color } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 export class Label extends Control {
   focusable = false;
   protected _text = "";
-  protected _color = themeColors.text;
+  protected _color: Color = "text";
   protected _bold = false;
   protected _padding = 0;
   protected _align: "left" | "center" = "left";
@@ -14,8 +15,8 @@ export class Label extends Control {
   get text(): string { return this._text; }
   set text(v: string) { if (v !== this._text) { this._text = v; this.markDirty(); } }
 
-  get color(): string { return this._color; }
-  set color(v: string) { if (v !== this._color) { this._color = v; this.markDirty(); } }
+  get color(): Color { return this._color; }
+  set color(v: Color) { if (v !== this._color) { this._color = v; this.markDirty(); } }
 
   get bold(): boolean { return this._bold; }
   set bold(v: boolean) { if (v !== this._bold) { this._bold = v; this.markDirty(); } }
@@ -41,9 +42,7 @@ export class Label extends Control {
     this.markDirty();
   }
 
- render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     canvas.moveTo(this.rect.x, this.rect.y);
     if (this.bold) canvas.bold();
@@ -57,6 +56,5 @@ export class Label extends Control {
     const prefix = isFocused ? "> " : "";
     fg(canvas, this.color, prefix + this.text);
     canvas.styleReset();
-    this.needsRender = false;
   }
 }

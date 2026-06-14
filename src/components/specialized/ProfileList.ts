@@ -1,5 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { fg, fgBg } from "../../lib/theme.js";
 import { ConfigData } from "../../lib/config.js";
 import type { Point, Size, RenderContext } from "../ui/types.js";
 
@@ -38,14 +38,13 @@ export class ProfileList extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender || !this._config) return;
+  draw(ctx: RenderContext): void {
+    if (!this._config) return;
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const names = Object.keys(this._config.server.profiles);
 
     if (names.length === 0) {
-      this.needsRender = false;
       return;
     }
 
@@ -60,18 +59,16 @@ export class ProfileList extends Control {
         if (isSelected) {
           const prefix = isActive ? "✓ " : "  ";
           const line = (prefix + name).padEnd(width);
-          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+          fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
         } else if (isActive) {
           const line = ("✓ " + name).padEnd(width);
-          fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
+          fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
         } else {
           const line = ("  " + name).padEnd(width);
-          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+          fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
         }
       }
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {

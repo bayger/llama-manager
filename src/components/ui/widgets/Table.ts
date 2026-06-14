@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fg, fgBg, themeColors } from "../../../lib/theme.js";
+import { fg, fgBg } from "../../../lib/theme.js";
 import type { Point, Size, RenderContext } from "../types.js";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
 
@@ -199,12 +199,7 @@ export class Table<T = any> extends Control {
     return result;
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) {
-      if (this.needsRender) this.needsRender = false;
-      return;
-    }
-
+  draw(ctx: RenderContext): void {
     if (this._virtualLoader) {
       this._loadVirtualRange();
     }
@@ -213,26 +208,18 @@ export class Table<T = any> extends Control {
     const { x, y, width, height } = this.rect;
     const items = this.items;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
-
-    if (items.length === 0) {
-      this.needsRender = false;
-      return;
-    }
+    if (items.length === 0) return;
 
     const visibleCols = this.computeVisibleColumns(width);
     const   hasHeader = this.showHeader && visibleCols.length > 0;
 
     if (hasHeader) {
       canvas.moveTo(x, y);
-      canvas.bgColorRgbHex(themeColors.canvasSubtle);
+      canvas.setBackgroundColor("canvasSubtle");
       this.renderHeader(canvas, x, y, width, visibleCols);
       // Separator line below header
       canvas.moveTo(x, y + 1);
-      fg(canvas, themeColors.borderActive, "\u2500".repeat(width));
+      fg(canvas, "borderActive", "\u2500".repeat(width));
     }
 
     const bodyStartY = y + (hasHeader ? this.headerHeight : 0);
@@ -248,8 +235,6 @@ export class Table<T = any> extends Control {
         this.renderRow(canvas, x, bodyStartY + i, width, item, itemIndex, isSelected, visibleCols);
       }
     }
-
-    this.needsRender = false;
   }
 
   protected renderHeader(
@@ -268,7 +253,7 @@ export class Table<T = any> extends Control {
 
     const row = parts.join(" ");
 
-    fg(canvas, themeColors.accent, row);
+    fg(canvas, "accent", row);
   }
 
   protected renderRow(
@@ -299,11 +284,11 @@ export class Table<T = any> extends Control {
     const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, display);
-      fgBg(canvas, themeColors.canvas, themeColors.selectedBg, " ".repeat(Math.max(0, width - display.length)));
+      fgBg(canvas, "selectedText", "selectedBg", display);
+      fgBg(canvas, "canvas", "selectedBg", " ".repeat(Math.max(0, width - display.length)));
     } else {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, display);
-      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - display.length)));
+      fgBg(canvas, "text", "canvasSubtle", display);
+      fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - display.length)));
     }
   }
 

@@ -1,5 +1,6 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme.js";
+import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme.js";
+import type { Color } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { Section } from "../ui/widgets/Section.js";
 import { ConfigData, saveConfig } from "../../lib/config.js";
@@ -26,27 +27,20 @@ class ThemePickerControl extends Section {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
     const names = getThemeNames();
 
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, height);
-
     canvas.moveTo(x, y);
     canvas.bold();
-    fg(canvas, themeColors.accent, `${V}`);
-    fg(canvas, themeColors.accent, ` ${this.title}`);
+    fg(canvas, "accent", `${V}`);
+    fg(canvas, "accent", ` ${this.title}`);
     canvas.styleReset();
 
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
-      canvas.colorRgbHex(themeColors.borderMuted);
+      canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
 
@@ -61,28 +55,25 @@ class ThemePickerControl extends Section {
       const resolved = loadTheme(name);
 
       if (isSelected) {
-        fg(canvas, themeColors.accent, ">");
+        fg(canvas, "accent", ">");
         if (resolved) {
-          fgBg(canvas, resolved.canvas, resolved.text, "█");
-          fgBg(canvas, resolved.text, resolved.canvas, "█");
-          fgBg(canvas, resolved.accent, resolved.canvas, "█");
+          fgBg(canvas, resolved.canvas as Color, resolved.text as Color, "█");
+          fgBg(canvas, resolved.text as Color, resolved.canvas as Color, "█");
+          fgBg(canvas, resolved.accent as Color, resolved.canvas as Color, "█");
         }
-        fg(canvas, themeColors.accentColor, ` ${name}`);
+        fg(canvas, "accentColor", ` ${name}`);
       } else {
-        fg(canvas, themeColors.borderMuted, " ");
+        fg(canvas, "borderMuted", " ");
         if (resolved) {
-          fgBg(canvas, resolved.canvas, resolved.text, "█");
-          fgBg(canvas, resolved.text, resolved.canvas, "█");
-          fgBg(canvas, resolved.accent, resolved.canvas, "█");
-          fg(canvas, themeColors.textMuted, ` ${name}`);
+          fgBg(canvas, resolved.canvas as Color, resolved.text as Color, "█");
+          fgBg(canvas, resolved.text as Color, resolved.canvas as Color, "█");
+          fgBg(canvas, resolved.accent as Color, resolved.canvas as Color, "█");
+          fg(canvas, "textMuted", ` ${name}`);
         } else {
-          fg(canvas, themeColors.textMuted, `     ${name}`);
+          fg(canvas, "textMuted", `     ${name}`);
         }
       }
     }
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }
 
@@ -313,22 +304,20 @@ export class OptionsPanel extends Control {
     }
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const config = this._ctx?.getConfig();
 
     if (!config || this._rows.length === 0) {
-      this.needsRender = false;
       return;
     }
 
     const pickerVisible = this._themePicker.visible;
     const mainWidth = pickerVisible ? width - THEME_PICKER_WIDTH : width;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.setForegroundColor("canvas");
+    canvas.setBackgroundColor("canvas");
     canvas.clearRect(x, startY, mainWidth, height);
     canvas.moveTo(x, startY);
 
@@ -352,12 +341,6 @@ export class OptionsPanel extends Control {
     if (this._edit) {
       this.renderCursor(canvas);
     }
-
-    for (const child of this.children) {
-      child.render(ctx);
-    }
-
-    this.needsRender = false;
   }
 
   renderCursor(canvas: FramebufferCanvas): void {
@@ -375,11 +358,11 @@ export class OptionsPanel extends Control {
     const headerText = ` ${arrow} ${cat.name}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, headerText);
-      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - headerText.length)));
+      fgBg(canvas, "text", "canvasSubtle", headerText);
+      fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - headerText.length)));
       canvas.styleReset();
     } else {
-      fg(canvas, themeColors.accentColor, headerText);
+      fg(canvas, "accentColor", headerText);
     }
     canvas.styleReset();
   }
@@ -392,8 +375,8 @@ export class OptionsPanel extends Control {
 
     if (isEditing && this._edit) {
       const value = this._edit.text;
-      fg(canvas, themeColors.warning, keyStr);
-      fg(canvas, themeColors.accent, value);
+      fg(canvas, "warning", keyStr);
+      fg(canvas, "accent", value);
   } else {
         const value = formatFieldValue(field, data?.[field.key]);
 
@@ -406,19 +389,19 @@ export class OptionsPanel extends Control {
         const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
 
         if (isSelected) {
-          fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, keyStr);
-          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, value);
-          fgBg(canvas, themeColors.info, themeColors.canvasSubtle, extra);
+          fgBg(canvas, "textMuted", "canvasSubtle", keyStr);
+          fgBg(canvas, "text", "canvasSubtle", value);
+          fgBg(canvas, "info", "canvasSubtle", extra);
           if (desc) {
-            fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, "  " + desc);
+            fgBg(canvas, "textMuted", "canvasSubtle", "  " + desc);
           }
           const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-          fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - drawn)));
+          fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - drawn)));
           canvas.styleReset();
         } else {
-          fg(canvas, themeColors.textMuted, keyStr);
-          fg(canvas, themeColors.text, value);
-          fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
+          fg(canvas, "textMuted", keyStr);
+          fg(canvas, "text", value);
+          fg(canvas, "textMuted", desc ? "  " + desc : "");
         }
       }
     canvas.styleReset();

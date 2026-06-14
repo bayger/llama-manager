@@ -1,5 +1,6 @@
 import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
+import { fg } from "../../../lib/theme.js";
+import type { Color } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 const TL = "\u250c";
@@ -11,7 +12,7 @@ const V = "\u2502";
 
 export class Box extends Control {
   focusable = false;
-  public borderColor = themeColors.border;
+  public borderColor: Color = "border";
   public title = "";
 
   onLayout(): void {
@@ -40,22 +41,11 @@ export class Box extends Control {
     return { width: this.rect.width || 20, height: this.rect.height || 4 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, height);
-
-    if (width < 4 || height < 3) {
-      canvas.setClipRect(prevClip);
-      this.needsRender = false;
-      return;
-    }
+    if (width < 4 || height < 3) return;
 
     const innerW = width - 2;
 
@@ -64,7 +54,7 @@ export class Box extends Control {
     fg(canvas, this.borderColor, TL);
     if (this.title) {
       fg(canvas, this.borderColor, H);
-      fg(canvas, themeColors.accentColor, ` ${this.title} `);
+      fg(canvas, "accentColor", ` ${this.title} `);
       fg(canvas, this.borderColor, H.repeat(Math.max(0, innerW - this.title.length - 2)));
       fg(canvas, this.borderColor, H);
     } else {
@@ -78,11 +68,6 @@ export class Box extends Control {
       fg(canvas, this.borderColor, V);
     }
 
-    // Render child
-    if (this.children.length > 0) {
-      this.children[0].render(ctx);
-    }
-
     // Right border
     for (let row = 1; row < height - 1; row++) {
       canvas.moveTo(x + width - 1, y + row);
@@ -94,8 +79,5 @@ export class Box extends Control {
     fg(canvas, this.borderColor, BL);
     fg(canvas, this.borderColor, H.repeat(innerW));
     fg(canvas, this.borderColor, BR);
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }

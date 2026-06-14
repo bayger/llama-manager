@@ -7,7 +7,7 @@ import { List, ListItem } from "../ui/widgets/List.js";
 import { ProgressBar } from "../ui/widgets/ProgressBar.js";
 import { Scrollable } from "../ui/widgets/Scrollable.js";
 import { Section } from "../ui/widgets/Section.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { fg, fgBg } from "../../lib/theme.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
 import {
@@ -57,8 +57,7 @@ class ChangelogView extends Scrollable {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width, height } = this.rect;
 
@@ -68,11 +67,9 @@ class ChangelogView extends Scrollable {
       if (lineIdx < this._lines.length) {
         const line = this._lines[lineIdx] || "";
         const display = line.padEnd(width).substring(0, width);
-        fg(canvas, themeColors.textMuted, display);
+        fg(canvas, "textMuted", display);
       }
     }
-
-    this.needsRender = false;
   }
 }
 
@@ -126,9 +123,9 @@ export class VersionsControl extends Control {
 
     this._progressBar = new ProgressBar();
     this._progressBar.visible = false;
-    this._progressBar.filledColor = themeColors.accent;
-    this._progressBar.emptyColor = themeColors.border;
-    this._progressBar.labelColor = themeColors.textMuted;
+    this._progressBar.filledColor = "accent";
+    this._progressBar.emptyColor = "border";
+    this._progressBar.labelColor = "textMuted";
 
     this._dividerButtons = new Spacer();
 
@@ -426,11 +423,11 @@ export class VersionsControl extends Control {
     const line = (` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
 
     if (isSelected) {
-      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
     } else if (v.active) {
-      fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
+      fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
     } else {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
     }
   }
 
@@ -440,9 +437,9 @@ export class VersionsControl extends Control {
     const line = (` ${r.tag}  ${date}`).padEnd(width);
 
     if (isSelected) {
-      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
     } else {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
     }
   }
 
@@ -451,9 +448,9 @@ export class VersionsControl extends Control {
     const line = (` ${b.label}  ${b.assetName}`).padEnd(width);
 
     if (isSelected) {
-      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
     } else {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
     }
   }
 }

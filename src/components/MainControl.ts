@@ -1,7 +1,7 @@
 import { Control } from "./ui/Control.js";
 import { Column } from "./ui/Layout.js";
 import { HalfBar } from "./ui/widgets/HalfBar.js";
-import { fg, themeColors } from "../lib/theme.js";
+import { Color, fg } from "../lib/theme.js";
 import type { Point, Rect, RenderContext, Size } from "./ui/types.js";
 import type { TabContext } from "../lib/tabcontext.js";
 
@@ -17,6 +17,8 @@ export const TABS = ["Dashboard", "Tasks", "Profiles", "Versions", "Models", "Op
 export type TabId = (typeof TABS)[number];
 
 export class MainControl extends Column {
+  foregroundColor = 'canvas' as Color;
+  backgroundColor = 'canvas' as Color;
   protected _topBar: HalfBar;
   protected _tabBar: TabBar;
   protected _tabContent: TabContent;
@@ -148,13 +150,14 @@ export class MainControl extends Column {
     return [];
   }
 
-  render(ctx: RenderContext): void {
-    super.render(ctx);
+  draw(_ctx: RenderContext): void {
+    super.draw(_ctx);
   }
 }
 
 class TabBar extends Control {
   focusable = false;
+  backgroundColor: Color = "canvasSubtle";
   protected _selectedIndex = 0;
   protected _tabRects: { start: number; end: number }[] = [];
   protected _onTabClick: ((index: number) => void) | null = null;
@@ -173,16 +176,12 @@ class TabBar extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, 2);
     canvas.moveTo(x, y);
-    fg(canvas, themeColors.text, " ");
+    fg(canvas, "text", " ");
     this._tabRects = [];
     let pos = 0;
     let activeStart = 0;
@@ -191,27 +190,25 @@ class TabBar extends Control {
       const labelLen = `F${i + 1} ${TABS[i]}`.length;
       this._tabRects.push({ start: pos, end: pos + labelLen });
       if (i === this._selectedIndex) {
-        fg(canvas, themeColors.textMuted, `F${i + 1}`);
-        fg(canvas, themeColors.accent, ` ${TABS[i]}`);
+        fg(canvas, "textMuted", `F${i + 1}`);
+        fg(canvas, "accent", ` ${TABS[i]}`);
         activeStart = pos;
         activeEnd = pos + labelLen;
       } else {
-        fg(canvas, themeColors.border, `F${i + 1}`);
-        fg(canvas, themeColors.textMuted, ` ${TABS[i]}`);
+        fg(canvas, "border", `F${i + 1}`);
+        fg(canvas, "textMuted", ` ${TABS[i]}`);
       }
       pos += labelLen;
       if (i < TABS.length - 1) {
-        fg(canvas, themeColors.borderMuted, " │ ");
+        fg(canvas, "borderMuted", " │ ");
         pos += 3;
       }
     }
 
     canvas.moveTo(x, y + 1);
     for (let i = 0; i < width; i++) {
-      fg(canvas, themeColors.canvas, "\u2584");
+      fg(canvas, "canvas", "\u2584");
     }
-
-    this.needsRender = false;
   }
 
   onMouseDown(point: Point): boolean {
@@ -268,23 +265,14 @@ class TabContent extends Control {
     return this._tabs.get(this._activeTab) || null;
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { x, y, width, height } = this.rect;
-    const canvas = ctx.canvas;
-
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, height);
 
     const control = this.getActiveControl();
     if (control) {
       const pad = 1;
       control.layout({ x: x + pad, y: y, width: Math.max(0, width - pad * 2), height });
-      control.render(ctx);
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {
@@ -306,6 +294,7 @@ class TabContent extends Control {
 
 class StatusBar extends Control {
   focusable = false;
+  backgroundColor: Color = "canvasSubtle";
   protected _message: string | null = null;
   protected _activeTab: TabId = "Dashboard";
 
@@ -323,31 +312,25 @@ class StatusBar extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
-    const { x, y, width } = this.rect;
+    const { x, y } = this.rect;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
-    fg(canvas, themeColors.text, " ");
+    fg(canvas, "text", " ");
     if (this._message) {
       const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
-      fg(canvas, isError ? themeColors.danger : themeColors.success, this._message);
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "? help");
+      fg(canvas, isError ? "danger" : "success", this._message);
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "? help");
     } else {
-      fg(canvas, themeColors.accentColor, this._activeTab);
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "F1-F6 navigate");
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "q quit");
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "? help");
+      fg(canvas, "accentColor", this._activeTab);
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "F1-F6 navigate");
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "q quit");
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "? help");
     }
-
-    this.needsRender = false;
   }
 }

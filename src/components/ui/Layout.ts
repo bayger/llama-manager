@@ -66,16 +66,7 @@ export class Column extends Control {
     }
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    const prevClip = ctx.canvas.getClipRect();
-    ctx.canvas.setClipRect(this.rect);
-    for (const child of this.children) {
-      child.render(ctx);
-    }
-    ctx.canvas.setClipRect(prevClip);
-    this.needsRender = false;
-  }
+  draw(_ctx: RenderContext): void { }
 }
 
 export class Row extends Control {
@@ -148,14 +139,5 @@ export class Row extends Control {
     }
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    const prevClip = ctx.canvas.getClipRect();
-    ctx.canvas.setClipRect(this.rect);
-    for (const child of this.children) {
-      child.render(ctx);
-    }
-    ctx.canvas.setClipRect(prevClip);
-    this.needsRender = false;
-  }
+  draw(_ctx: RenderContext): void { }
 }

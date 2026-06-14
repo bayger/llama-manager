@@ -5,7 +5,7 @@ import { Spacer } from "../ui/widgets/Spacer.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { Table } from "../ui/widgets/Table.js";
 import { Section } from "../ui/widgets/Section.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { fg, fgBg } from "../../lib/theme.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { fireAsync } from "../../lib/utils.js";
@@ -86,32 +86,23 @@ class TaskDetailsControl extends Section {
     ];
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, height);
-
     if (width < 3 || height < 2) {
-      canvas.setClipRect(prevClip);
-      this.needsRender = false;
       return;
     }
 
     canvas.moveTo(x, y);
     canvas.bold();
-    fg(canvas, themeColors.accent, `${V}`);
-    fg(canvas, themeColors.accent, ` ${this.title}`);
+    fg(canvas, "accent", `${V}`);
+    fg(canvas, "accent", ` ${this.title}`);
     canvas.bold(false);
 
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
-      canvas.colorRgbHex(themeColors.borderMuted);
+      canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
 
@@ -126,7 +117,7 @@ class TaskDetailsControl extends Section {
       if (lineIdx >= 0 && lineIdx < lines.length) {
         const line = lines[lineIdx]!;
         if (line.label === "Task Details") {
-          fg(canvas, themeColors.accentColor, line.label.padEnd(innerW));
+          fg(canvas, "accentColor", line.label.padEnd(innerW));
         } else if (line.label !== "") {
           const label = `${line.label}:`.padEnd(labelWidth);
           let value = line.value;
@@ -134,14 +125,11 @@ class TaskDetailsControl extends Section {
           if (value.length > valueWidth) {
             value = "…" + value.substring(value.length - (valueWidth - 1));
           }
-          fg(canvas, themeColors.textMuted, label);
-          fg(canvas, themeColors.text, ` ${value}`);
+          fg(canvas, "textMuted", label);
+          fg(canvas, "text", ` ${value}`);
         }
       }
     }
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }
 
@@ -334,9 +322,7 @@ export class TasksControl extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
+  draw(_ctx: RenderContext): void {
     const filter = this.getFilter();
     const stats = taskStore.getStats(filter);
 
@@ -355,8 +341,6 @@ export class TasksControl extends Control {
     if (filterIndicator) {
       this._summary.builder.warning(filterIndicator);
     }
-
-    this.needsRender = false;
   }
 
   formatTime(timestamp: string): string {
@@ -410,9 +394,9 @@ export class TasksControl extends Control {
     const row = cols.join(" ").padEnd(width);
 
     if (isSelected) {
-      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, row.substring(0, width));
+      fgBg(canvas, "selectedText", "selectedBg", row.substring(0, width));
     } else {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, row.substring(0, width));
+      fgBg(canvas, "text", "canvasSubtle", row.substring(0, width));
     }
   }
 

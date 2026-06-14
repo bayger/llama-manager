@@ -1,11 +1,12 @@
 import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
+import { Color, fg } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 const V = "\u2502";
 
 export class Section extends Control {
   focusable = false;
+  backgroundColor = "canvasSubtle" as Color;
   public title = "";
 
   measure(parentSize?: Size): Size {
@@ -65,44 +66,24 @@ export class Section extends Control {
     }
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    const prevClip = canvas.getClipRect();
-    canvas.setClipRect(this.rect);
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, height);
-
-    if (width < 3 || height < 2) {
-      canvas.setClipRect(prevClip);
-      this.needsRender = false;
-      return;
-    }
+    if (width < 3 || height < 2) return;
 
     // Caption row
     canvas.moveTo(x, y);
     canvas.bold();
-    fg(canvas, themeColors.accent, V);
-    fg(canvas, themeColors.accent, ` ${this.title}`);
+    fg(canvas, "accent", V);
+    fg(canvas, "accent", ` ${this.title}`);
     canvas.bold(false);
 
     // Left border
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
-      canvas.colorRgbHex(themeColors.borderMuted);
+      canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
-
-    // Children
-    for (const child of this.children) {
-      child.render(ctx);
-    }
-
-    canvas.setClipRect(prevClip);
-    this.needsRender = false;
   }
 }
