@@ -180,9 +180,15 @@ class TabBar extends Control {
   draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
+    const appStr = `Llama Manager `;
 
     canvas.moveTo(x, y);
     fg(canvas, "text", " ");
+    canvas.bold();
+    fg(canvas, "accentColor", appStr);
+    canvas.bold(false);
+    fg(canvas, "borderMuted", " │ ");
+
     this._tabRects = [];
     let pos = 0;
     let activeStart = 0;
@@ -208,6 +214,12 @@ class TabBar extends Control {
         fg(canvas, "borderMuted", " │ ");
         pos += 3;
       }
+    }
+
+    const rightPadding = 1;
+    const padLen = width - pos - appStr.length - rightPadding - 3;
+    if (padLen > 0) {
+      fg(canvas, "borderMuted", " ".repeat(padLen));
     }
 
     canvas.moveTo(x, y + 1);
