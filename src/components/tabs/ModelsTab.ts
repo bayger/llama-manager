@@ -49,7 +49,9 @@ export class ModelsControl extends Control {
   protected _hfSearchBtn: Button;
   protected _hfBrowseBtn: Button;
   protected _hfContentColumn: Column;
+  protected _hfResultsSection: Section;
   protected _hfResultsList: List<string>;
+  protected _hfFilesSection: Section;
   protected _hfFilesList: List<string>;
   protected _hfProgressBar: ProgressBar;
   protected _hfButtonRow: Row;
@@ -125,7 +127,11 @@ export class ModelsControl extends Control {
     this._hfSearchRow.add(this._hfSearchInput);
 
     this._hfResultsList = new List<string>();
-    this._hfResultsList.flex = 1;
+
+    this._hfResultsSection = new Section();
+    this._hfResultsSection.title = "Results";
+    this._hfResultsSection.add(this._hfResultsList);
+
     this._hfResultsList.setOnSelect((item) => {
       const repo = (item as any).data as HFRepoInfo;
       this.openRepoFiles(repo);
@@ -135,20 +141,22 @@ export class ModelsControl extends Control {
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
       const meta = [likes, downloads].filter(Boolean).join("  ");
-      const line = ` ${repo.id}${meta ? `  ${meta}` : ""}`;
+      const line = (` ${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, themeColors.text, line);
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
       }
     });
 
     this._hfFilesList = new List<string>();
-    this._hfFilesList.flex = 1;
-    this._hfFilesList.visible = false;
+
+    this._hfFilesSection = new Section();
+    this._hfFilesSection.title = "Files";
+    this._hfFilesSection.visible = false;
+    this._hfFilesSection.add(this._hfFilesList);
+
     this._hfFilesList.setOnSelect((item) => {
       const file = (item as any).data as HFFileInfo;
       this.downloadSelectedFile(file);
@@ -156,14 +164,12 @@ export class ModelsControl extends Control {
     this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const file = (item as any).data as HFFileInfo;
       const size = formatSize(file.size);
-      const line = ` ${file.path}  ${size}`;
+      const line = (` ${file.path}  ${size}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, themeColors.text, line);
+        fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
       }
     });
 
@@ -173,8 +179,10 @@ export class ModelsControl extends Control {
 
     this._hfContentColumn = new Column();
     this._hfContentColumn.flex = 1;
-    this._hfContentColumn.add(this._hfResultsList);
-    this._hfContentColumn.add(this._hfFilesList);
+    this._hfContentColumn.add(this._hfResultsSection);
+    this._hfResultsSection.flex = 1;
+    this._hfContentColumn.add(this._hfFilesSection);
+    this._hfFilesSection.flex = 1;
     this._hfContentColumn.add(this._hfProgressBar);
 
     this._hfBackBtn = new Button({ label: "Back" });
@@ -388,12 +396,12 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfSearchRow.visible = true;
 
     // Content visibility
-    this._hfResultsList.visible = isResults;
-    this._hfFilesList.visible = isFiles;
+    this._hfResultsSection.visible = isResults;
+    this._hfFilesSection.visible = isFiles;
     this._hfProgressBar.visible = isDownloading;
 
     // Button visibility
-    this._hfBackBtn.visible = !isSearch;
+    this._hfBackBtn.visible = true;
     this._hfSearchBtn.visible = isSearch;
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;

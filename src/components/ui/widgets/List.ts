@@ -61,7 +61,7 @@ export class List<T = any> extends Control {
     const { x, y, width, height } = this.rect;
 
     canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.clearRect(x, y, width, height);
     canvas.moveTo(x, y);
 
