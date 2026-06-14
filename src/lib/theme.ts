@@ -40,7 +40,7 @@ export interface ThemeColors {
   selectedText: string;
 }
 
-export type Color = keyof ThemeColors | `#${string}`;
+export type Color = keyof ThemeColors | `#${string}` | "None";
 
 interface OpencodeThemeRaw {
   defs: Record<string, string>;
@@ -169,18 +169,18 @@ export function resolveColor(color: Color): string {
 // ─── Rendering helpers ───────────────────────────────────────────────────────
 
 export function fg(target: FramebufferCanvas, color: Color, text: string): void {
-  target.setForegroundColor(color);
+  if (color !== "None") target.setForegroundColor(color);
   target.write(text);
 }
 
 export function bg(target: FramebufferCanvas, color: Color, text: string): void {
-  target.setBackgroundColor(color);
+  if (color !== "None") target.setBackgroundColor(color);
   target.write(text);
 }
 
 export function fgBg(target: FramebufferCanvas, fgColor: Color, bgColor: Color, text: string): void {
-  target.setForegroundColor(fgColor);
-  target.setBackgroundColor(bgColor);
+  if (fgColor !== "None") target.setForegroundColor(fgColor);
+  if (bgColor !== "None") target.setBackgroundColor(bgColor);
   target.write(text);
 }
 

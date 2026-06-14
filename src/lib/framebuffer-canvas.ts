@@ -1,6 +1,7 @@
 import type { Cell } from "./framebuffer.js";
 import { Framebuffer, DEFAULT_FG, DEFAULT_BG } from "./framebuffer.js";
-import { Color, resolveColor } from "./theme.js";
+import type { Color } from "./theme.js";
+import { resolveColor } from "./theme.js";
 
 export interface ClipRect {
   x: number;
@@ -20,8 +21,8 @@ export class FramebufferCanvas {
   // Cursor stored in 1-indexed terminal coordinates (matches app/control rects)
   private _cursorX = 1;
   private _cursorY = 1;
-  private _fg = DEFAULT_FG;
-  private _bg = DEFAULT_BG;
+  private _fg: string | null = DEFAULT_FG;
+  private _bg: string | null = DEFAULT_BG;
   private _bold = false;
   private _clip: ClipRect | null = null;
   private _terminalCursorX = 1;
@@ -123,8 +124,8 @@ export class FramebufferCanvas {
 
       const cell = buf[by]![bx]!;
       cell.ch = ch;
-      cell.fg = this._fg;
-      cell.bg = this._bg;
+      if (this._fg !== null) cell.fg = this._fg;
+      if (this._bg !== null) cell.bg = this._bg;
       cell.bold = this._bold;
 
       this._cursorX++;
@@ -143,12 +144,12 @@ export class FramebufferCanvas {
   // }
 
   setForegroundColor(color: Color): this {
-    this._fg = resolveColor(color);
+    this._fg = color === "None" ? null : resolveColor(color);
     return this;
   }
 
   setBackgroundColor(color: Color): this {
-    this._bg = resolveColor(color);
+    this._bg = color === "None" ? null : resolveColor(color);
     return this;
   }
 
@@ -179,8 +180,8 @@ export class FramebufferCanvas {
       if (x < 0 || x >= this._fb.width) continue;
       const cell = row[x]!;
       cell.ch = ' ';
-      cell.fg = this._fg;
-      cell.bg = this._bg;
+      if (this._fg !== null) cell.fg = this._fg;
+      if (this._bg !== null) cell.bg = this._bg;
       cell.bold = this._bold;
     }
 
@@ -206,8 +207,8 @@ export class FramebufferCanvas {
         if (col < 0 || col >= this._fb.width) continue;
         const cell = line[col]!;
         cell.ch = ' ';
-        cell.fg = this._fg;
-        cell.bg = this._bg;
+        if (this._fg !== null) cell.fg = this._fg;
+        if (this._bg !== null) cell.bg = this._bg;
         cell.bold = false;
       }
     }
