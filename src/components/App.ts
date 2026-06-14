@@ -275,6 +275,7 @@ export class App {
     focusManager.clear();
     this._main?.onDestroy();
     taskStore.dispose();
+    this.term(CURSOR_SHOW);
     logParser.stop();
     if (this._ctx?.getConfig().dashboard.killServerOnExit) {
       stopServer().catch(() => {});
