@@ -107,6 +107,7 @@ class TaskDetailsControl extends Section {
     canvas.bold();
     fg(canvas, themeColors.accent, `${V}`);
     fg(canvas, themeColors.accent, ` ${this.title}`);
+    canvas.bold(false);
 
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
