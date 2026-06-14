@@ -105,7 +105,7 @@ export class VersionsControl extends Control {
     this._list.tabIndex = 0;
 
     this._versionsSection = new Section();
-    this._versionsSection.title = "Versions";
+    this._versionsSection.title = "Installed Versions";
     this._versionsSection.add(this._list);
 
     this._changelog = new ChangelogView();

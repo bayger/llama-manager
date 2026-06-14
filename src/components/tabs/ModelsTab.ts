@@ -87,7 +87,7 @@ export class ModelsControl extends Control {
     this._modelList = new List<string>();
 
     this._modelsSection = new Section();
-    this._modelsSection.title = "Installed Models";
+    this._modelsSection.title = "Downloaded Models";
     this._modelsSection.add(this._modelList);
     this._modelList.flex = 1;
 
