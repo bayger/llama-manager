@@ -1,5 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { fg, fgBg } from "../../lib/theme.js";
 import { focusManager } from "../ui/FocusManager.js";
 import {
   PRESET_CATEGORIES,
@@ -145,8 +145,8 @@ export class SettingsPanel extends Control {
       return;
     }
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.setForegroundColor("canvas");
+    canvas.setBackgroundColor("canvas");
     canvas.clearRect(x, startY, width, height);
     canvas.moveTo(x, startY);
 
@@ -190,9 +190,9 @@ export class SettingsPanel extends Control {
 
     if (isSelected) {
       const padded = headerText.padEnd(width);
-      fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded);
+      fgBg(canvas, "selectedText", "selectedBg", padded);
     } else {
-      fg(canvas, themeColors.accent, headerText);
+      fg(canvas, "accent", headerText);
     }
     canvas.styleReset();
   }
@@ -205,8 +205,8 @@ export class SettingsPanel extends Control {
 
    if (isEditing && this._edit) {
       const value = this._edit.text;
-      fg(canvas, themeColors.warning, keyStr);
-      fg(canvas, themeColors.selected, value);
+      fg(canvas, "warning", keyStr);
+      fg(canvas, "selected", value);
   } else {
         const value = formatFieldValue(field, presetData?.[field.key]);
 
@@ -222,11 +222,11 @@ export class SettingsPanel extends Control {
 
         if (isSelected) {
           const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, padded.substring(0, width));
+          fgBg(canvas, "selectedText", "selectedBg", padded.substring(0, width));
         } else {
-          fg(canvas, themeColors.textMuted, keyStr);
-          fg(canvas, themeColors.text, value);
-          fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
+          fg(canvas, "textMuted", keyStr);
+          fg(canvas, "text", value);
+          fg(canvas, "textMuted", desc ? "  " + desc : "");
         }
       }
     canvas.styleReset();

@@ -6,7 +6,7 @@ import { Label } from "../ui/widgets/Label.js";
 import { Section } from "../ui/widgets/Section.js";
 import { LogsViewer } from "../specialized/LogsViewer.js";
 import { MetricsPanel } from "../specialized/MetricsPanel.js";
-import { themeColors, fg } from "../../lib/theme.js";
+import { fg } from "../../lib/theme.js";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server.js";
 import { fireAsync } from "../../lib/utils.js";
 import { BACKEND_LABELS } from "../../lib/versions.js";
@@ -44,13 +44,13 @@ export class DashboardControl extends Control {
 
     const sep1 = new Label();
     sep1.text = "│";
-    sep1.color = themeColors.borderMuted;
+    sep1.color = "borderMuted";
     sep1.focusable = false;
     this._buttonRow.add(sep1);
 
     this._profileLabel = new Label();
     this._profileLabel.text = "";
-    this._profileLabel.color = themeColors.textMuted;
+    this._profileLabel.color = "textMuted";
     this._profileLabel.focusable = false;
     const profileLbl = this._profileLabel;
     this._profileLabel.measure = () => ({ width: "Profile: ".length + profileLbl.text.length, height: 1 });
@@ -58,21 +58,21 @@ export class DashboardControl extends Control {
       if (!profileLbl.visible || !profileLbl.needsRender) return;
       const canvas = ctx.canvas;
       canvas.moveTo(profileLbl.rect.x, profileLbl.rect.y);
-      fg(canvas, themeColors.textMuted, "Profile ");
-      fg(canvas, themeColors.accentColor, profileLbl.text);
+      fg(canvas, "textMuted", "Profile ");
+      fg(canvas, "accentColor", profileLbl.text);
       profileLbl.needsRender = false;
     };
     this._buttonRow.add(this._profileLabel);
 
     const sep2 = new Label();
     sep2.text = "│";
-    sep2.color = themeColors.borderMuted;
+    sep2.color = "borderMuted";
     sep2.focusable = false;
     this._buttonRow.add(sep2);
 
     this._versionLabel = new Label();
     this._versionLabel.text = "";
-    this._versionLabel.color = themeColors.textMuted;
+    this._versionLabel.color = "textMuted";
     this._versionLabel.focusable = false;
     const versionLbl = this._versionLabel;
     this._versionLabel.measure = () => ({ width: Math.max("Version: ".length + versionLbl.text.length, 1), height: 1 });
@@ -80,8 +80,8 @@ export class DashboardControl extends Control {
       if (!versionLbl.visible || !versionLbl.needsRender) return;
       const canvas = ctx.canvas;
       canvas.moveTo(versionLbl.rect.x, versionLbl.rect.y);
-      fg(canvas, themeColors.textMuted, "Version ");
-      fg(canvas, themeColors.text, versionLbl.text);
+      fg(canvas, "textMuted", "Version ");
+      fg(canvas, "text", versionLbl.text);
       versionLbl.needsRender = false;
     };
     this._buttonRow.add(this._versionLabel);

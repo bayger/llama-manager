@@ -1,5 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
+import { fg, fgBg } from "../../lib/theme.js";
 import { ConfigData } from "../../lib/config.js";
 import type { Point, Size, RenderContext } from "../ui/types.js";
 
@@ -60,13 +60,13 @@ export class ProfileList extends Control {
         if (isSelected) {
           const prefix = isActive ? "✓ " : "  ";
           const line = (prefix + name).padEnd(width);
-          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+          fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
         } else if (isActive) {
           const line = ("✓ " + name).padEnd(width);
-          fgBg(canvas, themeColors.success, themeColors.canvasSubtle, line.substring(0, width));
+          fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
         } else {
           const line = ("  " + name).padEnd(width);
-          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, line.substring(0, width));
+          fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
         }
       }
     }

@@ -1,5 +1,6 @@
 import type { Cell } from "./framebuffer.js";
 import { Framebuffer, DEFAULT_FG, DEFAULT_BG } from "./framebuffer.js";
+import { Color, resolveColor } from "./theme.js";
 
 export interface ClipRect {
   x: number;
@@ -131,13 +132,23 @@ export class FramebufferCanvas {
     }
   }
 
-  colorRgbHex(hex: string): this {
-    this._fg = hex;
+  // colorRgbHex(hex: string): this {
+  //   this._fg = hex;
+  //   return this;
+  // }
+
+  // bgColorRgbHex(hex: string): this {
+  //   this._bg = hex;
+  //   return this;
+  // }
+
+  setForegroundColor(color: Color): this {
+    this._fg = resolveColor(color);
     return this;
   }
 
-  bgColorRgbHex(hex: string): this {
-    this._bg = hex;
+  setBackgroundColor(color: Color): this {
+    this._bg = resolveColor(color);
     return this;
   }
 

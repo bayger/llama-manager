@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { themeColors } from "../../../lib/theme.js";
+
 import type { Size, RenderContext } from "../types.js";
 
 export class Spacer extends Control {
@@ -12,8 +12,8 @@ export class Spacer extends Control {
     if (!this.visible || !this.needsRender) return;
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.setForegroundColor("canvas");
+    canvas.setBackgroundColor("canvas");
     canvas.clearRect(x, y, width, height);
     this.needsRender = false;
   }

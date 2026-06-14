@@ -1,11 +1,11 @@
 import { Control } from "../Control.js";
-import { themeColors, fg } from "../../../lib/theme.js";
-import type { ThemeColors } from "../../../lib/theme.js";
+import { fg } from "../../../lib/theme.js";
+import type { Color } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 export interface TextSegment {
   text: string;
-  colorKey: keyof ThemeColors;
+  color: Color;
 }
 
 export class StyledTextBuilder {
@@ -22,8 +22,8 @@ export class StyledTextBuilder {
     this._resetDone = true;
   }
 
-  protected commit(text: string, colorKey: keyof ThemeColors): this {
-    this._target.segments.push({ text, colorKey });
+  protected commit(text: string, color: Color): this {
+    this._target.segments.push({ text, color });
     this._target.markDirty();
     return this;
   }
@@ -65,7 +65,7 @@ export class StyledText extends Control {
     const { canvas } = ctx;
     canvas.moveTo(this.rect.x, this.rect.y);
     for (const seg of this.segments) {
-      fg(canvas, themeColors[seg.colorKey], seg.text);
+      fg(canvas, seg.color, seg.text);
     }
     canvas.styleReset();
     this.needsRender = false;

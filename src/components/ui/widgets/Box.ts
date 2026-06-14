@@ -1,5 +1,6 @@
 import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
+import { fg } from "../../../lib/theme.js";
+import type { Color } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 const TL = "\u250c";
@@ -11,7 +12,7 @@ const V = "\u2502";
 
 export class Box extends Control {
   focusable = false;
-  public borderColor = themeColors.border;
+  public borderColor: Color = "border";
   public title = "";
 
   onLayout(): void {
@@ -47,8 +48,8 @@ export class Box extends Control {
 
     const prevClip = canvas.getClipRect();
     canvas.setClipRect(this.rect);
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.setForegroundColor("canvas");
+    canvas.setBackgroundColor("canvas");
     canvas.clearRect(x, y, width, height);
 
     if (width < 4 || height < 3) {
@@ -64,7 +65,7 @@ export class Box extends Control {
     fg(canvas, this.borderColor, TL);
     if (this.title) {
       fg(canvas, this.borderColor, H);
-      fg(canvas, themeColors.accentColor, ` ${this.title} `);
+      fg(canvas, "accentColor", ` ${this.title} `);
       fg(canvas, this.borderColor, H.repeat(Math.max(0, innerW - this.title.length - 2)));
       fg(canvas, this.borderColor, H);
     } else {

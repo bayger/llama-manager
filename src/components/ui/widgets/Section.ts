@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
+import { fg } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 const V = "\u2502";
@@ -73,8 +73,8 @@ export class Section extends Control {
 
     const prevClip = canvas.getClipRect();
     canvas.setClipRect(this.rect);
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.setForegroundColor("canvas");
+    canvas.setBackgroundColor("canvasSubtle");
     canvas.clearRect(x, y, width, height);
 
     if (width < 3 || height < 2) {
@@ -86,14 +86,14 @@ export class Section extends Control {
     // Caption row
     canvas.moveTo(x, y);
     canvas.bold();
-    fg(canvas, themeColors.accent, V);
-    fg(canvas, themeColors.accent, ` ${this.title}`);
+    fg(canvas, "accent", V);
+    fg(canvas, "accent", ` ${this.title}`);
     canvas.bold(false);
 
     // Left border
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
-      canvas.colorRgbHex(themeColors.borderMuted);
+      canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
 

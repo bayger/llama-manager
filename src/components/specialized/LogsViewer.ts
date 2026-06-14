@@ -1,5 +1,5 @@
 import { Control } from "../ui/Control.js";
-import { themeColors, fg } from "../../lib/theme.js";
+import { fg } from "../../lib/theme.js";
 import { renderLogLine } from "../../lib/logcolors.js";
 import type { Size, RenderContext } from "../ui/types.js";
 
@@ -41,7 +41,7 @@ export class LogsViewer extends Control {
       const midY = y + Math.floor(height / 2);
       const pad = Math.max(0, Math.floor((width - this._config.emptyMessage.length) / 2));
       canvas.moveTo(x + pad, midY);
-      fg(canvas, themeColors.textMuted, this._config.emptyMessage);
+      fg(canvas, "textMuted", this._config.emptyMessage);
     } else {
       for (let i = 0; i < height; i++) {
         if (i < visibleLines.length) {

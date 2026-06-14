@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fg, fgBg, themeColors } from "../../../lib/theme.js";
+import { fg, fgBg } from "../../../lib/theme.js";
 import { focusManager } from "../FocusManager.js";
 import type { Point, Size, RenderContext } from "../types.js";
 
@@ -59,21 +59,21 @@ export class TextInput extends Control {
     const { x, y, width } = this.rect;
     canvas.styleReset();
 
-    const bg = this.focused ? themeColors.canvasSubtle : themeColors.canvas;
-    const borderColor = this.focused ? themeColors.borderActive : themeColors.borderMuted;
+    const bg = this.focused ? "canvasSubtle" : "canvas";
+    const borderColor = this.focused ? "borderActive" : "borderMuted";
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(bg);
+    canvas.setForegroundColor("canvas");
+    canvas.setBackgroundColor(bg);
     canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
     fgBg(canvas, borderColor, bg, "│");
 
     if (this.prefix) {
-      fg(canvas, themeColors.textMuted, this.prefix);
+      fg(canvas, "textMuted", this.prefix);
     }
 
     const display = this.value || this.placeholder;
-    const displayColor = this.value ? themeColors.text : themeColors.textMuted;
+    const displayColor = this.value ? "text" : "textMuted";
     fg(canvas, displayColor, display);
 
     fgBg(canvas, borderColor, bg, "│");

@@ -1,7 +1,8 @@
 import { Control } from "../ui/Control.js";
-import { fg, themeColors } from "../../lib/theme.js";
+import { fg } from "../../lib/theme.js";
 import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker.js";
 import { formatNum, formatDraftRate, formatMs } from "../../lib/utils.js";
+import type { Color } from "../../lib/theme.js";
 import type { RenderContext, Size } from "../ui/types.js";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
 
@@ -11,10 +12,10 @@ const STATE_DOT = {
   generating: "\u25cf",
 };
 
-const STATE_COLOR = {
-  idle: themeColors.textMuted,
-  prompting: themeColors.warning,
-  generating: themeColors.success,
+const STATE_COLOR: Record<string, Color> = {
+  idle: "textMuted",
+  prompting: "warning",
+  generating: "success",
 };
 
 const THINKING_ICON = "\u221e";
@@ -118,31 +119,31 @@ export class MetricsPanel extends Control {
 
     if (global) {
       canvas.moveTo(x, cy);
-      fg(canvas, themeColors.textMuted, "Tasks ");
-      fg(canvas, themeColors.accent, String(global.tasksCompleted));
-      fg(canvas, themeColors.textMuted, `  ${SEP}  PP `);
-      fg(canvas, themeColors.info, `${global.avgPromptSpeed.toFixed(1)} t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
-      fg(canvas, themeColors.success, `${global.avgGenSpeed.toFixed(1)} t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Tokens `);
-      fg(canvas, themeColors.info, `${formatNum(global.totalPromptTokens)}p`);
-      fg(canvas, themeColors.textMuted, " / ");
-      fg(canvas, themeColors.success, `${formatNum(global.totalOutputTokens)}o`);
+      fg(canvas, "textMuted", "Tasks ");
+      fg(canvas, "accent", String(global.tasksCompleted));
+      fg(canvas, "textMuted", `  ${SEP}  PP `);
+      fg(canvas, "info", `${global.avgPromptSpeed.toFixed(1)} t/s`);
+      fg(canvas, "textMuted", `  ${SEP}  TG `);
+      fg(canvas, "success", `${global.avgGenSpeed.toFixed(1)} t/s`);
+      fg(canvas, "textMuted", `  ${SEP}  Tokens `);
+      fg(canvas, "info", `${formatNum(global.totalPromptTokens)}p`);
+      fg(canvas, "textMuted", " / ");
+      fg(canvas, "success", `${formatNum(global.totalOutputTokens)}o`);
       cy++;
 
       if (cy < y + this.rect.height) {
         canvas.moveTo(x, cy);
-        fg(canvas, themeColors.textMuted, "  Draft ");
-        fg(canvas, themeColors.accentColor, formatDraftRate(global.avgDraftAcceptance));
+        fg(canvas, "textMuted", "  Draft ");
+        fg(canvas, "accentColor", formatDraftRate(global.avgDraftAcceptance));
         if (global.activeSlots > 0) {
-          fg(canvas, themeColors.textMuted, `  ${SEP}  Active `);
-          fg(canvas, themeColors.warning, String(global.activeSlots));
+          fg(canvas, "textMuted", `  ${SEP}  Active `);
+          fg(canvas, "warning", String(global.activeSlots));
         }
         cy++;
       }
     } else {
       canvas.moveTo(x, cy);
-      fg(canvas, themeColors.textMuted, "No finished tasks yet - start server and send a request");
+      fg(canvas, "textMuted", "No finished tasks yet - start server and send a request");
       cy++;
     }
 
@@ -157,7 +158,7 @@ export class MetricsPanel extends Control {
 
       if (i > 0 && cy < y + this.rect.height) {
         canvas.moveTo(x, cy);
-        fg(canvas, themeColors.canvas, " ".repeat(width));
+        fg(canvas, "canvas", " ".repeat(width));
         cy++;
       }
 
@@ -177,19 +178,19 @@ export class MetricsPanel extends Control {
     slot: SlotMetrics
   ): number {
     let cy = startY;
-    const stateColor = STATE_COLOR[slot.state as keyof typeof STATE_COLOR] || themeColors.textMuted;
+    const stateColor = STATE_COLOR[slot.state as keyof typeof STATE_COLOR] || "textMuted";
     const dot = STATE_DOT[slot.state as keyof typeof STATE_DOT] || "\u25cb";
 
     // Line 1: Slot N  ● State  Task #N  ∞
     canvas.moveTo(x, cy);
-    fg(canvas, themeColors.textMuted, `Slot ${slot.slotId}  `);
+    fg(canvas, "textMuted", `Slot ${slot.slotId}  `);
     fg(canvas, stateColor, `${dot} ${slot.state}`);
     if (slot.taskId !== null) {
-      fg(canvas, themeColors.textMuted, `  Task #`);
-      fg(canvas, themeColors.text, String(slot.taskId));
+      fg(canvas, "textMuted", `  Task #`);
+      fg(canvas, "text", String(slot.taskId));
     }
     if (slot.thinking) {
-      fg(canvas, themeColors.accentColor, `  ${THINKING_ICON}`);
+      fg(canvas, "accentColor", `  ${THINKING_ICON}`);
     }
     cy++;
 
@@ -206,24 +207,24 @@ export class MetricsPanel extends Control {
 
     // Line 2: Live speed + context + checkpoints
     canvas.moveTo(x, cy);
-    fg(canvas, themeColors.textMuted, "  ");
+    fg(canvas, "textMuted", "  ");
     if (slot.generationSpeed !== null) {
-      fg(canvas, themeColors.textMuted, "TG ");
-      fg(canvas, themeColors.success, `${slot.generationSpeed.toFixed(1)} t/s`);
+      fg(canvas, "textMuted", "TG ");
+      fg(canvas, "success", `${slot.generationSpeed.toFixed(1)} t/s`);
     } else if (slot.promptSpeed !== null && slot.state === "prompting") {
-      fg(canvas, themeColors.textMuted, "PP ");
-      fg(canvas, themeColors.info, `${slot.promptSpeed.toFixed(0)} t/s`);
+      fg(canvas, "textMuted", "PP ");
+      fg(canvas, "info", `${slot.promptSpeed.toFixed(0)} t/s`);
     } else {
-      fg(canvas, themeColors.textMuted, "...");
+      fg(canvas, "textMuted", "...");
     }
-    fg(canvas, themeColors.textMuted, `  ${SEP}  Context `);
-    fg(canvas, themeColors.text, `${formatNum(slot.contextSize)} tok`);
+    fg(canvas, "textMuted", `  ${SEP}  Context `);
+    fg(canvas, "text", `${formatNum(slot.contextSize)} tok`);
     if (slot.checkpoints.length > 0) {
       const bar = checkpointBar(slot.contextSize, slot.checkpoints);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  Chk: `);
-      fg(canvas, themeColors.accent, bar);
-      fg(canvas, themeColors.textMuted, `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
+      fg(canvas, "textMuted", `  ${SEP}  Chk: `);
+      fg(canvas, "accent", bar);
+      fg(canvas, "textMuted", `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
     }
     cy++;
 
@@ -232,32 +233,32 @@ export class MetricsPanel extends Control {
       const barWidth = Math.max(10, Math.min(40, width - 40));
       const bar = progressBar(barWidth, Math.min(1, slot.promptProgress));
       canvas.moveTo(x, cy);
-      fg(canvas, themeColors.textMuted, "  ");
-      fg(canvas, themeColors.accent, bar);
-      fg(canvas, themeColors.textMuted, ` ${(slot.promptProgress * 100).toFixed(0)}%`);
+      fg(canvas, "textMuted", "  ");
+      fg(canvas, "accent", bar);
+      fg(canvas, "textMuted", ` ${(slot.promptProgress * 100).toFixed(0)}%`);
       cy++;
     } else if (slot.lastTask) {
       canvas.moveTo(x, cy);
-      fg(canvas, themeColors.textMuted, "  ");
-      fg(canvas, themeColors.textMuted, "PP ");
-      fg(canvas, themeColors.info, `${padLeft(slot.lastTask.promptTokens, 5)}t @ ${slot.lastTask.promptSpeed.toFixed(1)}t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  TG `);
-      fg(canvas, themeColors.success, `${padLeft(slot.lastTask.outputTokens, 5)}t @ ${slot.lastTask.outputSpeed.toFixed(1)}t/s`);
-      fg(canvas, themeColors.textMuted, `  ${SEP}  ${formatMs(slot.lastTask.totalTimeMs)}`);
+      fg(canvas, "textMuted", "  ");
+      fg(canvas, "textMuted", "PP ");
+      fg(canvas, "info", `${padLeft(slot.lastTask.promptTokens, 5)}t @ ${slot.lastTask.promptSpeed.toFixed(1)}t/s`);
+      fg(canvas, "textMuted", `  ${SEP}  TG `);
+      fg(canvas, "success", `${padLeft(slot.lastTask.outputTokens, 5)}t @ ${slot.lastTask.outputSpeed.toFixed(1)}t/s`);
+      fg(canvas, "textMuted", `  ${SEP}  ${formatMs(slot.lastTask.totalTimeMs)}`);
       cy++;
     }
 
     // Line 4: Draft + truncation (last task data only)
     if (slot.lastTask) {
       canvas.moveTo(x, cy);
-      fg(canvas, themeColors.textMuted, "  ");
+      fg(canvas, "textMuted", "  ");
       if (slot.lastTask.draftGenerated > 0) {
-        fg(canvas, themeColors.textMuted, "Draft ");
-        fg(canvas, themeColors.accentColor, `${formatDraftRate(slot.lastTask.draftAcceptance)} (${slot.lastTask.draftAccepted}/${slot.lastTask.draftGenerated})`);
-        fg(canvas, themeColors.textMuted, `  ${SEP}  Truncated `);
-        fg(canvas, slot.lastTask.truncated ? themeColors.danger : themeColors.success, slot.lastTask.truncated ? "yes" : "no");
+        fg(canvas, "textMuted", "Draft ");
+        fg(canvas, "accentColor", `${formatDraftRate(slot.lastTask.draftAcceptance)} (${slot.lastTask.draftAccepted}/${slot.lastTask.draftGenerated})`);
+        fg(canvas, "textMuted", `  ${SEP}  Truncated `);
+        fg(canvas, slot.lastTask.truncated ? "danger" : "success", slot.lastTask.truncated ? "yes" : "no");
       } else {
-        fg(canvas, themeColors.textMuted, "No speculative decoding");
+        fg(canvas, "textMuted", "No speculative decoding");
       }
       cy++;
     }

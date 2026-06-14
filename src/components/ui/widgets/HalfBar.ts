@@ -1,5 +1,5 @@
 import { Control } from "../Control.js";
-import { fgBg, themeColors } from "../../../lib/theme.js";
+import { fgBg } from "../../../lib/theme.js";
 import type { RenderContext, Size } from "../types.js";
 
 export class HalfBar extends Control {
@@ -15,11 +15,11 @@ export class HalfBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    const topColor = this.mode === 'top' ? themeColors.canvasSubtle : themeColors.canvas;
-    const bottomColor = this.mode === 'top' ? themeColors.canvas : themeColors.canvasSubtle;
+    const topColor = this.mode === 'top' ? "canvasSubtle" : "canvas";
+    const bottomColor = this.mode === 'top' ? "canvas" : "canvasSubtle";
 
-    canvas.colorRgbHex(topColor);
-    canvas.bgColorRgbHex(bottomColor);
+    canvas.setForegroundColor(topColor);
+    canvas.setBackgroundColor(bottomColor);
     canvas.moveTo(x, y);
     for (let i = 0; i < width; i++) {
       fgBg(canvas, topColor, bottomColor, "\u2584");

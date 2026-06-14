@@ -1,5 +1,5 @@
 import type { Rect, Size, RenderContext, Point } from "./types.js";
-import { themeColors } from "../../lib/theme.js";
+
 import { focusManager } from "./FocusManager.js";
 
 export class Control {
@@ -106,8 +106,8 @@ export class Control {
     ctx.canvas.setClipRect(this.rect);
 
     const { x, y, width, height } = this.rect;
-    ctx.canvas.colorRgbHex(themeColors.canvas);
-    ctx.canvas.bgColorRgbHex(themeColors.canvas);
+    ctx.canvas.setForegroundColor("canvas");
+    ctx.canvas.setBackgroundColor("canvas");
     ctx.canvas.clearRect(x, y, width, height);
 
     for (const child of this.children) {
