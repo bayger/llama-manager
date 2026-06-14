@@ -17,6 +17,7 @@ export const TABS = ["Dashboard", "Tasks", "Profiles", "Versions", "Models", "Op
 export type TabId = (typeof TABS)[number];
 
 export class MainControl extends Column {
+  foregroundColor = 'canvas' as Color;
   backgroundColor = 'canvas' as Color;
   protected _topBar: HalfBar;
   protected _tabBar: TabBar;
@@ -156,6 +157,7 @@ export class MainControl extends Column {
 
 class TabBar extends Control {
   focusable = false;
+  backgroundColor: Color = "canvasSubtle";
   protected _selectedIndex = 0;
   protected _tabRects: { start: number; end: number }[] = [];
   protected _onTabClick: ((index: number) => void) | null = null;
@@ -292,6 +294,7 @@ class TabContent extends Control {
 
 class StatusBar extends Control {
   focusable = false;
+  backgroundColor: Color = "canvasSubtle";
   protected _message: string | null = null;
   protected _activeTab: TabId = "Dashboard";
 
