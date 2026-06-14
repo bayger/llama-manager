@@ -9,7 +9,7 @@ import { themeColors, fg, fgBg } from "../../lib/theme.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
 import { focusManager } from "../ui/FocusManager.js";
 import { fireAsync } from "../../lib/utils.js";
-import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
+import { taskStore, TaskMetrics, TaskSortField, TaskSortDir, TaskFilter } from "../../lib/tasks.js";
 import type { TabContext } from "../../lib/tabcontext.js";
 import type { Size, RenderContext } from "../ui/types.js";
 import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table.js";
@@ -174,7 +174,10 @@ export class TasksControl extends Control {
     this._table = new Table();
     this._table.showHeader = true;
     this._table.tabIndex = 0;
-    this._table.setOnHighlight(() => this.markDirty());
+    this._table.setOnHighlight((item) => {
+      this._detailsPanel.update(item ? item.data as TaskMetrics : null);
+      this.markDirty();
+    });
     this._table.setOnSelect(() => {
       fireAsync(async () => {}, ctx);
     });
@@ -240,8 +243,8 @@ export class TasksControl extends Control {
     });
   }
 
-  get filteredTasks(): TaskMetrics[] {
-    const filter: { taskId?: number; slotId?: number } = {};
+  getFilter(): TaskFilter | undefined {
+    const filter: TaskFilter = {};
 
     if (this._searchValue !== "") {
       const id = parseInt(this._searchValue, 10);
@@ -257,9 +260,7 @@ export class TasksControl extends Control {
       }
     }
 
-    let tasks = Object.keys(filter).length > 0 ? taskStore.getFiltered(filter) : taskStore.getTasks();
-    tasks = taskStore.getSorted(tasks, this._sortField, this._sortDir);
-    return tasks;
+    return Object.keys(filter).length > 0 ? filter : undefined;
   }
 
   measure(parentSize?: Size): Size {
@@ -285,15 +286,20 @@ export class TasksControl extends Control {
     this._detailsPanel.visible = showDetails;
     this._column.layout({ x, y, width, height });
 
-    const tasks = this.filteredTasks;
-    this._table.items = tasks.map((t) => ({
-      id: t.taskId,
-      label: this.formatTime(t.timestamp),
-      sublabel: `#${t.taskId}`,
-      data: t,
-    }));
-    this._table.contentHeight = tasks.length;
-    if (tasks.length > 0 && this._table.selectedIndex < 0) {
+    const filter = this.getFilter();
+    const total = taskStore.getTotalCount(filter);
+
+    this._table.setVirtualLoader(total, (start, end) => {
+      const tasks = taskStore.getRange(start, end - start, filter, this._sortField, this._sortDir);
+      return tasks.map((t) => ({
+        id: t.taskId,
+        label: this.formatTime(t.timestamp),
+        sublabel: `#${t.taskId}`,
+        data: t,
+      }));
+    });
+
+    if (total > 0 && this._table.selectedIndex < 0) {
       this._table.selectedIndex = 0;
     }
     this.updateColumns();
@@ -303,8 +309,8 @@ export class TasksControl extends Control {
     };
     this._table.setRenderer(renderTaskRow);
 
-    const selectedTask = tasks[this._table.selectedIndex] ?? null;
-    this._detailsPanel.update(selectedTask);
+    const selected = this._table.getSelectedItem();
+    this._detailsPanel.update(selected ? selected.data as TaskMetrics : null);
   }
 
   applyFilters(): void {
@@ -331,8 +337,8 @@ export class TasksControl extends Control {
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
     super.render(ctx);
-    const tasks = this.filteredTasks;
-    const stats = taskStore.getStats(tasks);
+    const filter = this.getFilter();
+    const stats = taskStore.getStats(filter);
 
     const filterIndicator = (this._searchValue !== "" || this._slotValue !== "") ? " [F]" : "";
     this._summary.builder
@@ -443,7 +449,7 @@ export class TasksControl extends Control {
       return true;
     }
 
-    if (this._table.items.length === 0) return false;
+    if (this._table.contentHeight === 0) return false;
 
     if (key === "UP" || key === "DOWN" || key === "k" || key === "j" ||
         key === "PAGE_UP" || key === "PAGE_DOWN" || key === "HOME" || key === "END") {

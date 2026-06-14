@@ -444,6 +444,11 @@ export function getTasksFile(config: ConfigData): string {
   return path.join(DATA_DIR, "tasks.jsonl");
 }
 
+export function getTasksDb(config: ConfigData): string {
+  if (config.tasksFile) return config.tasksFile.replace(/\.jsonl$/, ".db");
+  return path.join(DATA_DIR, "tasks.db");
+}
+
 export function getLogFile(config: ConfigData): string {
   if (config.server.logFile) return config.server.logFile;
   return path.join(STATE_DIR, "server.log");
