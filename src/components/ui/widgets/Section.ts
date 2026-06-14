@@ -1,8 +1,9 @@
 import { Control } from "../Control.js";
-import { Color, fg } from "../../../lib/theme.js";
+import { Color, fg, fgBg } from "../../../lib/theme.js";
 import type { Size, RenderContext } from "../types.js";
 
 const V = "\u2502";
+const HALF_BLOCK = "\u2584";
 
 export class Section extends Control {
   focusable = false;
@@ -12,7 +13,7 @@ export class Section extends Control {
   measure(parentSize?: Size): Size {
     const p = parentSize || { width: this.rect.width || 80, height: this.rect.height || 4 };
 
-    let fixedHeight = 2;
+    let fixedHeight = 4;
     let flexTotal = 0;
     let hasFlex = false;
 
@@ -36,9 +37,9 @@ export class Section extends Control {
   onLayout(): void {
     const { x, y, width, height } = this.rect;
     const innerW = Math.max(0, width - 3);
-    let curY = y + 2;
+    let curY = y + 3;
 
-    let fixedTotal = 2;
+    let fixedTotal = 4;
     let flexTotal = 0;
     const visibleChildren = this.children.filter(c => c.visible);
 
@@ -70,20 +71,34 @@ export class Section extends Control {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    if (width < 3 || height < 2) return;
+    if (width < 3 || height < 4) return;
+
+    // Half bar row
+    canvas.moveTo(x, y);
+    fg(canvas, "accent", V);
+    canvas.setForegroundColor("canvasSubtle");
+    canvas.setBackgroundColor("canvas");
+    for (let col = 1; col < width; col++) {
+      fgBg(canvas, "canvasSubtle", "canvas", HALF_BLOCK);
+    }
 
     // Caption row
-    canvas.moveTo(x, y);
+    canvas.moveTo(x, y + 1);
     canvas.bold();
     fg(canvas, "accent", V);
     fg(canvas, "accent", ` ${this.title}`);
     canvas.bold(false);
 
     // Left border
-    for (let row = 1; row < height; row++) {
+    for (let row = 2; row < height - 1; row++) {
       canvas.moveTo(x, y + row);
       canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
+
+    // Bottom padding row
+    canvas.moveTo(x, y + height - 1);
+    canvas.setForegroundColor("borderMuted");
+    canvas.write(V);
   }
 }
