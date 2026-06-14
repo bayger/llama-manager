@@ -1,4 +1,4 @@
-# llama-manager — Agent Instructions
+# llama-manager - Agent Instructions
 
 ## Quick Start
 
@@ -12,12 +12,12 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 
 ## Important Quirks
 
-- **ESM with `.js` imports** — `package.json` has `"type": "module"`. All internal imports must use `.js` extension (e.g., `import { App } from "./components/App.js"`), even though the source files are `.ts`. This is required by the `moduleResolution: "bundler"` tsconfig setting.
+- **ESM with `.js` imports** - `package.json` has `"type": "module"`. All internal imports must use `.js` extension (e.g., `import { App } from "./components/App.js"`), even though the source files are `.ts`. This is required by the `moduleResolution: "bundler"` tsconfig setting.
 - **Entry point is `src/main.ts`**. Has shebang `#!/usr/bin/env node`.
 - **No tests exist.** No test framework is configured.
 - **No ESLint, no Prettier.** `npm run lint` only runs `tsc --noEmit`. That is the sole verification gate.
 - **`dist/` is gitignored.** Must run `npm run build` before `npm run start`.
-- **`npm run dev`** uses `tsx` which handles TS directly — no build step needed for development.
+- **`npm run dev`** uses `tsx` which handles TS directly - no build step needed for development.
 
 ## Architecture
 
@@ -28,7 +28,7 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 - Widget library in `src/components/ui/widgets/`: Label, Button, ButtonBar, TextInput, List, Scrollable, Box, Divider, Spacer, ProgressBar, HelpBar.
 - Specialized components in `src/components/specialized/`: SettingsPanel (profile preset editor), ProfileList (CRUD), LogsViewer (structured log coloring), OptionsPanel (global settings).
 - Business logic in `src/lib/`: `config.ts`, `server.ts`, `logparser.ts`, `logcolors.ts`, `tasks.ts`, `versions.ts`, `models.ts`, `api.ts`, `hf.ts`, `theme.ts`, `utils.ts`, `tabcontext.ts`.
-- `theme.ts` provides a GitHub Dark color palette — colors are hex strings, not chalk methods.
+- `theme.ts` provides a GitHub Dark color palette - colors are hex strings, not chalk methods.
 - `logcolors.ts` provides severity-based log line colorization (error/warning/info).
 - `utils.ts` provides formatting helpers: `fireAsync`, `formatMs`, `formatDuration`, `formatUptime`, `formatNum`, `formatDate`, `formatTime`.
 - `tabcontext.ts` provides shared context with app services and `RenderContext` for terminal access.
@@ -49,7 +49,7 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 
 ## Dependencies
 
-Uses terminal-kit 3, undici 7, TypeScript 5, fs-extra 11, chalk 4. No React, no Ink. APIs may differ from tutorials referencing older stacks — check current documentation on the web before following stale examples.
+Uses terminal-kit 3, undici 7, TypeScript 5, fs-extra 11, chalk 4. No React, no Ink. APIs may differ from tutorials referencing older stacks - check current documentation on the web before following stale examples.
 
 ## Conventions
 
@@ -58,8 +58,8 @@ Uses terminal-kit 3, undici 7, TypeScript 5, fs-extra 11, chalk 4. No React, no 
 - Dirty flags (`needsRender`) enable incremental rendering without full-tree redraw.
 - Two-pass layout: `measure()` reports desired size, `onLayout()` assigns child rects.
 - `FocusManager` singleton tracks single focus point; Tab/Shift+Tab navigation through focusable controls.
-- Cursor visibility via ANSI escapes (`\x1b[?25h`/`\x1b[?25l`) — `terminal-kit`'s `Terminal` type lacks `showCursor`/`hideCursor`.
-- Strict TypeScript. No loose `any` patterns — follow existing typing.
+- Cursor visibility via ANSI escapes (`\x1b[?25h`/`\x1b[?25l`) - `terminal-kit`'s `Terminal` type lacks `showCursor`/`hideCursor`.
+- Strict TypeScript. No loose `any` patterns - follow existing typing.
 - Follow the directory structure from SPEC.md. New features go under `src/components/tabs/` or `src/lib/`.
 - Tabs use factory functions (`createXxxTab(ctx)`) that return either a `Control` or a legacy `TabModule`. App wraps Controls automatically.
-- `fireAsync` from `utils.ts` should be used for async button handlers — it catches errors and shows them via `ctx.showMessage`.
+- `fireAsync` from `utils.ts` should be used for async button handlers - it catches errors and shows them via `ctx.showMessage`.

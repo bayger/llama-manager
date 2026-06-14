@@ -152,12 +152,12 @@ export class App {
       {
         title: "Tab Shortcuts",
         keys: [
-          ["F1", "Dashboard — metrics and server control"],
-          ["F2", "Profiles — preset editing and management"],
-          ["F3", "Tasks — inference task history"],
-          ["F4", "Versions — install and switch llama.cpp builds"],
-          ["F5", "Models — browse, download, and manage GGUF models"],
-          ["F6", "Options — global application settings"],
+          ["F1", "Dashboard - metrics and server control"],
+          ["F2", "Profiles - preset editing and management"],
+          ["F3", "Tasks - inference task history"],
+          ["F4", "Versions - install and switch llama.cpp builds"],
+          ["F5", "Models - browse, download, and manage GGUF models"],
+          ["F6", "Options - global application settings"],
         ],
       },
     ];

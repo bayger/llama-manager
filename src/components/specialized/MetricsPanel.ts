@@ -146,7 +146,7 @@ export class MetricsPanel extends Control {
       }
     } else {
       canvas.moveTo(x, cy);
-      fg(canvas, themeColors.textMuted, "No tasks yet — start server and send a request");
+      fg(canvas, themeColors.textMuted, "No finished tasks yet - start server and send a request");
       cy++;
     }
 
@@ -197,7 +197,7 @@ export class MetricsPanel extends Control {
     }
     cy++;
 
-    // Compact idle slot with no tasks and no live data — stop here
+    // Compact idle slot with no tasks and no live data - stop here
     if (
       !slot.lastTask &&
       slot.generationSpeed === null &&

@@ -35,7 +35,7 @@ export class Control {
     });
   }
 
-  // — Event helpers —
+  // - Event helpers -
 
   on(event: string, callback: (...args: any[]) => void): void {
     const handler = callback.bind(this);
@@ -52,7 +52,7 @@ export class Control {
     if (handler) handler(...args);
   }
 
-  // — Child management —
+  // - Child management -
 
   add(child: Control): void {
     child._parent = this;
@@ -85,7 +85,7 @@ export class Control {
     this.markDirty();
   }
 
-  // — Layout —
+  // - Layout -
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width, height: this.rect.height };
@@ -97,7 +97,7 @@ export class Control {
     this.markDirty();
   }
 
-  // — Rendering —
+  // - Rendering -
 
   render(ctx: RenderContext): void {
     if (!this.visible || !this.needsRender) return;
@@ -118,7 +118,7 @@ export class Control {
     this.needsRender = false;
   }
 
-  // — Input —
+  // - Input -
 
   handleKey(key: string): boolean {
     const focused = this.findFocusedDescendant();
@@ -141,7 +141,7 @@ export class Control {
     return null;
   }
 
-  // — Focus —
+  // - Focus -
 
   focus(): void {
     this.focused = true;
@@ -155,7 +155,7 @@ export class Control {
     this.markDirty();
   }
 
-  // — Dirty tracking —
+  // - Dirty tracking -
 
   markDirty(): void {
     this.needsRender = true;
@@ -171,7 +171,7 @@ export class Control {
     }
   }
 
-  // — Lifecycle —
+  // - Lifecycle -
 
   onInit(): void {
     for (const child of this.children) {
@@ -201,7 +201,7 @@ export class Control {
     }
   }
 
-  // — Destroy —
+  // - Destroy -
 
   destroy(): void {
     this.onDestroy();
@@ -210,7 +210,7 @@ export class Control {
     }
   }
 
-  // — Mouse —
+  // - Mouse -
 
   hitTest(point: Point): Control | null {
     if (!this.visible || !this.enabled) return null;
@@ -228,7 +228,7 @@ export class Control {
     return null;
   }
 
-  // — Utilities —
+  // - Utilities -
 
   getAllFocusable(): Control[] {
     const result: Control[] = [];

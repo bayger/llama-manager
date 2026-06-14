@@ -1,10 +1,10 @@
-# Llama.cpp Dashboard — Specification
+# Llama.cpp Dashboard - Specification
 
 ## Overview
 
 A terminal UI application built with TypeScript and terminal-kit that provides a unified interface for managing llama.cpp installations, controlling the llama-server process, downloading HuggingFace GGUF models, monitoring server performance in real time, and reviewing historical task statistics.
 
-Uses a custom Control-based UI framework with composable widgets, flex-based layouts, and a singleton focus manager — no React or Ink dependency.
+Uses a custom Control-based UI framework with composable widgets, flex-based layouts, and a singleton focus manager - no React or Ink dependency.
 
 ---
 
@@ -29,11 +29,11 @@ All paths follow XDG Base Directory spec and respect environment variable overri
 
 | What | Default Path | Env Override |
 |---|---|---|
-| Config | `$XDG_CONFIG_HOME/llama-manager/config.json` | — |
-| Versions (builds) | `$XDG_DATA_HOME/llama-manager/versions/` | — |
+| Config | `$XDG_CONFIG_HOME/llama-manager/config.json` | - |
+| Versions (builds) | `$XDG_DATA_HOME/llama-manager/versions/` | - |
 | Models (GGUF) | `$HF_HOME/llama-manager/` | `HF_HOME` |
-| Tasks log | `$XDG_DATA_HOME/llama-manager/tasks.jsonl` | — |
-| Server log | `$XDG_STATE_HOME/llama-manager/server.log` | — |
+| Tasks log | `$XDG_DATA_HOME/llama-manager/tasks.jsonl` | - |
+| Server log | `$XDG_STATE_HOME/llama-manager/server.log` | - |
 
 **Resolved defaults** (when env vars are unset):
 
@@ -71,8 +71,8 @@ App
 
 Two-pass layout with flex-based space distribution:
 
-1. **`measure()`** — each control reports its desired size
-2. **`onLayout()`** — parent distributes available space, assigns child `Rect`s
+1. **`measure()`** - each control reports its desired size
+2. **`onLayout()`** - parent distributes available space, assigns child `Rect`s
 
 `Column` distributes vertically (flex along Y), `Row` distributes horizontally (flex along X). Controls without `flex` get their measured size; remaining space goes to flexible children proportionally.
 
@@ -138,14 +138,14 @@ Tab-based navigation with 6 persistent tabs across the top:
 
 ### Tab: `F2 Profiles`
 
-Manages server profiles — named collections of preset arguments and free-form arguments. Each profile can be activated independently, allowing quick switching between different server configurations (e.g., one for chat, one for embeddings, one for experimentation).
+Manages server profiles - named collections of preset arguments and free-form arguments. Each profile can be activated independently, allowing quick switching between different server configurations (e.g., one for chat, one for embeddings, one for experimentation).
 
 #### Profile List
 
-- **Create** — add a new profile (clones current presets)
-- **Rename** — change profile name
-- **Delete** — remove profile (blocked if active)
-- **SetActive** — mark profile as active for server start
+- **Create** - add a new profile (clones current presets)
+- **Rename** - change profile name
+- **Delete** - remove profile (blocked if active)
+- **SetActive** - mark profile as active for server start
 - Active profile shown with indicator
 
 #### Settings Panel
@@ -184,7 +184,7 @@ Commonly-used arguments exposed as typed UI controls, organized by category. New
 | `--port` | number | `8080` | HTTP port |
 | `--parallel` | number | `-1` | Number of server slots (auto) |
 | `--timeout` | number | `600` | Read/write timeout in seconds |
-| `--api-key` | string | — | API key for authentication |
+| `--api-key` | string | - | API key for authentication |
 | `--threads-http` | number | `-1` | HTTP request worker threads |
 | `--cont-batching` | boolean | `true` | Enable continuous batching |
 | `--cache-prompt` | boolean | `true` | Enable prompt caching |
@@ -197,11 +197,11 @@ Commonly-used arguments exposed as typed UI controls, organized by category. New
 
 | Argument | Type | Default | Description |
 |---|---|---|---|
-| `--model` | string | — | Path to GGUF model |
-| `--lora` | string | — | LoRA adapter path (comma-separated) |
-| `--hf-repo` | string | — | HuggingFace repo (`user/model[:quant]`) |
-| `--hf-token` | string | — | HuggingFace access token |
-| `--chat-template` | string | — | Built-in or custom Jinja template name |
+| `--model` | string | - | Path to GGUF model |
+| `--lora` | string | - | LoRA adapter path (comma-separated) |
+| `--hf-repo` | string | - | HuggingFace repo (`user/model[:quant]`) |
+| `--hf-token` | string | - | HuggingFace access token |
+| `--chat-template` | string | - | Built-in or custom Jinja template name |
 | `--jinja` | boolean | `true` | Use Jinja template engine |
 
 **Compute**
@@ -225,9 +225,9 @@ Commonly-used arguments exposed as typed UI controls, organized by category. New
 |---|---|---|---|
 | `--gpu-layers` | number | `auto` | Layers to offload to VRAM |
 | `--split-mode` | enum | `layer` | Multi-GPU split (`none`/`layer`/`row`/`tensor`) |
-| `--tensor-split` | string | — | GPU offload proportions (`3,1`) |
+| `--tensor-split` | string | - | GPU offload proportions (`3,1`) |
 | `--main-gpu` | number | `0` | Primary GPU index |
-| `--device` | string | — | Comma-separated device list |
+| `--device` | string | - | Comma-separated device list |
 | `--fit` | enum | `on` | Auto-fit args to device memory |
 
 **Sampling**
@@ -243,15 +243,15 @@ Commonly-used arguments exposed as typed UI controls, organized by category. New
 | `--repeat-penalty` | number | `1.00` | Repeat penalty (1.0 = disabled) |
 | `--presence-penalty` | number | `0.00` | Presence penalty |
 | `--frequency-penalty` | number | `0.00` | Frequency penalty |
-| `--grammar` | string | — | BNF grammar constraint |
-| `--json-schema` | string | — | JSON schema constraint |
+| `--grammar` | string | - | BNF grammar constraint |
+| `--json-schema` | string | - | JSON schema constraint |
 | `--ignore-eos` | boolean | `false` | Ignore end-of-stream token |
 
 **Speculative Decoding**
 
 | Argument | Type | Default | Description |
 |---|---|---|---|
-| `--spec-draft-model` | string | — | Draft model path |
+| `--spec-draft-model` | string | - | Draft model path |
 | `--spec-type` | string | `none` | Spec types (`draft-simple`,`draft-mtp`,`ngram-mod`,…) |
 | `--spec-draft-n-max` | number | `3` | Max draft tokens |
 | `--spec-draft-threads` | number | same as `--threads` | Draft model threads |
@@ -269,7 +269,7 @@ Commonly-used arguments exposed as typed UI controls, organized by category. New
 
 | Argument | Type | Default | Description |
 |---|---|---|---|
-| `--log-file` | string | — | Log output file path |
+| `--log-file` | string | - | Log output file path |
 | `--log-verbosity` | number | `3` | Verbosity (0-5) |
 | `--log-colors` | enum | `auto` | Colored logs (`on`/`off`/`auto`) |
 | `--log-timestamps` | boolean | `true` | Include timestamps |
@@ -397,13 +397,13 @@ Storage: 245 MB used in ~/.local/share/llama-manager/versions/
 
 #### Actions
 
-- **Install** — download prebuilt binary from GitHub releases (`ggerganov/llama.cpp`)
+- **Install** - download prebuilt binary from GitHub releases (`ggerganov/llama.cpp`)
   - Detect OS + architecture (Linux x86_64, Linux ARM64, macOS x86_64, macOS ARM64)
   - Download ZIP, extract to `$HOME/.llama-manager/versions/<version>/`
   - Show download progress bar
-- **Switch** — mark a version as active (updates config, restarts server if running)
-- **Uninstall** — remove version directory (blocked if version is active)
-- **Check Updates** — fetch latest release tag from GitHub API
+- **Switch** - mark a version as active (updates config, restarts server if running)
+- **Uninstall** - remove version directory (blocked if version is active)
+- **Check Updates** - fetch latest release tag from GitHub API
 
 #### Prebuilt Binary Resolution
 
@@ -438,16 +438,16 @@ Storage: 15.29 GB used in ~/.cache/huggingface/llama-manager/
 
 #### Actions
 
-- **Search** — query HuggingFace API for GGUF models
+- **Search** - query HuggingFace API for GGUF models
   - Filter by tag `gguf`
   - Show repo name, size, last modified, likes
-- **Download** — fetch model file(s) with progress tracking
+- **Download** - fetch model file(s) with progress tracking
   - Uses HuggingFace `hf_hub_download` endpoint or direct URL
   - Resumes interrupted downloads
   - Shows ETA and current speed
-- **Delete** — remove local model file
-- **Set Active** — mark model for server to use on next start
-- **Browse Local** — file browser for models directory
+- **Delete** - remove local model file
+- **Set Active** - mark model for server to use on next start
+- **Browse Local** - file browser for models directory
 
 #### Model Metadata
 
@@ -501,7 +501,7 @@ Combined monitoring and server control panel. Includes metrics, server status, s
 │  ───────────────────────────────────────────────────────  │
 │  Running  PID: 12345  Uptime: 2h 15m                     │
 │  ───────────────────────────────────────────────────────  │
-│  [Live server log viewer — scrollable, colored]          │
+│  [Live server log viewer - scrollable, colored]          │
 │  ...                                                      │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -512,16 +512,16 @@ Polls llama-server `/metrics` (Prometheus endpoint) at configurable interval (de
 
 | Metric | Source |
 |---|------|
-| Prompt/s | `/metrics` — `llama_tokens_per_second` (prompt) |
-| Predict/s | `/metrics` — `llama_tokens_per_second` (predicted) |
-| Processing | `/metrics` — `llama_requests_processing` |
-| Deferred | `/metrics` — `llama_requests_deferred` |
+| Prompt/s | `/metrics` - `llama_tokens_per_second` (prompt) |
+| Predict/s | `/metrics` - `llama_tokens_per_second` (predicted) |
+| Processing | `/metrics` - `llama_requests_processing` |
+| Deferred | `/metrics` - `llama_requests_deferred` |
 
 #### Server Controls
 
-- **Start** — launches `llama-server` with active profile config
-- **Stop** — graceful shutdown (SIGTERM, then SIGKILL after timeout)
-- **Restart** — stop then start
+- **Start** - launches `llama-server` with active profile config
+- **Stop** - graceful shutdown (SIGTERM, then SIGKILL after timeout)
+- **Restart** - stop then start
 
 #### Live Log Viewer
 
@@ -533,7 +533,7 @@ Bottom panel shows live server stdout/stderr with structured coloring:
 
 #### Connection State
 
-- If server is offline, metrics show `—`
+- If server is offline, metrics show `-`
 - Auto-reconnect when server comes back online
 
 ---
@@ -675,25 +675,25 @@ Global application settings. Managed by `OptionsPanel` specialized component. Al
 #### Settings Categories
 
 **Paths**
-- `versionsDir` — custom directory for llama.cpp builds
-- `modelsDir` — custom directory for GGUF models
-- `tasksFile` — custom path for tasks JSONL
-- `logFile` — custom path for server log
+- `versionsDir` - custom directory for llama.cpp builds
+- `modelsDir` - custom directory for GGUF models
+- `tasksFile` - custom path for tasks JSONL
+- `logFile` - custom path for server log
 
 **Dashboard**
-- `pollIntervalMs` — metrics polling interval (default: 2000ms)
-- `killServerOnExit` — whether to kill server on app quit (default: false)
+- `pollIntervalMs` - metrics polling interval (default: 2000ms)
+- `killServerOnExit` - whether to kill server on app quit (default: false)
 
 **Tasks**
-- `maxStored` — maximum tasks in history (default: 10000)
-- `autoParse` — automatic log parsing (default: true)
+- `maxStored` - maximum tasks in history (default: 10000)
+- `autoParse` - automatic log parsing (default: true)
 
 **Appearance**
-- `compactTasks` — compact task list layout
-- `showDraftRate` — display draft acceptance rate in tasks
+- `compactTasks` - compact task list layout
+- `showDraftRate` - display draft acceptance rate in tasks
 
 **HuggingFace**
-- `hfToken` — access token for gated models
+- `hfToken` - access token for gated models
 
 ---
 

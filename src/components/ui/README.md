@@ -11,7 +11,7 @@ Every UI element inherits from `Control`. Controls form a tree via `add()`, `rem
 - **Layout**: `measure()` (child reports desired size) → `layout()` (parent assigns rect) → `onLayout()` (child positions its own children)
 - **Rendering**: `render()` recurses the tree, skipping invisible or clean (`needsRender === false`) controls
 - **Input**: `handleKey()` and `handleChar()` propagate to the focused descendant
-- **Events**: Simple `on()`/`off()`/`emit()` — single handler per event, stored as `_on_<event>` properties
+- **Events**: Simple `on()`/`off()`/`emit()` - single handler per event, stored as `_on_<event>` properties
 
 ### Render Context
 
@@ -32,7 +32,7 @@ Controls use `flex > 0` to claim proportional space in their axis. Fixed-size ch
 
 ## Core Classes
 
-### `Control` — Base class
+### `Control` - Base class
 
 | Property | Type | Default | Description |
 |---|---|---|---|
@@ -43,40 +43,40 @@ Controls use `flex > 0` to claim proportional space in their axis. Fixed-size ch
 | `focusable` | `bool` | `true` | Whether this control can receive focus |
 | `tabIndex` | `number` | `0` | Reserved for ordering (not currently used) |
 | `needsRender` | `bool` | `true` | Dirty flag for incremental rendering |
-| `flex` | `number` | `0` | Flex factor — `>0` claims proportional space |
+| `flex` | `number` | `0` | Flex factor - `>0` claims proportional space |
 | `minWidth` | `number` | `0` | Minimum width constraint |
 | `minHeight` | `number` | `0` | Minimum height constraint |
 
 **Methods:**
-- `add(child)`, `remove(child)`, `clear()` — child management
-- `attach(ctx)`, `detach()` — lifecycle
-- `measure(parentSize?)` → `Size` — report desired size
-- `layout(rect)` — assign rect, call `onLayout()`
-- `render()` — recurse tree, skip invisible/clean
-- `handleKey(key)`, `handleChar(char)` → `bool` — input forwarding to focused descendant
-- `focus()`, `blur()` — focus state with hooks
-- `markDirty()` — set `needsRender`, propagate to parent
-- `getAllFocusable()` → `Control[]` — recursive list of enabled, visible, focusable descendants
-- `on(event, callback)`, `off(event, callback)`, `emit(event, ...args)` — event system
+- `add(child)`, `remove(child)`, `clear()` - child management
+- `attach(ctx)`, `detach()` - lifecycle
+- `measure(parentSize?)` → `Size` - report desired size
+- `layout(rect)` - assign rect, call `onLayout()`
+- `render()` - recurse tree, skip invisible/clean
+- `handleKey(key)`, `handleChar(char)` → `bool` - input forwarding to focused descendant
+- `focus()`, `blur()` - focus state with hooks
+- `markDirty()` - set `needsRender`, propagate to parent
+- `getAllFocusable()` → `Control[]` - recursive list of enabled, visible, focusable descendants
+- `on(event, callback)`, `off(event, callback)`, `emit(event, ...args)` - event system
 
 **Lifecycle hooks** (override in subclasses):
-- `onAttach()` — control attached to render context
-- `onDetach()` — control detached
-- `onFocus()` — control gained focus
-- `onBlur()` — control lost focus
-- `onLayout()` — rect assigned; default implementation lays out all visible children
+- `onAttach()` - control attached to render context
+- `onDetach()` - control detached
+- `onFocus()` - control gained focus
+- `onBlur()` - control lost focus
+- `onLayout()` - rect assigned; default implementation lays out all visible children
 
-### `Column` — Vertical flex layout
+### `Column` - Vertical flex layout
 
 Stacks children top-to-bottom. Applies 1-cell horizontal padding. Fixed-height children take intrinsic space; remaining height distributed among `flex > 0` children proportionally.
 
 Set `child.flex = 1` (or higher) to fill remaining space.
 
-### `Row` — Horizontal flex layout
+### `Row` - Horizontal flex layout
 
 Arranges children left-to-right with 1-cell gaps. Fixed-width children take intrinsic space; remaining width distributed among `flex > 0` children proportionally.
 
-### `Group` — Overlapping container
+### `Group` - Overlapping container
 
 All children share the same rect (overlaid). Measures to the max child size. Useful for layered rendering.
 
@@ -89,9 +89,9 @@ All children share the same rect (overlaid). Measures to the max child size. Use
 **Setup:** Call `focusManager.setRoot(rootControl)` once at app startup.
 
 **Navigation:**
-- `Tab` / `Shift+Tab` — `nextFocus()` / `previousFocus()` — cycle through all focusable controls in the tree
-- `Up` / `k` and `Down` / `j` — `focusPrev()` / `focusNext()` — move within current scope (no wrap)
-- `setFocus(control)` — programmatically set focus
+- `Tab` / `Shift+Tab` - `nextFocus()` / `previousFocus()` - cycle through all focusable controls in the tree
+- `Up` / `k` and `Down` / `j` - `focusPrev()` / `focusNext()` - move within current scope (no wrap)
+- `setFocus(control)` - programmatically set focus
 
 **Text input mode:** Call `focusManager.activateTextInput(true)` when a `TextInput` is focused. This changes key handling so that character input goes to the focused control's `handleChar()` instead of navigation.
 
@@ -142,9 +142,9 @@ Single-line text input with full editing support. Focusable.
 | `prefix` | `string` | `""` |
 
 **Callbacks:**
-- `setOnSubmit(fn)` — called on `Enter`/`Return` with current value
-- `setOnCancel(fn)` — called on `Esc`/`Ctrl+C`
-- `setOnChange(fn)` — called on each edit
+- `setOnSubmit(fn)` - called on `Enter`/`Return` with current value
+- `setOnCancel(fn)` - called on `Esc`/`Ctrl+C`
+- `setOnChange(fn)` - called on each edit
 
 **Key bindings:** `Left`/`Right` (cursor), `Backspace`/`Del` (delete), `Ctrl+A`/`Home` (start), `Ctrl+E`/`End` (end), `Ctrl+W` (delete word), `Esc`/`Ctrl+C` (cancel).
 
@@ -163,9 +163,9 @@ Selectable item list. Focusable.
 `ListItem<T>`: `{ id: T, label: string, sublabel?: string, data?: any }`
 
 **Callbacks:**
-- `setOnSelect(fn)` — called on `Enter`/`Return`/`Space` with selected item
-- `setOnHighlight(fn)` — called on arrow navigation with highlighted item (or `null`)
-- `setRenderer(renderer)` — custom `ItemRenderer<T>` for full control over item rendering
+- `setOnSelect(fn)` - called on `Enter`/`Return`/`Space` with selected item
+- `setOnHighlight(fn)` - called on arrow navigation with highlighted item (or `null`)
+- `setRenderer(renderer)` - custom `ItemRenderer<T>` for full control over item rendering
 
 **Navigation:** `Up`/`k`, `Down`/`j` to move selection. Auto-selects first item on focus.
 
@@ -181,8 +181,8 @@ Scroll container with managed `scrollOffset`. Focusable. Subclass or add childre
 | `contentHeight` | `number` | `0` |
 
 **Methods:**
-- `setScrollOffset(offset)` — clamped set
-- `setContentHeight(h)` — update total scrollable height
+- `setScrollOffset(offset)` - clamped set
+- `setContentHeight(h)` - update total scrollable height
 - `canScrollUp()`, `canScrollDown()` → `bool`
 
 **Key bindings:** `Up`/`Down` (line scroll), `PageUp`/`PageDown` (page scroll), `Home`/`End` (jump).
@@ -290,7 +290,7 @@ class MyWidget extends Control {
 Key rules:
 1. Always call `super.render()`-equivalent logic: guard with `!this.visible || !this.needsRender`, clear `needsRender` at the end
 2. Implement `measure()` to return intrinsic size
-3. Use `this.term` and `this.rect` for rendering — never hardcode positions
+3. Use `this.term` and `this.rect` for rendering - never hardcode positions
 4. Return `true` from `handleKey`/`handleChar` when the key was consumed
 
 ## Typical App Structure
