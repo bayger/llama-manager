@@ -30,9 +30,6 @@ export class LogsViewer extends Control {
       return;
     }
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, height);
     canvas.moveTo(x, y);
 
     const lines = this._config.getLines();

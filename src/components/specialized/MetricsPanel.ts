@@ -105,10 +105,6 @@ export class MetricsPanel extends Control {
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, this.rect.height);
-
     const global = getGlobal();
     const slots = getSlots();
     const numSlots = slots.length;

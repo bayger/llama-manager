@@ -74,7 +74,7 @@ export class Section extends Control {
     const prevClip = canvas.getClipRect();
     canvas.setClipRect(this.rect);
     canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.clearRect(x, y, width, height);
 
     if (width < 3 || height < 2) {
@@ -88,7 +88,6 @@ export class Section extends Control {
     canvas.bold();
     fg(canvas, themeColors.accent, V);
     fg(canvas, themeColors.accent, ` ${this.title}`);
-    canvas.styleReset();
 
     // Left border
     for (let row = 1; row < height; row++) {

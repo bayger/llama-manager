@@ -60,8 +60,6 @@ class TaskDetailsControl extends Section {
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
 
     return [
-      { label: "Task Details", value: "" },
-      { label: "", value: "" },
       { label: "ID", value: `#${task.taskId}` },
       { label: "Slot", value: `S${task.slotId}` },
       { label: "Time", value: timeStr },
@@ -95,7 +93,7 @@ class TaskDetailsControl extends Section {
     const prevClip = canvas.getClipRect();
     canvas.setClipRect(this.rect);
     canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
+    canvas.bgColorRgbHex(themeColors.canvasSubtle);
     canvas.clearRect(x, y, width, height);
 
     if (width < 3 || height < 2) {
@@ -108,7 +106,6 @@ class TaskDetailsControl extends Section {
     canvas.bold();
     fg(canvas, themeColors.accent, `${V}`);
     fg(canvas, themeColors.accent, ` ${this.title}`);
-    canvas.styleReset();
 
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
