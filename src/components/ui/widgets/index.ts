@@ -1,5 +1,6 @@
 export { Label } from "./Label.js";
 export { Button } from "./Button.js";
+export { Checkbox } from "./Checkbox.js";
 export { TextInput } from "./TextInput.js";
 export { List } from "./List.js";
 export { Scrollable } from "./Scrollable.js";

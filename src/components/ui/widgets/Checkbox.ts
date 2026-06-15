@@ -1,0 +1,103 @@
+import { Control } from "../Control.js";
+import { fg, fgBg } from "../../../lib/theme.js";
+import type { Point, Size, RenderContext } from "../types.js";
+
+export interface CheckboxConfig {
+  label: string;
+  checked?: boolean;
+  disabled?: boolean;
+  action?: (checked: boolean) => void;
+}
+
+const BOX_UNCHECKED = "\u2610";
+const BOX_CHECKED = "\u2611";
+
+export class Checkbox extends Control {
+  focusable = true;
+  protected _label = "";
+  protected _checked = false;
+  protected _action: ((checked: boolean) => void) | null = null;
+
+  get label(): string { return this._label; }
+  set label(v: string) { if (v !== this._label) { this._label = v; this.markDirty(); } }
+
+  get checked(): boolean { return this._checked; }
+  set checked(v: boolean) {
+    if (v !== this._checked) {
+      this._checked = v;
+      this.markDirty();
+      if (this._action) this._action(this._checked);
+    }
+  }
+
+  get disabled(): boolean {
+    return !this.enabled;
+  }
+
+  set disabled(value: boolean) {
+    if (value === !this.enabled) return;
+    this.enabled = !value;
+    this.markDirty();
+  }
+
+  constructor(config?: CheckboxConfig) {
+    super();
+    if (config) {
+      this._label = config.label;
+      this._checked = config.checked || false;
+      this.disabled = config.disabled || false;
+      this._action = config.action || null;
+    }
+  }
+
+  measure(_parentSize?: Size): Size {
+    return { width: this._label.length + 4, height: 1 };
+  }
+
+  draw(ctx: RenderContext): void {
+    const { canvas } = ctx;
+    const { x, y } = this.rect;
+    canvas.moveTo(x, y);
+
+    const box = this._checked ? BOX_CHECKED : BOX_UNCHECKED;
+    const text = `${box} ${this._label} `;
+
+    if (this.disabled) {
+      fgBg(canvas, "borderMuted", "canvas", text);
+    } else if (this.focused) {
+      canvas.bold();
+      fgBg(canvas, "canvas", "accent", text);
+      canvas.styleReset();
+    } else {
+      fg(canvas, "text", text);
+    }
+  }
+
+  handleKey(key: string): boolean {
+    if (this.disabled) return false;
+    if (key === "RETURN" || key === "ENTER" || key === "SPACE") {
+      this._checked = !this._checked;
+      this.markDirty();
+      if (this._action) this._action(this._checked);
+      return true;
+    }
+    return false;
+  }
+
+  setAction(action: (checked: boolean) => void): void {
+    this._action = action;
+  }
+
+  onMouseDown(_point: Point): boolean {
+    if (!this.disabled) {
+      this._checked = !this._checked;
+      this.markDirty();
+      if (this._action) this._action(this._checked);
+    }
+    return true;
+  }
+
+  onMouseUp(_point: Point): boolean {
+    return true;
+  }
+}

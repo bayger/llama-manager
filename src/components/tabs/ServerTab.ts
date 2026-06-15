@@ -5,6 +5,7 @@ import { Button } from "../ui/widgets/Button.js";
 import { Spacer } from "../ui/widgets/Spacer.js";
 import { TextInput } from "../ui/widgets/TextInput.js";
 import { Section } from "../ui/widgets/Section.js";
+import { Checkbox } from "../ui/widgets/Checkbox.js";
 import { SettingsPanel } from "../specialized/SettingsPanel.js";
 import { ProfileList } from "../specialized/ProfileList.js";
 import { StyledText } from "../ui/widgets/StyledText.js";
@@ -25,6 +26,7 @@ export class ServerControl extends Control {
   protected _settingsPanel: SettingsPanel;
   protected _profileList: ProfileList;
   protected _summary: StyledText;
+  protected _advancedCheckbox: Checkbox;
   protected _editMode: "create" | "rename" | null = null;
   protected _showingSettings = false;
 
@@ -63,6 +65,12 @@ export class ServerControl extends Control {
       this.showProfileList();
     });
 
+    this._advancedCheckbox = new Checkbox({ label: "Advanced options" });
+    this._advancedCheckbox.visible = false;
+    this._advancedCheckbox.setAction((checked: boolean) => {
+      this._settingsPanel.setAdvancedMode(checked);
+    });
+
     this._profileList = new ProfileList();
     this._profileList.flex = 1;
     this._profileList.setSelectCallback((name: string) => {
@@ -83,6 +91,10 @@ export class ServerControl extends Control {
     this._column.add(this._buttonRow);
     this._column.add(this._section);
     this._buttonRow.add(this._summary);
+    const spacer = new Spacer();
+    spacer.flex = 1;
+    this._buttonRow.add(spacer);
+    this._buttonRow.add(this._advancedCheckbox);
 
     this.add(this._column);
   }
@@ -144,6 +156,7 @@ export class ServerControl extends Control {
   showProfileList(): void {
     this._showingSettings = false;
     this._settingsPanel.visible = false;
+    this._advancedCheckbox.visible = false;
     this._profileList.visible = true;
     this._profileList.setConfig(this._ctx?.getConfig() || null);
     focusManager.setFocus(this._profileList);
@@ -153,6 +166,7 @@ export class ServerControl extends Control {
   showSettings(): void {
     this._showingSettings = true;
     this._settingsPanel.visible = true;
+    this._advancedCheckbox.visible = true;
     this._profileList.visible = false;
     this._settingsPanel.setConfig(this._ctx?.getConfig() || null);
     focusManager.setFocus(this._settingsPanel);

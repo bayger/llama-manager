@@ -71,6 +71,16 @@ export class SettingsPanel extends Control {
   protected _selectedIndex = 0;
   protected _collapsed = new Set<number>();
   protected _rows: RowInfo[] = [];
+  protected _advancedMode = false;
+
+  setAdvancedMode(advanced: boolean): void {
+    if (this._advancedMode !== advanced) {
+      this._advancedMode = advanced;
+      this.buildRows();
+      this.clampSelection();
+      this.markDirty();
+    }
+  }
   protected _onMessage: ((msg: string) => void) | null = null;
   protected _onEscape: (() => void) | null = null;
   protected _edit: EditState | null = null;
@@ -99,10 +109,15 @@ export class SettingsPanel extends Control {
 
     for (let catIdx = 0; catIdx < PRESET_CATEGORIES.length; catIdx++) {
       const cat = PRESET_CATEGORIES[catIdx]!;
+      const catHasVisible = cat.fields.some(f => !f.advanced || this._advancedMode);
+      if (!catHasVisible) continue;
+
       this._rows.push({ type: "header", catIdx });
       if (!this._collapsed.has(catIdx)) {
         for (let fIdx = 0; fIdx < cat.fields.length; fIdx++) {
-          this._rows.push({ type: "field", catIdx, fieldIdx: fIdx, field: cat.fields[fIdx]! });
+          const field = cat.fields[fIdx]!;
+          if (field.advanced && !this._advancedMode) continue;
+          this._rows.push({ type: "field", catIdx, fieldIdx: fIdx, field });
         }
       }
     }
