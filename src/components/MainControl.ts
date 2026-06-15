@@ -162,6 +162,7 @@ class TabBar extends Control {
   protected _selectedIndex = 0;
   protected _tabRects: { start: number; end: number }[] = [];
   protected _onTabClick: ((index: number) => void) | null = null;
+  protected _appStr = `Llama Manager `;
 
   constructor(onTabClick?: (index: number) => void) {
     super();
@@ -180,12 +181,11 @@ class TabBar extends Control {
   draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
-    const appStr = `Llama Manager `;
 
     canvas.moveTo(x, y);
     fg(canvas, "text", " ");
     canvas.bold();
-    fg(canvas, "accentColor", appStr);
+    fg(canvas, "accentColor", this._appStr);
     canvas.bold(false);
     fg(canvas, "borderMuted", " │ ");
 
@@ -217,7 +217,7 @@ class TabBar extends Control {
     }
 
     const rightPadding = 1;
-    const padLen = width - pos - appStr.length - rightPadding - 3;
+    const padLen = width - pos - this._appStr.length - rightPadding - 3;
     if (padLen > 0) {
       fg(canvas, "borderMuted", " ".repeat(padLen));
     }
@@ -230,7 +230,7 @@ class TabBar extends Control {
 
   onMouseDown(point: Point): boolean {
     if (point.y !== this.rect.y) return false;
-    const offset = point.x - this.rect.x - 1;
+    const offset = point.x - this.rect.x - 1 - this._appStr.length - 3;
     for (let i = 0; i < this._tabRects.length; i++) {
       const rect = this._tabRects[i]!;
       if (offset >= rect.start && offset < rect.end) {
