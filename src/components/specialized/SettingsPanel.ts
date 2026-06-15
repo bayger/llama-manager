@@ -200,7 +200,7 @@ export class SettingsPanel extends Control {
       const padded = headerText.padEnd(width);
       fgBg(canvas, "selectedText", "selectedBg", padded);
     } else {
-      fg(canvas, "accent", headerText);
+      fgBg(canvas, "accent", "canvasSubtle", headerText);
     }
     canvas.styleReset();
   }
@@ -213,8 +213,8 @@ export class SettingsPanel extends Control {
 
    if (isEditing && this._edit) {
       const value = this._edit.text;
-      fg(canvas, "warning", keyStr);
-      fg(canvas, "selected", value);
+      fgBg(canvas, "warning", "canvasSubtle", keyStr);
+      fgBg(canvas, "selected", "canvas", value);
   } else {
         const value = formatFieldValue(field, presetData?.[field.key]);
 
@@ -232,9 +232,9 @@ export class SettingsPanel extends Control {
           const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
           fgBg(canvas, "selectedText", "selectedBg", padded.substring(0, width));
         } else {
-          fg(canvas, "textMuted", keyStr);
-          fg(canvas, "text", value);
-          fg(canvas, "textMuted", desc ? "  " + desc : "");
+          fgBg(canvas, "textMuted", "canvasSubtle", keyStr);
+          fgBg(canvas, "text", "canvasSubtle", value);
+          fgBg(canvas, "textMuted", "canvasSubtle", desc ? "  " + desc : "");
         }
       }
     canvas.styleReset();

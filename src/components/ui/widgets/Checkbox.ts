@@ -63,13 +63,13 @@ export class Checkbox extends Control {
     const text = `${box} ${this._label} `;
 
     if (this.disabled) {
-      fgBg(canvas, "borderMuted", "canvas", text);
+      fg(canvas, "borderMuted", text);
     } else if (this.focused) {
       canvas.bold();
       fgBg(canvas, "canvas", "accent", text);
-      canvas.styleReset();
+      //canvas.styleReset();
     } else {
-      fg(canvas, "text", text);
+      fg(canvas, "textMuted", text);
     }
   }
 
