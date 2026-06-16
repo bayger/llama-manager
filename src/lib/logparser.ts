@@ -26,8 +26,7 @@ export interface TaskMetrics {
   version?: string;
 }
 
-const taskBuffer = new Map<number, Partial<TaskMetrics>>();
-const completedTaskIds = new Set<number>();
+
 
 const promptEvalRegex =
   /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt eval time\s*=\s*([\d.]+)\s*ms\s*\/\s*(\d+)\s*tokens\s*\(\s*([\d.]+)\s*ms per token,\s*([\d.]+)\s*tokens per second/;
@@ -137,13 +136,15 @@ function fillDefaults(partial: Partial<TaskMetrics>): TaskMetrics {
 export class LogParser extends EventEmitter {
   private tailTimers = new Map<number, NodeJS.Timeout>();
   private _config: ConfigData | null = null;
+  private taskBuffer = new Map<number, Partial<TaskMetrics>>();
+  private completedTaskIds = new Set<number>();
 
   setConfig(config: ConfigData): void {
     this._config = config;
   }
 
   seedCompleted(ids: number[]) {
-    for (const id of ids) completedTaskIds.add(id);
+    for (const id of ids) this.completedTaskIds.add(id);
   }
 
   processLine(line: string): TaskMetrics | null {
@@ -151,11 +152,11 @@ export class LogParser extends EventEmitter {
     if (!metrics || metrics.taskId === undefined || metrics.taskId < 0) return null;
 
     const key = metrics.taskId;
-    if (completedTaskIds.has(key)) return null;
+    if (this.completedTaskIds.has(key)) return null;
 
-    const existing = taskBuffer.get(key) || {};
+    const existing = this.taskBuffer.get(key) || {};
     const merged = { ...existing, ...metrics, timestamp: new Date().toISOString() };
-    taskBuffer.set(key, merged);
+    this.taskBuffer.set(key, merged);
 
     if (metrics.contextSize !== undefined) {
       const complete = fillDefaults(merged);
@@ -165,8 +166,8 @@ export class LogParser extends EventEmitter {
         complete.model = (presets?.model?.model as string | undefined) ?? (presets?.model?.hfRepo as string | undefined) ?? undefined;
         complete.version = this._config.activeVersion ?? undefined;
       }
-      completedTaskIds.add(key);
-      taskBuffer.delete(key);
+      this.completedTaskIds.add(key);
+      this.taskBuffer.delete(key);
       const timer = this.tailTimers.get(key);
       if (timer) {
         clearTimeout(timer);
@@ -178,7 +179,7 @@ export class LogParser extends EventEmitter {
 
     if (metrics.totalTimeMs !== undefined && metrics.totalTokens !== undefined) {
       const timer = setTimeout(() => {
-        const buf = taskBuffer.get(key);
+        const buf = this.taskBuffer.get(key);
         if (buf) {
           const complete = fillDefaults(buf);
           if (this._config) {
@@ -187,8 +188,8 @@ export class LogParser extends EventEmitter {
             complete.model = (presets?.model?.model as string | undefined) ?? (presets?.model?.hfRepo as string | undefined) ?? undefined;
             complete.version = this._config.activeVersion ?? undefined;
           }
-          completedTaskIds.add(key);
-          taskBuffer.delete(key);
+          this.completedTaskIds.add(key);
+          this.taskBuffer.delete(key);
           this.tailTimers.delete(key);
           this.emit("task", complete);
         }
@@ -245,6 +246,8 @@ export class LogParser extends EventEmitter {
   stop() {
     for (const timer of this.tailTimers.values()) clearTimeout(timer);
     this.tailTimers.clear();
+    this.taskBuffer.clear();
+    this.completedTaskIds.clear();
   }
 }
 
