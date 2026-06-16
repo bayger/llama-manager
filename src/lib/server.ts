@@ -9,6 +9,17 @@ import { processLine as processMetricLine, reset as resetMetrics } from "./metri
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
 
+// Mutex to serialize start/stop operations
+let serverMutex: Promise<void> = Promise.resolve();
+
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  let release!: () => void;
+  const lock = new Promise<void>((resolve) => { release = resolve; });
+  const prev = serverMutex;
+  serverMutex = prev.then(() => lock);
+  return prev.then(() => fn()).finally(() => release());
+}
+
 const logEmitter = new EventEmitter();
 logEmitter.setMaxListeners(10);
 
@@ -57,90 +68,92 @@ interface ServerStatus {
 
 
 export function startServer(config: ConfigData): Promise<number> {
-  resetMetrics();
-  return new Promise(async (resolve, reject) => {
-    if (serverProcess?.pid) {
-      reject(new Error("Server already running"));
-      return;
-    }
+  return withLock(async () => {
+    resetMetrics();
+    return new Promise(async (resolve, reject) => {
+      if (serverProcess?.pid) {
+        reject(new Error("Server already running"));
+        return;
+      }
 
-    const versionsDir = getVersionsDir(config);
-    const activeVersion = config.activeVersion;
-    if (!activeVersion) {
-      reject(new Error("No active version selected"));
-      return;
-    }
+      const versionsDir = getVersionsDir(config);
+      const activeVersion = config.activeVersion;
+      if (!activeVersion) {
+        reject(new Error("No active version selected"));
+        return;
+      }
 
-    const binary = path.join(versionsDir, activeVersion, "llama-server");
-    const exists = await fs.pathExists(binary);
-    if (!exists) {
-      reject(new Error(`Binary not found: ${binary}`));
-      return;
-    }
+      const binary = path.join(versionsDir, activeVersion, "llama-server");
+      const exists = await fs.pathExists(binary);
+      if (!exists) {
+        reject(new Error(`Binary not found: ${binary}`));
+        return;
+      }
 
-    const logFile = getLogFile(config);
-    await fs.ensureDir(path.dirname(logFile));
-    const logStream = await fs.createWriteStream(logFile, { flags: "a" });
+      const logFile = getLogFile(config);
+      await fs.ensureDir(path.dirname(logFile));
+      const logStream = await fs.createWriteStream(logFile, { flags: "a" });
 
-    const args = buildArgs(config);
-    serverStartTime = Date.now();
-    serverProcess = spawn(binary, args, {
-      stdio: ["ignore", "pipe", "pipe"],
-      detached: false,
-    });
+      const args = buildArgs(config);
+      serverStartTime = Date.now();
+      serverProcess = spawn(binary, args, {
+        stdio: ["ignore", "pipe", "pipe"],
+        detached: false,
+      });
 
-    serverProcess.stdout?.pipe(logStream);
-    serverProcess.stderr?.pipe(logStream);
+      serverProcess.stdout?.pipe(logStream);
+      serverProcess.stderr?.pipe(logStream);
 
-    const relay = (stream: NodeJS.ReadableStream | null) => {
-      let buf = "";
-      stream?.on("data", (chunk: Buffer) => {
-        buf += chunk.toString();
-        const parts = buf.split("\n");
-        buf = parts.pop() || "";
-        for (const part of parts) {
-          if (part.length > 0) {
-            serverLogLines.push(part);
-            if (serverLogLines.length > MAX_LOG_LINES) {
-              serverLogLines.splice(0, serverLogLines.length - MAX_LOG_LINES);
+      const relay = (stream: NodeJS.ReadableStream | null) => {
+        let buf = "";
+        stream?.on("data", (chunk: Buffer) => {
+          buf += chunk.toString();
+          const parts = buf.split("\n");
+          buf = parts.pop() || "";
+          for (const part of parts) {
+            if (part.length > 0) {
+              serverLogLines.push(part);
+              if (serverLogLines.length > MAX_LOG_LINES) {
+                serverLogLines.splice(0, serverLogLines.length - MAX_LOG_LINES);
+              }
+              logEmitter.emit("log", part);
+              logParser.processLine(part);
+              processMetricLine(part);
             }
-            logEmitter.emit("log", part);
-            logParser.processLine(part);
-            processMetricLine(part);
           }
+        });
+      };
+      relay(serverProcess.stdout);
+      relay(serverProcess.stderr);
+
+      serverProcess.on("error", (err) => reject(err));
+      serverProcess.on("exit", (code, signal) => {
+        const wasRunning = serverProcess !== null;
+        serverProcess = null;
+        serverStartTime = null;
+        if (wasRunning) {
+          resetMetrics();
+        }
+        if (wasRunning && code !== 0 && code !== null) {
+          serverLogLines.push(`[server] Process exited with code ${code}`);
+          logEmitter.emit("log", `[server] Process exited with code ${code}`);
+        }
+        if (wasRunning && signal && signal !== "SIGTERM" && signal !== "SIGKILL") {
+          serverLogLines.push(`[server] Process terminated by signal ${signal}`);
+          logEmitter.emit("log", `[server] Process terminated by signal ${signal}`);
+        }
+        if (wasRunning) {
+          statusEmitter.emit("change");
         }
       });
-    };
-    relay(serverProcess.stdout);
-    relay(serverProcess.stderr);
 
-    serverProcess.on("error", (err) => reject(err));
-    serverProcess.on("exit", (code, signal) => {
-      const wasRunning = serverProcess !== null;
-      serverProcess = null;
-      serverStartTime = null;
-      if (wasRunning) {
-        resetMetrics();
-      }
-      if (wasRunning && code !== 0 && code !== null) {
-        serverLogLines.push(`[server] Process exited with code ${code}`);
-        logEmitter.emit("log", `[server] Process exited with code ${code}`);
-      }
-      if (wasRunning && signal && signal !== "SIGTERM" && signal !== "SIGKILL") {
-        serverLogLines.push(`[server] Process terminated by signal ${signal}`);
-        logEmitter.emit("log", `[server] Process terminated by signal ${signal}`);
-      }
-      if (wasRunning) {
-        statusEmitter.emit("change");
-      }
+      resolve(serverProcess.pid!);
     });
-
-    resolve(serverProcess.pid!);
   });
 }
 
 export function stopServer(): Promise<void> {
-  return new Promise((resolve, reject) => {
+  return withLock(() => new Promise((resolve) => {
     if (!serverProcess?.pid) {
       resolve();
       return;
@@ -160,7 +173,7 @@ export function stopServer(): Promise<void> {
         serverProcess.kill("SIGKILL");
       }
     }, 5000);
-  });
+  }));
 }
 
 export function getStatus(): ServerStatus {
