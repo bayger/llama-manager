@@ -121,13 +121,7 @@ export abstract class EditableList extends Control {
     return this.rect.width;
   }
 
-  /** Override for pre-draw setup (e.g. background clearing). */
-  protected preDraw(_ctx: RenderContext): void {
-    // no-op
-  }
-
   draw(ctx: RenderContext): void {
-    this.preDraw(ctx);
     const canvas = ctx.canvas;
     const { x, y: startY, height } = this.rect;
     const width = this.getDrawWidth();
@@ -141,6 +135,7 @@ export abstract class EditableList extends Control {
       if (visualRow >= this._rows.length) break;
 
       canvas.moveTo(x, startY + i);
+      canvas.styleReset();
       const row = this._rows[visualRow]!;
       const isSelected = visualRow === this._selectedIndex && this.focused;
       const isEditing = !!(this._edit && visualRow === this._edit.row);

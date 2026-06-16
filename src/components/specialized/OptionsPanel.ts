@@ -240,10 +240,10 @@ export class OptionsPanel extends EditableList {
     const headerText = ` ${arrow} ${cat.name}`;
 
     if (isSelected) {
-      fgBg(canvas, "text", "canvasSubtle", headerText);
-      fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - headerText.length)));
+      const padded = headerText.padEnd(width);
+      fgBg(canvas, "selectedText", "selectedBg", padded);
     } else {
-      fg(canvas, "accentColor", headerText);
+      fgBg(canvas, "accent", "canvasSubtle", headerText);
     }
   }
 
@@ -256,8 +256,8 @@ export class OptionsPanel extends EditableList {
 
     if (isEditing && this._edit) {
       const value = this._edit.text;
-      fg(canvas, "warning", keyStr);
-      fg(canvas, "accent", value);
+      fgBg(canvas, "warning", "canvasSubtle", keyStr);
+      fgBg(canvas, "selected", "canvas", value);
     } else {
       const value = formatFieldValue(field, data?.[field.key]);
 
@@ -270,18 +270,12 @@ export class OptionsPanel extends EditableList {
       const desc = descSpace > 0 && field.description ? field.description.substring(0, descSpace) : "";
 
       if (isSelected) {
+        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
+        fgBg(canvas, "selectedText", "selectedBg", padded.substring(0, width));
+      } else {
         fgBg(canvas, "textMuted", "canvasSubtle", keyStr);
         fgBg(canvas, "text", "canvasSubtle", value);
-        fgBg(canvas, "info", "canvasSubtle", extra);
-        if (desc) {
-          fgBg(canvas, "textMuted", "canvasSubtle", "  " + desc);
-        }
-        const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-        fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - drawn)));
-      } else {
-        fg(canvas, "textMuted", keyStr);
-        fg(canvas, "text", value);
-        fg(canvas, "textMuted", desc ? "  " + desc : "");
+        fgBg(canvas, "textMuted", "canvasSubtle", desc ? "  " + desc : "");
       }
     }
   }
@@ -305,15 +299,6 @@ export class OptionsPanel extends EditableList {
 
   protected getDrawWidth(): number {
     return this.isPickerVisible() ? this.rect.width - THEME_PICKER_WIDTH : this.rect.width;
-  }
-
-  protected preDraw(ctx: RenderContext): void {
-    const canvas = ctx.canvas;
-    const { x, y, height } = this.rect;
-    const mainWidth = this.getDrawWidth();
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvas");
-    canvas.clearRect(x, y, mainWidth, height);
   }
 
   onLayout(): void {
