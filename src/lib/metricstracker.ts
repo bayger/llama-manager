@@ -264,6 +264,7 @@ export function processLine(line: string) {
     slot.promptSpeed = null;
     slot.promptProgress = null;
     slot.contextSize = ctxSize;
+    slot.checkpoints = [];
     slot.lastTask = completed;
     notify();
   }
