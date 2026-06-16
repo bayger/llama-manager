@@ -77,6 +77,11 @@ class TaskStore extends EventEmitter {
     const logFile = getLogFile(config);
     await logParser.parseExistingFile(logFile);
 
+    // Clear completed IDs so live tailing only tracks tasks in the current session.
+    // Task IDs are not unique across server restarts, so keeping old IDs would
+    // cause new tasks with reused IDs to be silently skipped.
+    logParser.clearCompleted();
+
     this.stopTailer = logParser.startFileTailer(logFile);
   }
 

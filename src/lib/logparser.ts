@@ -243,6 +243,11 @@ export class LogParser extends EventEmitter {
     };
   }
 
+  clearCompleted(): void {
+    this.taskBuffer.clear();
+    this.completedTaskIds.clear();
+  }
+
   stop() {
     for (const timer of this.tailTimers.values()) clearTimeout(timer);
     this.tailTimers.clear();
