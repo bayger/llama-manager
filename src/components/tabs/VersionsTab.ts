@@ -82,7 +82,7 @@ export class VersionsControl extends Control {
   protected _btnDelete: Button;
   protected _contentRow: Row;
   protected _versionsSection: Section;
-  protected _list: List<any>;
+  protected _list: List<string, VersionInfo | RemoteVersion | AvailableBackend>;
   protected _changelogSection: Section;
   protected _changelog: ChangelogView;
   protected _progressBar: ProgressBar;
@@ -168,7 +168,7 @@ export class VersionsControl extends Control {
         if (!selected) return;
         const config = ctx.getConfig();
         if (!config) throw new Error("No config loaded");
-        await uninstallVersion(config, selected.data.version);
+        await uninstallVersion(config, (selected.data as VersionInfo).version);
         if (this._mode === "local") await this.refreshLocal();
       }, ctx);
     });
@@ -178,16 +178,16 @@ export class VersionsControl extends Control {
         if (this._mode === "local") {
           const config = ctx.getConfig();
           if (!config) throw new Error("No config loaded");
-          await switchVersion(config, item.data.version);
+          await switchVersion(config, (item.data as VersionInfo).version);
           await saveConfig(config);
           ctx.setConfig(config);
           await this.refreshLocal();
         } else if (this._mode === "releases") {
-          this._selectedRelease = item.data;
-          await this.showBackends(item.data);
+          this._selectedRelease = item.data as RemoteVersion;
+          await this.showBackends(item.data as RemoteVersion);
         } else if (this._mode === "backends") {
-          const backend = item.data;
-          await this.install(item.data.id);
+          const backend = item.data as AvailableBackend;
+          await this.install(backend.id);
         }
       }, ctx);
     });
@@ -259,7 +259,7 @@ export class VersionsControl extends Control {
 
     try {
       const releases = await listRecentVersions(30);
-      const items: ListItem<any>[] = releases.map(r => ({
+      const items: ListItem<string, RemoteVersion>[] = releases.map(r => ({
         id: r.tag,
         label: r.tag,
         sublabel: r.publishedAt ? r.publishedAt.substring(0, 10) : "",
@@ -269,7 +269,7 @@ export class VersionsControl extends Control {
       this._list.setRenderer(this._releaseRenderer.bind(this));
       this._list.setOnHighlight((item) => {
         if (item) {
-          this._changelog.update(item.data.body || "");
+          this._changelog.update((item.data as RemoteVersion).body || "");
         } else {
           this._changelog.clear();
         }
@@ -315,7 +315,7 @@ export class VersionsControl extends Control {
         return;
       }
 
-      const items: ListItem<any>[] = backends.map(b => ({
+      const items: ListItem<string, AvailableBackend>[] = backends.map(b => ({
         id: b.id,
         label: b.label,
         sublabel: b.assetName,
@@ -392,7 +392,7 @@ export class VersionsControl extends Control {
         .muted("  Size ")
         .text(formatSize(totalSize));
 
-      const items: ListItem<any>[] = versions.map(v => ({
+      const items: ListItem<string, VersionInfo>[] = versions.map(v => ({
         id: v.version,
         label: v.version,
         sublabel: BACKEND_LABELS[v.backend] || v.backend,
@@ -403,21 +403,21 @@ export class VersionsControl extends Control {
       this._list.updateItems(items);
 
       if (config.activeVersion) {
-        const activeIdx = items.findIndex(i => i.data.active);
+        const activeIdx = items.findIndex(i => (i.data as VersionInfo).active);
         if (activeIdx >= 0) {
           this._list.selectedIndex = activeIdx;
         }
       }
 
       const sel = this._list.getSelectedItem();
-      this._btnDelete.disabled = !sel || sel.data.active;
+      this._btnDelete.disabled = !sel || !(sel.data as VersionInfo).active;
       this.markDirty();
     } catch (err: any) {
       // ignore
     }
   }
 
-  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const v = item.data as VersionInfo;
     const prefix = v.active ? "✓ " : "  ";
     const line = (` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
@@ -431,7 +431,7 @@ export class VersionsControl extends Control {
     }
   }
 
-  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const r = item.data as RemoteVersion;
     const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
     const line = (` ${r.tag}  ${date}`).padEnd(width);
@@ -443,7 +443,7 @@ export class VersionsControl extends Control {
     }
   }
 
-  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const b = item.data as AvailableBackend;
     const line = (` ${b.label}  ${b.assetName}`).padEnd(width);
 

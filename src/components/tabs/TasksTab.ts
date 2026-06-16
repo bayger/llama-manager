@@ -148,11 +148,11 @@ export class TasksControl extends Control {
     this._ctx = ctx;
     this._summary = new StyledText();
 
-    this._table = new Table();
+    this._table = new Table<TaskMetrics>();
     this._table.showHeader = true;
     this._table.tabIndex = 0;
     this._table.setOnHighlight((item) => {
-      this._detailsPanel.update(item ? item.data as TaskMetrics : null);
+      this._detailsPanel.update(item ? item.data ?? null : null);
       this.markDirty();
     });
     this._table.setOnSelect(() => {
@@ -286,7 +286,7 @@ export class TasksControl extends Control {
     this._table.setRenderer(renderTaskRow);
 
     const selected = this._table.getSelectedItem();
-    this._detailsPanel.update(selected ? selected.data as TaskMetrics : null);
+    this._detailsPanel.update(selected ? selected.data ?? null : null);
   }
 
   applyFilters(): void {

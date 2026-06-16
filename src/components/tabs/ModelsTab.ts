@@ -39,7 +39,7 @@ export class ModelsControl extends Control {
   protected _browseBtn: Button;
   protected _removeBtn: Button;
   protected _modelsSection: Section;
-  protected _modelList: List<string>;
+  protected _modelList: List<string, LocalModel>;
   protected _summary: StyledText;
 
   // HF Browser
@@ -50,9 +50,9 @@ export class ModelsControl extends Control {
   protected _hfBrowseBtn: Button;
   protected _hfContentColumn: Column;
   protected _hfResultsSection: Section;
-  protected _hfResultsList: List<string>;
+  protected _hfResultsList: List<string, HFRepoInfo>;
   protected _hfFilesSection: Section;
-  protected _hfFilesList: List<string>;
+  protected _hfFilesList: List<string, HFFileInfo>;
   protected _hfProgressBar: ProgressBar;
   protected _hfButtonRow: Row;
   protected _hfBackBtn: Button;
@@ -84,7 +84,7 @@ export class ModelsControl extends Control {
     this._buttonRow.add(this._browseBtn);
     this._buttonRow.add(this._removeBtn);
 
-    this._modelList = new List<string>();
+    this._modelList = new List<string, LocalModel>();
 
     this._modelsSection = new Section();
     this._modelsSection.title = "Downloaded Models";
@@ -92,11 +92,10 @@ export class ModelsControl extends Control {
     this._modelList.flex = 1;
 
     this._modelList.setOnSelect((item) => {
-      const model = (item as any).data as LocalModel;
-      this.selectModel(model);
+      this.selectModel(item.data!);
     });
     this._modelList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
-      const model = (item as any).data as LocalModel;
+      const model = item.data!;
       const prefix = model.active ? "✓ " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
@@ -126,18 +125,17 @@ export class ModelsControl extends Control {
     this._hfSearchRow = new Row();
     this._hfSearchRow.add(this._hfSearchInput);
 
-    this._hfResultsList = new List<string>();
+    this._hfResultsList = new List<string, HFRepoInfo>();
 
     this._hfResultsSection = new Section();
     this._hfResultsSection.title = "Results";
     this._hfResultsSection.add(this._hfResultsList);
 
     this._hfResultsList.setOnSelect((item) => {
-      const repo = (item as any).data as HFRepoInfo;
-      this.openRepoFiles(repo);
+      this.openRepoFiles(item.data!);
     });
     this._hfResultsList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
-      const repo = (item as any).data as HFRepoInfo;
+      const repo = item.data!;
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
       const meta = [likes, downloads].filter(Boolean).join("  ");
@@ -150,7 +148,7 @@ export class ModelsControl extends Control {
       }
     });
 
-    this._hfFilesList = new List<string>();
+    this._hfFilesList = new List<string, HFFileInfo>();
 
     this._hfFilesSection = new Section();
     this._hfFilesSection.title = "Files";
@@ -158,11 +156,10 @@ export class ModelsControl extends Control {
     this._hfFilesSection.add(this._hfFilesList);
 
     this._hfFilesList.setOnSelect((item) => {
-      const file = (item as any).data as HFFileInfo;
-      this.downloadSelectedFile(file);
+      this.downloadSelectedFile(item.data!);
     });
     this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
-      const file = (item as any).data as HFFileInfo;
+      const file = item.data!;
       const size = formatSize(file.size);
       const line = (` ${file.path}  ${size}`).padEnd(width);
 
@@ -472,7 +469,7 @@ this._hfResultsList.handleKey = (key: string) => {
   }
 
   showResults(): void {
-    const items: ListItem<string>[] = this._repos.map((repo, i) => ({
+    const items: ListItem<string, HFRepoInfo>[] = this._repos.map((repo, i) => ({
       id: String(i),
       label: repo.id,
       data: repo,
@@ -489,7 +486,7 @@ this._hfResultsList.handleKey = (key: string) => {
       const config = this._ctx?.getConfig();
       const token = config?.hfToken ?? undefined;
       this._files = await listFiles(repo.id, token);
-      const items: ListItem<string>[] = this._files.map((file, i) => ({
+      const items: ListItem<string, HFFileInfo>[] = this._files.map((file, i) => ({
         id: String(i),
         label: file.path,
         data: file,
@@ -563,7 +560,7 @@ this._hfResultsList.handleKey = (key: string) => {
         getTotalModelsSize(config),
       ]);
 
-      const items: ListItem<string>[] = models.map(m => ({
+      const items: ListItem<string, LocalModel>[] = models.map(m => ({
         id: m.path,
         label: `${m.repoId}/${m.filename}`,
         data: m,
@@ -604,7 +601,7 @@ this._hfResultsList.handleKey = (key: string) => {
     if (!config) return;
 
     (async () => {
-      const model = (selected as any).data as LocalModel;
+      const model = selected.data!;
       const updated = await deleteModel(config, model.path);
       await saveConfig(updated);
       this._ctx?.setConfig(updated);
