@@ -38,21 +38,34 @@ export class Control {
     });
   }
 
-  // - Event helpers -
+  // - Multi-listener event helpers -
+
+  private _listeners: Map<string, Array<(...args: any[]) => void>> = new Map();
 
   on(event: string, callback: (...args: any[]) => void): void {
     const handler = callback.bind(this);
-    (this as any)[`_on_${event}`] = handler;
-    this.emit(event);
+    const list = this._listeners.get(event) || [];
+    list.push(handler);
+    this._listeners.set(event, list);
   }
 
-  off(event: string, callback: (...args: any[]) => void): void {
-    delete (this as any)[`_on_${event}`];
+  off(event: string, callback?: (() => void) | undefined): void {
+    const list = this._listeners.get(event);
+    if (!list) return;
+    if (callback) {
+      const idx = list.indexOf(callback);
+      if (idx !== -1) list.splice(idx, 1);
+    } else {
+      this._listeners.delete(event);
+    }
   }
 
   emit(event: string, ...args: any[]): void {
-    const handler = (this as any)[`_on_${event}`];
-    if (handler) handler(...args);
+    const list = this._listeners.get(event);
+    if (!list) return;
+    for (const handler of list) {
+      handler(...args);
+    }
   }
 
   // - Child management -
