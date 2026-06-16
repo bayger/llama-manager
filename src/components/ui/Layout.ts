@@ -1,5 +1,5 @@
-import { Control } from "./Control.js";
-import type { Rect, Size, RenderContext } from "./types.js";
+import { Control } from "./Control";
+import type { Rect, Size, RenderContext } from "./types";
 
 export class Column extends Control {
   focusable = false;

@@ -1,12 +1,12 @@
-import { Control } from "../ui/Control.js";
-import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme.js";
-import type { Color } from "../../lib/theme.js";
-import { focusManager } from "../ui/FocusManager.js";
-import { Section } from "../ui/widgets/Section.js";
-import { ConfigData, saveConfig } from "../../lib/config.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Point, Size, RenderContext } from "../ui/types.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+import { Control } from "../ui/Control";
+import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme";
+import type { Color } from "../../lib/theme";
+import { focusManager } from "../ui/FocusManager";
+import { Section } from "../ui/widgets/Section";
+import { ConfigData, saveConfig } from "../../lib/config";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Point, Size, RenderContext } from "../ui/types";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 const KEY_COL_WIDTH = 22;
 const THEME_PICKER_WIDTH = 30;
@@ -36,7 +36,6 @@ class ThemePickerControl extends Section {
     canvas.bold();
     fg(canvas, "accent", `${V}`);
     fg(canvas, "accent", ` ${this.title}`);
-    canvas.styleReset();
 
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
@@ -49,7 +48,6 @@ class ThemePickerControl extends Section {
       if (themeIdx >= names.length) break;
 
       canvas.moveTo(x + 2, y + i);
-      canvas.styleReset();
       const name = names[themeIdx]!;
       const isSelected = themeIdx === this._index;
       const resolved = loadTheme(name);
@@ -326,7 +324,6 @@ export class OptionsPanel extends Control {
       if (visualRow >= this._rows.length) break;
 
       canvas.moveTo(x, startY + i);
-      canvas.styleReset();
       const row = this._rows[visualRow]!;
       const isSelected = visualRow === this._selectedIndex && this.focused && !this._themePickerMode;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
@@ -360,11 +357,9 @@ export class OptionsPanel extends Control {
     if (isSelected) {
       fgBg(canvas, "text", "canvasSubtle", headerText);
       fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - headerText.length)));
-      canvas.styleReset();
     } else {
       fg(canvas, "accentColor", headerText);
     }
-    canvas.styleReset();
   }
 
   renderField(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, isEditing: boolean, width: number, config: ConfigData): void {
@@ -397,14 +392,12 @@ export class OptionsPanel extends Control {
           }
           const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
           fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - drawn)));
-          canvas.styleReset();
         } else {
           fg(canvas, "textMuted", keyStr);
           fg(canvas, "text", value);
           fg(canvas, "textMuted", desc ? "  " + desc : "");
         }
       }
-    canvas.styleReset();
   }
 
   handleKey(key: string): boolean {
@@ -583,6 +576,7 @@ export class OptionsPanel extends Control {
   toggleBoolean(row: RowInfo): void {
     if (row.type !== "field" || !row.field || !this._ctx) return;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[row.catIdx]!;
     const data = cat.getter(config);
     const current = data[row.field.key];
@@ -594,6 +588,7 @@ export class OptionsPanel extends Control {
   startEdit(row: RowInfo): void {
     if (row.type !== "field" || !row.field || !this._ctx) return;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[row.catIdx]!;
     const data = cat.getter(config);
     const editValue = formatForEdit(row.field, data?.[row.field.key]);
@@ -613,6 +608,7 @@ export class OptionsPanel extends Control {
     if (!this._edit || !this._ctx) return;
     const { catIdx, field, text } = this._edit;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[catIdx]!;
     const data = cat.getter(config);
 
@@ -634,6 +630,7 @@ export class OptionsPanel extends Control {
     if (!this._edit || !this._ctx) return;
     const { catIdx, field, originalValue } = this._edit;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[catIdx]!;
     cat.setter(config, { [field.key]: originalValue });
     this._edit = null;
@@ -665,6 +662,7 @@ export class OptionsPanel extends Control {
   openThemePicker(): void {
     if (!this._ctx) return;
     const config = this._ctx.getConfig();
+    if (!config) return;
     this._themePickerOriginal = config.themeName;
     this._themePickerMode = true;
     this._themePickerIndex = 0;

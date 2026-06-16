@@ -1,6 +1,6 @@
-import { fg } from "./theme.js";
-import type { Color } from "./theme.js";
-import type { FramebufferCanvas } from "./framebuffer-canvas.js";
+import { fg } from "./theme";
+import type { Color } from "./theme";
+import type { FramebufferCanvas } from "./framebuffer-canvas";
 
 export interface LogSegment {
   text: string;

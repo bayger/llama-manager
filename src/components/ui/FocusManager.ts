@@ -1,5 +1,5 @@
-import { Control } from "./Control.js";
-import type { Point } from "./types.js";
+import { Control } from "./Control";
+import type { Point } from "./types";
 
 export class FocusManager {
   private _root: Control | null = null;

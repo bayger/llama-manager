@@ -1,6 +1,6 @@
-import { Control } from "../ui/Control.js";
-import { fg, fgBg } from "../../lib/theme.js";
-import { focusManager } from "../ui/FocusManager.js";
+import { Control } from "../ui/Control";
+import { fg, fgBg } from "../../lib/theme";
+import { focusManager } from "../ui/FocusManager";
 import {
   PRESET_CATEGORIES,
   ConfigData,
@@ -8,9 +8,9 @@ import {
   PresetFieldType,
   ServerPresets,
   saveConfig,
-} from "../../lib/config.js";
-import type { Point, Size, RenderContext } from "../ui/types.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+} from "../../lib/config";
+import type { Point, Size, RenderContext } from "../ui/types";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 const KEY_COL_WIDTH = 18;
 
@@ -165,7 +165,6 @@ export class SettingsPanel extends Control {
       if (visualRow >= this._rows.length) break;
 
       canvas.moveTo(x, startY + i);
-      canvas.styleReset();
       const row = this._rows[visualRow]!;
       const isSelected = visualRow === this._selectedIndex && this.focused;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
@@ -202,7 +201,6 @@ export class SettingsPanel extends Control {
     } else {
       fgBg(canvas, "accent", "canvasSubtle", headerText);
     }
-    canvas.styleReset();
   }
 
   renderField(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, isEditing: boolean, width: number, presets: ServerPresets): void {
@@ -237,7 +235,6 @@ export class SettingsPanel extends Control {
           fgBg(canvas, "textMuted", "canvasSubtle", desc ? "  " + desc : "");
         }
       }
-    canvas.styleReset();
   }
 
   handleKey(key: string): boolean {

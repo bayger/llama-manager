@@ -1,6 +1,6 @@
-import { Control } from "../Control.js";
-import { fg, fgBg } from "../../../lib/theme.js";
-import type { Point, Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
+import type { Point, Size, RenderContext } from "../types";
 
 export interface CheckboxConfig {
   label: string;
@@ -67,7 +67,6 @@ export class Checkbox extends Control {
     } else if (this.focused) {
       canvas.bold();
       fgBg(canvas, "canvas", "accent", text);
-      //canvas.styleReset();
     } else {
       fg(canvas, "textMuted", text);
     }

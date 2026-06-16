@@ -1,7 +1,7 @@
-import { Control } from "../Control.js";
-import { fg, fgBg } from "../../../lib/theme.js";
-import { focusManager } from "../FocusManager.js";
-import type { Point, Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
+import { focusManager } from "../FocusManager";
+import type { Point, Size, RenderContext } from "../types";
 
 export class TextInput extends Control {
   focusable = true;
@@ -56,7 +56,6 @@ export class TextInput extends Control {
  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y } = this.rect;
-    canvas.styleReset();
 
     const bg = this.focused ? "canvasSubtle" : "canvas";
     const borderColor = this.focused ? "borderActive" : "borderMuted";

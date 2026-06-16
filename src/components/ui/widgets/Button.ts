@@ -1,7 +1,7 @@
-import { Control } from "../Control.js";
-import { fg, fgBg } from "../../../lib/theme.js";
-import { focusManager } from "../FocusManager.js";
-import type { Point, Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
+import { focusManager } from "../FocusManager";
+import type { Point, Size, RenderContext } from "../types";
 
 export interface ButtonConfig {
   label: string;
@@ -71,7 +71,6 @@ export class Button extends Control {
     } else if (this.focused) {
       canvas.bold();
       fgBg(canvas, "canvas", "accent", padded);
-      canvas.styleReset();
     } else {
       fgBg(canvas, "textMuted", "canvasSubtle", padded);
     }

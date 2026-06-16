@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import fs from "fs-extra";
 import path from "path";
-import type { ConfigData } from "./config.js";
+import type { ConfigData } from "./config";
 
 export interface TaskMetrics {
   taskId: number;

@@ -1,10 +1,10 @@
-import { Control } from "../ui/Control.js";
-import { fg } from "../../lib/theme.js";
-import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker.js";
-import { formatNum, formatDraftRate, formatMs } from "../../lib/utils.js";
-import type { Color } from "../../lib/theme.js";
-import type { RenderContext, Size } from "../ui/types.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+import { Control } from "../ui/Control";
+import { fg } from "../../lib/theme";
+import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
+import { formatNum, formatDraftRate, formatMs } from "../../lib/utils";
+import type { Color } from "../../lib/theme";
+import type { RenderContext, Size } from "../ui/types";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 const STATE_DOT = {
   idle: "\u25cb",

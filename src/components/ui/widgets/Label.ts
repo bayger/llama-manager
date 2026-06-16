@@ -1,8 +1,7 @@
-import { Control } from "../Control.js";
-import { fg } from "../../../lib/theme.js";
-import { focusManager } from "../FocusManager.js";
-import type { Color } from "../../../lib/theme.js";
-import type { Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg } from "../../../lib/theme";
+import type { Color } from "../../../lib/theme";
+import type { Size, RenderContext } from "../types";
 
 export class Label extends Control {
   focusable = false;
@@ -32,16 +31,6 @@ export class Label extends Control {
     return { width: len, height: 1 };
   }
 
-  onFocus(): void {
-    super.onFocus();
-    this.markDirty();
-  }
-
-  onBlur(): void {
-    super.onBlur();
-    this.markDirty();
-  }
-
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     canvas.moveTo(this.rect.x, this.rect.y);
@@ -52,9 +41,6 @@ export class Label extends Control {
     } else if (this.padding > 0) {
       canvas.write(" ".repeat(this.padding));
     }
-    const isFocused = focusManager.getFocused() === this;
-    const prefix = isFocused ? "> " : "";
-    fg(canvas, this.color, prefix + this.text);
-    canvas.styleReset();
+    fg(canvas, this.color, this.text);
   }
 }

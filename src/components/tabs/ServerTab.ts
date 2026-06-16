@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-import { Control } from "../ui/Control.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { TextInput } from "../ui/widgets/TextInput.js";
-import { Section } from "../ui/widgets/Section.js";
-import { Checkbox } from "../ui/widgets/Checkbox.js";
-import { SettingsPanel } from "../specialized/SettingsPanel.js";
-import { ProfileList } from "../specialized/ProfileList.js";
-import { StyledText } from "../ui/widgets/StyledText.js";
-import { focusManager } from "../ui/FocusManager.js";
-import { ConfigData, saveConfig } from "../../lib/config.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { Column, Row } from "../ui/Layout";
+import { Button } from "../ui/widgets/Button";
+import { Spacer } from "../ui/widgets/Spacer";
+import { TextInput } from "../ui/widgets/TextInput";
+import { Section } from "../ui/widgets/Section";
+import { Checkbox } from "../ui/widgets/Checkbox";
+import { SettingsPanel } from "../specialized/SettingsPanel";
+import { ProfileList } from "../specialized/ProfileList";
+import { StyledText } from "../ui/widgets/StyledText";
+import { focusManager } from "../ui/FocusManager";
+import { ConfigData, saveConfig } from "../../lib/config";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size } from "../ui/types";
 
 export class ServerControl extends Control {
   focusable = true;
@@ -158,7 +158,8 @@ export class ServerControl extends Control {
     this._settingsPanel.visible = false;
     this._advancedCheckbox.visible = false;
     this._profileList.visible = true;
-    this._profileList.setConfig(this._ctx?.getConfig() || null);
+    const config = this._ctx?.getConfig();
+    if (config) this._profileList.setConfig(config);
     focusManager.setFocus(this._profileList);
     this.markDirty();
   }
@@ -168,7 +169,8 @@ export class ServerControl extends Control {
     this._settingsPanel.visible = true;
     this._advancedCheckbox.visible = true;
     this._profileList.visible = false;
-    this._settingsPanel.setConfig(this._ctx?.getConfig() || null);
+    const config = this._ctx?.getConfig();
+    if (config) this._settingsPanel.setConfig(config);
     focusManager.setFocus(this._settingsPanel);
     this.markDirty();
   }

@@ -1,17 +1,16 @@
 import type { Terminal } from "terminal-kit";
-import { setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme.js";
-import { loadConfig } from "../lib/config.js";
-import { taskStore } from "../lib/tasks.js";
-import { focusManager } from "./ui/FocusManager.js";
-import { logParser } from "../lib/logparser.js";
-import { stopServer } from "../lib/server.js";
-import type { RenderContext } from "./ui/types.js";
-import type { TabContext } from "../lib/tabcontext.js";
-import { Framebuffer } from "../lib/framebuffer.js";
-import { FramebufferCanvas } from "../lib/framebuffer-canvas.js";
-import { diffToTerminal } from "../lib/framebuffer-diff.js";
-import { MainControl, TABS } from "./MainControl.js";
-import type { TabId } from "./MainControl.js";
+import { setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme";
+import { loadConfig, ConfigData } from "../lib/config";
+import { taskStore } from "../lib/tasks";
+import { focusManager } from "./ui/FocusManager";
+import { stopServer } from "../lib/server";
+import type { RenderContext } from "./ui/types";
+import type { TabContext } from "../lib/tabcontext";
+import { Framebuffer } from "../lib/framebuffer";
+import { FramebufferCanvas } from "../lib/framebuffer-canvas";
+import { diffToTerminal } from "../lib/framebuffer-diff";
+import { MainControl, TABS } from "./MainControl";
+import type { TabId } from "./MainControl";
 
 const CURSOR_SHOW = "\x1b[?25h";
 const CURSOR_HIDE = "\x1b[?25l";
@@ -24,6 +23,7 @@ export class App {
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
   private mouseHandler: ((action: string, data: any) => void) | null = null;
   private resizeHandler: (() => void) | null = null;
+  private _resizeTimer: ReturnType<typeof setTimeout> | null = null;
   private _renderInterval: ReturnType<typeof setInterval> | null = null;
   private _firstRender = true;
   private helpOverlayVisible = false;
@@ -52,7 +52,7 @@ export class App {
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       forceRender: () => this.forceRender(),
       getConfig: () => config,
-      setConfig: (c: any) => { /* handled by config module */ },
+      setConfig: (c: ConfigData) => { Object.assign(config, c); },
       showCursor: () => {
         if (this._canvas) {
           this._canvas.showTerminalCursor();
@@ -240,9 +240,13 @@ export class App {
 
   private setupResizeHandler(): void {
     this.resizeHandler = () => {
-      if (this._main) {
-        this._main.markDirty();
-      }
+      if (this._resizeTimer) clearTimeout(this._resizeTimer);
+      this._resizeTimer = setTimeout(() => {
+        if (this._main) {
+          this._main.markDirty();
+        }
+        this._resizeTimer = null;
+      }, 100);
     };
     this.term.on("resize", this.resizeHandler);
   }
@@ -272,12 +276,16 @@ export class App {
       this.term.removeListener("resize", this.resizeHandler);
       this.resizeHandler = null;
     }
+    if (this._resizeTimer) {
+      clearTimeout(this._resizeTimer);
+      this._resizeTimer = null;
+    }
     focusManager.clear();
     this._main?.onDestroy();
     taskStore.dispose();
     this.term(CURSOR_SHOW);
-    logParser.stop();
-    if (this._ctx?.getConfig().dashboard.killServerOnExit) {
+    const cfg = this._ctx?.getConfig();
+    if (cfg?.dashboard.killServerOnExit) {
       stopServer().catch(() => {});
     }
   }

@@ -1,7 +1,7 @@
-import { Control } from "../Control.js";
-import { fg } from "../../../lib/theme.js";
-import type { Color } from "../../../lib/theme.js";
-import type { Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg } from "../../../lib/theme";
+import type { Color } from "../../../lib/theme";
+import type { Size, RenderContext } from "../types";
 
 export interface TextSegment {
   text: string;
@@ -65,6 +65,5 @@ export class StyledText extends Control {
     for (const seg of this.segments) {
       fg(canvas, seg.color, seg.text);
     }
-    canvas.styleReset();
   }
 }

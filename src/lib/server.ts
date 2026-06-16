@@ -2,9 +2,9 @@ import { spawn, ChildProcess, spawnSync } from "child_process";
 import { EventEmitter } from "events";
 import path from "path";
 import fs from "fs-extra";
-import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config.js";
-import { logParser } from "./logparser.js";
-import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker.js";
+import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config";
+import { logParser } from "./logparser";
+import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -26,10 +26,6 @@ export function onServerLog(listener: (line: string) => void): () => void {
 export function onServerStatusChange(listener: () => void): () => void {
   statusEmitter.on("change", listener);
   return () => { statusEmitter.off("change", listener); };
-}
-
-export function clearServerLogs() {
-  serverLogLines.length = 0;
 }
 
 export function listDevices(config: ConfigData): string {
@@ -135,7 +131,6 @@ export function startServer(config: ConfigData): Promise<number> {
         logEmitter.emit("log", `[server] Process terminated by signal ${signal}`);
       }
       if (wasRunning) {
-        clearServerLogs();
         statusEmitter.emit("change");
       }
     });

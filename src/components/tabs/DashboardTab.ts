@@ -1,17 +1,17 @@
-import { Control } from "../ui/Control.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { Label } from "../ui/widgets/Label.js";
-import { Section } from "../ui/widgets/Section.js";
-import { LogsViewer } from "../specialized/LogsViewer.js";
-import { MetricsPanel } from "../specialized/MetricsPanel.js";
-import { fg } from "../../lib/theme.js";
-import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server.js";
-import { fireAsync } from "../../lib/utils.js";
-import { BACKEND_LABELS } from "../../lib/versions.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { Column, Row } from "../ui/Layout";
+import { Button } from "../ui/widgets/Button";
+import { Spacer } from "../ui/widgets/Spacer";
+import { Label } from "../ui/widgets/Label";
+import { Section } from "../ui/widgets/Section";
+import { LogsViewer } from "../specialized/LogsViewer";
+import { MetricsPanel } from "../specialized/MetricsPanel";
+import { fg } from "../../lib/theme";
+import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server";
+import { fireAsync } from "../../lib/utils";
+import { BACKEND_LABELS } from "../../lib/versions";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size, RenderContext } from "../ui/types";
 
 export class DashboardControl extends Control {
   protected _ctx: TabContext | null = null;

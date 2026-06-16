@@ -1,8 +1,8 @@
 import fs from "fs-extra";
 import path from "path";
-import { getModelsDir } from "./config.js";
-import { ConfigData } from "./config.js";
-import { getDownloadUrl } from "./hf.js";
+import { getModelsDir } from "./config";
+import { ConfigData } from "./config";
+import { getDownloadUrl } from "./hf";
 
 export interface LocalModel {
   repoId: string;

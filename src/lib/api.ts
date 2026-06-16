@@ -1,4 +1,4 @@
-import { ConfigData, getActivePresets } from "./config.js";
+import { ConfigData, getActivePresets } from "./config";
 
 function getBaseUrl(config: ConfigData): string {
   const p = getActivePresets(config);

@@ -1,18 +1,18 @@
-import { Control } from "../ui/Control.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { TextInput } from "../ui/widgets/TextInput.js";
-import { Table } from "../ui/widgets/Table.js";
-import { Section } from "../ui/widgets/Section.js";
-import { fg, fgBg } from "../../lib/theme.js";
-import { StyledText } from "../ui/widgets/StyledText.js";
-import { focusManager } from "../ui/FocusManager.js";
-import { fireAsync } from "../../lib/utils.js";
-import { taskStore, TaskMetrics, TaskSortField, TaskSortDir, TaskFilter } from "../../lib/tasks.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, RenderContext } from "../ui/types.js";
-import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table.js";
+import { Control } from "../ui/Control";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
+import { Column, Row } from "../ui/Layout";
+import { Spacer } from "../ui/widgets/Spacer";
+import { TextInput } from "../ui/widgets/TextInput";
+import { Table } from "../ui/widgets/Table";
+import { Section } from "../ui/widgets/Section";
+import { fg, fgBg } from "../../lib/theme";
+import { StyledText } from "../ui/widgets/StyledText";
+import { focusManager } from "../ui/FocusManager";
+import { fireAsync } from "../../lib/utils";
+import { taskStore, TaskMetrics, TaskSortField, TaskSortDir, TaskFilter } from "../../lib/tasks";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size, RenderContext } from "../ui/types";
+import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "timestamp", label: "Time" },
@@ -148,11 +148,11 @@ export class TasksControl extends Control {
     this._ctx = ctx;
     this._summary = new StyledText();
 
-    this._table = new Table();
+    this._table = new Table<TaskMetrics>();
     this._table.showHeader = true;
     this._table.tabIndex = 0;
     this._table.setOnHighlight((item) => {
-      this._detailsPanel.update(item ? item.data as TaskMetrics : null);
+      this._detailsPanel.update(item ? item.data ?? null : null);
       this.markDirty();
     });
     this._table.setOnSelect(() => {
@@ -286,7 +286,7 @@ export class TasksControl extends Control {
     this._table.setRenderer(renderTaskRow);
 
     const selected = this._table.getSelectedItem();
-    this._detailsPanel.update(selected ? selected.data as TaskMetrics : null);
+    this._detailsPanel.update(selected ? selected.data ?? null : null);
   }
 
   applyFilters(): void {

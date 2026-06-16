@@ -1,9 +1,9 @@
 import fs from "fs-extra";
 import path from "path";
 import Database from "better-sqlite3";
-import { ConfigData, getTasksFile, getTasksDb, getLogFile } from "./config.js";
-import { TaskMetrics, logParser } from "./logparser.js";
-export type { TaskMetrics } from "./logparser.js";
+import { ConfigData, getTasksFile, getTasksDb, getLogFile } from "./config";
+import { TaskMetrics, logParser } from "./logparser";
+export type { TaskMetrics } from "./logparser";
 import { EventEmitter } from "events";
 
 export interface TaskFilter {

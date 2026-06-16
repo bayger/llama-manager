@@ -1,7 +1,7 @@
-import type { Cell } from "./framebuffer.js";
-import { Framebuffer, DEFAULT_FG, DEFAULT_BG } from "./framebuffer.js";
-import type { Color } from "./theme.js";
-import { resolveColor } from "./theme.js";
+import type { Cell } from "./framebuffer";
+import { Framebuffer, DEFAULT_FG, DEFAULT_BG } from "./framebuffer";
+import type { Color } from "./theme";
+import { resolveColor } from "./theme";
 
 export interface ClipRect {
   x: number;
@@ -21,8 +21,8 @@ export class FramebufferCanvas {
   // Cursor stored in 1-indexed terminal coordinates (matches app/control rects)
   private _cursorX = 1;
   private _cursorY = 1;
-  private _fg: string | null = DEFAULT_FG;
-  private _bg: string | null = DEFAULT_BG;
+  private _fg: string | null = null;
+  private _bg: string | null = null;
   private _bold = false;
   private _clip: ClipRect | null = null;
   private _terminalCursorX = 1;
@@ -159,8 +159,8 @@ export class FramebufferCanvas {
   }
 
   styleReset(): this {
-    this._fg = DEFAULT_FG;
-    this._bg = DEFAULT_BG;
+    this._fg = null;
+    this._bg = null;
     this._bold = false;
     return this;
   }
