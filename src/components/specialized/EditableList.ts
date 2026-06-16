@@ -149,6 +149,8 @@ export abstract class EditableList extends Control {
 
     if (this._edit) {
       this.drawCursor(canvas);
+    } else {
+      canvas.hideTerminalCursor();
     }
   }
 
@@ -157,6 +159,7 @@ export abstract class EditableList extends Control {
     const screenY = this.rect.y + this._edit.row - this._scrollOffset;
     const cursorX = this.rect.x + this.getKeyColWidth() + this._edit.cursor;
     canvas.moveTo(cursorX, screenY);
+    canvas.showTerminalCursor();
   }
 
   protected getKeyColWidth(): number {
