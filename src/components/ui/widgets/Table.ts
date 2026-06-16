@@ -100,8 +100,9 @@ export class Table<T = any> extends Control {
   protected _loadVirtualRange(): void {
     if (!this._virtualLoader) return;
     const end = Math.min(this._virtualTotal, this.scrollOffset + this._viewportHeight);
+    const visibleCount = Math.min(this._viewportHeight, Math.max(0, this._virtualTotal - this.scrollOffset));
     if (this._virtualCacheStart === this.scrollOffset &&
-        this._virtualCache.length >= this._viewportHeight) {
+        this._virtualCache.length >= visibleCount) {
       return;
     }
     this._virtualCacheStart = this.scrollOffset;
@@ -124,8 +125,15 @@ export class Table<T = any> extends Control {
   }
 
   getSelectedItem(): TableItem<T> | null {
-    if (this.selectedIndex >= 0 && this.selectedIndex < this.items.length) {
-      return this.items[this.selectedIndex]!;
+    if (this._virtualLoader) {
+      const cacheIndex = this.selectedIndex - this.scrollOffset;
+      if (cacheIndex >= 0 && cacheIndex < this.items.length) {
+        return this.items[cacheIndex]!;
+      }
+    } else {
+      if (this.selectedIndex >= 0 && this.selectedIndex < this.items.length) {
+        return this.items[this.selectedIndex]!;
+      }
     }
     return null;
   }
@@ -226,13 +234,14 @@ export class Table<T = any> extends Control {
     const bodyHeight = height - (hasHeader ? this.headerHeight : 0);
 
     for (let i = 0; i < bodyHeight; i++) {
-      const itemIndex = i + this.scrollOffset;
+      const globalIndex = i + this.scrollOffset;
+      const itemIdx = this._virtualLoader ? i : globalIndex;
       canvas.moveTo(x, bodyStartY + i);
 
-      if (itemIndex < items.length && items[itemIndex] !== undefined) {
-        const item = items[itemIndex]!;
-        const isSelected = itemIndex === this.selectedIndex && this.focused;
-        this.renderRow(canvas, x, bodyStartY + i, width, item, itemIndex, isSelected, visibleCols);
+      if (itemIdx < items.length && items[itemIdx] !== undefined) {
+        const item = items[itemIdx]!;
+        const isSelected = globalIndex === this.selectedIndex && this.focused;
+        this.renderRow(canvas, x, bodyStartY + i, width, item, globalIndex, isSelected, visibleCols);
       }
     }
   }
@@ -357,8 +366,9 @@ export class Table<T = any> extends Control {
     }
 
     if (key === "RETURN" || key === "ENTER") {
-      if (this.selectedIndex >= 0 && this._onSelect) {
-        this._onSelect(this.items[this.selectedIndex]!);
+      const selected = this.getSelectedItem();
+      if (selected && this._onSelect) {
+        this._onSelect(selected);
       }
       return true;
     }
