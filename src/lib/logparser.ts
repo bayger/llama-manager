@@ -215,20 +215,31 @@ export class LogParser extends EventEmitter {
 
   startFileTailer(filePath: string): () => void {
     let watchInterval: ReturnType<typeof setInterval> | null = null;
-    let lastLineCount = 0;
+    let position = 0;
 
     const poll = async () => {
       try {
-        if (!(await fs.pathExists(filePath))) return;
-        const content = await fs.readFile(filePath, "utf-8");
-        const lines = content.split("\n");
-        if (lines.length > lastLineCount) {
-          for (let i = lastLineCount; i < lines.length; i++) {
-            if (lines[i].trim()) {
-              this.processLine(lines[i]);
+        const stat = await fs.stat(filePath);
+        if (stat.size < position) {
+          position = 0; // file was rotated or truncated
+        }
+        if (stat.size === position) return;
+
+        const fd = await fs.open(filePath, "r");
+        try {
+          const buf = Buffer.alloc(stat.size - position);
+          await fs.read(fd, buf, 0, buf.length, position);
+          position += buf.length;
+
+          const text = buf.toString("utf-8");
+          const lines = text.split("\n");
+          for (const line of lines) {
+            if (line.trim()) {
+              this.processLine(line);
             }
           }
-          lastLineCount = lines.length;
+        } finally {
+          await fs.close(fd);
         }
       } catch {
         // File may not exist yet or be inaccessible
