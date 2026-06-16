@@ -28,10 +28,6 @@ export function onServerStatusChange(listener: () => void): () => void {
   return () => { statusEmitter.off("change", listener); };
 }
 
-export function clearServerLogs() {
-  serverLogLines.length = 0;
-}
-
 export function listDevices(config: ConfigData): string {
   const versionsDir = getVersionsDir(config);
   const activeVersion = config.activeVersion;
@@ -135,7 +131,6 @@ export function startServer(config: ConfigData): Promise<number> {
         logEmitter.emit("log", `[server] Process terminated by signal ${signal}`);
       }
       if (wasRunning) {
-        clearServerLogs();
         statusEmitter.emit("change");
       }
     });
