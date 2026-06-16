@@ -100,9 +100,13 @@ class TaskDetailsControl extends Section {
     const innerW = width - 2;
     const labelWidth = 14;
 
-    for (let i = 0; i < height - 3; i++) {
+    // blank separator row
+    canvas.moveTo(x + 2, y + 2);
+    fgBg(canvas, "canvasSubtle", "canvasSubtle", " ".repeat(innerW));
+
+    for (let i = 0; i < height - 4; i++) {
       const lineIdx = i + this._scrollOffset;
-      canvas.moveTo(x + 2, y + i + 2);
+      canvas.moveTo(x + 2, y + i + 3);
 
       if (lineIdx >= 0 && lineIdx < lines.length) {
         const line = lines[lineIdx]!;

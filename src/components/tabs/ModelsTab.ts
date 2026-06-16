@@ -99,7 +99,7 @@ export class ModelsControl extends Control {
       const prefix = model.active ? "✓ " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
-      const line = (` ${prefix}${name}  ${size}`).padEnd(width);
+      const line = (`${prefix}${name}  ${size}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
@@ -139,7 +139,7 @@ export class ModelsControl extends Control {
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
       const meta = [likes, downloads].filter(Boolean).join("  ");
-      const line = (` ${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
+      const line = (`${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
@@ -161,7 +161,7 @@ export class ModelsControl extends Control {
     this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
       const file = item.data!;
       const size = formatSize(file.size);
-      const line = (` ${file.path}  ${size}`).padEnd(width);
+      const line = (`${file.path}  ${size}`).padEnd(width);
 
       if (isSelected) {
         fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));

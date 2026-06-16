@@ -420,7 +420,7 @@ export class VersionsControl extends Control {
   _localRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const v = item.data as VersionInfo;
     const prefix = v.active ? "✓ " : "  ";
-    const line = (` ${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
+    const line = (`${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
 
     if (isSelected) {
       fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
@@ -434,7 +434,7 @@ export class VersionsControl extends Control {
   _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const r = item.data as RemoteVersion;
     const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
-    const line = (` ${r.tag}  ${date}`).padEnd(width);
+    const line = (`${r.tag}  ${date}`).padEnd(width);
 
     if (isSelected) {
       fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
@@ -445,7 +445,7 @@ export class VersionsControl extends Control {
 
   _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
     const b = item.data as AvailableBackend;
-    const line = (` ${b.label}  ${b.assetName}`).padEnd(width);
+    const line = (`${b.label}  ${b.assetName}`).padEnd(width);
 
     if (isSelected) {
       fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
