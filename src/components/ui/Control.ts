@@ -42,18 +42,19 @@ export class Control {
 
   private _listeners: Map<string, Array<(...args: any[]) => void>> = new Map();
 
-  on(event: string, callback: (...args: any[]) => void): void {
+  on(event: string, callback: (...args: any[]) => void): (...args: any[]) => void {
     const handler = callback.bind(this);
     const list = this._listeners.get(event) || [];
     list.push(handler);
     this._listeners.set(event, list);
+    return handler;
   }
 
-  off(event: string, callback?: (() => void) | undefined): void {
+  off(event: string, handler?: ((...args: any[]) => void) | undefined): void {
     const list = this._listeners.get(event);
     if (!list) return;
-    if (callback) {
-      const idx = list.indexOf(callback);
+    if (handler) {
+      const idx = list.indexOf(handler);
       if (idx !== -1) list.splice(idx, 1);
     } else {
       this._listeners.delete(event);
