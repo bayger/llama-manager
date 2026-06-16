@@ -3,7 +3,6 @@ import { setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme";
 import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
-import { logParser } from "../lib/logparser";
 import { stopServer } from "../lib/server";
 import type { RenderContext } from "./ui/types";
 import type { TabContext } from "../lib/tabcontext";
@@ -285,7 +284,6 @@ export class App {
     this._main?.onDestroy();
     taskStore.dispose();
     this.term(CURSOR_SHOW);
-    logParser.stop();
     const cfg = this._ctx?.getConfig();
     if (cfg?.dashboard.killServerOnExit) {
       stopServer().catch(() => {});
