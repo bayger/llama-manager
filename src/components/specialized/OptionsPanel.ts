@@ -1,12 +1,12 @@
-import { Control } from "../ui/Control.js";
-import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme.js";
-import type { Color } from "../../lib/theme.js";
-import { focusManager } from "../ui/FocusManager.js";
-import { Section } from "../ui/widgets/Section.js";
-import { ConfigData, saveConfig } from "../../lib/config.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Point, Size, RenderContext } from "../ui/types.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+import { Control } from "../ui/Control";
+import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme";
+import type { Color } from "../../lib/theme";
+import { focusManager } from "../ui/FocusManager";
+import { Section } from "../ui/widgets/Section";
+import { ConfigData, saveConfig } from "../../lib/config";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Point, Size, RenderContext } from "../ui/types";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 const KEY_COL_WIDTH = 22;
 const THEME_PICKER_WIDTH = 30;

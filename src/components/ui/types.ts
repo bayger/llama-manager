@@ -1,4 +1,4 @@
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 export interface Rect {
   x: number;

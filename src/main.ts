@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import terminalKit from "terminal-kit";
-import { App } from "./components/App.js";
+import { App } from "./components/App";
 
 const term = terminalKit.terminal;
 

@@ -1,6 +1,6 @@
-import { Control } from "../Control.js";
-import { fgBg } from "../../../lib/theme.js";
-import type { RenderContext, Size } from "../types.js";
+import { Control } from "../Control";
+import { fgBg } from "../../../lib/theme";
+import type { RenderContext, Size } from "../types";
 
 export class HalfBar extends Control {
   focusable = false;

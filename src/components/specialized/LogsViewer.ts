@@ -1,7 +1,7 @@
-import { Control } from "../ui/Control.js";
-import { fg } from "../../lib/theme.js";
-import { renderLogLine } from "../../lib/logcolors.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { fg } from "../../lib/theme";
+import { renderLogLine } from "../../lib/logcolors";
+import type { Size, RenderContext } from "../ui/types";
 
 export interface LogsViewerConfig {
   getLines: () => string[];

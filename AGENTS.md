@@ -12,7 +12,7 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 
 ## Important Quirks
 
-- **ESM with `.js` imports** - `package.json` has `"type": "module"`. All internal imports must use `.js` extension (e.g., `import { App } from "./components/App.js"`), even though the source files are `.ts`. This is required by the `moduleResolution: "bundler"` tsconfig setting.
+- **ESM project** - `package.json` has `"type": "module"`.
 - **Entry point is `src/main.ts`**. Has shebang `#!/usr/bin/env node`.
 - **No tests exist.** No test framework is configured.
 - **No ESLint, no Prettier.** `npm run lint` only runs `tsc --noEmit`. That is the sole verification gate.

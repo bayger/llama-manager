@@ -1,6 +1,6 @@
-import { Control } from "../Control.js";
+import { Control } from "../Control";
 
-import type { Size, RenderContext } from "../types.js";
+import type { Size, RenderContext } from "../types";
 
 export class Spacer extends Control {
   focusable = false;

@@ -1,8 +1,8 @@
-import { Control } from "../Control.js";
-import { fg } from "../../../lib/theme.js";
-import { focusManager } from "../FocusManager.js";
-import type { Color } from "../../../lib/theme.js";
-import type { Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg } from "../../../lib/theme";
+import { focusManager } from "../FocusManager";
+import type { Color } from "../../../lib/theme";
+import type { Size, RenderContext } from "../types";
 
 export class Label extends Control {
   focusable = false;

@@ -1,7 +1,7 @@
-import type { Cell } from "./framebuffer.js";
-import { Framebuffer, DEFAULT_FG, DEFAULT_BG } from "./framebuffer.js";
-import type { Color } from "./theme.js";
-import { resolveColor } from "./theme.js";
+import type { Cell } from "./framebuffer";
+import { Framebuffer, DEFAULT_FG, DEFAULT_BG } from "./framebuffer";
+import type { Color } from "./theme";
+import { resolveColor } from "./theme";
 
 export interface ClipRect {
   x: number;

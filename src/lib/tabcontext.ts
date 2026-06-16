@@ -1,5 +1,5 @@
-import type { ConfigData } from "../lib/config.js";
-import type { RenderContext } from "../components/ui/types.js";
+import type { ConfigData } from "../lib/config";
+import type { RenderContext } from "../components/ui/types";
 
 export interface TabContext extends RenderContext {
   setTextInputFocused(focused: boolean): void;

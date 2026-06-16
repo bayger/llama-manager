@@ -2,9 +2,9 @@ import { spawn, ChildProcess, spawnSync } from "child_process";
 import { EventEmitter } from "events";
 import path from "path";
 import fs from "fs-extra";
-import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config.js";
-import { logParser } from "./logparser.js";
-import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker.js";
+import { ConfigData, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config";
+import { logParser } from "./logparser";
+import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;

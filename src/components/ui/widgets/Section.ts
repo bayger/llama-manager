@@ -1,6 +1,6 @@
-import { Control } from "../Control.js";
-import { Color, fg, fgBg } from "../../../lib/theme.js";
-import type { Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { Color, fg, fgBg } from "../../../lib/theme";
+import type { Size, RenderContext } from "../types";
 
 const V = "\u2502";
 const HALF_BLOCK = "\u2584";

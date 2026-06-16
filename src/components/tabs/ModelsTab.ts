@@ -1,15 +1,15 @@
-import { Control } from "../ui/Control.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { List, ListItem } from "../ui/widgets/List.js";
-import { TextInput } from "../ui/widgets/TextInput.js";
-import { ProgressBar } from "../ui/widgets/ProgressBar.js";
-import { Section } from "../ui/widgets/Section.js";
-import { fg, fgBg } from "../../lib/theme.js";
-import { StyledText } from "../ui/widgets/StyledText.js";
-import { focusManager } from "../ui/FocusManager.js";
+import { Control } from "../ui/Control";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
+import { Column, Row } from "../ui/Layout";
+import { Button } from "../ui/widgets/Button";
+import { Spacer } from "../ui/widgets/Spacer";
+import { List, ListItem } from "../ui/widgets/List";
+import { TextInput } from "../ui/widgets/TextInput";
+import { ProgressBar } from "../ui/widgets/ProgressBar";
+import { Section } from "../ui/widgets/Section";
+import { fg, fgBg } from "../../lib/theme";
+import { StyledText } from "../ui/widgets/StyledText";
+import { focusManager } from "../ui/FocusManager";
 import {
   listLocalModels,
   deleteModel,
@@ -18,12 +18,12 @@ import {
   LocalModel,
   formatSize,
   getTotalModelsSize,
-} from "../../lib/models.js";
-import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf.js";
-import { saveConfig } from "../../lib/config.js";
-import { fireAsync } from "../../lib/utils.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+} from "../../lib/models";
+import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
+import { saveConfig } from "../../lib/config";
+import { fireAsync } from "../../lib/utils";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size } from "../ui/types";
 
 type ViewMode = "local" | "search" | "results" | "files" | "downloading";
 

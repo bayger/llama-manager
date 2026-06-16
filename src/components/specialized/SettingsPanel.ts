@@ -1,6 +1,6 @@
-import { Control } from "../ui/Control.js";
-import { fg, fgBg } from "../../lib/theme.js";
-import { focusManager } from "../ui/FocusManager.js";
+import { Control } from "../ui/Control";
+import { fg, fgBg } from "../../lib/theme";
+import { focusManager } from "../ui/FocusManager";
 import {
   PRESET_CATEGORIES,
   ConfigData,
@@ -8,9 +8,9 @@ import {
   PresetFieldType,
   ServerPresets,
   saveConfig,
-} from "../../lib/config.js";
-import type { Point, Size, RenderContext } from "../ui/types.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+} from "../../lib/config";
+import type { Point, Size, RenderContext } from "../ui/types";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 const KEY_COL_WIDTH = 18;
 

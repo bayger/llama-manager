@@ -330,8 +330,8 @@ interface EventEmitter {
 ## Creating a Custom Control
 
 ```typescript
-import { Control } from "./ui/Control.js";
-import type { Size, RenderContext } from "./ui/types.js";
+import { Control } from "./ui/Control";
+import type { Size, RenderContext } from "./ui/types";
 
 class MyWidget extends Control {
   public text = "hello";

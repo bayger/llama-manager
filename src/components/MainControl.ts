@@ -1,18 +1,18 @@
-import { Control } from "./ui/Control.js";
-import { Column } from "./ui/Layout.js";
-import { HalfBar } from "./ui/widgets/HalfBar.js";
-import { Color, fg } from "../lib/theme.js";
-import type { Point, Rect, RenderContext, Size } from "./ui/types.js";
-import type { TabContext } from "../lib/tabcontext.js";
+import { Control } from "./ui/Control";
+import { Column } from "./ui/Layout";
+import { HalfBar } from "./ui/widgets/HalfBar";
+import { Color, fg } from "../lib/theme";
+import type { Point, Rect, RenderContext, Size } from "./ui/types";
+import type { TabContext } from "../lib/tabcontext";
 import pkg from "../../package.json";
 
-import { createServerTab } from "./tabs/ServerTab.js";
-import { createTasksTab } from "./tabs/TasksTab.js";
-import { createVersionsTab } from "./tabs/VersionsTab.js";
-import { createDashboardTab } from "./tabs/DashboardTab.js";
-import { createModelsTab } from "./tabs/ModelsTab.js";
-import { createOptionsTab } from "./tabs/OptionsTab.js";
-import { focusManager } from "./ui/FocusManager.js";
+import { createServerTab } from "./tabs/ServerTab";
+import { createTasksTab } from "./tabs/TasksTab";
+import { createVersionsTab } from "./tabs/VersionsTab";
+import { createDashboardTab } from "./tabs/DashboardTab";
+import { createModelsTab } from "./tabs/ModelsTab";
+import { createOptionsTab } from "./tabs/OptionsTab";
+import { focusManager } from "./ui/FocusManager";
 
 export const TABS = ["Dashboard", "Tasks", "Profiles", "Versions", "Models", "Options"] as const;
 export type TabId = (typeof TABS)[number];

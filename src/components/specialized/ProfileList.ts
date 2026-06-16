@@ -1,7 +1,7 @@
-import { Control } from "../ui/Control.js";
-import { fg, fgBg } from "../../lib/theme.js";
-import { ConfigData } from "../../lib/config.js";
-import type { Point, Size, RenderContext } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { fg, fgBg } from "../../lib/theme";
+import { ConfigData } from "../../lib/config";
+import type { Point, Size, RenderContext } from "../ui/types";
 
 export class ProfileList extends Control {
   focusable = true;

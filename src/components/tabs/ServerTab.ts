@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-import { Control } from "../ui/Control.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { TextInput } from "../ui/widgets/TextInput.js";
-import { Section } from "../ui/widgets/Section.js";
-import { Checkbox } from "../ui/widgets/Checkbox.js";
-import { SettingsPanel } from "../specialized/SettingsPanel.js";
-import { ProfileList } from "../specialized/ProfileList.js";
-import { StyledText } from "../ui/widgets/StyledText.js";
-import { focusManager } from "../ui/FocusManager.js";
-import { ConfigData, saveConfig } from "../../lib/config.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { Column, Row } from "../ui/Layout";
+import { Button } from "../ui/widgets/Button";
+import { Spacer } from "../ui/widgets/Spacer";
+import { TextInput } from "../ui/widgets/TextInput";
+import { Section } from "../ui/widgets/Section";
+import { Checkbox } from "../ui/widgets/Checkbox";
+import { SettingsPanel } from "../specialized/SettingsPanel";
+import { ProfileList } from "../specialized/ProfileList";
+import { StyledText } from "../ui/widgets/StyledText";
+import { focusManager } from "../ui/FocusManager";
+import { ConfigData, saveConfig } from "../../lib/config";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size } from "../ui/types";
 
 export class ServerControl extends Control {
   focusable = true;

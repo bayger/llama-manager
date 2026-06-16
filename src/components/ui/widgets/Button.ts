@@ -1,7 +1,7 @@
-import { Control } from "../Control.js";
-import { fg, fgBg } from "../../../lib/theme.js";
-import { focusManager } from "../FocusManager.js";
-import type { Point, Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
+import { focusManager } from "../FocusManager";
+import type { Point, Size, RenderContext } from "../types";
 
 export interface ButtonConfig {
   label: string;

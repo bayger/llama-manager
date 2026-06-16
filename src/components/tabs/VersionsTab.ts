@@ -1,15 +1,15 @@
-import { Control } from "../ui/Control.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { List, ListItem } from "../ui/widgets/List.js";
-import { ProgressBar } from "../ui/widgets/ProgressBar.js";
-import { Scrollable } from "../ui/widgets/Scrollable.js";
-import { Section } from "../ui/widgets/Section.js";
-import { fg, fgBg } from "../../lib/theme.js";
-import { StyledText } from "../ui/widgets/StyledText.js";
-import { focusManager } from "../ui/FocusManager.js";
+import { Control } from "../ui/Control";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
+import { Column, Row } from "../ui/Layout";
+import { Button } from "../ui/widgets/Button";
+import { Spacer } from "../ui/widgets/Spacer";
+import { List, ListItem } from "../ui/widgets/List";
+import { ProgressBar } from "../ui/widgets/ProgressBar";
+import { Scrollable } from "../ui/widgets/Scrollable";
+import { Section } from "../ui/widgets/Section";
+import { fg, fgBg } from "../../lib/theme";
+import { StyledText } from "../ui/widgets/StyledText";
+import { focusManager } from "../ui/FocusManager";
 import {
   listVersions,
   uninstallVersion,
@@ -23,11 +23,11 @@ import {
   BACKEND_LABELS,
   getAvailableBackends,
   getPlatformKey,
-} from "../../lib/versions.js";
-import { saveConfig } from "../../lib/config.js";
-import { fireAsync } from "../../lib/utils.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, RenderContext } from "../ui/types.js";
+} from "../../lib/versions";
+import { saveConfig } from "../../lib/config";
+import { fireAsync } from "../../lib/utils";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size, RenderContext } from "../ui/types";
 
 type ViewMode = "local" | "releases" | "backends" | "installing";
 

@@ -5,8 +5,8 @@
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
-import type { FramebufferCanvas } from "./framebuffer-canvas.js";
-import { setFramebufferDefaults } from "./framebuffer.js";
+import type { FramebufferCanvas } from "./framebuffer-canvas";
+import { setFramebufferDefaults } from "./framebuffer";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THEMES_DIR = path.join(__dirname, "..", "..", "themes");

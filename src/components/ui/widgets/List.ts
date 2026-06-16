@@ -1,7 +1,7 @@
-import { Control } from "../Control.js";
-import { fg, fgBg } from "../../../lib/theme.js";
-import type { Point, Size, RenderContext } from "../types.js";
-import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
+import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
+import type { Point, Size, RenderContext } from "../types";
+import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas";
 
 export interface ListItem<T = any> {
   id: T;

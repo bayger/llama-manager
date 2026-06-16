@@ -1,7 +1,7 @@
-import { Control } from "../Control.js";
-import { fg, themeColors } from "../../../lib/theme.js";
-import type { Color } from "../../../lib/theme.js";
-import type { Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg, themeColors } from "../../../lib/theme";
+import type { Color } from "../../../lib/theme";
+import type { Size, RenderContext } from "../types";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠇"];
 

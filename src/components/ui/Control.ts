@@ -1,7 +1,7 @@
-import type { Rect, Size, RenderContext, Point } from "./types.js";
-import type { Color } from "../../lib/theme.js";
+import type { Rect, Size, RenderContext, Point } from "./types";
+import type { Color } from "../../lib/theme";
 
-import { focusManager } from "./FocusManager.js";
+import { focusManager } from "./FocusManager";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };

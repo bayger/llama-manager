@@ -1,7 +1,7 @@
-import { Control } from "../ui/Control.js";
-import { OptionsPanel } from "../specialized/OptionsPanel.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { OptionsPanel } from "../specialized/OptionsPanel";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size } from "../ui/types";
 
 export class OptionsControl extends Control {
   protected _ctx: TabContext | null = null;
