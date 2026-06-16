@@ -71,7 +71,6 @@ export class Button extends Control {
     } else if (this.focused) {
       canvas.bold();
       fgBg(canvas, "canvas", "accent", padded);
-      canvas.styleReset();
     } else {
       fgBg(canvas, "textMuted", "canvasSubtle", padded);
     }

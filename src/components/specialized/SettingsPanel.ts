@@ -165,7 +165,6 @@ export class SettingsPanel extends Control {
       if (visualRow >= this._rows.length) break;
 
       canvas.moveTo(x, startY + i);
-      canvas.styleReset();
       const row = this._rows[visualRow]!;
       const isSelected = visualRow === this._selectedIndex && this.focused;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
@@ -202,7 +201,6 @@ export class SettingsPanel extends Control {
     } else {
       fgBg(canvas, "accent", "canvasSubtle", headerText);
     }
-    canvas.styleReset();
   }
 
   renderField(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, isEditing: boolean, width: number, presets: ServerPresets): void {
@@ -237,7 +235,6 @@ export class SettingsPanel extends Control {
           fgBg(canvas, "textMuted", "canvasSubtle", desc ? "  " + desc : "");
         }
       }
-    canvas.styleReset();
   }
 
   handleKey(key: string): boolean {

@@ -65,6 +65,5 @@ export class StyledText extends Control {
     for (const seg of this.segments) {
       fg(canvas, seg.color, seg.text);
     }
-    canvas.styleReset();
   }
 }

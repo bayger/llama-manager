@@ -127,6 +127,7 @@ export class Control {
     ctx.canvas.clearRect(x, y, width, height);
 
     this.draw(ctx);
+    ctx.canvas.styleReset();
 
     for (const child of this.children) {
       child.render(ctx);

@@ -67,7 +67,6 @@ export class Checkbox extends Control {
     } else if (this.focused) {
       canvas.bold();
       fgBg(canvas, "canvas", "accent", text);
-      canvas.styleReset();
     } else {
       fg(canvas, "textMuted", text);
     }

@@ -56,7 +56,6 @@ export class TextInput extends Control {
  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y } = this.rect;
-    canvas.styleReset();
 
     const bg = this.focused ? "canvasSubtle" : "canvas";
     const borderColor = this.focused ? "borderActive" : "borderMuted";

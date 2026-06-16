@@ -73,7 +73,6 @@ export class List<T = any> extends Control {
         if (isSelected) {
           fgBg(canvas, "text", "canvasSubtle", display);
           fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - display.length)));
-          canvas.styleReset();
         } else {
           fg(canvas, "text", display);
         }

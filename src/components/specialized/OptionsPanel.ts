@@ -36,7 +36,6 @@ class ThemePickerControl extends Section {
     canvas.bold();
     fg(canvas, "accent", `${V}`);
     fg(canvas, "accent", ` ${this.title}`);
-    canvas.styleReset();
 
     for (let row = 1; row < height; row++) {
       canvas.moveTo(x, y + row);
@@ -49,7 +48,6 @@ class ThemePickerControl extends Section {
       if (themeIdx >= names.length) break;
 
       canvas.moveTo(x + 2, y + i);
-      canvas.styleReset();
       const name = names[themeIdx]!;
       const isSelected = themeIdx === this._index;
       const resolved = loadTheme(name);
@@ -326,7 +324,6 @@ export class OptionsPanel extends Control {
       if (visualRow >= this._rows.length) break;
 
       canvas.moveTo(x, startY + i);
-      canvas.styleReset();
       const row = this._rows[visualRow]!;
       const isSelected = visualRow === this._selectedIndex && this.focused && !this._themePickerMode;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
@@ -360,11 +357,9 @@ export class OptionsPanel extends Control {
     if (isSelected) {
       fgBg(canvas, "text", "canvasSubtle", headerText);
       fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - headerText.length)));
-      canvas.styleReset();
     } else {
       fg(canvas, "accentColor", headerText);
     }
-    canvas.styleReset();
   }
 
   renderField(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, isEditing: boolean, width: number, config: ConfigData): void {
@@ -397,14 +392,12 @@ export class OptionsPanel extends Control {
           }
           const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
           fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - drawn)));
-          canvas.styleReset();
         } else {
           fg(canvas, "textMuted", keyStr);
           fg(canvas, "text", value);
           fg(canvas, "textMuted", desc ? "  " + desc : "");
         }
       }
-    canvas.styleReset();
   }
 
   handleKey(key: string): boolean {

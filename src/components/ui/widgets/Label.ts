@@ -55,6 +55,5 @@ export class Label extends Control {
     const isFocused = focusManager.getFocused() === this;
     const prefix = isFocused ? "> " : "";
     fg(canvas, this.color, prefix + this.text);
-    canvas.styleReset();
   }
 }
