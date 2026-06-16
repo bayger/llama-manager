@@ -282,7 +282,7 @@ export abstract class EditableList extends Control {
     }
     if (key === "RIGHT" || key === "CTRL_E" || key === "END") {
       if (key === "RIGHT") {
-        this._edit.cursor = Math.min(this._edit.text.length, this._edit.cursor);
+        this._edit.cursor = Math.min(this._edit.text.length, this._edit.cursor + 1);
       } else {
         this._edit.cursor = this._edit.text.length;
       }
