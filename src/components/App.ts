@@ -24,6 +24,7 @@ export class App {
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
   private mouseHandler: ((action: string, data: any) => void) | null = null;
   private resizeHandler: (() => void) | null = null;
+  private _resizeTimer: ReturnType<typeof setTimeout> | null = null;
   private _renderInterval: ReturnType<typeof setInterval> | null = null;
   private _firstRender = true;
   private helpOverlayVisible = false;
@@ -240,9 +241,13 @@ export class App {
 
   private setupResizeHandler(): void {
     this.resizeHandler = () => {
-      if (this._main) {
-        this._main.markDirty();
-      }
+      if (this._resizeTimer) clearTimeout(this._resizeTimer);
+      this._resizeTimer = setTimeout(() => {
+        if (this._main) {
+          this._main.markDirty();
+        }
+        this._resizeTimer = null;
+      }, 100);
     };
     this.term.on("resize", this.resizeHandler);
   }
@@ -271,6 +276,10 @@ export class App {
     if (this.resizeHandler) {
       this.term.removeListener("resize", this.resizeHandler);
       this.resizeHandler = null;
+    }
+    if (this._resizeTimer) {
+      clearTimeout(this._resizeTimer);
+      this._resizeTimer = null;
     }
     focusManager.clear();
     this._main?.onDestroy();
