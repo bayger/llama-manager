@@ -22,6 +22,10 @@ export interface PresetFieldDef {
   options?: string[];
   description: string;
   advanced?: boolean;
+  /** When true and value is false, push `--no-<flag>` instead of the flag. */
+  negate?: boolean;
+  /** When value equals this, skip the flag entirely. */
+  skipValue?: unknown;
 }
 
 export interface PresetCategory {
@@ -80,24 +84,24 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
       { key: "timeout", flag: "--timeout", type: "number", default: 600, description: "Read/write timeout (s)", advanced: true },
       { key: "apiKey", flag: "--api-key", type: "string", default: null, description: "API key", advanced: true },
       { key: "threadsHttp", flag: "--threads-http", type: "number", default: -1, description: "HTTP worker threads", advanced: true },
-      { key: "contBatching", flag: "--cont-batching", type: "boolean", default: true, description: "Continuous batching", advanced: true },
-      { key: "cachePrompt", flag: "--cache-prompt", type: "boolean", default: true, description: "Prompt caching", advanced: true },
+      { key: "contBatching", flag: "--cont-batching", type: "boolean", default: true, description: "Continuous batching", advanced: true, negate: true },
+      { key: "cachePrompt", flag: "--cache-prompt", type: "boolean", default: true, description: "Prompt caching", advanced: true, negate: true },
       { key: "metrics", flag: "--metrics", type: "boolean", default: false, description: "Prometheus metrics", advanced: true },
-      { key: "ui", flag: "--ui", type: "boolean", default: true, description: "Built-in Web UI", advanced: true },
+      { key: "ui", flag: "--ui", type: "boolean", default: true, description: "Built-in Web UI", advanced: true, negate: true },
       { key: "embedding", flag: "--embedding", type: "boolean", default: false, description: "Embeddings mode", advanced: true },
       { key: "rerank", flag: "--rerank", type: "boolean", default: false, description: "Reranking endpoint", advanced: true },
       { key: "predict", flag: "--predict", type: "number", default: -1, description: "Max tokens to predict (-1=inf)", advanced: true },
       { key: "cacheReuse", flag: "--cache-reuse", type: "number", default: 0, description: "Min chunk size for KV cache reuse", advanced: true },
       { key: "cacheRam", flag: "--cache-ram", type: "number", default: 8192, description: "Max cache size (MiB)" },
-      { key: "kvUnified", flag: "--kv-unified", type: "boolean", default: true, description: "Unified KV buffer", advanced: true },
-      { key: "cacheIdleSlots", flag: "--cache-idle-slots", type: "boolean", default: true, description: "Save/clear idle slots", advanced: true },
+      { key: "kvUnified", flag: "--kv-unified", type: "boolean", default: true, description: "Unified KV buffer", advanced: true, negate: true },
+      { key: "cacheIdleSlots", flag: "--cache-idle-slots", type: "boolean", default: true, description: "Save/clear idle slots", advanced: true, negate: true },
       { key: "ctxCheckpoints", flag: "--ctx-checkpoints", type: "number", default: 32, description: "Context checkpoints per slot", advanced: true },
       { key: "checkpointEveryN", flag: "--checkpoint-every-n-tokens", type: "number", default: 8192, description: "Checkpoint interval", advanced: true },
       { key: "contextShift", flag: "--context-shift", type: "boolean", default: false, description: "Context shift for infinite gen", advanced: true },
-      { key: "warmup", flag: "--warmup", type: "boolean", default: true, description: "Warmup with empty run", advanced: true },
+      { key: "warmup", flag: "--warmup", type: "boolean", default: true, description: "Warmup with empty run", advanced: true, negate: true },
       { key: "special", flag: "--special", type: "boolean", default: false, description: "Output special tokens", advanced: true },
       { key: "skipChatParsing", flag: "--skip-chat-parsing", type: "boolean", default: false, description: "Force pure content parser", advanced: true },
-      { key: "prefillAssistant", flag: "--prefill-assistant", type: "boolean", default: true, description: "Prefill assistant response", advanced: true },
+      { key: "prefillAssistant", flag: "--prefill-assistant", type: "boolean", default: true, description: "Prefill assistant response", advanced: true, negate: true },
       { key: "slotPromptSim", flag: "--slot-prompt-similarity", type: "number", default: 0.10, description: "Slot prompt similarity", advanced: true },
       { key: "slotSavePath", flag: "--slot-save-path", type: "string", default: null, description: "Slot KV cache save path", advanced: true },
       { key: "reusePort", flag: "--reuse-port", type: "boolean", default: false, description: "Allow port reuse", advanced: true },
@@ -123,10 +127,10 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
       { key: "lora", flag: "--lora", type: "string", default: null, description: "LoRA adapter path", advanced: true },
    { key: "hfRepo", flag: "--hf-repo", type: "string", default: null, description: "HF repo (user/model[:quant])", advanced: true },
         { key: "chatTemplate", flag: "--chat-template", type: "string", default: null, description: "Chat template name", advanced: true },
-      { key: "jinja", flag: "--jinja", type: "boolean", default: true, description: "Jinja template engine" },
+      { key: "jinja", flag: "--jinja", type: "boolean", default: true, description: "Jinja template engine", negate: true },
       { key: "mmproj", flag: "--mmproj", type: "string", default: null, description: "Multimodal projector path", advanced: true },
-      { key: "mmprojAuto", flag: "--mmproj-auto", type: "boolean", default: true, description: "Auto-download mmproj", advanced: true },
-      { key: "mmprojOffload", flag: "--mmproj-offload", type: "boolean", default: true, description: "GPU offload mmproj", advanced: true },
+      { key: "mmprojAuto", flag: "--mmproj-auto", type: "boolean", default: true, description: "Auto-download mmproj", advanced: true, negate: true },
+      { key: "mmprojOffload", flag: "--mmproj-offload", type: "boolean", default: true, description: "GPU offload mmproj", advanced: true, negate: true },
       { key: "chatTemplateFile", flag: "--chat-template-file", type: "string", default: null, description: "Chat template file", advanced: true },
       { key: "chatTemplateKwargs", flag: "--chat-template-kwargs", type: "string", default: null, description: "Chat template JSON kwargs", advanced: true },
       { key: "loraScaled", flag: "--lora-scaled", type: "string", default: null, description: "LoRA with scaling", advanced: true },
@@ -146,7 +150,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
       { key: "ubatchSize", flag: "--ubatch-size", type: "number", default: 512, description: "Physical batch size", advanced: true },
       { key: "flashAttn", flag: "--flash-attn", type: "enum", default: "auto", options: ["on", "off", "auto"], description: "Flash Attention", advanced: true },
       { key: "mlock", flag: "--mlock", type: "boolean", default: false, description: "Lock model in RAM", advanced: true },
-      { key: "mmap", flag: "--mmap", type: "boolean", default: true, description: "Memory-map model" },
+      { key: "mmap", flag: "--mmap", type: "boolean", default: true, description: "Memory-map model", negate: true },
       { key: "cacheTypeK", flag: "--cache-type-k", type: "enum", default: "f16", options: ["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"], description: "KV cache K type", advanced: true },
       { key: "cacheTypeV", flag: "--cache-type-v", type: "enum", default: "f16", options: ["f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl", "q5_0", "q5_1"], description: "KV cache V type", advanced: true },
       { key: "cpuMoe", flag: "--cpu-moe", type: "boolean", default: false, description: "Keep MoE weights on CPU", advanced: true },
@@ -163,7 +167,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
     name: "GPU",
     presetKey: "gpu",
     fields: [
-      { key: "gpuLayers", flag: "--gpu-layers", type: "string", default: "auto", description: "VRAM layers (auto/number)" },
+      { key: "gpuLayers", flag: "--gpu-layers", type: "string", default: "auto", description: "VRAM layers (auto/number)", skipValue: "auto" },
       { key: "splitMode", flag: "--split-mode", type: "enum", default: "layer", options: ["none", "layer", "row", "tensor"], description: "Multi-GPU split", advanced: true },
       { key: "tensorSplit", flag: "--tensor-split", type: "string", default: null, description: "GPU proportions (3,1)", advanced: true },
       { key: "mainGpu", flag: "--main-gpu", type: "number", default: 0, description: "Primary GPU index", advanced: true },
@@ -218,7 +222,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
       { key: "specType", flag: "--spec-type", type: "string", default: "none", description: "Spec type" },
       { key: "draftNMax", flag: "--spec-draft-n-max", type: "number", default: 3, description: "Max draft tokens" },
       { key: "draftThreads", flag: "--spec-draft-threads", type: "number", default: null, description: "Draft threads", advanced: true },
-      { key: "draftGpuLayers", flag: "--spec-draft-gpu-layers", type: "string", default: "auto", description: "Draft GPU layers", advanced: true },
+      { key: "draftGpuLayers", flag: "--spec-draft-gpu-layers", type: "string", default: "auto", description: "Draft GPU layers", advanced: true, skipValue: "auto" },
       { key: "draftNMin", flag: "--spec-draft-n-min", type: "number", default: 0, description: "Min draft tokens", advanced: true },
       { key: "draftPSplit", flag: "--spec-draft-p-split", type: "number", default: 0.10, description: "Split probability", advanced: true },
       { key: "draftPMin", flag: "--spec-draft-p-min", type: "number", default: 0.75, description: "Min probability (greedy)", advanced: true },
@@ -233,7 +237,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
     fields: [
       { key: "reasoning", flag: "--reasoning", type: "enum", default: "auto", options: ["on", "off", "auto"], description: "Thinking mode" },
       { key: "reasoningBudget", flag: "--reasoning-budget", type: "number", default: -1, description: "Thinking token budget", advanced: true },
-      { key: "reasoningFormat", flag: "--reasoning-format", type: "enum", default: "auto", options: ["none", "deepseek", "deepseek-legacy", "auto"], description: "Format", advanced: true },
+      { key: "reasoningFormat", flag: "--reasoning-format", type: "enum", default: "auto", options: ["none", "deepseek", "deepseek-legacy", "auto"], description: "Format", advanced: true, skipValue: "auto" },
       { key: "reasoningBudgetMessage", flag: "--reasoning-budget-message", type: "string", default: null, description: "Budget exhausted message", advanced: true },
     ],
   },
@@ -243,7 +247,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
     fields: [
       { key: "logVerbosity", flag: "--log-verbosity", type: "number", default: 3, description: "Verbosity (0-5)", advanced: true },
       { key: "logColors", flag: "--log-colors", type: "enum", default: "auto", options: ["on", "off", "auto"], description: "Colored logs", advanced: true },
-      { key: "logTimestamps", flag: "--log-timestamps", type: "boolean", default: true, description: "Include timestamps", advanced: true },
+      { key: "logTimestamps", flag: "--log-timestamps", type: "boolean", default: true, description: "Include timestamps", advanced: true, negate: true },
       { key: "logPrefix", flag: "--log-prefix", type: "boolean", default: false, description: "Enable log prefix", advanced: true },
     ],
   },
