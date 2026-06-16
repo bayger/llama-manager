@@ -583,6 +583,7 @@ export class OptionsPanel extends Control {
   toggleBoolean(row: RowInfo): void {
     if (row.type !== "field" || !row.field || !this._ctx) return;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[row.catIdx]!;
     const data = cat.getter(config);
     const current = data[row.field.key];
@@ -594,6 +595,7 @@ export class OptionsPanel extends Control {
   startEdit(row: RowInfo): void {
     if (row.type !== "field" || !row.field || !this._ctx) return;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[row.catIdx]!;
     const data = cat.getter(config);
     const editValue = formatForEdit(row.field, data?.[row.field.key]);
@@ -613,6 +615,7 @@ export class OptionsPanel extends Control {
     if (!this._edit || !this._ctx) return;
     const { catIdx, field, text } = this._edit;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[catIdx]!;
     const data = cat.getter(config);
 
@@ -634,6 +637,7 @@ export class OptionsPanel extends Control {
     if (!this._edit || !this._ctx) return;
     const { catIdx, field, originalValue } = this._edit;
     const config = this._ctx.getConfig();
+    if (!config) return;
     const cat = OPTION_CATEGORIES[catIdx]!;
     cat.setter(config, { [field.key]: originalValue });
     this._edit = null;
@@ -665,6 +669,7 @@ export class OptionsPanel extends Control {
   openThemePicker(): void {
     if (!this._ctx) return;
     const config = this._ctx.getConfig();
+    if (!config) return;
     this._themePickerOriginal = config.themeName;
     this._themePickerMode = true;
     this._themePickerIndex = 0;

@@ -1,6 +1,6 @@
 import type { Terminal } from "terminal-kit";
 import { setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme";
-import { loadConfig } from "../lib/config";
+import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
 import { logParser } from "../lib/logparser";
@@ -53,7 +53,7 @@ export class App {
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       forceRender: () => this.forceRender(),
       getConfig: () => config,
-      setConfig: (c: any) => { /* handled by config module */ },
+      setConfig: (c: ConfigData) => { Object.assign(config, c); },
       showCursor: () => {
         if (this._canvas) {
           this._canvas.showTerminalCursor();
@@ -286,7 +286,8 @@ export class App {
     taskStore.dispose();
     this.term(CURSOR_SHOW);
     logParser.stop();
-    if (this._ctx?.getConfig().dashboard.killServerOnExit) {
+    const cfg = this._ctx?.getConfig();
+    if (cfg?.dashboard.killServerOnExit) {
       stopServer().catch(() => {});
     }
   }

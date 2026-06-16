@@ -440,7 +440,7 @@ this._hfResultsList.handleKey = (key: string) => {
     }
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
-      const token = config.hfToken ?? undefined;
+      const token = config?.hfToken ?? undefined;
       this._allRepos = await browseModels({
         search: this._searchQuery,
         sort: "likes",
@@ -454,7 +454,7 @@ this._hfResultsList.handleKey = (key: string) => {
   browseTrending(): void {
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
-      const token = config.hfToken ?? undefined;
+      const token = config?.hfToken ?? undefined;
       this._allRepos = await browseModels({
         sort: "likes",
         limit: 100,
@@ -487,7 +487,7 @@ this._hfResultsList.handleKey = (key: string) => {
     this._selectedRepo = repo;
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
-      const token = config.hfToken ?? undefined;
+      const token = config?.hfToken ?? undefined;
       this._files = await listFiles(repo.id, token);
       const items: ListItem<string>[] = this._files.map((file, i) => ({
         id: String(i),

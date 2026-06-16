@@ -158,7 +158,8 @@ export class ServerControl extends Control {
     this._settingsPanel.visible = false;
     this._advancedCheckbox.visible = false;
     this._profileList.visible = true;
-    this._profileList.setConfig(this._ctx?.getConfig() || null);
+    const config = this._ctx?.getConfig();
+    if (config) this._profileList.setConfig(config);
     focusManager.setFocus(this._profileList);
     this.markDirty();
   }
@@ -168,7 +169,8 @@ export class ServerControl extends Control {
     this._settingsPanel.visible = true;
     this._advancedCheckbox.visible = true;
     this._profileList.visible = false;
-    this._settingsPanel.setConfig(this._ctx?.getConfig() || null);
+    const config = this._ctx?.getConfig();
+    if (config) this._settingsPanel.setConfig(config);
     focusManager.setFocus(this._settingsPanel);
     this.markDirty();
   }
