@@ -59,7 +59,28 @@ export function onMetricsChange(listener: () => void): () => void {
 
 const slots = new Map<number, SlotMetrics>();
 const completedTasks: CompletedTask[] = [];
+const MAX_COMPLETED_TASKS = 1000;
 let cacheMetrics: CacheMetrics | null = null;
+
+interface GlobalAccum {
+  count: number;
+  totalPromptSpeed: number;
+  totalGenSpeed: number;
+  totalPromptTokens: number;
+  totalOutputTokens: number;
+  totalDraftAcceptance: number;
+  draftCount: number;
+}
+
+const globalAccum: GlobalAccum = {
+  count: 0,
+  totalPromptSpeed: 0,
+  totalGenSpeed: 0,
+  totalPromptTokens: 0,
+  totalOutputTokens: 0,
+  totalDraftAcceptance: 0,
+  draftCount: 0,
+};
 
 const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*processing task/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
@@ -255,6 +276,20 @@ export function processLine(line: string) {
     };
 
     completedTasks.push(completed);
+    if (completedTasks.length > MAX_COMPLETED_TASKS) {
+      completedTasks.splice(0, completedTasks.length - MAX_COMPLETED_TASKS);
+    }
+
+    globalAccum.count++;
+    globalAccum.totalPromptSpeed += completed.promptSpeed;
+    globalAccum.totalGenSpeed += completed.outputSpeed;
+    globalAccum.totalPromptTokens += completed.promptTokens;
+    globalAccum.totalOutputTokens += completed.outputTokens;
+    if (completed.draftGenerated > 0) {
+      globalAccum.totalDraftAcceptance += completed.draftAcceptance;
+      globalAccum.draftCount++;
+    }
+
     taskAccumulators.delete(taskId);
 
     const slot = ensureSlot(slotId);
@@ -274,6 +309,13 @@ export function reset() {
   completedTasks.length = 0;
   taskAccumulators.clear();
   cacheMetrics = null;
+  globalAccum.count = 0;
+  globalAccum.totalPromptSpeed = 0;
+  globalAccum.totalGenSpeed = 0;
+  globalAccum.totalPromptTokens = 0;
+  globalAccum.totalOutputTokens = 0;
+  globalAccum.totalDraftAcceptance = 0;
+  globalAccum.draftCount = 0;
   notify();
 }
 
@@ -282,35 +324,19 @@ export function getSlots(): SlotMetrics[] {
 }
 
 export function getGlobal(): GlobalMetrics | null {
-  if (completedTasks.length === 0) return null;
-
-  let totalPromptSpeed = 0;
-  let totalGenSpeed = 0;
-  let totalPromptTokens = 0;
-  let totalOutputTokens = 0;
-  let totalDraftAcceptance = 0;
-  let draftCount = 0;
-
-  for (const t of completedTasks) {
-    totalPromptSpeed += t.promptSpeed;
-    totalGenSpeed += t.outputSpeed;
-    totalPromptTokens += t.promptTokens;
-    totalOutputTokens += t.outputTokens;
-    if (t.draftGenerated > 0) {
-      totalDraftAcceptance += t.draftAcceptance;
-      draftCount++;
-    }
-  }
+  if (globalAccum.count === 0) return null;
 
   const activeSlots = Array.from(slots.values()).filter(s => s.state !== "idle").length;
 
   return {
-    tasksCompleted: completedTasks.length,
-    avgPromptSpeed: totalPromptSpeed / completedTasks.length,
-    avgGenSpeed: totalGenSpeed / completedTasks.length,
-    totalPromptTokens,
-    totalOutputTokens,
-    avgDraftAcceptance: draftCount > 0 ? totalDraftAcceptance / draftCount : 0,
+    tasksCompleted: globalAccum.count,
+    avgPromptSpeed: globalAccum.totalPromptSpeed / globalAccum.count,
+    avgGenSpeed: globalAccum.totalGenSpeed / globalAccum.count,
+    totalPromptTokens: globalAccum.totalPromptTokens,
+    totalOutputTokens: globalAccum.totalOutputTokens,
+    avgDraftAcceptance: globalAccum.draftCount > 0
+      ? globalAccum.totalDraftAcceptance / globalAccum.draftCount
+      : 0,
     activeSlots,
   };
 }
