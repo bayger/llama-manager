@@ -222,7 +222,7 @@ export function processLine(line: string) {
     const nDecoded = parseInt(m[3]);
     slot.state = "generating";
     slot.generationSpeed = parseFloat(m[4]);
-    slot.evaluatedTokens = nDecoded;
+    slot.evaluatedTokens = (slot.promptTotalTokens ?? 0) + nDecoded;
     slot.promptTotalTokens = null;
     notify();
     return;
