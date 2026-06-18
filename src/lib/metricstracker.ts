@@ -13,6 +13,9 @@ export interface SlotMetrics {
   promptSpeed: number | null;
   promptProgress: number | null;
   contextSize: number;
+  ctxLimit: number | null;
+  evaluatedTokens: number | null;
+  promptTotalTokens: number | null;
   thinking: boolean;
   lastTask: CompletedTask | null;
   checkpoints: SlotCheckpoint[];
@@ -61,6 +64,7 @@ const slots = new Map<number, SlotMetrics>();
 const completedTasks: CompletedTask[] = [];
 const MAX_COMPLETED_TASKS = 1000;
 let cacheMetrics: CacheMetrics | null = null;
+let ctxLimit: number | null = null;
 
 interface GlobalAccum {
   count: number;
@@ -95,6 +99,7 @@ const cacheStateRegex = /cache state:\s*(\d+)\s+prompts,\s*([\d.]+)\s+MiB\s*\(li
 const checkpointCreateRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*created context checkpoint \d+ of \d+ \(pos_min\s*=\s*(\d+),\s*pos_max\s*=\s*\d+,\s*n_tokens\s*=\s*\d+,\s*size\s*=\s*([\d.]+)\s+MiB/;
 const checkpointErasedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erased invalidated context checkpoint \(pos_min\s*=\s*(\d+)/;
 const checkpointErasingOldRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erasing old context checkpoint \(pos_min\s*=\s*(\d+)/;
+const nCtxRegex = /n_ctx\s*=\s*(\d+)/;
 
 const taskAccumulators = new Map<number, Partial<CompletedTask>>();
 
@@ -108,12 +113,19 @@ function ensureSlot(slotId: number): SlotMetrics {
       promptSpeed: null,
       promptProgress: null,
       contextSize: 0,
+      ctxLimit: null,
+      evaluatedTokens: null,
+      promptTotalTokens: null,
       thinking: false,
       lastTask: null,
       checkpoints: [],
     });
   }
-  return slots.get(slotId)!;
+  const slot = slots.get(slotId)!;
+  if (ctxLimit !== null && slot.ctxLimit === null) {
+    slot.ctxLimit = ctxLimit;
+  }
+  return slot;
 }
 
 function notify() {
@@ -122,6 +134,18 @@ function notify() {
 
 export function processLine(line: string) {
   let m: RegExpMatchArray | null;
+
+  if ((m = nCtxRegex.exec(line))) {
+    const limit = parseInt(m[1]);
+    if (limit > 0) {
+      ctxLimit = limit;
+      for (const slot of slots.values()) {
+        slot.ctxLimit = limit;
+      }
+      notify();
+    }
+    return;
+  }
 
   if ((m = line.match(cacheStateRegex))) {
     cacheMetrics = {
@@ -185,6 +209,8 @@ export function processLine(line: string) {
     slot.promptProgress = null;
     slot.generationSpeed = null;
     slot.promptSpeed = null;
+    slot.evaluatedTokens = null;
+    slot.promptTotalTokens = null;
     notify();
     return;
   }
@@ -193,8 +219,11 @@ export function processLine(line: string) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
+    const nDecoded = parseInt(m[3]);
     slot.state = "generating";
     slot.generationSpeed = parseFloat(m[4]);
+    slot.evaluatedTokens = nDecoded;
+    slot.promptTotalTokens = null;
     notify();
     return;
   }
@@ -203,9 +232,13 @@ export function processLine(line: string) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
+    const nTokens = parseInt(m[3]);
+    const progress = parseFloat(m[4]);
     slot.state = "prompting";
-    slot.promptProgress = parseFloat(m[4]);
+    slot.promptProgress = progress;
     slot.promptSpeed = parseFloat(m[5]);
+    slot.evaluatedTokens = nTokens;
+    slot.promptTotalTokens = progress > 0 ? Math.ceil(nTokens / progress) : nTokens;
     notify();
     return;
   }
@@ -312,6 +345,8 @@ export function processLine(line: string) {
     slot.generationSpeed = null;
     slot.promptSpeed = null;
     slot.promptProgress = null;
+    slot.evaluatedTokens = null;
+    slot.promptTotalTokens = null;
     slot.contextSize = ctxSize;
     slot.lastTask = completed;
     notify();
@@ -323,6 +358,7 @@ export function reset() {
   completedTasks.length = 0;
   taskAccumulators.clear();
   cacheMetrics = null;
+  ctxLimit = null;
   globalAccum.count = 0;
   globalAccum.totalPromptSpeed = 0;
   globalAccum.totalGenSpeed = 0;
