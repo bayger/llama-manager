@@ -8,7 +8,7 @@ import { Section } from "../ui/widgets/Section";
 import { fg, fgBg } from "../../lib/theme";
 import { StyledText } from "../ui/widgets/StyledText";
 import { focusManager } from "../ui/FocusManager";
-import { fireAsync } from "../../lib/utils";
+import { fireAsync, formatMs } from "../../lib/utils";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir, TaskFilter } from "../../lib/tasks";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../ui/types";
@@ -70,15 +70,15 @@ class TaskDetailsControl extends Section {
       { label: "Version", value: task.version || "-" },
       { label: "", value: "" },
       { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
-      { label: "Prompt Time", value: `${fmtNum(Math.round(task.promptTimeMs))}ms` },
+      { label: "Prompt Time", value: formatMs(task.promptTimeMs) },
       { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
       { label: "", value: "" },
       { label: "Output Tokens", value: fmtNum(task.outputTokens) },
-      { label: "Eval Time", value: `${fmtNum(Math.round(task.evalTimeMs))}ms` },
+      { label: "Eval Time", value: formatMs(task.evalTimeMs) },
       { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
       { label: "", value: "" },
       { label: "Total Tokens", value: fmtNum(task.totalTokens) },
-      { label: "Total Time", value: `${fmtNum(Math.round(task.totalTimeMs))}ms` },
+      { label: "Total Time", value: formatMs(task.totalTimeMs) },
       { label: "", value: "" },
       { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
       { label: "Context Size", value: fmtNum(task.contextSize) },
@@ -371,7 +371,7 @@ export class TasksControl extends Control {
       TG: `${task.outputSpeed.toFixed(1)} tps`,
       Prompt: `${task.promptTokens}`,
       Output: `${task.outputTokens}`,
-      Duration: `${task.totalTimeMs.toFixed(0)}ms`,
+      Duration: formatMs(task.totalTimeMs),
     };
 
     const cols: string[] = [];
