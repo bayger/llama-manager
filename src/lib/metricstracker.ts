@@ -88,6 +88,7 @@ const globalAccum: GlobalAccum = {
 
 const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*processing task/;
 const taskTokensRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*\d+,\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
+const cachedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
 const promptProgressRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt processing,\s*n_tokens\s*=\s*(\d+),\s*progress\s*=\s*([\d.]+),\s*t\s*=\s*[\d.]+\s*s\s*\/\s*([\d.]+)\s*tokens per second/;
 const reasoningRegex = /reasoning-budget:\s*(activated|deactivated)/;
@@ -211,7 +212,7 @@ export function processLine(line: string) {
     slot.generationSpeed = null;
     slot.promptSpeed = null;
     slot.evaluatedTokens = slot.contextSize || null;
-    slot.promptTotalTokens = null;
+    slot.promptTotalTokens = slot.contextSize || null;
     notify();
     return;
   }
@@ -221,6 +222,15 @@ export function processLine(line: string) {
     const slot = ensureSlot(slotId);
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
     slot.promptTotalTokens = parseInt(m[3]);
+    notify();
+    return;
+  }
+
+  if ((m = line.match(cachedRegex))) {
+    const slotId = parseInt(m[1]);
+    const slot = ensureSlot(slotId);
+    if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
+    slot.evaluatedTokens = parseInt(m[3]);
     notify();
     return;
   }
@@ -246,7 +256,12 @@ export function processLine(line: string) {
     slot.state = "prompting";
     slot.promptProgress = progress;
     slot.promptSpeed = parseFloat(m[5]);
-    slot.evaluatedTokens = nTokens;
+    if (slot.evaluatedTokens === null) {
+      slot.evaluatedTokens = nTokens;
+    }
+    if (slot.promptTotalTokens === null) {
+      slot.promptTotalTokens = nTokens;
+    }
     notify();
     return;
   }

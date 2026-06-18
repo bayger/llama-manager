@@ -210,14 +210,17 @@ export class MetricsPanel extends Control {
     }
 
     // Context bar (3-color: processed, to-be-processed, free)
+    // Only available when task.n_tokens is parseable (verbosity >= 4)
     const currentTokens = slot.evaluatedTokens ?? slot.contextSize;
     const hasContext = slot.ctxLimit !== null || slot.contextSize > 0 || slot.evaluatedTokens !== null;
     if (hasContext) {
       const limit = slot.ctxLimit ?? 0;
-      const toBeProcessed = slot.state === "prompting" && slot.promptTotalTokens !== null
-        ? Math.max(0, slot.promptTotalTokens - currentTokens)
-        : 0;
-      if (limit > 0) {
+      const hasExactPrompt = slot.promptTotalTokens !== null;
+      if (limit > 0 && hasExactPrompt) {
+        // 3-color context bar
+        const toBeProcessed = slot.state === "prompting"
+          ? Math.max(0, slot.promptTotalTokens! - currentTokens)
+          : 0;
         const processedLen = Math.round((currentTokens / limit) * CONTEXT_BAR_WIDTH);
         const pendingLen = Math.round((toBeProcessed / limit) * CONTEXT_BAR_WIDTH);
         const freeLen = Math.max(0, CONTEXT_BAR_WIDTH - processedLen - pendingLen);
@@ -227,8 +230,12 @@ export class MetricsPanel extends Control {
         fg(canvas, "textMuted", "\u2591".repeat(freeLen));
         fg(canvas, "textMuted", `  ${formatNum(currentTokens)}/${formatNum(limit)}`);
       } else {
+        // Fallback: text-only context display
         fg(canvas, "textMuted", `  ${SEP}  Context `);
         fg(canvas, "text", `${formatNum(currentTokens)} tok`);
+        if (limit > 0) {
+          fg(canvas, "textMuted", `/${formatNum(limit)}`);
+        }
       }
     }
 
