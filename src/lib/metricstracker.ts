@@ -209,8 +209,8 @@ export function processLine(line: string) {
     slot.promptProgress = null;
     slot.generationSpeed = null;
     slot.promptSpeed = null;
-    slot.evaluatedTokens = null;
-    slot.promptTotalTokens = null;
+    slot.evaluatedTokens = slot.contextSize;
+    slot.promptTotalTokens = slot.contextSize || null;
     notify();
     return;
   }
@@ -237,7 +237,14 @@ export function processLine(line: string) {
     slot.promptProgress = progress;
     slot.promptSpeed = parseFloat(m[5]);
     slot.evaluatedTokens = nTokens;
-    slot.promptTotalTokens = progress > 0 ? Math.ceil(nTokens / progress) : nTokens;
+    if (progress >= 0.1) {
+      const projected = Math.ceil(nTokens / progress);
+      slot.promptTotalTokens = slot.promptTotalTokens !== null
+        ? Math.round(slot.promptTotalTokens * 0.7 + projected * 0.3)
+        : projected;
+    } else if (slot.promptTotalTokens === null) {
+      slot.promptTotalTokens = nTokens;
+    }
     notify();
     return;
   }
