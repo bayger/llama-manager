@@ -12,10 +12,10 @@ export function pad(str: string, len: number): string {
 export function formatMs(ms: number): string {
   if (ms < 0) return "0ms";
   if (ms < 1000) return `${Math.round(ms)}ms`;
-  const totalSec = Math.floor(ms / 1000);
-  if (totalSec < 60) return `${totalSec}s`;
+  const totalSec = ms / 1000;
+  if (totalSec < 60) return `${totalSec.toFixed(1)}s`;
   const m = Math.floor(totalSec / 60);
-  const s = totalSec % 60;
+  const s = Math.floor(totalSec % 60);
   if (m < 60) return `${m}m ${s}s`;
   const h = Math.floor(m / 60);
   const rm = m % 60;
