@@ -218,7 +218,11 @@ export class MetricsPanel extends Control {
     const limit = slot.nCtxSlot;
     if (limit !== null && limit > 0) {
       const cached = slot.cachedTokens ?? 0;
-      const processed = slot.contextSize + (slot.state === "prompting" ? cached : 0);
+      const processed = slot.state === "prompting"
+        ? cached
+        : slot.state === "generating"
+          ? (slot.pendingTokens ?? slot.contextSize)
+          : slot.contextSize;
       const pending = slot.state === "prompting"
         ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
         : 0;
