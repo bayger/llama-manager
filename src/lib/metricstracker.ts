@@ -16,7 +16,6 @@ export interface SlotMetrics {
   contextSize: number;
   nCtxSlot: number | null;
   cachedTokens: number | null;
-  initialCachedTokens: number | null;
   pendingTokens: number | null;
   thinking: boolean;
   lastTask: CompletedTask | null;
@@ -118,7 +117,6 @@ function ensureSlot(slotId: number): SlotMetrics {
       contextSize: 0,
       nCtxSlot: null,
       cachedTokens: null,
-      initialCachedTokens: null,
       pendingTokens: null,
       thinking: false,
       lastTask: null,
@@ -199,7 +197,6 @@ export function processLine(line: string) {
     slot.decodedTokens = null;
     slot.promptSpeed = null;
     slot.cachedTokens = null;
-    slot.initialCachedTokens = null;
     slot.pendingTokens = null;
     notify();
     return;
@@ -213,7 +210,6 @@ export function processLine(line: string) {
     slot.nCtxSlot = parseInt(m[3]);
     slot.pendingTokens = parseInt(m[4]);
     slot.cachedTokens = 0;
-    slot.initialCachedTokens = null;
     slot.decodedTokens = 0;
     notify();
     return;
@@ -224,9 +220,6 @@ export function processLine(line: string) {
     const slot = ensureSlot(slotId);
     if (slot.taskId === null) return;
     slot.cachedTokens = parseInt(m[3]);
-    if (slot.initialCachedTokens === null) {
-      slot.initialCachedTokens = slot.cachedTokens;
-    }
     notify();
     return;
   }
@@ -357,7 +350,6 @@ export function processLine(line: string) {
     slot.promptSpeed = null;
     slot.promptProgress = null;
     slot.cachedTokens = null;
-    slot.initialCachedTokens = null;
     slot.pendingTokens = null;
     slot.contextSize = ctxSize;
     slot.lastTask = completed;

@@ -214,32 +214,33 @@ export class MetricsPanel extends Control {
     }
 
     // Context bar (always visible when limit known)
-    const currentTokens = slot.cachedTokens ?? slot.contextSize;
+    // Green = already processed, Orange = waiting to be processed, Gray = free
     const limit = slot.nCtxSlot;
     if (limit !== null && limit > 0) {
-      const existing = slot.state === "prompting"
-        ? (slot.initialCachedTokens ?? slot.contextSize)
-        : slot.contextSize;
-      const newProcessed = Math.max(0, currentTokens - existing);
-      const existingLen = Math.round((existing / limit) * CONTEXT_BAR_WIDTH);
-      const newLen = Math.round((newProcessed / limit) * CONTEXT_BAR_WIDTH);
-      const freeLen = Math.max(0, CONTEXT_BAR_WIDTH - existingLen - newLen);
+      const processed = slot.contextSize;
+      const pending = slot.state === "prompting"
+        ? Math.max(0, (slot.pendingTokens ?? 0) - (slot.cachedTokens ?? 0))
+        : 0;
+      const processedLen = Math.round((processed / limit) * CONTEXT_BAR_WIDTH);
+      const pendingLen = Math.round((pending / limit) * CONTEXT_BAR_WIDTH);
+      const freeLen = Math.max(0, CONTEXT_BAR_WIDTH - processedLen - pendingLen);
       fg(canvas, "textMuted", `  ${SEP}  `);
       if (isActive) {
-        fg(canvas, "success", "\u2588".repeat(existingLen));
-        fg(canvas, "warning", "\u2593".repeat(newLen));
+        fg(canvas, "success", "\u2588".repeat(processedLen));
+        fg(canvas, "warning", "\u2593".repeat(pendingLen));
         fg(canvas, "textMuted", "\u2591".repeat(freeLen));
       } else {
-        fg(canvas, "textMuted", "\u2588".repeat(existingLen) + "\u2591".repeat(newLen + freeLen));
+        fg(canvas, "textMuted", "\u2588".repeat(processedLen) + "\u2591".repeat(pendingLen + freeLen));
       }
-      fg(canvas, "textMuted", `  ${formatNum(currentTokens)}/${formatNum(limit)}`);
-    } else if (currentTokens > 0) {
+      const totalUsed = processed + pending;
+      fg(canvas, "textMuted", `  ${formatNum(totalUsed)}/${formatNum(limit)}`);
+    } else if (slot.contextSize > 0) {
       fg(canvas, "textMuted", `  ${SEP}  Context `);
-      fg(canvas, "text", `${formatNum(currentTokens)} tok`);
+      fg(canvas, "text", `${formatNum(slot.contextSize)} tok`);
     }
 
     if (slot.checkpoints.length > 0) {
-      const bar = checkpointBar(slot.contextSize || currentTokens, slot.checkpoints);
+      const bar = checkpointBar(slot.contextSize, slot.checkpoints);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
       fg(canvas, "textMuted", `  ${SEP}  Chk: `);
       fg(canvas, "accent", bar);
