@@ -226,10 +226,11 @@ export class MetricsPanel extends Control {
       const pending = slot.state === "prompting"
         ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
         : 0;
-      const processedLen = Math.min(Math.floor((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-      const pendingLen = Math.min(Math.floor((pending / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH - processedLen);
-      const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
       const totalUsed = processed + pending;
+      const totalLen = Math.min(Math.floor((totalUsed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
+      const processedLen = Math.min(Math.floor((processed / limit) * CONTEXT_BAR_WIDTH), totalLen);
+      const pendingLen = totalLen - processedLen;
+      const freeLen = CONTEXT_BAR_WIDTH - totalLen;
       const usageRatio = totalUsed / limit;
       const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
       fg(canvas, "textMuted", `  ${SEP}  Ctx `);
