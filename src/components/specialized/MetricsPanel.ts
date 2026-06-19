@@ -196,12 +196,16 @@ export class MetricsPanel extends Control {
       return cy;
     }
 
-    // Line 2: Live speed + context bar + checkpoints
+    // Line 2: Live speed + decoded count + context bar + checkpoints
+    const isActive = slot.state !== "idle";
     canvas.moveTo(x, cy);
     fg(canvas, "textMuted", "  ");
     if (slot.generationSpeed !== null) {
       fg(canvas, "textMuted", "TG ");
       fg(canvas, "success", `${slot.generationSpeed.toFixed(1)} t/s`);
+      if (slot.decodedTokens !== null) {
+        fg(canvas, "textMuted", ` (${slot.decodedTokens} tok)`);
+      }
     } else if (slot.promptSpeed !== null && slot.state === "prompting") {
       fg(canvas, "textMuted", "PP ");
       fg(canvas, "info", `${slot.promptSpeed.toFixed(0)} t/s`);
@@ -209,7 +213,7 @@ export class MetricsPanel extends Control {
       fg(canvas, "textMuted", "...");
     }
 
-    // Context bar (3-color: existing, newly processed, free)
+    // Context bar (always visible when limit known)
     const currentTokens = slot.cachedTokens ?? slot.contextSize;
     const limit = slot.nCtxSlot;
     if (limit !== null && limit > 0) {
@@ -221,9 +225,13 @@ export class MetricsPanel extends Control {
       const newLen = Math.round((newProcessed / limit) * CONTEXT_BAR_WIDTH);
       const freeLen = Math.max(0, CONTEXT_BAR_WIDTH - existingLen - newLen);
       fg(canvas, "textMuted", `  ${SEP}  `);
-      fg(canvas, "success", "\u2588".repeat(existingLen));
-      fg(canvas, "warning", "\u2593".repeat(newLen));
-      fg(canvas, "textMuted", "\u2591".repeat(freeLen));
+      if (isActive) {
+        fg(canvas, "success", "\u2588".repeat(existingLen));
+        fg(canvas, "warning", "\u2593".repeat(newLen));
+        fg(canvas, "textMuted", "\u2591".repeat(freeLen));
+      } else {
+        fg(canvas, "textMuted", "\u2588".repeat(existingLen) + "\u2591".repeat(newLen + freeLen));
+      }
       fg(canvas, "textMuted", `  ${formatNum(currentTokens)}/${formatNum(limit)}`);
     } else if (currentTokens > 0) {
       fg(canvas, "textMuted", `  ${SEP}  Context `);

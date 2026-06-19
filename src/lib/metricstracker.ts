@@ -10,6 +10,7 @@ export interface SlotMetrics {
   state: "idle" | "prompting" | "generating";
   taskId: number | null;
   generationSpeed: number | null;
+  decodedTokens: number | null;
   promptSpeed: number | null;
   promptProgress: number | null;
   contextSize: number;
@@ -111,6 +112,7 @@ function ensureSlot(slotId: number): SlotMetrics {
       state: "idle",
       taskId: null,
       generationSpeed: null,
+      decodedTokens: null,
       promptSpeed: null,
       promptProgress: null,
       contextSize: 0,
@@ -194,6 +196,7 @@ export function processLine(line: string) {
     slot.thinking = false;
     slot.promptProgress = null;
     slot.generationSpeed = null;
+    slot.decodedTokens = null;
     slot.promptSpeed = null;
     slot.cachedTokens = null;
     slot.initialCachedTokens = null;
@@ -230,6 +233,7 @@ export function processLine(line: string) {
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
     slot.state = "generating";
     slot.generationSpeed = parseFloat(m[4]);
+    slot.decodedTokens = parseInt(m[3]);
     notify();
     return;
   }
@@ -345,6 +349,7 @@ export function processLine(line: string) {
     slot.state = "idle";
     slot.taskId = null;
     slot.generationSpeed = null;
+    slot.decodedTokens = null;
     slot.promptSpeed = null;
     slot.promptProgress = null;
     slot.cachedTokens = null;
