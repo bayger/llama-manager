@@ -209,8 +209,6 @@ export class MetricsPanel extends Control {
     } else if (slot.promptSpeed !== null && slot.state === "prompting") {
       fg(canvas, "textMuted", "PP ");
       fg(canvas, "info", `${slot.promptSpeed.toFixed(0)} t/s`);
-    } else {
-      fg(canvas, "textMuted", "...");
     }
 
     // Context bar (always visible when limit known)
