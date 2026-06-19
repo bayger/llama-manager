@@ -325,12 +325,19 @@ export abstract class EditableList extends Control {
     if (char.length !== 1) return false;
 
     if (this._edit.field.type === "number") {
-      if (!isNumericChar(char) && char !== "-") return false;
+      if (!isNumericChar(char) && char !== "-" && char !== "." && char !== ",") return false;
       if (char === "-" && this._edit.cursor !== 0) return false;
       if (this._edit.text === "-" && char === "-") return false;
+      const separatorCount = (this._edit.text.match(/[.,]/g) || []).length;
+      if ((char === "." || char === ",") && separatorCount >= 1) return false;
     }
 
-    this._edit.text = this._edit.text.slice(0, this._edit.cursor) + char + this._edit.text.slice(this._edit.cursor);
+    let insertChar = char;
+    if (this._edit.field.type === "number" && char === ",") {
+      insertChar = ".";
+    }
+
+    this._edit.text = this._edit.text.slice(0, this._edit.cursor) + insertChar + this._edit.text.slice(this._edit.cursor);
     this._edit.cursor++;
     this.markDirty();
     return true;
