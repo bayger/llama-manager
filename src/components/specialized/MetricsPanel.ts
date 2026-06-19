@@ -217,9 +217,10 @@ export class MetricsPanel extends Control {
     // Green = already processed, Orange = waiting to be processed, Gray = free
     const limit = slot.nCtxSlot;
     if (limit !== null && limit > 0) {
-      const processed = slot.contextSize;
+      const cached = slot.cachedTokens ?? 0;
+      const processed = slot.contextSize + (slot.state === "prompting" ? cached : 0);
       const pending = slot.state === "prompting"
-        ? Math.max(0, (slot.pendingTokens ?? 0) - (slot.cachedTokens ?? 0))
+        ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
         : 0;
       const processedLen = Math.round((processed / limit) * CONTEXT_BAR_WIDTH);
       const pendingLen = Math.round((pending / limit) * CONTEXT_BAR_WIDTH);
