@@ -208,9 +208,13 @@ export function processLine(line: string) {
   if ((m = line.match(newPromptRegex))) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
-    if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
+    const taskId = parseInt(m[2]);
+    slot.taskId = taskId;
     slot.nCtxSlot = parseInt(m[3]);
     slot.pendingTokens = parseInt(m[4]);
+    slot.cachedTokens = 0;
+    slot.initialCachedTokens = null;
+    slot.decodedTokens = 0;
     notify();
     return;
   }
@@ -218,7 +222,7 @@ export function processLine(line: string) {
   if ((m = line.match(cachedRegex))) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
-    if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
+    if (slot.taskId === null) return;
     slot.cachedTokens = parseInt(m[3]);
     if (slot.initialCachedTokens === null) {
       slot.initialCachedTokens = slot.cachedTokens;
