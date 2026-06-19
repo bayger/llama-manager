@@ -221,7 +221,7 @@ export class MetricsPanel extends Control {
       const processed = slot.state === "prompting"
         ? cached
         : slot.state === "generating"
-          ? (slot.pendingTokens ?? slot.contextSize)
+          ? ((slot.pendingTokens ?? 0) + (slot.decodedTokens ?? 0))
           : slot.contextSize;
       const pending = slot.state === "prompting"
         ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
