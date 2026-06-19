@@ -13,9 +13,10 @@ export interface SlotMetrics {
   promptSpeed: number | null;
   promptProgress: number | null;
   contextSize: number;
-  ctxLimit: number | null;
-  evaluatedTokens: number | null;
-  promptTotalTokens: number | null;
+  nCtxSlot: number | null;
+  cachedTokens: number | null;
+  initialCachedTokens: number | null;
+  pendingTokens: number | null;
   thinking: boolean;
   lastTask: CompletedTask | null;
   checkpoints: SlotCheckpoint[];
@@ -64,7 +65,6 @@ const slots = new Map<number, SlotMetrics>();
 const completedTasks: CompletedTask[] = [];
 const MAX_COMPLETED_TASKS = 1000;
 let cacheMetrics: CacheMetrics | null = null;
-let ctxLimit: number | null = null;
 
 interface GlobalAccum {
   count: number;
@@ -87,7 +87,7 @@ const globalAccum: GlobalAccum = {
 };
 
 const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*processing task/;
-const taskTokensRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*\d+,\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
+const newPromptRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*(\d+),\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
 const cachedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
 const promptProgressRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt processing,\s*n_tokens\s*=\s*(\d+),\s*progress\s*=\s*([\d.]+),\s*t\s*=\s*[\d.]+\s*s\s*\/\s*([\d.]+)\s*tokens per second/;
@@ -101,7 +101,6 @@ const cacheStateRegex = /cache state:\s*(\d+)\s+prompts,\s*([\d.]+)\s+MiB\s*\(li
 const checkpointCreateRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*created context checkpoint \d+ of \d+ \(pos_min\s*=\s*(\d+),\s*pos_max\s*=\s*\d+,\s*n_tokens\s*=\s*\d+,\s*size\s*=\s*([\d.]+)\s+MiB/;
 const checkpointErasedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erased invalidated context checkpoint \(pos_min\s*=\s*(\d+)/;
 const checkpointErasingOldRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erasing old context checkpoint \(pos_min\s*=\s*(\d+)/;
-const nCtxRegex = /n_ctx\s*=\s*(\d+)/;
 
 const taskAccumulators = new Map<number, Partial<CompletedTask>>();
 
@@ -115,19 +114,16 @@ function ensureSlot(slotId: number): SlotMetrics {
       promptSpeed: null,
       promptProgress: null,
       contextSize: 0,
-      ctxLimit: null,
-      evaluatedTokens: null,
-      promptTotalTokens: null,
+      nCtxSlot: null,
+      cachedTokens: null,
+      initialCachedTokens: null,
+      pendingTokens: null,
       thinking: false,
       lastTask: null,
       checkpoints: [],
     });
   }
-  const slot = slots.get(slotId)!;
-  if (ctxLimit !== null && slot.ctxLimit === null) {
-    slot.ctxLimit = ctxLimit;
-  }
-  return slot;
+  return slots.get(slotId)!;
 }
 
 function notify() {
@@ -136,18 +132,6 @@ function notify() {
 
 export function processLine(line: string) {
   let m: RegExpMatchArray | null;
-
-  if ((m = nCtxRegex.exec(line))) {
-    const limit = parseInt(m[1]);
-    if (limit > 0) {
-      ctxLimit = limit;
-      for (const slot of slots.values()) {
-        slot.ctxLimit = limit;
-      }
-      notify();
-    }
-    return;
-  }
 
   if ((m = line.match(cacheStateRegex))) {
     cacheMetrics = {
@@ -211,17 +195,19 @@ export function processLine(line: string) {
     slot.promptProgress = null;
     slot.generationSpeed = null;
     slot.promptSpeed = null;
-    slot.evaluatedTokens = slot.contextSize || null;
-    slot.promptTotalTokens = slot.contextSize || null;
+    slot.cachedTokens = null;
+    slot.initialCachedTokens = null;
+    slot.pendingTokens = null;
     notify();
     return;
   }
 
-  if ((m = line.match(taskTokensRegex))) {
+  if ((m = line.match(newPromptRegex))) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
-    slot.promptTotalTokens = parseInt(m[3]);
+    slot.nCtxSlot = parseInt(m[3]);
+    slot.pendingTokens = parseInt(m[4]);
     notify();
     return;
   }
@@ -230,7 +216,10 @@ export function processLine(line: string) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
-    slot.evaluatedTokens = parseInt(m[3]);
+    slot.cachedTokens = parseInt(m[3]);
+    if (slot.initialCachedTokens === null) {
+      slot.initialCachedTokens = slot.cachedTokens;
+    }
     notify();
     return;
   }
@@ -239,10 +228,8 @@ export function processLine(line: string) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
-    const nDecoded = parseInt(m[3]);
     slot.state = "generating";
     slot.generationSpeed = parseFloat(m[4]);
-    slot.evaluatedTokens = (slot.promptTotalTokens ?? 0) + nDecoded;
     notify();
     return;
   }
@@ -251,17 +238,9 @@ export function processLine(line: string) {
     const slotId = parseInt(m[1]);
     const slot = ensureSlot(slotId);
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
-    const nTokens = parseInt(m[3]);
-    const progress = parseFloat(m[4]);
     slot.state = "prompting";
-    slot.promptProgress = progress;
+    slot.promptProgress = parseFloat(m[4]);
     slot.promptSpeed = parseFloat(m[5]);
-    if (slot.evaluatedTokens === null) {
-      slot.evaluatedTokens = nTokens;
-    }
-    if (slot.promptTotalTokens === null) {
-      slot.promptTotalTokens = nTokens;
-    }
     notify();
     return;
   }
@@ -368,8 +347,9 @@ export function processLine(line: string) {
     slot.generationSpeed = null;
     slot.promptSpeed = null;
     slot.promptProgress = null;
-    slot.evaluatedTokens = null;
-    slot.promptTotalTokens = null;
+    slot.cachedTokens = null;
+    slot.initialCachedTokens = null;
+    slot.pendingTokens = null;
     slot.contextSize = ctxSize;
     slot.lastTask = completed;
     notify();
@@ -381,7 +361,6 @@ export function reset() {
   completedTasks.length = 0;
   taskAccumulators.clear();
   cacheMetrics = null;
-  ctxLimit = null;
   globalAccum.count = 0;
   globalAccum.totalPromptSpeed = 0;
   globalAccum.totalGenSpeed = 0;

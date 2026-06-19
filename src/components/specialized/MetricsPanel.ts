@@ -49,7 +49,7 @@ function slotHeight(s: SlotMetrics): number {
     s.promptSpeed === null &&
     s.contextSize === 0 &&
     s.checkpoints.length === 0 &&
-    s.ctxLimit === null
+    s.nCtxSlot === null
   ) {
     return h;
   }
@@ -191,7 +191,7 @@ export class MetricsPanel extends Control {
       slot.promptSpeed === null &&
       slot.contextSize === 0 &&
       slot.checkpoints.length === 0 &&
-      slot.ctxLimit === null
+      slot.nCtxSlot === null
     ) {
       return cy;
     }
@@ -209,34 +209,25 @@ export class MetricsPanel extends Control {
       fg(canvas, "textMuted", "...");
     }
 
-    // Context bar (3-color: processed, to-be-processed, free)
-    // Only available when task.n_tokens is parseable (verbosity >= 4)
-    const currentTokens = slot.evaluatedTokens ?? slot.contextSize;
-    const hasContext = slot.ctxLimit !== null || slot.contextSize > 0 || slot.evaluatedTokens !== null;
-    if (hasContext) {
-      const limit = slot.ctxLimit ?? 0;
-      const hasExactPrompt = slot.promptTotalTokens !== null;
-      if (limit > 0 && hasExactPrompt) {
-        // 3-color context bar
-        const toBeProcessed = slot.state === "prompting"
-          ? Math.max(0, slot.promptTotalTokens! - currentTokens)
-          : 0;
-        const processedLen = Math.round((currentTokens / limit) * CONTEXT_BAR_WIDTH);
-        const pendingLen = Math.round((toBeProcessed / limit) * CONTEXT_BAR_WIDTH);
-        const freeLen = Math.max(0, CONTEXT_BAR_WIDTH - processedLen - pendingLen);
-        fg(canvas, "textMuted", `  ${SEP}  `);
-        fg(canvas, "success", "\u2588".repeat(processedLen));
-        fg(canvas, "warning", "\u2593".repeat(pendingLen));
-        fg(canvas, "textMuted", "\u2591".repeat(freeLen));
-        fg(canvas, "textMuted", `  ${formatNum(currentTokens)}/${formatNum(limit)}`);
-      } else {
-        // Fallback: text-only context display
-        fg(canvas, "textMuted", `  ${SEP}  Context `);
-        fg(canvas, "text", `${formatNum(currentTokens)} tok`);
-        if (limit > 0) {
-          fg(canvas, "textMuted", `/${formatNum(limit)}`);
-        }
-      }
+    // Context bar (3-color: existing, newly processed, free)
+    const currentTokens = slot.cachedTokens ?? slot.contextSize;
+    const limit = slot.nCtxSlot;
+    if (limit !== null && limit > 0) {
+      const existing = slot.state === "prompting"
+        ? (slot.initialCachedTokens ?? slot.contextSize)
+        : slot.contextSize;
+      const newProcessed = Math.max(0, currentTokens - existing);
+      const existingLen = Math.round((existing / limit) * CONTEXT_BAR_WIDTH);
+      const newLen = Math.round((newProcessed / limit) * CONTEXT_BAR_WIDTH);
+      const freeLen = Math.max(0, CONTEXT_BAR_WIDTH - existingLen - newLen);
+      fg(canvas, "textMuted", `  ${SEP}  `);
+      fg(canvas, "success", "\u2588".repeat(existingLen));
+      fg(canvas, "warning", "\u2593".repeat(newLen));
+      fg(canvas, "textMuted", "\u2591".repeat(freeLen));
+      fg(canvas, "textMuted", `  ${formatNum(currentTokens)}/${formatNum(limit)}`);
+    } else if (currentTokens > 0) {
+      fg(canvas, "textMuted", `  ${SEP}  Context `);
+      fg(canvas, "text", `${formatNum(currentTokens)} tok`);
     }
 
     if (slot.checkpoints.length > 0) {
