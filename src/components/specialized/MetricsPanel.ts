@@ -226,8 +226,8 @@ export class MetricsPanel extends Control {
       const pending = slot.state === "prompting"
         ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
         : 0;
-      const processedLen = Math.floor((processed / limit) * CONTEXT_BAR_WIDTH);
-      const pendingLen = Math.floor((pending / limit) * CONTEXT_BAR_WIDTH);
+      const processedLen = Math.min(Math.floor((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
+      const pendingLen = Math.min(Math.floor((pending / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH - processedLen);
       const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
       const totalUsed = processed + pending;
       const usageRatio = totalUsed / limit;
