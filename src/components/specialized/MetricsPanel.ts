@@ -225,15 +225,17 @@ export class MetricsPanel extends Control {
       const processedLen = Math.floor((processed / limit) * CONTEXT_BAR_WIDTH);
       const pendingLen = Math.floor((pending / limit) * CONTEXT_BAR_WIDTH);
       const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
-      fg(canvas, "textMuted", `  ${SEP}  `);
+      const totalUsed = processed + pending;
+      const usageRatio = totalUsed / limit;
+      const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
+      fg(canvas, "textMuted", `  ${SEP}  Ctx `);
       if (isActive) {
         fg(canvas, "success", "\u2588".repeat(processedLen));
         fg(canvas, "warning", "\u2593".repeat(pendingLen));
-        fg(canvas, "textMuted", "\u2591".repeat(freeLen));
+        fg(canvas, freeColor, "\u2591".repeat(freeLen));
       } else {
         fg(canvas, "textMuted", "\u2588".repeat(processedLen) + "\u2591".repeat(pendingLen + freeLen));
       }
-      const totalUsed = processed + pending;
       fg(canvas, "textMuted", `  ${formatNum(totalUsed)}/${formatNum(limit)}`);
     } else if (slot.contextSize > 0) {
       fg(canvas, "textMuted", `  ${SEP}  Context `);
