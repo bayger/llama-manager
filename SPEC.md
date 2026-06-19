@@ -359,10 +359,18 @@ Commonly-used arguments exposed as typed UI controls, organized by category. New
 
 | Argument | Type | Default | Description |
 |---|---|---|---|
-| `--log-verbosity` | number | `3` | Verbosity (0-5) |
 | `--log-colors` | enum | `auto` | Colored logs (`on`/`off`/`auto`) |
 | `--log-timestamps` | boolean | `true` | Include timestamps |
 | `--log-prefix` | boolean | `false` | Enable log prefix |
+
+**Enforced Arguments**
+
+The following arguments are always passed to the server and cannot be configured via presets:
+
+| Argument | Value | Description |
+|---|---|---|
+| `--log-verbosity` | `4` | Log verbosity (enforced for consistent task parsing) |
+| `--log-file` | config path | Server log file location |
 
 #### Free-Form Arguments
 
@@ -663,7 +671,7 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
           "sampling": { "seed": -1, "temperature": 0.8, "topK": 40, "topP": 0.95, "minP": 0.05, "repeatLastN": 64, "repeatPenalty": 1.0, "presencePenalty": 0.0, "frequencyPenalty": 0.0, "grammar": null, "jsonSchema": null, "ignoreEos": false, "typicalP": 1.0, "topNSigma": -1.0, "xtcProbability": 0.0, "xtcThreshold": 0.1, "dryMultiplier": 0.0, "dryBase": 1.75, "dynatempRange": 0.0, "dynatempExp": 1.0, "mirostat": 0, "mirostatEnt": 5.0, "mirostatLr": 0.1, "logitBias": null, "grammarFile": null, "jsonSchemaFile": null, "backendSampling": false, "adaptiveTarget": -1.0, "adaptiveDecay": 0.90, "samplingSeq": null },
           "speculative": { "draftModel": null, "specType": "none", "draftNMax": 3, "draftThreads": null, "draftGpuLayers": "auto", "draftNMin": 0, "draftPSplit": 0.10, "draftPMin": 0.75, "draftHfRepo": null, "draftCacheTypeK": "f16", "draftCacheTypeV": "f16" },
           "reasoning": { "reasoning": "auto", "reasoningBudget": -1, "reasoningFormat": "auto", "reasoningBudgetMessage": null },
-          "logging": { "logVerbosity": 3, "logColors": "auto", "logTimestamps": true, "logPrefix": false }
+          "logging": { "logColors": "auto", "logTimestamps": true, "logPrefix": false }
         },
         "freeFormArgs": []
       }

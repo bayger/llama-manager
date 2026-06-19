@@ -245,7 +245,6 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
     name: "Logging",
     presetKey: "logging",
     fields: [
-      { key: "logVerbosity", flag: "--log-verbosity", type: "number", default: 3, description: "Verbosity (0-5)", advanced: true },
       { key: "logColors", flag: "--log-colors", type: "enum", default: "auto", options: ["on", "off", "auto"], description: "Colored logs", advanced: true },
       { key: "logTimestamps", flag: "--log-timestamps", type: "boolean", default: true, description: "Include timestamps", advanced: true, negate: true },
       { key: "logPrefix", flag: "--log-prefix", type: "boolean", default: false, description: "Enable log prefix", advanced: true },
@@ -395,7 +394,6 @@ const DEFAULT_PRESETS: ServerPresets = {
   },
   logging: {
     logFile: null,
-    logVerbosity: 3,
     logColors: "auto",
     logTimestamps: true,
     logPrefix: false,

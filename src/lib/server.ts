@@ -204,6 +204,7 @@ export function buildArgs(config: ConfigData): string[] {
   // Non-schema args
   if (config.hfToken) args.push("--hf-token", config.hfToken);
   args.push("--log-file", getLogFile(config));
+  args.push("--log-verbosity", "4");
 
   // Iterate schema to build args
   for (const cat of PRESET_CATEGORIES) {
