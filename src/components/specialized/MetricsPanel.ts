@@ -222,9 +222,9 @@ export class MetricsPanel extends Control {
       const pending = slot.state === "prompting"
         ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
         : 0;
-      const processedLen = Math.round((processed / limit) * CONTEXT_BAR_WIDTH);
-      const pendingLen = Math.round((pending / limit) * CONTEXT_BAR_WIDTH);
-      const freeLen = Math.max(0, CONTEXT_BAR_WIDTH - processedLen - pendingLen);
+      const processedLen = Math.floor((processed / limit) * CONTEXT_BAR_WIDTH);
+      const pendingLen = Math.floor((pending / limit) * CONTEXT_BAR_WIDTH);
+      const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
       fg(canvas, "textMuted", `  ${SEP}  `);
       if (isActive) {
         fg(canvas, "success", "\u2588".repeat(processedLen));
