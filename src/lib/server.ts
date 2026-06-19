@@ -126,6 +126,7 @@ export function startServer(config: ConfigData): Promise<number> {
       relay(serverProcess.stdout);
       relay(serverProcess.stderr);
 
+      statusEmitter.emit("change");
       serverProcess.on("error", (err) => reject(err));
       serverProcess.on("exit", (code, signal) => {
         const wasRunning = serverProcess !== null;

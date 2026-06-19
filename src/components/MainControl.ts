@@ -5,6 +5,8 @@ import { Color, fg } from "../lib/theme";
 import type { Point, Rect, RenderContext, Size } from "./ui/types";
 import type { TabContext } from "../lib/tabcontext";
 import pkg from "../../package.json";
+import { getStatus, onServerStatusChange } from "../lib/server";
+import { formatUptime } from "../lib/utils";
 
 import { createServerTab } from "./tabs/ServerTab";
 import { createTasksTab } from "./tabs/TasksTab";
@@ -78,7 +80,6 @@ export class MainControl extends Column {
     this._activeTab = tab;
     this._tabBar.setSelectedIndex(TABS.indexOf(tab));
     this._tabContent.setActiveTab(tab);
-    this._statusBar.setActiveTab(tab);
 
     const control = this._tabContent.getActiveControl();
     if (control) {
@@ -315,19 +316,58 @@ class StatusBar extends Control {
   focusable = false;
   backgroundColor: Color = "canvasSubtle";
   protected _message: string | null = null;
-  protected _activeTab: TabId = "Dashboard";
+  protected _serverRunning = false;
+  protected _serverPid: number | null = null;
+  protected _serverUptime = 0;
+  protected _statusUnsubscribe: (() => void) | null = null;
+  protected _uptimeInterval: ReturnType<typeof setInterval> | null = null;
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 80, height: 1 };
   }
 
-  setMessage(msg: string | null): void {
-    this._message = msg;
-    this.markDirty();
+  onInit(): void {
+    super.onInit();
+    this.updateServerStatus();
+    this._statusUnsubscribe = onServerStatusChange(() => {
+      this.updateServerStatus();
+    });
   }
 
-  setActiveTab(tab: TabId): void {
-    this._activeTab = tab;
+  onDestroy(): void {
+    super.onDestroy();
+    if (this._statusUnsubscribe) {
+      this._statusUnsubscribe();
+      this._statusUnsubscribe = null;
+    }
+    if (this._uptimeInterval) {
+      clearInterval(this._uptimeInterval);
+      this._uptimeInterval = null;
+    }
+  }
+
+  updateServerStatus(): void {
+    const status = getStatus();
+    this._serverRunning = status.running;
+    this._serverPid = status.pid;
+    this._serverUptime = status.uptime;
+    this.markDirty();
+
+    if (this._uptimeInterval) {
+      clearInterval(this._uptimeInterval);
+      this._uptimeInterval = null;
+    }
+    if (status.running) {
+      this._uptimeInterval = setInterval(() => {
+        const s = getStatus();
+        this._serverUptime = s.uptime;
+        this.markDirty();
+      }, 1000);
+    }
+  }
+
+  setMessage(msg: string | null): void {
+    this._message = msg;
     this.markDirty();
   }
 
@@ -347,14 +387,23 @@ class StatusBar extends Control {
       fg(canvas, "textMuted", "? help");
       leftLen = this._message.length + 10;
     } else {
-      fg(canvas, "accentColor", this._activeTab);
+      fg(canvas, "textMuted", "Server: ");
+      const statusColor: Color = this._serverRunning ? "success" : "danger";
+      const statusLabel = this._serverRunning ? "Running" : "Stopped";
+      fg(canvas, statusColor, statusLabel);
+      if (this._serverRunning) {
+        fg(canvas, "textMuted", ` (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`);
+      }
       fg(canvas, "borderMuted", "  │  ");
       fg(canvas, "textMuted", "F1-F6 navigate");
       fg(canvas, "borderMuted", "  │  ");
       fg(canvas, "textMuted", "q quit");
       fg(canvas, "borderMuted", "  │  ");
       fg(canvas, "textMuted", "? help");
-      leftLen = this._activeTab.length + 40;
+      const serverLen = this._serverRunning
+        ? `Server: Running (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`.length
+        : "Server: Stopped".length;
+      leftLen = serverLen + 40;
     }
 
     const padding = 2;
