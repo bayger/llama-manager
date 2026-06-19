@@ -21,11 +21,7 @@ const STATE_COLOR: Record<string, Color> = {
 const THINKING_ICON = "\u221e";
 const SEP = "\u2502";
 
-function progressBar(width: number, progress: number): string {
-  const filled = Math.round(progress * width);
-  const empty = width - filled;
-  return "\u2588".repeat(filled) + "\u2591".repeat(empty);
-}
+const CONTEXT_BAR_WIDTH = 32;
 
 function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
   const segments = 10;
@@ -46,22 +42,21 @@ function padLeft(n: number, w: number): string {
 function slotHeight(s: SlotMetrics): number {
   // Line 1: header (always)
   let h = 1;
-  // Early return if truly idle (no lastTask, no live data)
+  // Early return if truly idle (no lastTask, no live data, no context info)
   if (
     !s.lastTask &&
     s.generationSpeed === null &&
     s.promptSpeed === null &&
     s.contextSize === 0 &&
-    s.checkpoints.length === 0
+    s.checkpoints.length === 0 &&
+    s.nCtxSlot === null
   ) {
     return h;
   }
-  // Line 2: speed + context + checkpoints
+  // Line 2: speed + context bar + checkpoints
   h++;
-  // Line 3: prompt progress (if prompting) or last task summary
-  if (s.promptProgress !== null && s.state === "prompting") {
-    h++;
-  } else if (s.lastTask) {
+  // Line 3: last task summary
+  if (s.lastTask) {
     h++;
   }
   // Line 4: draft + truncation (only with lastTask)
@@ -195,25 +190,61 @@ export class MetricsPanel extends Control {
       slot.generationSpeed === null &&
       slot.promptSpeed === null &&
       slot.contextSize === 0 &&
-      slot.checkpoints.length === 0
+      slot.checkpoints.length === 0 &&
+      slot.nCtxSlot === null
     ) {
       return cy;
     }
 
-    // Line 2: Live speed + context + checkpoints
+    // Line 2: Live speed + decoded count + context bar + checkpoints
+    const isActive = slot.state !== "idle";
     canvas.moveTo(x, cy);
     fg(canvas, "textMuted", "  ");
     if (slot.generationSpeed !== null) {
       fg(canvas, "textMuted", "TG ");
       fg(canvas, "success", `${slot.generationSpeed.toFixed(1)} t/s`);
+      if (slot.decodedTokens !== null) {
+        fg(canvas, "textMuted", ` (${slot.decodedTokens} tok)`);
+      }
     } else if (slot.promptSpeed !== null && slot.state === "prompting") {
       fg(canvas, "textMuted", "PP ");
       fg(canvas, "info", `${slot.promptSpeed.toFixed(0)} t/s`);
-    } else {
-      fg(canvas, "textMuted", "...");
     }
-    fg(canvas, "textMuted", `  ${SEP}  Context `);
-    fg(canvas, "text", `${formatNum(slot.contextSize)} tok`);
+
+    // Context bar (always visible when limit known)
+    // Green = already processed, Orange = waiting to be processed, Gray = free
+    const limit = slot.nCtxSlot;
+    if (limit !== null && limit > 0) {
+      const cached = slot.cachedTokens ?? 0;
+      const processed = slot.state === "prompting"
+        ? cached
+        : slot.state === "generating"
+          ? ((slot.pendingTokens ?? 0) + (slot.decodedTokens ?? 0))
+          : slot.contextSize;
+      const pending = slot.state === "prompting"
+        ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
+        : 0;
+      const totalUsed = processed + pending;
+      const totalLen = Math.min(Math.floor((totalUsed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
+      const processedLen = Math.min(Math.floor((processed / limit) * CONTEXT_BAR_WIDTH), totalLen);
+      const pendingLen = totalLen - processedLen;
+      const freeLen = CONTEXT_BAR_WIDTH - totalLen;
+      const usageRatio = totalUsed / limit;
+      const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
+      fg(canvas, "textMuted", `  ${SEP}  Ctx `);
+      if (isActive) {
+        fg(canvas, "success", "\u2588".repeat(processedLen));
+        fg(canvas, "warning", "\u2593".repeat(pendingLen));
+        fg(canvas, freeColor, "\u2591".repeat(freeLen));
+      } else {
+        fg(canvas, "textMuted", "\u2588".repeat(processedLen) + "\u2591".repeat(pendingLen + freeLen));
+      }
+      fg(canvas, "textMuted", `  ${formatNum(totalUsed)}/${formatNum(limit)}`);
+    } else if (slot.contextSize > 0) {
+      fg(canvas, "textMuted", `  ${SEP}  Context `);
+      fg(canvas, "text", `${formatNum(slot.contextSize)} tok`);
+    }
+
     if (slot.checkpoints.length > 0) {
       const bar = checkpointBar(slot.contextSize, slot.checkpoints);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
@@ -223,16 +254,8 @@ export class MetricsPanel extends Control {
     }
     cy++;
 
-    // Line 3: Prompt progress bar or last task summary
-    if (slot.promptProgress !== null && slot.state === "prompting") {
-      const barWidth = Math.max(10, Math.min(40, width - 40));
-      const bar = progressBar(barWidth, Math.min(1, slot.promptProgress));
-      canvas.moveTo(x, cy);
-      fg(canvas, "textMuted", "  ");
-      fg(canvas, "accent", bar);
-      fg(canvas, "textMuted", ` ${(slot.promptProgress * 100).toFixed(0)}%`);
-      cy++;
-    } else if (slot.lastTask) {
+    // Line 3: last task summary
+    if (slot.lastTask) {
       canvas.moveTo(x, cy);
       fg(canvas, "textMuted", "  ");
       fg(canvas, "textMuted", "PP ");

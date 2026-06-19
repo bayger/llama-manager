@@ -10,9 +10,13 @@ export interface SlotMetrics {
   state: "idle" | "prompting" | "generating";
   taskId: number | null;
   generationSpeed: number | null;
+  decodedTokens: number | null;
   promptSpeed: number | null;
   promptProgress: number | null;
   contextSize: number;
+  nCtxSlot: number | null;
+  cachedTokens: number | null;
+  pendingTokens: number | null;
   thinking: boolean;
   lastTask: CompletedTask | null;
   checkpoints: SlotCheckpoint[];
@@ -83,6 +87,8 @@ const globalAccum: GlobalAccum = {
 };
 
 const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*processing task/;
+const newPromptRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*(\d+),\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
+const cachedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
 const promptProgressRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt processing,\s*n_tokens\s*=\s*(\d+),\s*progress\s*=\s*([\d.]+),\s*t\s*=\s*[\d.]+\s*s\s*\/\s*([\d.]+)\s*tokens per second/;
 const reasoningRegex = /reasoning-budget:\s*(activated|deactivated)/;
@@ -105,9 +111,13 @@ function ensureSlot(slotId: number): SlotMetrics {
       state: "idle",
       taskId: null,
       generationSpeed: null,
+      decodedTokens: null,
       promptSpeed: null,
       promptProgress: null,
       contextSize: 0,
+      nCtxSlot: null,
+      cachedTokens: null,
+      pendingTokens: null,
       thinking: false,
       lastTask: null,
       checkpoints: [],
@@ -184,7 +194,32 @@ export function processLine(line: string) {
     slot.thinking = false;
     slot.promptProgress = null;
     slot.generationSpeed = null;
+    slot.decodedTokens = null;
     slot.promptSpeed = null;
+    slot.cachedTokens = null;
+    slot.pendingTokens = null;
+    notify();
+    return;
+  }
+
+  if ((m = line.match(newPromptRegex))) {
+    const slotId = parseInt(m[1]);
+    const slot = ensureSlot(slotId);
+    const taskId = parseInt(m[2]);
+    slot.taskId = taskId;
+    slot.nCtxSlot = parseInt(m[3]);
+    slot.pendingTokens = parseInt(m[4]);
+    slot.cachedTokens = 0;
+    slot.decodedTokens = 0;
+    notify();
+    return;
+  }
+
+  if ((m = line.match(cachedRegex))) {
+    const slotId = parseInt(m[1]);
+    const slot = ensureSlot(slotId);
+    if (slot.taskId === null) return;
+    slot.cachedTokens = parseInt(m[3]);
     notify();
     return;
   }
@@ -195,6 +230,7 @@ export function processLine(line: string) {
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
     slot.state = "generating";
     slot.generationSpeed = parseFloat(m[4]);
+    slot.decodedTokens = parseInt(m[3]);
     notify();
     return;
   }
@@ -310,8 +346,11 @@ export function processLine(line: string) {
     slot.state = "idle";
     slot.taskId = null;
     slot.generationSpeed = null;
+    slot.decodedTokens = null;
     slot.promptSpeed = null;
     slot.promptProgress = null;
+    slot.cachedTokens = null;
+    slot.pendingTokens = null;
     slot.contextSize = ctxSize;
     slot.lastTask = completed;
     notify();
