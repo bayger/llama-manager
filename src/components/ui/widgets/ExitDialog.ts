@@ -58,7 +58,7 @@ export class ExitDialog extends Modal {
 export function createExitDialog(message: string = "The server is still running. What would you like to do?"): ExitDialog {
   const dialog = new ExitDialog();
   dialog.title = "Exit";
-  dialog.setMinSize(42, 9);
+  dialog.setMinSize(60, 9);
   dialog.setMaxSize(60, 15);
   dialog.message = message;
   dialog.setButtons([
