@@ -138,7 +138,7 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
   {
     name: "Logs",
     fields: [
-      { key: "maxLogLines", type: "number", default: 2000, description: "Max lines kept in memory" },
+      { key: "maxLogLines", type: "number", default: 2000, description: "Max lines kept in memory (~0.65 MB per 1k)" },
     ],
     getter: (config) => ({
       maxLogLines: config.logs.maxLogLines,
@@ -150,7 +150,7 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
   {
     name: "Tasks",
     fields: [
-      { key: "maxStored", type: "number", default: 10000, description: "Max stored tasks" },
+      { key: "maxStored", type: "number", default: 10000, description: "Max stored tasks (~0.5 MB per 1k)" },
       { key: "autoParse", type: "boolean", default: true, description: "Auto-parse task results" },
     ],
     getter: (config) => ({
