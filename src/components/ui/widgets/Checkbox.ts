@@ -1,5 +1,6 @@
 import { Control } from "../Control";
 import { fg, fgBg } from "../../../lib/theme";
+import { focusManager } from "../FocusManager";
 import type { Point, Size, RenderContext } from "../types";
 
 export interface CheckboxConfig {
@@ -78,6 +79,14 @@ export class Checkbox extends Control {
       this._checked = !this._checked;
       this.markDirty();
       if (this._action) this._action(this._checked);
+      return true;
+    }
+    if (key === "UP" || key === "k") {
+      focusManager.focusPrev();
+      return true;
+    }
+    if (key === "DOWN" || key === "j") {
+      focusManager.focusNext();
       return true;
     }
     return false;
