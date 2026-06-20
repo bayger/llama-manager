@@ -110,7 +110,7 @@ export class LogsViewer extends Control {
       if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
         fgBg(canvas, "textMuted", "canvasSubtle", " ".repeat(sw));
       } else {
-        fg(canvas, "canvasSubtle", " ".repeat(sw));
+        fgBg(canvas, "canvasSubtle", "canvas", " ".repeat(sw));
       }
     }
   }
