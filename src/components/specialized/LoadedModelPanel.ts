@@ -21,6 +21,9 @@ export interface ParsedModelInfo {
   vocabSize: number;
   gpuOffloaded: string;
   gpuVram: string;
+  kvCacheTypeK: string;
+  kvCacheTypeV: string;
+  kvCacheSize: string;
 }
 
 const emitter = new EventEmitter();
@@ -46,6 +49,7 @@ const reCtxRuntime = /llama_context: n_ctx\s+= (\d+)/;
 const reVocab = /print_info: n_vocab\s+= (\d+)/;
 const reGpuOffload = /load_tensors: offloaded (\d+)\/(\d+) layers to GPU/;
 const reGpuVram = /load_tensors:\s+Vulkan\d+\s+model buffer size =\s+([\d.]+)\s+MiB/;
+const reKvCache = /llama_kv_cache: size = ([\d.]+)\s+MiB \(\s*\d+ cells, \s*\d+ layers, \s*\d+\/\d+ seqs\), K \((\w+)\): ([\d.]+)\s+MiB, V \((\w+)\):/;
 const reModelLoaded = /srv\s+llama_server: model loaded/;
 
 const accum: Partial<ParsedModelInfo> = {};
@@ -129,6 +133,13 @@ export function processModelLine(line: string): void {
     return;
   }
 
+  if ((m = line.match(reKvCache))) {
+    accum.kvCacheTypeK = m[2];
+    accum.kvCacheTypeV = m[4];
+    accum.kvCacheSize = `${m[1]} MiB`;
+    return;
+  }
+
   if ((m = line.match(reModelLoaded))) {
     if (accum.name) {
       currentModel = {
@@ -148,6 +159,9 @@ export function processModelLine(line: string): void {
         vocabSize: accum.vocabSize || 0,
         gpuOffloaded: accum.gpuOffloaded || "0/0",
         gpuVram: accum.gpuVram || "0 MiB",
+        kvCacheTypeK: accum.kvCacheTypeK || "(unknown)",
+        kvCacheTypeV: accum.kvCacheTypeV || "(unknown)",
+        kvCacheSize: accum.kvCacheSize || "(unknown)",
       };
       notify();
     }
@@ -189,7 +203,7 @@ export class LoadedModelPanel extends Control {
     }
     return {
       width: parentSize?.width ?? this.rect.width,
-      height: 3,
+      height: 4,
     };
   }
 
@@ -241,6 +255,15 @@ export class LoadedModelPanel extends Control {
     fg(canvas, "success", model.gpuOffloaded);
     fg(canvas, "textMuted", `  \u2502  VRAM `);
     fg(canvas, "info", model.gpuVram);
+    cy++;
+
+    if (cy >= y + this.rect.height) return;
+    canvas.moveTo(x, cy);
+    fg(canvas, "textMuted", "  ");
+    fg(canvas, "textMuted", "KV Cache ");
+    fg(canvas, "text", `${model.kvCacheTypeK} / ${model.kvCacheTypeV}`);
+    fg(canvas, "textMuted", `  \u2502  Size `);
+    fg(canvas, "info", model.kvCacheSize);
     cy++;
   }
 
