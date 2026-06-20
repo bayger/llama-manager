@@ -117,14 +117,14 @@ export function startServer(config: ConfigData): Promise<number> {
           buf = parts.pop() || "";
           for (const part of parts) {
             if (part.length > 0) {
-               serverLogLines.push(part);
-               if (serverLogLines.length > maxLogLines) {
-                 serverLogLines.splice(0, serverLogLines.length - maxLogLines);
-               }
+              serverLogLines.push(part);
+              if (serverLogLines.length > maxLogLines) {
+                serverLogLines.splice(0, serverLogLines.length - maxLogLines);
+              }
               logEmitter.emit("log", part);
-               logParser.processLine(part);
-               processMetricLine(part);
-               processModelLine(part);
+              logParser.processLine(part);
+              processMetricLine(part);
+              processModelLine(part);
             }
           }
         });

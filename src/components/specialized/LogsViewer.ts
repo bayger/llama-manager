@@ -207,8 +207,4 @@ export class LogsViewer extends Control {
 
     return false;
   }
-
-  onFocus(): void {
-    super.onFocus();
-  }
 }

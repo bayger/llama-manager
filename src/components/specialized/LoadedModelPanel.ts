@@ -49,6 +49,8 @@ const reCtxRuntime = /llama_context: n_ctx\s+= (\d+)/;
 const reVocab = /print_info: n_vocab\s+= (\d+)/;
 const reGpuOffload = /load_tensors: offloaded (\d+)\/(\d+) layers to GPU/;
 const reGpuVram = /load_tensors:\s+Vulkan\d+\s+model buffer size =\s+([\d.]+)\s+MiB/;
+// Matches Vulkan backend format: "K (f16): 512.00 MiB, V (f16): 512.00 MiB"
+// CPU backend uses different format, falls back to "(unknown)"
 const reKvCache = /llama_kv_cache: size = ([\d.]+)\s+MiB \(\s*\d+ cells, \s*\d+ layers, \s*\d+\/\d+ seqs\), K \((\w+)\): ([\d.]+)\s+MiB, V \((\w+)\):/;
 const reModelLoaded = /srv\s+llama_server: model loaded/;
 
@@ -209,7 +211,7 @@ export class LoadedModelPanel extends Control {
 
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width } = this.rect;
+    const { x, y } = this.rect;
     const model = getModelInfo();
 
     if (!model) {

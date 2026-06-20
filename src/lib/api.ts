@@ -1,6 +1,6 @@
 import { ConfigData, getActivePresets } from "./config";
 
-export function getBaseUrl(config: ConfigData): string {
+function getBaseUrl(config: ConfigData): string {
   const p = getActivePresets(config);
   const host = p.server.host || "127.0.0.1";
   const port = p.server.port || 8080;
