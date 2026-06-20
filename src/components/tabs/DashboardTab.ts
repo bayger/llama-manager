@@ -1,13 +1,12 @@
 import { Control } from "../ui/Control";
 import { Column, Row } from "../ui/Layout";
 import { Button } from "../ui/widgets/Button";
-import { Spacer } from "../ui/widgets/Spacer";
 import { Label } from "../ui/widgets/Label";
 import { Section } from "../ui/widgets/Section";
-import { LogsViewer } from "../specialized/LogsViewer";
 import { MetricsPanel } from "../specialized/MetricsPanel";
+import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
 import { fg } from "../../lib/theme";
-import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server";
+import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
 import { fireAsync } from "../../lib/utils";
 import { BACKEND_LABELS } from "../../lib/versions";
 import type { TabContext } from "../../lib/tabcontext";
@@ -20,13 +19,11 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _profileLabel: Label;
   protected _versionLabel: Label;
+  protected _modelSection: Section;
   protected _metricsSection: Section;
-  protected _logsSection: Section;
+  protected _modelPanel: LoadedModelPanel;
   protected _metricsPanel: MetricsPanel;
-  protected _logsControl: LogsViewer;
-  protected _logUnsub: (() => void) | null = null;
   protected _statusUnsub: (() => void) | null = null;
-  protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: TabContext) {
     super();
@@ -82,26 +79,22 @@ export class DashboardControl extends Control {
     };
     this._buttonRow.add(this._versionLabel);
 
+    this._modelPanel = new LoadedModelPanel();
     this._metricsPanel = new MetricsPanel();
-    this._logsControl = new LogsViewer({
-      getLines: () => serverLogLines,
-      emptyMessage: "Start the server to see logs",
-    });
-    this._logsControl.flex = 1;
+
+    this._modelSection = new Section();
+    this._modelSection.title = "Loaded Model";
+    this._modelSection.add(this._modelPanel);
 
     this._metricsSection = new Section();
     this._metricsSection.title = "Realtime Metrics";
     this._metricsSection.add(this._metricsPanel);
-
-    this._logsSection = new Section();
-    this._logsSection.title = "Live Logs";
-    this._logsSection.add(this._logsControl);
-    this._logsSection.flex = 1;
+    this._metricsSection.flex = 1;
 
     this._column = new Column();
     this._column.add(this._buttonRow);
+    this._column.add(this._modelSection);
     this._column.add(this._metricsSection);
-    this._column.add(this._logsSection);
 
     this.add(this._column);
   }
@@ -143,13 +136,6 @@ export class DashboardControl extends Control {
 
     this.updateProfileLabel();
 
-    this._logUnsub = onServerLog(() => {
-      if (this._logRenderTimer) clearTimeout(this._logRenderTimer);
-      this._logRenderTimer = setTimeout(() => {
-        this.markDirty();
-      }, 200);
-    });
-
     this._statusUnsub = onServerStatusChange(() => {
       this.markDirty();
       this._ctx?.showCursor();
@@ -159,17 +145,9 @@ export class DashboardControl extends Control {
   }
 
   onDestroy(): void {
-    if (this._logUnsub) {
-      this._logUnsub();
-      this._logUnsub = null;
-    }
     if (this._statusUnsub) {
       this._statusUnsub();
       this._statusUnsub = null;
-    }
-    if (this._logRenderTimer) {
-      clearTimeout(this._logRenderTimer);
-      this._logRenderTimer = null;
     }
     this._ctx = null;
   }

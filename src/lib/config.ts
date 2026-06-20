@@ -67,6 +67,9 @@ export interface ConfigData {
     pollIntervalMs: number;
     killServerOnExit: boolean;
   };
+  logs: {
+    maxLogLines: number;
+  };
   tasks: {
     maxStored: number;
     autoParse: boolean;
@@ -422,6 +425,9 @@ const DEFAULT_CONFIG: ConfigData = {
     pollIntervalMs: 2000,
     killServerOnExit: false,
   },
+  logs: {
+    maxLogLines: 2000,
+  },
   tasks: {
     maxStored: 10000,
     autoParse: true,
@@ -532,6 +538,10 @@ export async function loadConfig(): Promise<ConfigData> {
       dashboard: {
         ...DEFAULT_CONFIG.dashboard,
         ...(migrated.dashboard || {}),
+      },
+      logs: {
+        ...DEFAULT_CONFIG.logs,
+        ...(migrated.logs || {}),
       },
       tasks: {
         ...DEFAULT_CONFIG.tasks,

@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import { ConfigData, PRESET_CATEGORIES, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config";
 import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
+import { processModelLine, resetModelInfo } from "../components/specialized/LoadedModelPanel";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -28,6 +29,10 @@ statusEmitter.setMaxListeners(10);
 
 const MAX_LOG_LINES = 2000;
 export const serverLogLines: string[] = [];
+let maxLogLines = MAX_LOG_LINES;
+export function setMaxLogLines(n: number): void {
+  maxLogLines = Math.max(1, n);
+}
 
 export function onServerLog(listener: (line: string) => void): () => void {
   logEmitter.on("log", listener);
@@ -113,12 +118,13 @@ export function startServer(config: ConfigData): Promise<number> {
           for (const part of parts) {
             if (part.length > 0) {
               serverLogLines.push(part);
-              if (serverLogLines.length > MAX_LOG_LINES) {
-                serverLogLines.splice(0, serverLogLines.length - MAX_LOG_LINES);
+              if (serverLogLines.length > maxLogLines) {
+                serverLogLines.splice(0, serverLogLines.length - maxLogLines);
               }
               logEmitter.emit("log", part);
               logParser.processLine(part);
               processMetricLine(part);
+              processModelLine(part);
             }
           }
         });
@@ -134,6 +140,7 @@ export function startServer(config: ConfigData): Promise<number> {
         serverStartTime = null;
         if (wasRunning) {
           resetMetrics();
+          resetModelInfo();
         }
         if (wasRunning && code !== 0 && code !== null) {
           serverLogLines.push(`[server] Process exited with code ${code}`);

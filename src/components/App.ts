@@ -3,7 +3,7 @@ import { setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme";
 import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
-import { stopServer } from "../lib/server";
+import { stopServer, setMaxLogLines } from "../lib/server";
 import type { RenderContext } from "./ui/types";
 import type { TabContext } from "../lib/tabcontext";
 import { Framebuffer } from "../lib/framebuffer";
@@ -33,6 +33,7 @@ export class App {
   async start(): Promise<void> {
     const config = await loadConfig();
     setActiveTheme(config.themeName);
+    setMaxLogLines(config.logs.maxLogLines);
     taskStore.init(config);
 
     this._fb = new Framebuffer();
@@ -52,7 +53,10 @@ export class App {
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       forceRender: () => this.forceRender(),
       getConfig: () => config,
-      setConfig: (c: ConfigData) => { Object.assign(config, c); },
+      setConfig: (c: ConfigData) => {
+        Object.assign(config, c);
+        if (c.logs?.maxLogLines !== undefined) setMaxLogLines(c.logs.maxLogLines);
+      },
       showCursor: () => {
         if (this._canvas) {
           this._canvas.showTerminalCursor();
@@ -136,7 +140,7 @@ export class App {
       {
         title: "Navigation",
         keys: [
-          ["F1-F6", "Switch tabs"],
+          ["F1-F7", "Switch tabs"],
           ["Tab / Shift+Tab", "Move focus"],
           ["Enter", "Confirm / select"],
           ["Esc", "Cancel / go back"],
@@ -153,11 +157,12 @@ export class App {
         title: "Tab Shortcuts",
         keys: [
           ["F1", "Dashboard - metrics and server control"],
-          ["F2", "Tasks - inference task history"],
-          ["F3", "Profiles - preset editing and management"],
-          ["F4", "Versions - install and switch llama.cpp builds"],
-          ["F5", "Models - browse, download, and manage GGUF models"],
-          ["F6", "Options - global application settings"],
+          ["F2", "Logs - live server log viewer"],
+          ["F3", "Tasks - inference task history"],
+          ["F4", "Profiles - preset editing and management"],
+          ["F5", "Versions - install and switch llama.cpp builds"],
+          ["F6", "Models - browse, download, and manage GGUF models"],
+          ["F7", "Options - global application settings"],
         ],
       },
     ];
