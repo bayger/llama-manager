@@ -170,7 +170,7 @@ export class App {
     term(CURSOR_HIDE);
     diffToTerminal(fb.back, fb.front, (text) => term(text), width, height);
 
-    term(`\x1b[${canvas.terminalCursorY + 1};${canvas.terminalCursorX + 1}H`);
+    term(`\x1b[${canvas.terminalCursorY};${canvas.terminalCursorX}H`);
     if (canvas.terminalCursorVisible) {
       term(CURSOR_SHOW);
     }
