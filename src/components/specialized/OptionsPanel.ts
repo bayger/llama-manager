@@ -1,18 +1,84 @@
-import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme.js";
-import { focusManager } from "../ui/FocusManager.js";
-import { ConfigData, saveConfig } from "../../lib/config.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Point, Size, RenderContext } from "../ui/types.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme, setThemeMode, getThemeMode, themeHasLightVariant } from "../../lib/theme";
+import type { Color } from "../../lib/theme";
+import { focusManager } from "../ui/FocusManager";
+import { Section } from "../ui/widgets/Section";
+import { ConfigData, saveConfig } from "../../lib/config";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size, RenderContext } from "../ui/types";
+import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
 
 const KEY_COL_WIDTH = 22;
 const THEME_PICKER_WIDTH = 30;
 
+const V = "\u2502";
+
+class ThemePickerControl extends Section {
+  protected _index = 0;
+  protected _scroll = 0;
+
+  measure(parentSize: Size): Size {
+    return { width: THEME_PICKER_WIDTH, height: parentSize.height };
+  }
+
+  setState(index: number, scroll: number): void {
+    this._index = index;
+    this._scroll = scroll;
+    this.markDirty();
+  }
+
+  draw(ctx: RenderContext): void {
+    const { canvas } = ctx;
+    const { x, y, height } = this.rect;
+    const names = getThemeNames();
+
+    canvas.moveTo(x, y);
+    canvas.bold();
+    fg(canvas, "accent", `${V}`);
+    fg(canvas, "accent", ` ${this.title}`);
+
+    for (let row = 1; row < height; row++) {
+      canvas.moveTo(x, y + row);
+      canvas.setForegroundColor("borderMuted");
+      canvas.write(V);
+    }
+
+    for (let i = 1; i < height; i++) {
+      const themeIdx = i - 1 + this._scroll;
+      if (themeIdx >= names.length) break;
+
+      canvas.moveTo(x + 2, y + i);
+      const name = names[themeIdx]!;
+      const isSelected = themeIdx === this._index;
+      const resolved = loadTheme(name);
+
+      if (isSelected) {
+        fg(canvas, "accent", ">");
+        if (resolved) {
+          fgBg(canvas, resolved.canvas as Color, resolved.text as Color, "\u2588");
+          fgBg(canvas, resolved.text as Color, resolved.canvas as Color, "\u2588");
+          fgBg(canvas, resolved.accent as Color, resolved.canvas as Color, "\u2588");
+        }
+        fg(canvas, "accentColor", ` ${name}`);
+      } else {
+        fg(canvas, "borderMuted", " ");
+        if (resolved) {
+          fgBg(canvas, resolved.canvas as Color, resolved.text as Color, "\u2588");
+          fgBg(canvas, resolved.text as Color, resolved.canvas as Color, "\u2588");
+          fgBg(canvas, resolved.accent as Color, resolved.canvas as Color, "\u2588");
+          fg(canvas, "textMuted", ` ${name}`);
+        } else {
+          fg(canvas, "textMuted", `     ${name}`);
+        }
+      }
+    }
+  }
+}
+
 export interface OptionFieldDef {
   key: string;
-  type: "string" | "number" | "boolean";
+  type: "string" | "number" | "boolean" | "enum";
   default: unknown;
+  options?: string[];
   description: string;
 }
 
@@ -70,9 +136,21 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
     },
   },
   {
+    name: "Logs",
+    fields: [
+      { key: "maxLogLines", type: "number", default: 2000, description: "Max lines kept in memory (~0.65 MB per 1k)" },
+    ],
+    getter: (config) => ({
+      maxLogLines: config.logs.maxLogLines,
+    }),
+    setter: (config, values) => {
+      if (values.maxLogLines !== undefined) config.logs.maxLogLines = values.maxLogLines as number;
+    },
+  },
+  {
     name: "Tasks",
     fields: [
-      { key: "maxStored", type: "number", default: 10000, description: "Max stored tasks" },
+      { key: "maxStored", type: "number", default: 10000, description: "Max stored tasks (~0.5 MB per 1k)" },
       { key: "autoParse", type: "boolean", default: true, description: "Auto-parse task results" },
     ],
     getter: (config) => ({
@@ -87,12 +165,21 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
   {
     name: "Appearance",
     fields: [
+      { key: "themeMode", type: "enum", default: "dark", options: ["dark", "light"], description: "Theme mode" },
       { key: "themeName", type: "string", default: "opencode", description: "UI theme (Enter to browse themes)" },
     ],
     getter: (config) => ({
+      themeMode: config.themeMode,
       themeName: config.themeName,
     }),
     setter: (config, values) => {
+      if (values.themeMode !== undefined) {
+        const mode = values.themeMode as string;
+        if (mode === "dark" || mode === "light") {
+          config.themeMode = mode;
+          setThemeMode(mode);
+        }
+      }
       if (values.themeName !== undefined) {
         const name = values.themeName as string;
         if (name && getThemeNames().includes(name)) {
@@ -104,74 +191,36 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
   },
 ];
 
-interface RowInfo {
-  type: "header" | "field";
-  catIdx: number;
-  fieldIdx?: number;
-  field?: OptionFieldDef;
-}
-
-interface EditState {
-  row: number;
-  catIdx: number;
-  field: OptionFieldDef;
-  originalValue: unknown;
-  text: string;
-  cursor: number;
-}
-
-function formatFieldValue(field: OptionFieldDef, value: unknown): string {
-  if (value === null || value === undefined) return "(null)";
-  return String(value);
-}
-
-function formatForEdit(field: OptionFieldDef, value: unknown): string {
-  if (value === null || value === undefined) return "";
-  return String(value);
-}
-
-function parseValue(type: "string" | "number" | "boolean", text: string): unknown {
-  const trimmed = text.trim();
-  if (trimmed === "" || trimmed === "(null)") return null;
-
-  switch (type) {
-    case "number":
-      const n = Number(trimmed);
-      if (isNaN(n)) return null;
-      return n;
-    case "boolean":
-      return trimmed === "true";
-    case "string":
-      return trimmed;
-    default:
-      return trimmed;
-  }
-}
-
-function isNumericChar(char: string): boolean {
-  return char >= "0" && char <= "9";
-}
-
-export class OptionsPanel extends Control {
-  focusable = true;
-  protected _config: ConfigData | null = null;
+export class OptionsPanel extends EditableList {
   protected _ctx: TabContext | null = null;
-  protected _scrollOffset = 0;
-  protected _selectedIndex = 0;
-  protected _collapsed = new Set<number>();
-  protected _rows: RowInfo[] = [];
-  protected _edit: EditState | null = null;
   protected _themePickerMode = false;
   protected _themePickerIndex = 0;
   protected _themePickerScroll = 0;
   protected _themePickerOriginal = "";
+  protected _themePicker: ThemePickerControl;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
+    this._themePicker = new ThemePickerControl();
+    this._themePicker.title = "THEMES";
+    this._themePicker.visible = false;
+    this.add(this._themePicker);
+    this.buildRows();
+    this.clampSelection();
   }
 
-  buildRows(): void {
+  onDestroy(): void {
+    this._ctx = null;
+    if (this._edit) {
+      this._edit = null;
+      focusManager.activateTextInput(false);
+    }
+  }
+
+  // --- Abstract implementations ---
+
+  protected buildRows(): void {
     this._rows = [];
     for (let catIdx = 0; catIdx < OPTION_CATEGORIES.length; catIdx++) {
       this._rows.push({ type: "header", catIdx });
@@ -184,415 +233,145 @@ export class OptionsPanel extends Control {
     }
   }
 
-  clampSelection(): void {
-    const len = this._rows.length;
-    if (len === 0) {
-      this._selectedIndex = 0;
-      this._scrollOffset = 0;
-      return;
-    }
-    this._selectedIndex = Math.max(0, Math.min(this._selectedIndex, len - 1));
-    const maxScroll = Math.max(0, len - this.rect.height);
-    this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, maxScroll));
-    if (this._selectedIndex < this._scrollOffset) {
-      this._scrollOffset = this._selectedIndex;
-    }
-    if (this._selectedIndex >= this._scrollOffset + this.rect.height) {
-      this._scrollOffset = this._selectedIndex - this.rect.height + 1;
-    }
-  }
-
-  onInit(): void {
-    this.buildRows();
-    this.clampSelection();
-  }
-
-  onDestroy(): void {
-    this._config = null;
-    this._ctx = null;
-    if (this._edit) {
-      this._edit = null;
-      focusManager.activateTextInput(false);
-    }
-  }
-
-  measure(parentSize?: Size): Size {
-    return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
-  }
-
-  onLayout(): void {
-    this.clampSelection();
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    const canvas = ctx.canvas;
-    const { x, y: startY, width, height } = this.rect;
-    const config = this._ctx?.getConfig();
-
-    if (!config || this._rows.length === 0) {
-      this.needsRender = false;
-      return;
-    }
-
-    const pickerVisible = this._themePickerMode && width >= THEME_PICKER_WIDTH + 26;
-    const mainWidth = pickerVisible ? width - THEME_PICKER_WIDTH - 1 : width;
-
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, startY, mainWidth, height);
-    canvas.moveTo(x, startY);
-
-    for (let i = 0; i < height; i++) {
-      const visualRow = i + this._scrollOffset;
-      if (visualRow >= this._rows.length) break;
-
-      canvas.moveTo(x, startY + i);
-      canvas.styleReset();
-      const row = this._rows[visualRow]!;
-      const isSelected = visualRow === this._selectedIndex && this.focused && !this._themePickerMode;
-      const isEditing = !!(this._edit && visualRow === this._edit.row);
-
-      if (row.type === "header") {
-        this.renderHeader(canvas, row, isSelected, mainWidth);
-      } else if (row.type === "field" && row.field) {
-        this.renderField(canvas, row, isSelected, isEditing, mainWidth, config);
-      }
-    }
-
-    if (this._edit) {
-      this.renderCursor(canvas);
-    }
-
-    if (pickerVisible) {
-      this.renderThemePickerSidebar(canvas, x + mainWidth + 1, startY, THEME_PICKER_WIDTH, height);
-    }
-
-    this.needsRender = false;
-  }
-
-  renderCursor(canvas: FramebufferCanvas): void {
-    if (!this._edit) return;
-    const row = this._edit.row;
-    const screenY = this.rect.y + row - this._scrollOffset;
-    const valueStartX = this.rect.x + KEY_COL_WIDTH;
-    const cursorX = valueStartX + this._edit.cursor;
-    canvas.moveTo(cursorX, screenY);
-  }
-
-  renderHeader(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, width: number): void {
+  protected getRowValue(row: EditableRowInfo): unknown {
+    if (row.type !== "field" || !row.field || !this._ctx) return undefined;
+    const config = this._ctx.getConfig();
+    if (!config) return undefined;
     const cat = OPTION_CATEGORIES[row.catIdx]!;
-    const arrow = this._collapsed.has(row.catIdx) ? "▶" : "▼";
+    return cat.getter(config)[row.field.key];
+  }
+
+  protected setRowValue(row: EditableRowInfo, value: unknown): void {
+    if (row.type !== "field" || !row.field || !this._ctx) return;
+    const config = this._ctx?.getConfig();
+    if (!config) return;
+    OPTION_CATEGORIES[row.catIdx]!.setter(config, { [row.field.key]: value });
+    if (row.field.key === "themeMode" && value === "light" && !themeHasLightVariant(config.themeName)) {
+      this._ctx?.showMessage(`Warning: "${config.themeName}" has no light variant`);
+    }
+  }
+
+  protected getKeyColWidth(): number {
+    return KEY_COL_WIDTH;
+  }
+
+  protected supportsEnumCycling(): boolean {
+    return true;
+  }
+
+  protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, width: number): void {
+    const cat = OPTION_CATEGORIES[row.catIdx]!;
+    const arrow = this._collapsed.has(row.catIdx) ? "\u25b6" : "\u25bc";
     const headerText = ` ${arrow} ${cat.name}`;
 
     if (isSelected) {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, headerText);
-      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - headerText.length)));
-      canvas.styleReset();
+      const padded = headerText.padEnd(width);
+      fgBg(canvas, "selectedText", "selectedBg", padded);
     } else {
-      fg(canvas, themeColors.accentColor, headerText);
+      fgBg(canvas, "accent", "canvasSubtle", headerText);
     }
-    canvas.styleReset();
   }
 
-  renderField(canvas: FramebufferCanvas, row: RowInfo, isSelected: boolean, isEditing: boolean, width: number, config: ConfigData): void {
+  protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, isEditing: boolean, width: number): void {
     const field = row.field!;
     const cat = OPTION_CATEGORIES[row.catIdx]!;
-    const data = cat.getter(config);
+    const config = this._ctx?.getConfig();
+    const data = config ? cat.getter(config) : {};
     const keyStr = ` ${field.key}`.padEnd(KEY_COL_WIDTH);
 
     if (isEditing && this._edit) {
       const value = this._edit.text;
-      fg(canvas, themeColors.warning, keyStr);
-      fg(canvas, themeColors.accent, value);
-  } else {
-        const value = formatFieldValue(field, data?.[field.key]);
-
-        let extra = "";
-        if (isSelected && field.type === "boolean") {
-          extra = " (toggle)";
-        }
-
-        const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
-        const desc = descSpace > 0 ? field.description.substring(0, descSpace) : "";
-
-        if (isSelected) {
-          fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, keyStr);
-          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, value);
-          fgBg(canvas, themeColors.info, themeColors.canvasSubtle, extra);
-          if (desc) {
-            fgBg(canvas, themeColors.textMuted, themeColors.canvasSubtle, "  " + desc);
-          }
-          const drawn = KEY_COL_WIDTH + value.length + extra.length + (desc ? 2 + desc.length : 0);
-          fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - drawn)));
-          canvas.styleReset();
-        } else {
-          fg(canvas, themeColors.textMuted, keyStr);
-          fg(canvas, themeColors.text, value);
-          fg(canvas, themeColors.textMuted, desc ? "  " + desc : "");
-        }
-      }
-    canvas.styleReset();
-  }
-
-  handleKey(key: string): boolean {
-    if (this._themePickerMode) {
-      return this.handleThemePickerKey(key);
-    }
-    if (this._edit) {
-      return this.handleEditKey(key);
-    }
-
-    const len = this._rows.length;
-    if (len === 0) return false;
-
-    if (key === "UP" || key === "k") {
-      if (this._selectedIndex > 0) {
-        this._selectedIndex--;
-        if (this._selectedIndex < this._scrollOffset) {
-          this._scrollOffset = this._selectedIndex;
-        }
-        this.markDirty();
-        return true;
-      }
-      return false;
-    }
-    if (key === "DOWN" || key === "j") {
-      if (this._selectedIndex < len - 1) {
-        this._selectedIndex++;
-        const viewportBottom = this._scrollOffset + this.rect.height;
-        if (this._selectedIndex >= viewportBottom) {
-          this._scrollOffset = this._selectedIndex - this.rect.height + 1;
-        }
-        this.markDirty();
-        return true;
-      }
-      return false;
-    }
-    if (key === "PAGE_UP") {
-      this._selectedIndex = Math.max(0, this._selectedIndex - this.rect.height);
-      this._scrollOffset = Math.max(0, this._scrollOffset - this.rect.height);
-      this.markDirty();
-      return true;
-    }
-    if (key === "PAGE_DOWN") {
-      this._selectedIndex = Math.min(len - 1, this._selectedIndex + this.rect.height);
-      this._scrollOffset = Math.min(len - this.rect.height, this._scrollOffset + this.rect.height);
-      this.markDirty();
-      return true;
-    }
-    if (key === "HOME") {
-      this._selectedIndex = 0;
-      this._scrollOffset = 0;
-      this.markDirty();
-      return true;
-    }
-    if (key === "END") {
-      this._selectedIndex = len - 1;
-      this._scrollOffset = Math.max(0, len - this.rect.height);
-      this.markDirty();
-      return true;
-    }
-
-    const row = this._rows[this._selectedIndex];
-    if (!row) return false;
-
-    if (key === "RETURN" || key === "ENTER") {
-      if (row.type === "header") {
-        this.toggleCategory(row.catIdx);
-        return true;
-      }
-      if (row.type === "field" && row.field) {
-        if (row.field.type === "boolean") {
-          this.toggleBoolean(row);
-          return true;
-        }
-        if (row.field.key === "themeName") {
-          this.openThemePicker();
-          return true;
-        }
-        this.startEdit(row);
-        return true;
-      }
-      return false;
-    }
-
-    if (key === "SPACE") {
-      if (row.type === "header") {
-        this.toggleCategory(row.catIdx);
-        return true;
-      }
-      return false;
-    }
-
-    return false;
-  }
-
-  handleEditKey(key: string): boolean {
-    if (!this._edit) return false;
-
-    if (key === "ESCAPE") {
-      this.cancelEdit();
-      return true;
-    }
-    if (key === "RETURN" || key === "ENTER") {
-      this.commitEdit();
-      return true;
-    }
-    if (key === "UP" || key === "DOWN" || key === "PAGE_UP" || key === "PAGE_DOWN") {
-      this.cancelEdit();
-      return this.handleKey(key);
-    }
-    if (key === "LEFT" || key === "CTRL_A" || key === "HOME") {
-      if (key === "LEFT") {
-        this._edit.cursor = Math.max(0, this._edit.cursor - 1);
-      } else {
-        this._edit.cursor = 0;
-      }
-      this.markDirty();
-      return true;
-    }
-    if (key === "RIGHT" || key === "CTRL_E" || key === "END") {
-      if (key === "RIGHT") {
-        this._edit.cursor = Math.min(this._edit.text.length, this._edit.cursor);
-      } else {
-        this._edit.cursor = this._edit.text.length;
-      }
-      this.markDirty();
-      return true;
-    }
-    if (key === "BACKSPACE" || key === "CTRL_H" || key === "\u007f" || key === "CTRL_W") {
-      if (key === "CTRL_W") {
-        const before = this._edit.text.slice(0, this._edit.cursor);
-        const match = before.match(/\S+\s*$/);
-        const newCursor = match ? this._edit.cursor - match[0].length : 0;
-        this._edit.text = this._edit.text.slice(0, newCursor) + this._edit.text.slice(this._edit.cursor);
-        this._edit.cursor = newCursor;
-      } else if (this._edit.cursor > 0) {
-        this._edit.text = this._edit.text.slice(0, this._edit.cursor - 1) + this._edit.text.slice(this._edit.cursor);
-        this._edit.cursor--;
-      }
-      if (this._edit.field.type === "number" && this._edit.text === "-") {
-        this._edit.text = "";
-      }
-      this.markDirty();
-      return true;
-    }
-    if (key === "DELETE" || key === "CTRL_D") {
-      if (this._edit.cursor < this._edit.text.length) {
-        this._edit.text = this._edit.text.slice(0, this._edit.cursor) + this._edit.text.slice(this._edit.cursor + 1);
-        if (this._edit.field.type === "number" && this._edit.text === "-") {
-          this._edit.text = "";
-        }
-        this.markDirty();
-        return true;
-      }
-      return false;
-    }
-    return false;
-  }
-
-  handleChar(char: string): boolean {
-    if (!this._edit) return false;
-    if (char.length !== 1) return false;
-
-    if (this._edit.field.type === "number") {
-      if (!isNumericChar(char) && char !== "-") return false;
-      if (char === "-" && this._edit.cursor !== 0) return false;
-      if (this._edit.text === "-" && char === "-") return false;
-    }
-
-    this._edit.text = this._edit.text.slice(0, this._edit.cursor) + char + this._edit.text.slice(this._edit.cursor);
-    this._edit.cursor++;
-    this.markDirty();
-    return true;
-  }
-
-  toggleBoolean(row: RowInfo): void {
-    if (row.type !== "field" || !row.field || !this._ctx) return;
-    const config = this._ctx.getConfig();
-    const cat = OPTION_CATEGORIES[row.catIdx]!;
-    const data = cat.getter(config);
-    const current = data[row.field.key];
-    const values = { [row.field.key]: current === true ? false : true };
-    cat.setter(config, values);
-    this.saveAndMessage(config, row.field);
-  }
-
-  startEdit(row: RowInfo): void {
-    if (row.type !== "field" || !row.field || !this._ctx) return;
-    const config = this._ctx.getConfig();
-    const cat = OPTION_CATEGORIES[row.catIdx]!;
-    const data = cat.getter(config);
-    const editValue = formatForEdit(row.field, data?.[row.field.key]);
-    this._edit = {
-      row: this._selectedIndex,
-      catIdx: row.catIdx,
-      field: row.field,
-      originalValue: data?.[row.field.key],
-      text: editValue,
-      cursor: editValue.length,
-    };
-    focusManager.activateTextInput(true);
-    this.markDirty();
-  }
-
-  commitEdit(): void {
-    if (!this._edit || !this._ctx) return;
-    const { catIdx, field, text } = this._edit;
-    const config = this._ctx.getConfig();
-    const cat = OPTION_CATEGORIES[catIdx]!;
-    const data = cat.getter(config);
-
-    const parsed = parseValue(field.type, text);
-    const changed = data[field.key] !== parsed;
-    cat.setter(config, { [field.key]: parsed });
-
-    this._edit = null;
-    focusManager.activateTextInput(false);
-
-    if (changed) {
-      this.saveAndMessage(config, field);
-    }
-
-    this.markDirty();
-  }
-
-  cancelEdit(): void {
-    if (!this._edit || !this._ctx) return;
-    const { catIdx, field, originalValue } = this._edit;
-    const config = this._ctx.getConfig();
-    const cat = OPTION_CATEGORIES[catIdx]!;
-    cat.setter(config, { [field.key]: originalValue });
-    this._edit = null;
-    focusManager.activateTextInput(false);
-    this.markDirty();
-  }
-
-  toggleCategory(catIdx: number): void {
-    if (this._collapsed.has(catIdx)) {
-      this._collapsed.delete(catIdx);
+      fgBg(canvas, "warning", "canvasSubtle", keyStr);
+      fgBg(canvas, "selected", "canvas", value);
     } else {
-      this._collapsed.add(catIdx);
+      const value = formatFieldValue(field, data?.[field.key]);
+
+      let extra = "";
+      if (isSelected && (field.type === "boolean" || field.type === "enum")) {
+        extra = " (toggle)";
+      }
+
+      const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
+      const desc = descSpace > 0 && field.description ? field.description.substring(0, descSpace) : "";
+
+      if (isSelected) {
+        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
+        fgBg(canvas, "selectedText", "selectedBg", padded.substring(0, width));
+      } else {
+        fgBg(canvas, "textMuted", "canvasSubtle", keyStr);
+        fgBg(canvas, "text", "canvasSubtle", value);
+        fgBg(canvas, "textMuted", "canvasSubtle", desc ? "  " + desc : "");
+      }
     }
-    this.buildRows();
-    this.clampSelection();
-    this.markDirty();
   }
 
-  saveAndMessage(config: ConfigData, field: OptionFieldDef): void {
+  protected saveAndMessage(): void {
+    const config = this._ctx?.getConfig();
+    if (!config) return;
     try {
       saveConfig(config);
       this._ctx?.setConfig(config);
-      this._ctx?.showMessage(`Saved ${field.key}`);
     } catch (e) {
       this._ctx?.showMessage(`Error saving: ${e}`);
     }
   }
 
+  // --- Theme picker hooks ---
+
+  protected isPickerVisible(): boolean {
+    return this._themePickerMode && this.rect.width >= THEME_PICKER_WIDTH + 26;
+  }
+
+  protected getDrawWidth(): number {
+    return this.isPickerVisible() ? this.rect.width - THEME_PICKER_WIDTH : this.rect.width;
+  }
+
+  onLayout(): void {
+    super.onLayout();
+    const { x, y, width, height } = this.rect;
+    if (this.isPickerVisible()) {
+      this._themePicker.visible = true;
+      this._themePicker.setState(this._themePickerIndex, this._themePickerScroll);
+      this._themePicker.layout({ x: x + width - THEME_PICKER_WIDTH, y, width: THEME_PICKER_WIDTH, height });
+    } else {
+      this._themePicker.visible = false;
+    }
+  }
+
+  // --- Override: theme picker + themeName special case ---
+
+  handleKey(key: string): boolean {
+    if (this._themePickerMode) {
+      return this.handleThemePickerKey(key);
+    }
+
+    // Intercept Enter on themeName to open picker instead of edit
+    if ((key === "RETURN" || key === "ENTER") && !this._edit) {
+      const row = this._rows[this._selectedIndex];
+      if (row?.type === "field" && row.field?.key === "themeName") {
+        this.openThemePicker();
+        return true;
+      }
+    }
+
+    // SPACE cycles enum fields
+    if (key === "SPACE") {
+      const row = this._rows[this._selectedIndex];
+      if (row?.type === "field" && row.field?.type === "enum" && row.field.options) {
+        this.cycleEnum(row);
+        return true;
+      }
+    }
+
+    return super.handleKey(key);
+  }
+
+  // --- Theme picker ---
+
   openThemePicker(): void {
     if (!this._ctx) return;
     const config = this._ctx.getConfig();
+    if (!config) return;
     this._themePickerOriginal = config.themeName;
     this._themePickerMode = true;
     this._themePickerIndex = 0;
@@ -601,7 +380,6 @@ export class OptionsPanel extends Control {
     const idx = names.indexOf(config.themeName);
     if (idx >= 0) this._themePickerIndex = idx;
     this._themePickerScroll = Math.max(0, this._themePickerIndex - Math.floor(this.rect.height / 2));
-    // Already on current theme, no need to re-apply
     this._ctx.forceRender();
     this.markDirty();
   }
@@ -613,9 +391,7 @@ export class OptionsPanel extends Control {
       if (config) config.themeName = this._themePickerOriginal;
     } else {
       const config = this._ctx?.getConfig();
-      if (config) {
-        saveConfig(config);
-      }
+      if (config) saveConfig(config);
     }
     this._themePickerMode = false;
     this._ctx?.forceRender();
@@ -629,6 +405,9 @@ export class OptionsPanel extends Control {
       setActiveTheme(name);
       const config = this._ctx?.getConfig();
       if (config) config.themeName = name;
+      if (!themeHasLightVariant(name) && getThemeMode() === "light") {
+        this._ctx?.showMessage(`Warning: "${name}" has no light variant`);
+      }
       this._ctx?.forceRender();
     };
     if (key === "UP" || key === "k") {
@@ -689,74 +468,10 @@ export class OptionsPanel extends Control {
     return false;
   }
 
-  renderThemePickerSidebar(canvas: FramebufferCanvas, startX: number, startY: number, width: number, height: number): void {
-    const names = getThemeNames();
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(startX, startY, width, height);
-    canvas.moveTo(startX, startY);
-    fgBg(canvas, themeColors.accent, themeColors.canvasSubtle, ` THEME PICKER `.padEnd(width).substring(0, width));
-
-    for (let i = 1; i < height; i++) {
-      const themeIdx = i - 1 + this._themePickerScroll;
-      if (themeIdx >= names.length) break;
-
-      canvas.moveTo(startX, startY + i);
-      canvas.styleReset();
-      const name = names[themeIdx]!;
-      const isSelected = themeIdx === this._themePickerIndex;
-      const resolved = loadTheme(name);
-
-      if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ">");
-        if (resolved) {
-          fgBg(canvas, resolved.canvas, resolved.text, "█");
-          fgBg(canvas, resolved.text, resolved.canvas, "█");
-          fgBg(canvas, resolved.accent, resolved.canvas, "█");
-        }
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, ` ${name}`);
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, " ".repeat(Math.max(0, width - 6 - name.length))+"<");
-      } else {
-        if (resolved) {
-          fgBg(canvas, themeColors.borderMuted, themeColors.canvasSubtle, " ");
-          fgBg(canvas, resolved.canvas, resolved.text, "█");
-          fgBg(canvas, resolved.text, resolved.canvas, "█");
-          fgBg(canvas, resolved.accent, resolved.canvas, "█");
-          fg(canvas, themeColors.textMuted, ` ${name}`);
-        } else {
-          fg(canvas, themeColors.textMuted, `     ${name}`);
-        }
-      }
-    }
-  }
-
-  onFocus(): void {
-    super.onFocus();
-    this.clampSelection();
-    this.markDirty();
-  }
-
   onBlur(): void {
     super.onBlur();
-    if (this._edit) {
-      this.cancelEdit();
-    }
     if (this._themePickerMode) {
       this.closeThemePicker(true);
     }
-  }
-
-  onMouseDown(point: Point): boolean {
-    if (this._rows.length === 0) return false;
-    const row = point.y - this.rect.y;
-    if (row < 0) return false;
-    const visualRow = row + this._scrollOffset;
-    if (visualRow >= 0 && visualRow < this._rows.length) {
-      this._selectedIndex = visualRow;
-      this.clampSelection();
-      this.markDirty();
-      return true;
-    }
-    return false;
   }
 }

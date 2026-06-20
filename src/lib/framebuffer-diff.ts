@@ -1,4 +1,4 @@
-import type { Cell } from "./framebuffer.js";
+import type { Cell } from "./framebuffer";
 
 function cellsEqual(a: Cell, b: Cell): boolean {
   return a.ch === b.ch && a.fg === b.fg && a.bg === b.bg && a.bold === b.bold;

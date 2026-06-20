@@ -1,8 +1,8 @@
 import fs from "fs-extra";
 import path from "path";
-import { getModelsDir } from "./config.js";
-import { ConfigData } from "./config.js";
-import { getDownloadUrl } from "./hf.js";
+import { getModelsDir } from "./config";
+import { ConfigData } from "./config";
+import { getDownloadUrl } from "./hf";
 
 export interface LocalModel {
   repoId: string;
@@ -169,6 +169,7 @@ export async function downloadModel(
   try {
     while (true) {
       if (signal?.aborted) {
+        readerObj.cancel().catch(() => {});
         writeStream.end();
         await fs.remove(tmpPath).catch(() => {});
         throw new Error("Download cancelled");
@@ -205,6 +206,7 @@ export async function downloadModel(
       }
     }
   } catch (err) {
+    readerObj.cancel().catch(() => {});
     writeStream.end();
     await fs.remove(tmpPath).catch(() => {});
     throw err;

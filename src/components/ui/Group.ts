@@ -1,5 +1,5 @@
-import { Control } from "./Control.js";
-import type { Rect } from "./types.js";
+import { Control } from "./Control";
+import type { Rect } from "./types";
 
 export class Group extends Control {
   measure(): { width: number; height: number } {

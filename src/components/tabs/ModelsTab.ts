@@ -1,14 +1,15 @@
-import { Control } from "../ui/Control.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { Label } from "../ui/widgets/Label.js";
-import { List, ListItem } from "../ui/widgets/List.js";
-import { TextInput } from "../ui/widgets/TextInput.js";
-import { ProgressBar } from "../ui/widgets/ProgressBar.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
-import { focusManager } from "../ui/FocusManager.js";
+import { Control } from "../ui/Control";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
+import { Column, Row } from "../ui/Layout";
+import { Button } from "../ui/widgets/Button";
+import { Spacer } from "../ui/widgets/Spacer";
+import { List, ListItem } from "../ui/widgets/List";
+import { TextInput } from "../ui/widgets/TextInput";
+import { ProgressBar } from "../ui/widgets/ProgressBar";
+import { Section } from "../ui/widgets/Section";
+import { fg, fgBg } from "../../lib/theme";
+import { StyledText } from "../ui/widgets/StyledText";
+import { focusManager } from "../ui/FocusManager";
 import {
   listLocalModels,
   deleteModel,
@@ -17,12 +18,12 @@ import {
   LocalModel,
   formatSize,
   getTotalModelsSize,
-} from "../../lib/models.js";
-import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf.js";
-import { saveConfig } from "../../lib/config.js";
-import { fireAsync } from "../../lib/utils.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size } from "../ui/types.js";
+} from "../../lib/models";
+import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
+import { saveConfig } from "../../lib/config";
+import { fireAsync } from "../../lib/utils";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size } from "../ui/types";
 
 type ViewMode = "local" | "search" | "results" | "files" | "downloading";
 
@@ -34,22 +35,24 @@ export class ModelsControl extends Control {
 
   // Local models
   protected _column: Column;
-  protected _headerLabel: Label;
   protected _buttonRow: Row;
   protected _browseBtn: Button;
   protected _removeBtn: Button;
-  protected _modelList: List<string>;
+  protected _modelsSection: Section;
+  protected _modelList: List<string, LocalModel>;
+  protected _summary: StyledText;
 
   // HF Browser
   protected _hfColumn: Column;
-  protected _hfHeaderLabel: Label;
   protected _hfSearchRow: Row;
   protected _hfSearchInput: TextInput;
   protected _hfSearchBtn: Button;
   protected _hfBrowseBtn: Button;
   protected _hfContentColumn: Column;
-  protected _hfResultsList: List<string>;
-  protected _hfFilesList: List<string>;
+  protected _hfResultsSection: Section;
+  protected _hfResultsList: List<string, HFRepoInfo>;
+  protected _hfFilesSection: Section;
+  protected _hfFilesList: List<string, HFFileInfo>;
   protected _hfProgressBar: ProgressBar;
   protected _hfButtonRow: Row;
   protected _hfBackBtn: Button;
@@ -72,50 +75,48 @@ export class ModelsControl extends Control {
     super();
     this._ctx = ctx;
 
-    // --- Local models view ---
-    this._headerLabel = new Label();
-    this._headerLabel.text = "Models: 0  Size: 0 B";
-    this._headerLabel.color = themeColors.text;
+    this._summary = new StyledText();
 
+    // --- Local models view ---
     this._browseBtn = new Button({ label: "Browse HF" });
     this._removeBtn = new Button({ label: "Remove" });
     this._buttonRow = new Row();
     this._buttonRow.add(this._browseBtn);
     this._buttonRow.add(this._removeBtn);
 
-    this._modelList = new List<string>();
+    this._modelList = new List<string, LocalModel>();
+
+    this._modelsSection = new Section();
+    this._modelsSection.title = "Downloaded Models";
+    this._modelsSection.add(this._modelList);
     this._modelList.flex = 1;
+
     this._modelList.setOnSelect((item) => {
-      const model = (item as any).data as LocalModel;
-      this.selectModel(model);
+      this.selectModel(item.data!);
     });
     this._modelList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
-      const model = (item as any).data as LocalModel;
-      const prefix = model.active ? "\u25cf " : "  ";
+      const model = item.data!;
+      const prefix = model.active ? "✓ " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
-      const line = ` ${prefix}${name}  ${size}`;
+      const line = (`${prefix}${name}  ${size}`).padEnd(width);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
+        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+      } else if (model.active) {
+        fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, model.active ? themeColors.success : themeColors.text, line);
+        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
       }
     });
 
     this._column = new Column();
-    this._column.add(this._headerLabel);
-    this._column.add(new Spacer());
     this._column.add(this._buttonRow);
-    this._column.add(new Spacer());
-    this._column.add(this._modelList);
+    //this._column.add(new Spacer());
+    this._column.add(this._modelsSection);
+    this._modelsSection.flex = 1;
 
     // --- HF Browser view ---
-    this._hfHeaderLabel = new Label();
-    this._hfHeaderLabel.text = "HuggingFace Browser";
-    this._hfHeaderLabel.color = themeColors.accent;
 
     this._hfSearchInput = new TextInput();
     this._hfSearchInput.placeholder = "Search models...";
@@ -124,57 +125,61 @@ export class ModelsControl extends Control {
     this._hfSearchRow = new Row();
     this._hfSearchRow.add(this._hfSearchInput);
 
-    this._hfResultsList = new List<string>();
-    this._hfResultsList.flex = 1;
+    this._hfResultsList = new List<string, HFRepoInfo>();
+
+    this._hfResultsSection = new Section();
+    this._hfResultsSection.title = "Results";
+    this._hfResultsSection.add(this._hfResultsList);
+
     this._hfResultsList.setOnSelect((item) => {
-      const repo = (item as any).data as HFRepoInfo;
-      this.openRepoFiles(repo);
+      this.openRepoFiles(item.data!);
     });
     this._hfResultsList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
-      const repo = (item as any).data as HFRepoInfo;
+      const repo = item.data!;
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
       const meta = [likes, downloads].filter(Boolean).join("  ");
-      const line = ` ${repo.id}${meta ? `  ${meta}` : ""}`;
+      const line = (`${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
+        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, themeColors.text, line);
+        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
       }
     });
 
-    this._hfFilesList = new List<string>();
-    this._hfFilesList.flex = 1;
-    this._hfFilesList.visible = false;
+    this._hfFilesList = new List<string, HFFileInfo>();
+
+    this._hfFilesSection = new Section();
+    this._hfFilesSection.title = "Files";
+    this._hfFilesSection.visible = false;
+    this._hfFilesSection.add(this._hfFilesList);
+
     this._hfFilesList.setOnSelect((item) => {
-      const file = (item as any).data as HFFileInfo;
-      this.downloadSelectedFile(file);
+      this.downloadSelectedFile(item.data!);
     });
     this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
-      const file = (item as any).data as HFFileInfo;
+      const file = item.data!;
       const size = formatSize(file.size);
-      const line = ` ${file.path}  ${size}`;
+      const line = (`${file.path}  ${size}`).padEnd(width);
 
       if (isSelected) {
-        fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
-        canvas.styleReset();
+        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
       } else {
-        canvas.moveTo(_x, rowY);
-        fg(canvas, themeColors.text, line);
+        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
       }
     });
 
     this._hfProgressBar = new ProgressBar();
     this._hfProgressBar.visible = false;
-    this._hfProgressBar.filledColor = themeColors.success;
+    this._hfProgressBar.filledColor = "success";
 
     this._hfContentColumn = new Column();
     this._hfContentColumn.flex = 1;
-    this._hfContentColumn.add(this._hfResultsList);
-    this._hfContentColumn.add(this._hfFilesList);
+    this._hfContentColumn.add(this._hfResultsSection);
+    this._hfResultsSection.flex = 1;
+    this._hfContentColumn.add(this._hfFilesSection);
+    this._hfFilesSection.flex = 1;
     this._hfContentColumn.add(this._hfProgressBar);
 
     this._hfBackBtn = new Button({ label: "Back" });
@@ -196,15 +201,14 @@ export class ModelsControl extends Control {
     this._hfButtonRow.add(this._hfCancelBtn);
 
     this._hfColumn = new Column();
-    this._hfColumn.add(this._hfHeaderLabel);
-    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfSearchRow);
     this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfButtonRow);
-    this._hfColumn.add(new Spacer());
+    //this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 
+    this._buttonRow.add(this._summary);
     this.add(this._column);
     this.add(this._hfColumn);
   }
@@ -214,14 +218,21 @@ export class ModelsControl extends Control {
   }
 
   onLayout(): void {
+    const contentRect = {
+      x: this.rect.x,
+      y: this.rect.y,
+      width: this.rect.width,
+      height: this.rect.height,
+    };
+
     if (this._view === "local") {
       this._column.visible = true;
       this._hfColumn.visible = false;
-      this._column.layout(this.rect);
+      this._column.layout(contentRect);
     } else {
       this._column.visible = false;
       this._hfColumn.visible = true;
-      this._hfColumn.layout(this.rect);
+      this._hfColumn.layout(contentRect);
     }
     this.markDirty();
   }
@@ -319,6 +330,13 @@ this._hfResultsList.handleKey = (key: string) => {
     super.onFocus();
     if (this._view === "local") {
       focusManager.setFocus(this._browseBtn);
+    } else if (this._view === "search") {
+      focusManager.setFocus(this._hfSearchInput);
+      focusManager.activateTextInput(true);
+    } else if (this._view === "results") {
+      focusManager.setFocus(this._hfResultsList);
+    } else if (this._view === "files") {
+      focusManager.setFocus(this._hfFilesList);
     }
   }
 
@@ -379,12 +397,12 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfSearchRow.visible = true;
 
     // Content visibility
-    this._hfResultsList.visible = isResults;
-    this._hfFilesList.visible = isFiles;
+    this._hfResultsSection.visible = isResults;
+    this._hfFilesSection.visible = isFiles;
     this._hfProgressBar.visible = isDownloading;
 
     // Button visibility
-    this._hfBackBtn.visible = !isSearch;
+    this._hfBackBtn.visible = true;
     this._hfSearchBtn.visible = isSearch;
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;
@@ -394,13 +412,13 @@ this._hfResultsList.handleKey = (key: string) => {
 
     // Header
     if (isSearch) {
-      this._hfHeaderLabel.text = "HuggingFace Browser";
+      this._summary.builder.muted("HuggingFace Browser");
     } else if (isResults) {
-      this._hfHeaderLabel.text = `Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`;
+      this._summary.builder.muted(`Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`);
     } else if (isFiles) {
-      this._hfHeaderLabel.text = this._selectedRepo ? this._selectedRepo.id : "Files";
+      this._summary.builder.muted(this._selectedRepo ? this._selectedRepo.id : "Files");
     } else if (isDownloading) {
-      this._hfHeaderLabel.text = "Downloading...";
+      this._summary.builder.muted("Downloading...");
     }
 
     // Focus
@@ -426,7 +444,7 @@ this._hfResultsList.handleKey = (key: string) => {
     }
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
-      const token = config?.app?.hfToken || undefined;
+      const token = config?.hfToken ?? undefined;
       this._allRepos = await browseModels({
         search: this._searchQuery,
         sort: "likes",
@@ -440,7 +458,7 @@ this._hfResultsList.handleKey = (key: string) => {
   browseTrending(): void {
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
-      const token = config?.app?.hfToken || undefined;
+      const token = config?.hfToken ?? undefined;
       this._allRepos = await browseModels({
         sort: "likes",
         limit: 100,
@@ -458,7 +476,7 @@ this._hfResultsList.handleKey = (key: string) => {
   }
 
   showResults(): void {
-    const items: ListItem<string>[] = this._repos.map((repo, i) => ({
+    const items: ListItem<string, HFRepoInfo>[] = this._repos.map((repo, i) => ({
       id: String(i),
       label: repo.id,
       data: repo,
@@ -473,9 +491,9 @@ this._hfResultsList.handleKey = (key: string) => {
     this._selectedRepo = repo;
     fireAsync(async () => {
       const config = this._ctx?.getConfig();
-      const token = config?.app?.hfToken || undefined;
+      const token = config?.hfToken ?? undefined;
       this._files = await listFiles(repo.id, token);
-      const items: ListItem<string>[] = this._files.map((file, i) => ({
+      const items: ListItem<string, HFFileInfo>[] = this._files.map((file, i) => ({
         id: String(i),
         label: file.path,
         data: file,
@@ -498,7 +516,7 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfProgressBar.extraLabel = "";
     this.updateView();
 
-    const token = config.app?.hfToken || undefined;
+    const token = config.hfToken ?? undefined;
 
     fireAsync(async () => {
       await downloadModel(
@@ -549,14 +567,18 @@ this._hfResultsList.handleKey = (key: string) => {
         getTotalModelsSize(config),
       ]);
 
-      const items: ListItem<string>[] = models.map(m => ({
+      const items: ListItem<string, LocalModel>[] = models.map(m => ({
         id: m.path,
         label: `${m.repoId}/${m.filename}`,
         data: m,
       }));
 
       this._modelList.updateItems(items);
-      this._headerLabel.text = `Models: ${models.length}  Size: ${formatSize(totalSize)}`;
+      this._summary.builder
+        .muted("Models ")
+        .accentColor(String(models.length))
+        .muted("  Size ")
+        .text(formatSize(totalSize));
       this.markDirty();
     })();
   }
@@ -586,7 +608,7 @@ this._hfResultsList.handleKey = (key: string) => {
     if (!config) return;
 
     (async () => {
-      const model = (selected as any).data as LocalModel;
+      const model = selected.data!;
       const updated = await deleteModel(config, model.path);
       await saveConfig(updated);
       this._ctx?.setConfig(updated);
@@ -594,6 +616,7 @@ this._hfResultsList.handleKey = (key: string) => {
       this.refreshModels();
     })();
   }
+
 }
 
 export function createModelsTab(ctx: TabContext): Control {

@@ -5,8 +5,8 @@
 import fs from "fs-extra";
 import path from "path";
 import { fileURLToPath } from "url";
-import type { FramebufferCanvas } from "./framebuffer-canvas.js";
-import { setFramebufferDefaults } from "./framebuffer.js";
+import type { FramebufferCanvas } from "./framebuffer-canvas";
+import { setFramebufferDefaults } from "./framebuffer";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const THEMES_DIR = path.join(__dirname, "..", "..", "themes");
@@ -40,6 +40,8 @@ export interface ThemeColors {
   selectedText: string;
 }
 
+export type Color = keyof ThemeColors | `#${string}` | "None";
+
 interface OpencodeThemeRaw {
   defs: Record<string, string>;
   theme: Record<string, string | { dark: string; light: string }>;
@@ -52,41 +54,49 @@ function resolveRef(defs: Record<string, string>, value: string): string {
   return defs[value] || "#000000";
 }
 
-function getDarkValue(entry: string | { dark: string; light: string }): string {
+export type ThemeMode = "dark" | "light";
+
+let themeMode: ThemeMode = "dark";
+
+export function getThemeMode(): ThemeMode {
+  return themeMode;
+}
+
+function getValue(entry: string | { dark: string; light: string }): string {
   if (typeof entry === "string") return entry;
-  return entry.dark;
+  return themeMode === "light" ? entry.light : entry.dark;
 }
 
 function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
   const { defs, theme: t } = raw;
 
-  const dark = (key: string) => resolveRef(defs, getDarkValue(t[key] || "#000000"));
+  const c = (key: string) => resolveRef(defs, getValue(t[key] || "#000000"));
 
   return {
-    canvas: dark("background"),
-    canvasSubtle: dark("backgroundPanel"),
-    sidebar: dark("backgroundElement"),
-    border: dark("border"),
-    borderMuted: dark("borderSubtle"),
-    borderActive: dark("borderActive"),
-    text: dark("text"),
-    textMuted: dark("textMuted"),
-    textLink: dark("primary"),
-    accent: dark("primary"),
-    accentSubtle: dark("secondary"),
-    accentColor: dark("accent"),
-    success: dark("success"),
-    successText: dark("success"),
-    successBg: dark("diffAddedBg"),
-    danger: dark("error"),
-    dangerText: dark("error"),
-    dangerBg: dark("diffRemovedBg"),
-    warning: dark("warning"),
-    warningText: dark("warning"),
-    info: dark("info"),
-    selected: dark("primary"),
-    selectedBg: dark("border"),
-    selectedText: dark("background"),
+    canvas: c("background"),
+    canvasSubtle: c("backgroundPanel"),
+    sidebar: c("backgroundElement"),
+    border: c("border"),
+    borderMuted: c("borderSubtle"),
+    borderActive: c("borderActive"),
+    text: c("text"),
+    textMuted: c("textMuted"),
+    textLink: c("primary"),
+    accent: c("primary"),
+    accentSubtle: c("secondary"),
+    accentColor: c("accent"),
+    success: c("success"),
+    successText: c("success"),
+    successBg: c("diffAddedBg"),
+    danger: c("error"),
+    dangerText: c("error"),
+    dangerBg: c("diffRemovedBg"),
+    warning: c("warning"),
+    warningText: c("warning"),
+    info: c("info"),
+    selected: c("primary"),
+    selectedBg: c("border"),
+    selectedText: c("background"),
   };
 }
 
@@ -138,13 +148,43 @@ export function loadTheme(name: string): ThemeColors | null {
   }
 }
 
+export function themeHasLightVariant(name: string): boolean {
+  try {
+    const filePath = path.join(THEMES_DIR, `${name}.json`);
+    const raw = fs.readJsonSync(filePath) as OpencodeThemeRaw;
+    for (const v of Object.values(raw.theme)) {
+      if (typeof v === "object" && v.dark !== v.light) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+let _currentThemeName: string = "opencode";
+
+function loadThemeByName(): ThemeColors | null {
+  return loadTheme(_currentThemeName);
+}
+
 export function setActiveTheme(name: string): boolean {
   const resolved = loadTheme(name);
   if (!resolved) return false;
+  _currentThemeName = name;
   Object.assign(themeColors, resolved);
   setFramebufferDefaults(resolved.text, resolved.canvas);
   themeChanged = true;
   return true;
+}
+
+export function setThemeMode(mode: ThemeMode): void {
+  themeMode = mode;
+  const resolved = loadThemeByName();
+  if (resolved) {
+    Object.assign(themeColors, resolved);
+    setFramebufferDefaults(resolved.text, resolved.canvas);
+    themeChanged = true;
+  }
 }
 
 let themeChanged = false;
@@ -157,21 +197,28 @@ export function popThemeChanged(): boolean {
 // Keep backward compat for lib files that import theme colors
 export const theme = themeColors;
 
+// ─── Color resolution ────────────────────────────────────────────────────────
+
+export function resolveColor(color: Color): string {
+  if (color.startsWith("#")) return color;
+  return (themeColors as unknown as Record<string, string>)[color] || "#000000";
+}
+
 // ─── Rendering helpers ───────────────────────────────────────────────────────
 
-export function fg(target: FramebufferCanvas, hex: string, text: string): void {
-  target.colorRgbHex(hex);
+export function fg(target: FramebufferCanvas, color: Color, text: string): void {
+  if (color !== "None") target.setForegroundColor(color);
   target.write(text);
 }
 
-export function bg(target: FramebufferCanvas, hex: string, text: string): void {
-  target.bgColorRgbHex(hex);
+export function bg(target: FramebufferCanvas, color: Color, text: string): void {
+  if (color !== "None") target.setBackgroundColor(color);
   target.write(text);
 }
 
-export function fgBg(target: FramebufferCanvas, fgHex: string, bgHex: string, text: string): void {
-  target.colorRgbHex(fgHex);
-  target.bgColorRgbHex(bgHex);
+export function fgBg(target: FramebufferCanvas, fgColor: Color, bgColor: Color, text: string): void {
+  if (fgColor !== "None") target.setForegroundColor(fgColor);
+  if (bgColor !== "None") target.setBackgroundColor(bgColor);
   target.write(text);
 }
 
@@ -193,7 +240,7 @@ export function renderLine(target: FramebufferCanvas, y: number, fn: () => void)
   fn();
 }
 
-export function renderDivider(target: FramebufferCanvas, y: number, color: string): void {
+export function renderDivider(target: FramebufferCanvas, y: number, color: Color): void {
   const width = termWidth(target);
   renderLine(target, y, () => {
     fg(target, color, "\u2500".repeat(width));
@@ -218,18 +265,18 @@ export interface BoxLine {
 export interface BoxOptions {
   target: FramebufferCanvas;
   width: number;
-  borderColor: string;
+  borderColor: Color;
   startY: number;
 }
 
-function hBorder(target: FramebufferCanvas, width: number, color: string, left: string, right: string): void {
+function hBorder(target: FramebufferCanvas, width: number, color: Color, left: string, right: string): void {
   const inner = Math.max(0, width - 2);
   fg(target, color, left);
   fg(target, color, H.repeat(inner));
   fg(target, color, right);
 }
 
-function vBorder(target: FramebufferCanvas, color: string): void {
+function vBorder(target: FramebufferCanvas, color: Color): void {
   fg(target, color, V);
 }
 

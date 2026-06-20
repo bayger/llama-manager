@@ -1,15 +1,16 @@
-import { Control } from "../ui/Control.js";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { TextInput } from "../ui/widgets/TextInput.js";
-import { Table } from "../ui/widgets/Table.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
-import { focusManager } from "../ui/FocusManager.js";
-import { fireAsync } from "../../lib/utils.js";
-import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, Rect, RenderContext } from "../ui/types.js";
-import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table.js";
+import { Control } from "../ui/Control";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
+import { Column, Row } from "../ui/Layout";
+import { Table } from "../ui/widgets/Table";
+import { Section } from "../ui/widgets/Section";
+import { fg, fgBg } from "../../lib/theme";
+import { StyledText } from "../ui/widgets/StyledText";
+import { focusManager } from "../ui/FocusManager";
+import { fireAsync, formatMs } from "../../lib/utils";
+import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size, RenderContext } from "../ui/types";
+import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "timestamp", label: "Time" },
@@ -28,85 +29,150 @@ function fmtNum(n: number): string {
   return n.toLocaleString();
 }
 
+class TaskDetailsControl extends Section {
+  protected _task: TaskMetrics | null = null;
+  protected _scrollOffset = 0;
+
+  measure(parentSize: Size): Size {
+    return { width: DETAILS_WIDTH, height: parentSize.height };
+  }
+
+  update(task: TaskMetrics | null): void {
+    this._task = task;
+    this._scrollOffset = 0;
+    this.markDirty();
+  }
+
+  scroll(delta: number): void {
+    if (!this._task) return;
+    const lines = this._getLines();
+    const { height } = this.rect;
+    const maxOffset = Math.max(0, lines.length - height);
+    this._scrollOffset = Math.max(0, Math.min(maxOffset, this._scrollOffset + delta));
+    this.markDirty();
+  }
+
+  _getLines(): { label: string; value: string }[] {
+    if (!this._task) return [{ label: "No selection", value: "" }];
+    const task = this._task;
+    const time = new Date(task.timestamp);
+    const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
+
+    return [
+      { label: "ID", value: `#${task.taskId}` },
+      { label: "Slot", value: `S${task.slotId}` },
+      { label: "Time", value: timeStr },
+      { label: "", value: "" },
+      { label: "Profile", value: task.profile || "-" },
+      { label: "Model", value: task.model || "-" },
+      { label: "Version", value: task.version || "-" },
+      { label: "", value: "" },
+      { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
+      { label: "Prompt Time", value: formatMs(task.promptTimeMs) },
+      { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
+      { label: "", value: "" },
+      { label: "Output Tokens", value: fmtNum(task.outputTokens) },
+      { label: "Eval Time", value: formatMs(task.evalTimeMs) },
+      { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
+      { label: "", value: "" },
+      { label: "Total Tokens", value: fmtNum(task.totalTokens) },
+      { label: "Total Time", value: formatMs(task.totalTimeMs) },
+      { label: "", value: "" },
+      { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
+      { label: "Context Size", value: fmtNum(task.contextSize) },
+      { label: "Truncated", value: task.truncated ? "Yes" : "No" },
+    ];
+  }
+
+  draw(ctx: RenderContext): void {
+    const { canvas } = ctx;
+    const { x, y, width, height } = this.rect;
+
+    if (width < 3 || height < 4) {
+      return;
+    }
+
+    super.draw(ctx);
+
+    const lines = this._getLines();
+    const innerW = width - 2;
+    const labelWidth = 14;
+
+    // blank separator row
+    canvas.moveTo(x + 2, y + 2);
+    fgBg(canvas, "canvasSubtle", "canvasSubtle", " ".repeat(innerW));
+
+    for (let i = 0; i < height - 4; i++) {
+      const lineIdx = i + this._scrollOffset;
+      canvas.moveTo(x + 2, y + i + 3);
+
+      if (lineIdx >= 0 && lineIdx < lines.length) {
+        const line = lines[lineIdx]!;
+        if (line.label === "Task Details") {
+          fg(canvas, "accentColor", line.label.padEnd(innerW));
+        } else if (line.label !== "") {
+          const label = `${line.label}:`.padEnd(labelWidth);
+          let value = line.value;
+          const valueWidth = innerW - labelWidth - 2;
+          if (value.length > valueWidth) {
+            value = "…" + value.substring(value.length - (valueWidth - 1));
+          }
+          fg(canvas, "textMuted", label);
+          fg(canvas, "text", ` ${value}`);
+        }
+      }
+    }
+  }
+}
+
+
 export class TasksControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
+  protected _column: Column;
+  protected _summary: StyledText;
+  protected _tasksSection: Section;
   protected _table: Table<TaskMetrics>;
-  protected _divider: Spacer;
-  protected _searchInput: TextInput;
-  protected _slotInput: TextInput;
-  protected _filterVisible = false;
+  protected _detailsPanel: TaskDetailsControl;
+  protected _contentRow: Row;
   protected _sortField: TaskSortField = "timestamp";
   protected _sortDir: TaskSortDir = "desc";
-  protected _searchValue = "";
-  protected _slotValue = "";
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
-    this._table = new Table();
+    this._summary = new StyledText();
+
+    this._table = new Table<TaskMetrics>();
     this._table.showHeader = true;
-    this._table.setOnHighlight(() => this.markDirty());
+    this._table.tabIndex = 0;
+    this._table.setOnHighlight((item) => {
+      this._detailsPanel.update(item ? item.data ?? null : null);
+      this.markDirty();
+    });
     this._table.setOnSelect(() => {
       fireAsync(async () => {}, ctx);
     });
-    this._divider = new Spacer();
-    this._searchInput = new TextInput();
-    this._slotInput = new TextInput();
-    this._searchInput.prefix = "ID: ";
-    this._slotInput.prefix = "Slot: ";
-    this._searchInput.visible = false;
-    this._slotInput.visible = false;
-    this.add(this._table);
-    this.add(this._divider);
-    this.add(this._searchInput);
-    this.add(this._slotInput);
 
-    this._searchInput.setOnSubmit((v) => {
-      this._searchValue = v;
-      this.applyFilters();
-    });
-    this._searchInput.setOnCancel(() => {
-      this.hideFilter();
-    });
-    this._searchInput.setOnChange((v) => {
-      this._searchValue = v;
-      this.applyFilters();
-    });
+    this._tasksSection = new Section();
+    this._tasksSection.title = "Recent Tasks";
+    this._tasksSection.add(this._table);
+    this._table.flex = 1;
 
-    this._slotInput.setOnSubmit((v) => {
-      this._slotValue = v;
-      this.applyFilters();
-    });
-    this._slotInput.setOnCancel(() => {
-      this.hideFilter();
-    });
-    this._slotInput.setOnChange((v) => {
-      this._slotValue = v;
-      this.applyFilters();
-    });
-  }
+    this._detailsPanel = new TaskDetailsControl();
+    this._detailsPanel.title = "Task Details";
+    this._contentRow = new Row();
+    this._contentRow.add(this._tasksSection);
+    this._tasksSection.flex = 1;
+    this._contentRow.add(this._detailsPanel);
+    this._detailsPanel.layout({ x: 0, y: 0, width: DETAILS_WIDTH, height: 1 });
 
-  get filteredTasks(): TaskMetrics[] {
-    const filter: { taskId?: number; slotId?: number } = {};
+    this._column = new Column();
+    this._column.add(this._summary);
+    this._column.add(this._contentRow);
+    this._contentRow.flex = 1;
 
-    if (this._searchValue !== "") {
-      const id = parseInt(this._searchValue, 10);
-      if (!isNaN(id)) {
-        filter.taskId = id;
-      }
-    }
-
-    if (this._slotValue !== "") {
-      const slot = parseInt(this._slotValue, 10);
-      if (!isNaN(slot)) {
-        filter.slotId = slot;
-      }
-    }
-
-    let tasks = Object.keys(filter).length > 0 ? taskStore.getFiltered(filter) : taskStore.getTasks();
-    tasks = taskStore.getSorted(tasks, this._sortField, this._sortDir);
-    return tasks;
+    this.add(this._column);
   }
 
   measure(parentSize?: Size): Size {
@@ -128,21 +194,23 @@ export class TasksControl extends Control {
 
   onLayout(): void {
     const { x, y, width, height } = this.rect;
-    const tableLayout = this.getTableLayout();
-    this._table.layout(tableLayout);
-    this._divider.layout({ x, y: y + (this._filterVisible ? 2 : 1), width, height: 1 });
-    this._searchInput.layout({ x: x + 1, y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
-    this._slotInput.layout({ x: x + 1 + Math.floor(width / 2), y: y + 1, width: Math.floor(width / 2) - 2, height: 1 });
+    const showDetails = width >= DETAILS_WIDTH + 26;
+    this._detailsPanel.visible = showDetails;
+    this._column.layout({ x, y, width, height });
 
-    const tasks = this.filteredTasks;
-    this._table.items = tasks.map((t) => ({
-      id: t.taskId,
-      label: this.formatTime(t.timestamp),
-      sublabel: `#${t.taskId}`,
-      data: t,
-    }));
-    this._table.contentHeight = tasks.length;
-    if (tasks.length > 0 && this._table.selectedIndex < 0) {
+    const total = taskStore.getTotalCount();
+
+    this._table.setVirtualLoader(total, (start, end) => {
+      const tasks = taskStore.getRange(start, end - start, undefined, this._sortField, this._sortDir);
+      return tasks.map((t) => ({
+        id: t.taskId,
+        label: this.formatTime(t.timestamp),
+        sublabel: `#${t.taskId}`,
+        data: t,
+      }));
+    });
+
+    if (total > 0 && this._table.selectedIndex < 0) {
       this._table.selectedIndex = 0;
     }
     this.updateColumns();
@@ -151,74 +219,25 @@ export class TasksControl extends Control {
       this.renderTaskRow(canvas, item.data!, isSelected, _width, columns);
     };
     this._table.setRenderer(renderTaskRow);
+
+    const selected = this._table.getSelectedItem();
+    this._detailsPanel.update(selected ? selected.data ?? null : null);
   }
 
-  getTableLayout(): Rect {
-    const { x, y, width, height } = this.rect;
-    const headerY = y + (this._filterVisible ? 3 : 2);
-    const listHeight = height - (this._filterVisible ? 4 : 3);
-    const listWidth = width >= DETAILS_WIDTH + 26 ? width - DETAILS_WIDTH - 2 : width;
-    return { x, y: headerY, width: listWidth, height: listHeight };
-  }
+  draw(_ctx: RenderContext): void {
+    const stats = taskStore.getStats();
 
-  applyFilters(): void {
-    this._table.selectedIndex = 0;
-    this._table.scrollOffset = 0;
-    this.markDirty();
-  }
-
-  showFilter(): void {
-    this._filterVisible = true;
-    this._searchInput.visible = true;
-    this._slotInput.visible = true;
-    this._searchInput.value = this._searchValue;
-    this._slotInput.value = this._slotValue;
-    focusManager.setFocus(this._searchInput);
-    this.markDirty();
-  }
-
-  hideFilter(): void {
-    this._filterVisible = false;
-    this._searchInput.visible = false;
-    this._slotInput.visible = false;
-    this.markDirty();
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
-    super.render(ctx);
-    const canvas = ctx.canvas;
-    const { x, y: startY, width, height } = this.rect;
-    const tasks = this.filteredTasks;
-    const stats = taskStore.getStats(tasks);
-
-    canvas.moveTo(x, startY);
-    canvas.styleReset();
-
-    const filterIndicator = (this._searchValue !== "" || this._slotValue !== "") ? " [F]" : "";
-    fg(canvas, themeColors.textMuted, "Tasks ");
-    fg(canvas, themeColors.accentColor, `${stats.count}`);
-    fg(canvas, themeColors.textMuted, "  Prompt ");
-    fg(canvas, themeColors.text, `${stats.totalPromptTokens.toLocaleString()}`);
-    fg(canvas, themeColors.textMuted, "  Output ");
-    fg(canvas, themeColors.text, `${stats.totalOutputTokens.toLocaleString()}`);
-    fg(canvas, themeColors.textMuted, "  Avg PP ");
-    fg(canvas, themeColors.accentColor, `${stats.avgPromptSpeed.toFixed(1)}`);
-    fg(canvas, themeColors.textMuted, "  Avg TG ");
-    fg(canvas, themeColors.accentColor, `${stats.avgOutputSpeed.toFixed(1)}`);
-    if (filterIndicator) {
-      fg(canvas, themeColors.warning, filterIndicator);
-    }
-
-    const listStartY = startY + (this._filterVisible ? 3 : 2);
-    const listHeight = height - (this._filterVisible ? 4 : 3);
-
-    if (width >= DETAILS_WIDTH + 26) {
-      const dx = x + (this.rect.width >= DETAILS_WIDTH + 26 ? this.rect.width - DETAILS_WIDTH - 1 : this.rect.width);
-      this.renderDetailsPanel(canvas, { x: dx, y: listStartY, width: DETAILS_WIDTH, height: listHeight }, tasks);
-    }
-
-    this.needsRender = false;
+    this._summary.builder
+      .muted("Tasks ")
+      .accentColor(`${stats.count}`)
+      .muted("  Prompt ")
+      .text(`${stats.totalPromptTokens.toLocaleString()}`)
+      .muted("  Output ")
+      .text(`${stats.totalOutputTokens.toLocaleString()}`)
+      .muted("  Avg PP ")
+      .accentColor(`${stats.avgPromptSpeed.toFixed(1)}`)
+      .muted("  Avg TG ")
+      .accentColor(`${stats.avgOutputSpeed.toFixed(1)}`);
   }
 
   formatTime(timestamp: string): string {
@@ -230,15 +249,15 @@ export class TasksControl extends Control {
     const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
 
     this._table.columns = [
-      { label: "TIMESTAMP", width: 10, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined },
+      { label: "Time", width: 10, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined },
       { label: "ID", width: 6, align: "right" as const, headerSuffix: this._sortField === "taskId" ? sortIndicator : undefined },
-      { label: "SLOT", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined },
-      { label: "PROFILE", width: 8, flex: 1, align: "left" as const },
+      { label: "Slot", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined },
+      { label: "Profile", width: 8, flex: 1, align: "left" as const },
       { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined },
       { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined },
-      { label: "PROMPT", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined },
-      { label: "OUTPUT", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined },
-      { label: "TIME", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined },
+      { label: "Prompt", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined },
+      { label: "Output", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined },
+      { label: "Duration", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined },
     ];
   }
 
@@ -249,15 +268,15 @@ export class TasksControl extends Control {
     const profileText = task.profile || "-";
 
     const valMap: Record<string, string> = {
-      TIMESTAMP: timeStr,
+      Time: timeStr,
       ID: `#${task.taskId}`,
-      SLOT: `S${task.slotId}`,
-      PROFILE: profileText.length > 0 ? profileText : "-",
+      Slot: `S${task.slotId}`,
+      Profile: profileText.length > 0 ? profileText : "-",
       PP: `${task.promptSpeed.toFixed(1)} tps`,
       TG: `${task.outputSpeed.toFixed(1)} tps`,
-      PROMPT: `${task.promptTokens}`,
-      OUTPUT: `${task.outputTokens}`,
-      TIME: `${task.totalTimeMs.toFixed(0)}ms`,
+      Prompt: `${task.promptTokens}`,
+      Output: `${task.outputTokens}`,
+      Duration: formatMs(task.totalTimeMs),
     };
 
     const cols: string[] = [];
@@ -269,103 +288,16 @@ export class TasksControl extends Control {
       cols.push(col.align === "right" ? val.padStart(col.width) : val.padEnd(col.width));
     }
 
-    const row = cols.join(" ");
+    const row = cols.join(" ").padEnd(width);
 
     if (isSelected) {
-      fgBg(canvas, themeColors.text, themeColors.canvasSubtle, row);
-      fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - row.length)));
-      canvas.styleReset();
+      fgBg(canvas, "selectedText", "selectedBg", row.substring(0, width));
     } else {
-      fg(canvas, themeColors.text, row);
-    }
-    canvas.styleReset();
-  }
-
-  renderDetailsPanel(canvas: FramebufferCanvas, rect: Rect, tasks: TaskMetrics[]): void {
-    if (rect.width === 0) return;
-    const { x, y, width, height } = rect;
-    const selectedIndex = this._table.selectedIndex;
-
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
-
-    if (tasks.length === 0 || selectedIndex < 0 || selectedIndex >= tasks.length) {
-      canvas.moveTo(x + 1, y);
-      fg(canvas, themeColors.textMuted, "No tasks");
-      return;
-    }
-
-    const task = tasks[selectedIndex]!;
-    const time = new Date(task.timestamp);
-    const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
-
-    const lines: { label: string; value: string }[] = [
-      { label: "Task Details", value: "" },
-      { label: "", value: "" },
-      { label: "ID", value: `#${task.taskId}` },
-      { label: "Slot", value: `S${task.slotId}` },
-      { label: "Time", value: timeStr },
-      { label: "", value: "" },
-      { label: "Profile", value: task.profile || "-" },
-      { label: "Model", value: task.model || "-" },
-      { label: "Version", value: task.version || "-" },
-      { label: "", value: "" },
-      { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
-      { label: "Prompt Time", value: `${fmtNum(Math.round(task.promptTimeMs))}ms` },
-      { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
-      { label: "", value: "" },
-      { label: "Output Tokens", value: fmtNum(task.outputTokens) },
-      { label: "Eval Time", value: `${fmtNum(Math.round(task.evalTimeMs))}ms` },
-      { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
-      { label: "", value: "" },
-      { label: "Total Tokens", value: fmtNum(task.totalTokens) },
-      { label: "Total Time", value: `${fmtNum(Math.round(task.totalTimeMs))}ms` },
-      { label: "", value: "" },
-      { label: "Graphs Reused", value: String(task.graphsReused) },
-      { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
-      { label: "Context Size", value: fmtNum(task.contextSize) },
-      { label: "Truncated", value: task.truncated ? "Yes" : "No" },
-    ];
-
-    const pad = 1;
-    const innerW = width - pad * 2;
-
-    for (let i = 0; i < height; i++) {
-      canvas.moveTo(x + pad, y + i);
-      //canvas.styleReset();
-
-      if (i < lines.length) {
-        const line = lines[i]!;
-        if (i === 0) {
-          fg(canvas, themeColors.accentColor, line.label.padEnd(innerW));
-        } else if (line.label !== "") {
-          const label = line.label + ":";
-          let value = line.value;
-          const labelWidth = 14;
-          const formattedLabel = label.padEnd(labelWidth);
-          const valueWidth = innerW - labelWidth - 2;
-          if (value.length > valueWidth) {
-            value = "…" + value.substring(value.length - (valueWidth - 1));
-          }
-          fg(canvas, themeColors.textMuted, formattedLabel);
-          fg(canvas, themeColors.text, " " + value);
-        }
-      }
+      fgBg(canvas, "text", "canvasSubtle", row.substring(0, width));
     }
   }
 
-  handleKey(key: string): boolean {
-    if (this._filterVisible) {
-      return false;
-    }
-
-    if (key === "f") {
-      this.showFilter();
-      return true;
-    }
-
+ handleKey(key: string): boolean {
     if (key === "s") {
       const idx = SORT_FIELDS.findIndex((s) => s.field === this._sortField);
       if (idx < SORT_FIELDS.length - 1) {
@@ -389,7 +321,7 @@ export class TasksControl extends Control {
       return true;
     }
 
-    if (this._table.items.length === 0) return false;
+    if (this._table.contentHeight === 0) return false;
 
     if (key === "UP" || key === "DOWN" || key === "k" || key === "j" ||
         key === "PAGE_UP" || key === "PAGE_DOWN" || key === "HOME" || key === "END") {
@@ -401,7 +333,7 @@ export class TasksControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    this._table.focus();
+    focusManager.setFocus(this._table);
     this.markDirty();
   }
 

@@ -1,8 +1,8 @@
 import fs from "fs-extra";
 import path from "path";
 import os from "os";
-import { getVersionsDir } from "./config.js";
-import { ConfigData } from "./config.js";
+import { getVersionsDir } from "./config";
+import { ConfigData } from "./config";
 
 export const BACKEND_LABELS: Record<string, string> = {
   cpu: "CPU",

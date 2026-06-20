@@ -1,15 +1,16 @@
 import type { Terminal } from "terminal-kit";
-import { themeColors, setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme.js";
-import { loadConfig } from "../lib/config.js";
-import { taskStore } from "../lib/tasks.js";
-import { focusManager } from "./ui/FocusManager.js";
-import type { RenderContext } from "./ui/types.js";
-import type { TabContext } from "../lib/tabcontext.js";
-import { Framebuffer } from "../lib/framebuffer.js";
-import { FramebufferCanvas } from "../lib/framebuffer-canvas.js";
-import { diffToTerminal } from "../lib/framebuffer-diff.js";
-import { MainControl, TABS } from "./MainControl.js";
-import type { TabId } from "./MainControl.js";
+import { setActiveTheme, setThemeMode, popThemeChanged, fg, fgBg } from "../lib/theme";
+import { loadConfig, ConfigData } from "../lib/config";
+import { taskStore } from "../lib/tasks";
+import { focusManager } from "./ui/FocusManager";
+import { stopServer, setMaxLogLines } from "../lib/server";
+import type { RenderContext } from "./ui/types";
+import type { TabContext } from "../lib/tabcontext";
+import { Framebuffer } from "../lib/framebuffer";
+import { FramebufferCanvas } from "../lib/framebuffer-canvas";
+import { diffToTerminal } from "../lib/framebuffer-diff";
+import { MainControl, TABS } from "./MainControl";
+import type { TabId } from "./MainControl";
 
 const CURSOR_SHOW = "\x1b[?25h";
 const CURSOR_HIDE = "\x1b[?25l";
@@ -22,6 +23,7 @@ export class App {
   private keyHandler: ((name: string, matches: string[], data: any) => void) | null = null;
   private mouseHandler: ((action: string, data: any) => void) | null = null;
   private resizeHandler: (() => void) | null = null;
+  private _resizeTimer: ReturnType<typeof setTimeout> | null = null;
   private _renderInterval: ReturnType<typeof setInterval> | null = null;
   private _firstRender = true;
   private helpOverlayVisible = false;
@@ -31,6 +33,8 @@ export class App {
   async start(): Promise<void> {
     const config = await loadConfig();
     setActiveTheme(config.themeName);
+    setThemeMode(config.themeMode);
+    setMaxLogLines(config.logs.maxLogLines);
     taskStore.init(config);
 
     this._fb = new Framebuffer();
@@ -50,7 +54,11 @@ export class App {
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       forceRender: () => this.forceRender(),
       getConfig: () => config,
-      setConfig: (c: any) => { /* handled by config module */ },
+      setConfig: (c: ConfigData) => {
+        Object.assign(config, c);
+        if (c.logs?.maxLogLines !== undefined) setMaxLogLines(c.logs.maxLogLines);
+        if (c.themeMode !== undefined) setThemeMode(c.themeMode);
+      },
       showCursor: () => {
         if (this._canvas) {
           this._canvas.showTerminalCursor();
@@ -120,7 +128,7 @@ export class App {
     term(CURSOR_HIDE);
     diffToTerminal(fb.back, fb.front, (text) => term(text), width, height);
 
-    term(`\x1b[${canvas.terminalCursorY};${canvas.terminalCursorX}H`);
+    term(`\x1b[${canvas.terminalCursorY + 1};${canvas.terminalCursorX + 1}H`);
     if (canvas.terminalCursorVisible) {
       term(CURSOR_SHOW);
     }
@@ -134,7 +142,7 @@ export class App {
       {
         title: "Navigation",
         keys: [
-          ["F1-F6", "Switch tabs"],
+          ["F1-F7", "Switch tabs"],
           ["Tab / Shift+Tab", "Move focus"],
           ["Enter", "Confirm / select"],
           ["Esc", "Cancel / go back"],
@@ -150,12 +158,13 @@ export class App {
       {
         title: "Tab Shortcuts",
         keys: [
-          ["F1", "Dashboard — metrics and server control"],
-          ["F2", "Profiles — preset editing and management"],
-          ["F3", "Tasks — inference task history"],
-          ["F4", "Versions — install and switch llama.cpp builds"],
-          ["F5", "Models — browse, download, and manage GGUF models"],
-          ["F6", "Options — global application settings"],
+          ["F1", "Dashboard - metrics and server control"],
+          ["F2", "Logs - live server log viewer"],
+          ["F3", "Tasks - inference task history"],
+          ["F4", "Profiles - preset editing and management"],
+          ["F5", "Versions - install and switch llama.cpp builds"],
+          ["F6", "Models - browse, download, and manage GGUF models"],
+          ["F7", "Options - global application settings"],
         ],
       },
     ];
@@ -175,8 +184,8 @@ export class App {
     const contentHeight = contentLines.length;
     const startY = overlayY + Math.max(1, Math.floor((overlayHeight - contentHeight) / 2));
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
+    canvas.setForegroundColor("canvas");
+    canvas.setBackgroundColor("canvasSubtle");
     canvas.clearRect(1, overlayY, width, height - overlayY);
 
     for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
@@ -185,14 +194,14 @@ export class App {
       canvas.moveTo(1, y);
 
       if (line.isTitle) {
-        fg(canvas, themeColors.accent, line.text);
+        fg(canvas, "accent", line.text);
       } else if (line.isHeader) {
-        fg(canvas, themeColors.accentColor, line.text);
+        fg(canvas, "accentColor", line.text);
       } else if (line.key) {
-        fg(canvas, themeColors.accent, `    ${line.key}`);
-        fg(canvas, themeColors.text, `     ${line.desc}`);
+        fg(canvas, "accent", `    ${line.key}`);
+        fg(canvas, "text", `     ${line.desc}`);
       } else {
-        fg(canvas, themeColors.canvasSubtle, line.text);
+        fg(canvas, "canvasSubtle", line.text);
       }
     }
   }
@@ -238,9 +247,13 @@ export class App {
 
   private setupResizeHandler(): void {
     this.resizeHandler = () => {
-      if (this._main) {
-        this._main.markDirty();
-      }
+      if (this._resizeTimer) clearTimeout(this._resizeTimer);
+      this._resizeTimer = setTimeout(() => {
+        if (this._main) {
+          this._main.markDirty();
+        }
+        this._resizeTimer = null;
+      }, 100);
     };
     this.term.on("resize", this.resizeHandler);
   }
@@ -270,8 +283,17 @@ export class App {
       this.term.removeListener("resize", this.resizeHandler);
       this.resizeHandler = null;
     }
+    if (this._resizeTimer) {
+      clearTimeout(this._resizeTimer);
+      this._resizeTimer = null;
+    }
     focusManager.clear();
     this._main?.onDestroy();
     taskStore.dispose();
+    this.term(CURSOR_SHOW);
+    const cfg = this._ctx?.getConfig();
+    if (cfg?.dashboard.killServerOnExit) {
+      stopServer().catch(() => {});
+    }
   }
 }

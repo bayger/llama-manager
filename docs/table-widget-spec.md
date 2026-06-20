@@ -2,15 +2,15 @@
 
 ## Overview
 
-A general-purpose, scrollable table widget built on the existing `Control` base class. It provides columnar display with configurable columns, selection, scrolling, and optional custom rendering — designed to replace the hardcoded table logic in `TasksTab.ts`.
+A general-purpose, scrollable table widget built on the existing `Control` base class. It provides columnar display with configurable columns, selection, scrolling, and optional custom rendering - designed to replace the hardcoded table logic in `TasksTab.ts`.
 
 ---
 
 ## File Structure
 
 ```
-src/components/ui/widgets/Table.ts       — Table widget class
-src/components/ui/widgets/index.ts       — Add Table export
+src/components/ui/widgets/Table.ts       - Table widget class
+src/components/ui/widgets/index.ts       - Add Table export
 ```
 
 ---
@@ -116,7 +116,7 @@ The table computes visible columns at render time based on available width:
 3. Hide remaining flex columns from the right if still over budget
 4. Distribute excess space to visible flex columns proportionally
 
-### Example 1 — Wide terminal (120 chars)
+### Example 1 - Wide terminal (120 chars)
 
 ```
 Columns: [TIMESTAMP(10), ID(6), SLOT(4), PROFILE(10,flex), PP(10), TG(10), PROMPT(8), OUTPUT(8), TIME(8)]
@@ -128,7 +128,7 @@ PROFILE width: 10 + 38 = 48
 All columns visible. PROFILE gets 48 chars.
 ```
 
-### Example 2 — Narrow terminal (70 chars)
+### Example 2 - Narrow terminal (70 chars)
 
 ```
 Min width: 82 → exceeds 70
@@ -142,7 +142,7 @@ Flex space: 70 - 58 = 12
 PROFILE width: 10 + 12 = 22
 ```
 
-### Example 3 — Very narrow terminal (40 chars)
+### Example 3 - Very narrow terminal (40 chars)
 
 ```
 Min width: 82 → exceeds 40
@@ -184,7 +184,7 @@ No flex columns visible.
 
 ### Header Row
 
-Rendered once at the top (if `showHeader = true`). Shows visible column headers. A sort indicator (`▲` / `▼`) is appended to the header of the sorted column — this is purely visual, the table does not sort data internally.
+Rendered once at the top (if `showHeader = true`). Shows visible column headers. A sort indicator (`▲` / `▼`) is appended to the header of the sorted column - this is purely visual, the table does not sort data internally.
 
 ### Body Rows
 
@@ -289,4 +289,4 @@ this._table.setRenderer(renderTaskRow);
 | Custom renderer | Optional callback | Default renderer works for simple lists; custom for complex tables |
 | Scrolling | Built-in | Self-contained; no need to wrap in `Scrollable` |
 | Details panel | NOT in table | Keeps table focused; compose in consumer with `Column` |
-| Selection highlight | Visual only (no toggle) | Consistent with `List` — selection is navigational, not toggle-based |
+| Selection highlight | Visual only (no toggle) | Consistent with `List` - selection is navigational, not toggle-based |

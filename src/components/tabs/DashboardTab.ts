@@ -1,16 +1,17 @@
-import { Control } from "../ui/Control.js";
-import { Column, Row } from "../ui/Layout.js";
-import { Button } from "../ui/widgets/Button.js";
-import { Spacer } from "../ui/widgets/Spacer.js";
-import { Label } from "../ui/widgets/Label.js";
-import { LogsViewer } from "../specialized/LogsViewer.js";
-import { MetricsPanel } from "../specialized/MetricsPanel.js";
-import { themeColors, fg } from "../../lib/theme.js";
-import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server.js";
-import { fireAsync } from "../../lib/utils.js";
-import { BACKEND_LABELS } from "../../lib/versions.js";
-import type { TabContext } from "../../lib/tabcontext.js";
-import type { Size, RenderContext } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { Column, Row } from "../ui/Layout";
+import { Button } from "../ui/widgets/Button";
+import { Label } from "../ui/widgets/Label";
+import { Section } from "../ui/widgets/Section";
+import { MetricsPanel } from "../specialized/MetricsPanel";
+import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
+import { fg } from "../../lib/theme";
+import { focusManager } from "../ui/FocusManager";
+import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
+import { fireAsync } from "../../lib/utils";
+import { BACKEND_LABELS } from "../../lib/versions";
+import type { TabContext } from "../../lib/tabcontext";
+import type { Size, RenderContext } from "../ui/types";
 
 export class DashboardControl extends Control {
   protected _ctx: TabContext | null = null;
@@ -19,13 +20,11 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _profileLabel: Label;
   protected _versionLabel: Label;
-  protected _metricsHeader: Label;
-  protected _logsHeader: Label;
+  protected _modelSection: Section;
+  protected _metricsSection: Section;
+  protected _modelPanel: LoadedModelPanel;
   protected _metricsPanel: MetricsPanel;
-  protected _logsControl: LogsViewer;
-  protected _logUnsub: (() => void) | null = null;
   protected _statusUnsub: (() => void) | null = null;
-  protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(ctx: TabContext) {
     super();
@@ -43,74 +42,60 @@ export class DashboardControl extends Control {
 
     const sep1 = new Label();
     sep1.text = "│";
-    sep1.color = themeColors.borderMuted;
+    sep1.color = "borderMuted";
     sep1.focusable = false;
     this._buttonRow.add(sep1);
 
-      this._profileLabel = new Label();
+    this._profileLabel = new Label();
     this._profileLabel.text = "";
-    this._profileLabel.color = themeColors.textMuted;
+    this._profileLabel.color = "textMuted";
     this._profileLabel.focusable = false;
     const profileLbl = this._profileLabel;
     this._profileLabel.measure = () => ({ width: "Profile: ".length + profileLbl.text.length, height: 1 });
-    this._profileLabel.render = (ctx: RenderContext) => {
-      if (!profileLbl.visible || !profileLbl.needsRender) return;
+    profileLbl.draw = (ctx: RenderContext) => {
       const canvas = ctx.canvas;
       canvas.moveTo(profileLbl.rect.x, profileLbl.rect.y);
-      fg(canvas, themeColors.textMuted, "Profile ");
-      fg(canvas, themeColors.accentColor, profileLbl.text);
-      profileLbl.needsRender = false;
+      fg(canvas, "textMuted", "Profile ");
+      fg(canvas, "accentColor", profileLbl.text);
     };
     this._buttonRow.add(this._profileLabel);
 
     const sep2 = new Label();
     sep2.text = "│";
-    sep2.color = themeColors.borderMuted;
+    sep2.color = "borderMuted";
     sep2.focusable = false;
     this._buttonRow.add(sep2);
 
-     this._versionLabel = new Label();
+    this._versionLabel = new Label();
     this._versionLabel.text = "";
-    this._versionLabel.color = themeColors.textMuted;
+    this._versionLabel.color = "textMuted";
     this._versionLabel.focusable = false;
     const versionLbl = this._versionLabel;
     this._versionLabel.measure = () => ({ width: Math.max("Version: ".length + versionLbl.text.length, 1), height: 1 });
-    this._versionLabel.render = (ctx: RenderContext) => {
-      if (!versionLbl.visible || !versionLbl.needsRender) return;
+    versionLbl.draw = (ctx: RenderContext) => {
       const canvas = ctx.canvas;
       canvas.moveTo(versionLbl.rect.x, versionLbl.rect.y);
-      fg(canvas, themeColors.textMuted, "Version ");
-      fg(canvas, themeColors.text, versionLbl.text);
-      versionLbl.needsRender = false;
+      fg(canvas, "textMuted", "Version ");
+      fg(canvas, "text", versionLbl.text);
     };
     this._buttonRow.add(this._versionLabel);
 
+    this._modelPanel = new LoadedModelPanel();
     this._metricsPanel = new MetricsPanel();
-    this._logsControl = new LogsViewer({
-      getLines: () => serverLogLines,
-    });
-    this._logsControl.flex = 1;
 
-    this._metricsHeader = new Label();
-    this._metricsHeader.text = "▎Realtime Metrics";
-    this._metricsHeader.color = themeColors.accent;
-    this._metricsHeader.bold = true;
-    this._metricsHeader.measure = (parentSize) => ({ width: parentSize?.width ?? 80, height: 1 });
+    this._modelSection = new Section();
+    this._modelSection.title = "Loaded Model";
+    this._modelSection.add(this._modelPanel);
 
-    this._logsHeader = new Label();
-    this._logsHeader.text = "▎Live Logs";
-    this._logsHeader.color = themeColors.accent;
-    this._logsHeader.bold = true;
-    this._logsHeader.measure = (parentSize) => ({ width: parentSize?.width ?? 80, height: 1 });
+    this._metricsSection = new Section();
+    this._metricsSection.title = "Realtime Metrics";
+    this._metricsSection.add(this._metricsPanel);
+    this._metricsSection.flex = 1;
 
     this._column = new Column();
     this._column.add(this._buttonRow);
-    this._column.add(new Spacer());
-    this._column.add(this._metricsHeader);
-    this._column.add(this._metricsPanel);
-    this._column.add(new Spacer());
-    this._column.add(this._logsHeader);
-    this._column.add(this._logsControl);
+    this._column.add(this._modelSection);
+    this._column.add(this._metricsSection);
 
     this.add(this._column);
   }
@@ -152,13 +137,6 @@ export class DashboardControl extends Control {
 
     this.updateProfileLabel();
 
-    this._logUnsub = onServerLog(() => {
-      if (this._logRenderTimer) clearTimeout(this._logRenderTimer);
-      this._logRenderTimer = setTimeout(() => {
-        this.markDirty();
-      }, 200);
-    });
-
     this._statusUnsub = onServerStatusChange(() => {
       this.markDirty();
       this._ctx?.showCursor();
@@ -168,25 +146,16 @@ export class DashboardControl extends Control {
   }
 
   onDestroy(): void {
-    if (this._logUnsub) {
-      this._logUnsub();
-      this._logUnsub = null;
-    }
     if (this._statusUnsub) {
       this._statusUnsub();
       this._statusUnsub = null;
     }
-    if (this._logRenderTimer) {
-      clearTimeout(this._logRenderTimer);
-      this._logRenderTimer = null;
-    }
     this._ctx = null;
   }
 
-  render(ctx: RenderContext): void {
+  draw(ctx: RenderContext): void {
     this.updateProfileLabel();
     this.updateButtons();
-    super.render(ctx);
   }
 
   onFocus(): void {
@@ -194,7 +163,7 @@ export class DashboardControl extends Control {
     this.updateButtons();
     const firstEnabled = this._buttons.find(b => !b.disabled);
     if (firstEnabled) {
-      firstEnabled.focus();
+      focusManager.setFocus(firstEnabled);
     }
   }
 

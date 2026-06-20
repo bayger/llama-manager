@@ -1,5 +1,7 @@
-import type { Rect, Size, RenderContext, Point } from "./types.js";
-import { themeColors } from "../../lib/theme.js";
+import type { Rect, Size, RenderContext, Point } from "./types";
+import type { Color } from "../../lib/theme";
+
+import { focusManager } from "./FocusManager";
 
 export class Control {
   public rect: Rect = { x: 0, y: 0, width: 0, height: 0 };
@@ -11,6 +13,8 @@ export class Control {
   public flex = 0;
   public minWidth = 0;
   public minHeight = 0;
+  public foregroundColor: Color = "None";
+  public backgroundColor: Color = "None";
 
   protected _visible = true;
   get visible(): boolean { return this._visible; }
@@ -34,24 +38,38 @@ export class Control {
     });
   }
 
-  // — Event helpers —
+  // - Multi-listener event helpers -
 
-  on(event: string, callback: (...args: any[]) => void): void {
+  private _listeners: Map<string, Array<(...args: any[]) => void>> = new Map();
+
+  on(event: string, callback: (...args: any[]) => void): (...args: any[]) => void {
     const handler = callback.bind(this);
-    (this as any)[`_on_${event}`] = handler;
-    this.emit(event);
+    const list = this._listeners.get(event) || [];
+    list.push(handler);
+    this._listeners.set(event, list);
+    return handler;
   }
 
-  off(event: string, callback: (...args: any[]) => void): void {
-    delete (this as any)[`_on_${event}`];
+  off(event: string, handler?: ((...args: any[]) => void) | undefined): void {
+    const list = this._listeners.get(event);
+    if (!list) return;
+    if (handler) {
+      const idx = list.indexOf(handler);
+      if (idx !== -1) list.splice(idx, 1);
+    } else {
+      this._listeners.delete(event);
+    }
   }
 
   emit(event: string, ...args: any[]): void {
-    const handler = (this as any)[`_on_${event}`];
-    if (handler) handler(...args);
+    const list = this._listeners.get(event);
+    if (!list) return;
+    for (const handler of list) {
+      handler(...args);
+    }
   }
 
-  // — Child management —
+  // - Child management -
 
   add(child: Control): void {
     child._parent = this;
@@ -64,19 +82,27 @@ export class Control {
     if (idx !== -1) {
       this.children.splice(idx, 1);
       child._parent = null;
+      if (focusManager.getFocused() === child || child.isAncestorOf(focusManager.getFocused())) {
+        focusManager.clear();
+      }
       this.markDirty();
     }
   }
 
   clear(): void {
+    const focused = focusManager.getFocused();
     for (const child of this.children) {
       child._parent = null;
+      if (focused === child || child.isAncestorOf(focused)) {
+        focusManager.clear();
+        break;
+      }
     }
     this.children.length = 0;
     this.markDirty();
   }
 
-  // — Layout —
+  // - Layout -
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width, height: this.rect.height };
@@ -88,18 +114,21 @@ export class Control {
     this.markDirty();
   }
 
-  // — Rendering —
+  // - Rendering -
 
   render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+    if (!this.visible) return;
 
     const prevClip = ctx.canvas.getClipRect();
     ctx.canvas.setClipRect(this.rect);
 
     const { x, y, width, height } = this.rect;
-    ctx.canvas.colorRgbHex(themeColors.canvas);
-    ctx.canvas.bgColorRgbHex(themeColors.canvas);
+    ctx.canvas.setForegroundColor(this.foregroundColor);
+    ctx.canvas.setBackgroundColor(this.backgroundColor);
     ctx.canvas.clearRect(x, y, width, height);
+
+    this.draw(ctx);
+    ctx.canvas.styleReset();
 
     for (const child of this.children) {
       child.render(ctx);
@@ -109,7 +138,9 @@ export class Control {
     this.needsRender = false;
   }
 
-  // — Input —
+  draw(_ctx: RenderContext): void {}
+
+  // - Input -
 
   handleKey(key: string): boolean {
     const focused = this.findFocusedDescendant();
@@ -132,7 +163,7 @@ export class Control {
     return null;
   }
 
-  // — Focus —
+  // - Focus -
 
   focus(): void {
     this.focused = true;
@@ -146,7 +177,7 @@ export class Control {
     this.markDirty();
   }
 
-  // — Dirty tracking —
+  // - Dirty tracking -
 
   markDirty(): void {
     this.needsRender = true;
@@ -162,7 +193,7 @@ export class Control {
     }
   }
 
-  // — Lifecycle —
+  // - Lifecycle -
 
   onInit(): void {
     for (const child of this.children) {
@@ -192,7 +223,7 @@ export class Control {
     }
   }
 
-  // — Destroy —
+  // - Destroy -
 
   destroy(): void {
     this.onDestroy();
@@ -201,7 +232,7 @@ export class Control {
     }
   }
 
-  // — Mouse —
+  // - Mouse -
 
   hitTest(point: Point): Control | null {
     if (!this.visible || !this.enabled) return null;
@@ -219,7 +250,7 @@ export class Control {
     return null;
   }
 
-  // — Utilities —
+  // - Utilities -
 
   getAllFocusable(): Control[] {
     const result: Control[] = [];
@@ -235,5 +266,14 @@ export class Control {
 
   fitContent(width: number, height: number): Size {
     return { width: Math.min(width, process.stdout.columns || 80), height: Math.min(height, 999) };
+  }
+
+  isAncestorOf(control: Control | null): boolean {
+    let current = control;
+    while (current) {
+      if (current === this) return true;
+      current = current._parent;
+    }
+    return false;
   }
 }

@@ -1,5 +1,5 @@
-import { Control } from "../Control.js";
-import type { Size } from "../types.js";
+import { Control } from "../Control";
+import type { Size } from "../types";
 
 export class Scrollable extends Control {
   public scrollOffset = 0;

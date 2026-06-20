@@ -10,9 +10,13 @@ export interface SlotMetrics {
   state: "idle" | "prompting" | "generating";
   taskId: number | null;
   generationSpeed: number | null;
+  decodedTokens: number | null;
   promptSpeed: number | null;
   promptProgress: number | null;
   contextSize: number;
+  nCtxSlot: number | null;
+  cachedTokens: number | null;
+  pendingTokens: number | null;
   thinking: boolean;
   lastTask: CompletedTask | null;
   checkpoints: SlotCheckpoint[];
@@ -59,9 +63,32 @@ export function onMetricsChange(listener: () => void): () => void {
 
 const slots = new Map<number, SlotMetrics>();
 const completedTasks: CompletedTask[] = [];
+const MAX_COMPLETED_TASKS = 1000;
 let cacheMetrics: CacheMetrics | null = null;
 
+interface GlobalAccum {
+  count: number;
+  totalPromptSpeed: number;
+  totalGenSpeed: number;
+  totalPromptTokens: number;
+  totalOutputTokens: number;
+  totalDraftAcceptance: number;
+  draftCount: number;
+}
+
+const globalAccum: GlobalAccum = {
+  count: 0,
+  totalPromptSpeed: 0,
+  totalGenSpeed: 0,
+  totalPromptTokens: 0,
+  totalOutputTokens: 0,
+  totalDraftAcceptance: 0,
+  draftCount: 0,
+};
+
 const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*processing task/;
+const newPromptRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*(\d+),\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
+const cachedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
 const promptProgressRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt processing,\s*n_tokens\s*=\s*(\d+),\s*progress\s*=\s*([\d.]+),\s*t\s*=\s*[\d.]+\s*s\s*\/\s*([\d.]+)\s*tokens per second/;
 const reasoningRegex = /reasoning-budget:\s*(activated|deactivated)/;
@@ -73,6 +100,7 @@ const releaseRegex = /slot\s+release: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*stop
 const cacheStateRegex = /cache state:\s*(\d+)\s+prompts,\s*([\d.]+)\s+MiB\s*\(limits:\s*([\d.]+)\s+MiB/;
 const checkpointCreateRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*created context checkpoint \d+ of \d+ \(pos_min\s*=\s*(\d+),\s*pos_max\s*=\s*\d+,\s*n_tokens\s*=\s*\d+,\s*size\s*=\s*([\d.]+)\s+MiB/;
 const checkpointErasedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erased invalidated context checkpoint \(pos_min\s*=\s*(\d+)/;
+const checkpointErasingOldRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erasing old context checkpoint \(pos_min\s*=\s*(\d+)/;
 
 const taskAccumulators = new Map<number, Partial<CompletedTask>>();
 
@@ -83,9 +111,13 @@ function ensureSlot(slotId: number): SlotMetrics {
       state: "idle",
       taskId: null,
       generationSpeed: null,
+      decodedTokens: null,
       promptSpeed: null,
       promptProgress: null,
       contextSize: 0,
+      nCtxSlot: null,
+      cachedTokens: null,
+      pendingTokens: null,
       thinking: false,
       lastTask: null,
       checkpoints: [],
@@ -140,6 +172,19 @@ export function processLine(line: string) {
     return;
   }
 
+  if ((m = line.match(checkpointErasingOldRegex))) {
+    const slotId = parseInt(m[1]);
+    const slot = ensureSlot(slotId);
+    if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
+    const pos = parseInt(m[3]);
+    const idx = slot.checkpoints.findIndex(cp => cp.pos === pos);
+    if (idx >= 0) {
+      slot.checkpoints.splice(idx, 1);
+    }
+    notify();
+    return;
+  }
+
   if ((m = line.match(launchRegex))) {
     const slotId = parseInt(m[1]);
     const taskId = parseInt(m[2]);
@@ -149,7 +194,32 @@ export function processLine(line: string) {
     slot.thinking = false;
     slot.promptProgress = null;
     slot.generationSpeed = null;
+    slot.decodedTokens = null;
     slot.promptSpeed = null;
+    slot.cachedTokens = null;
+    slot.pendingTokens = null;
+    notify();
+    return;
+  }
+
+  if ((m = line.match(newPromptRegex))) {
+    const slotId = parseInt(m[1]);
+    const slot = ensureSlot(slotId);
+    const taskId = parseInt(m[2]);
+    slot.taskId = taskId;
+    slot.nCtxSlot = parseInt(m[3]);
+    slot.pendingTokens = parseInt(m[4]);
+    slot.cachedTokens = 0;
+    slot.decodedTokens = 0;
+    notify();
+    return;
+  }
+
+  if ((m = line.match(cachedRegex))) {
+    const slotId = parseInt(m[1]);
+    const slot = ensureSlot(slotId);
+    if (slot.taskId === null) return;
+    slot.cachedTokens = parseInt(m[3]);
     notify();
     return;
   }
@@ -160,6 +230,7 @@ export function processLine(line: string) {
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
     slot.state = "generating";
     slot.generationSpeed = parseFloat(m[4]);
+    slot.decodedTokens = parseInt(m[3]);
     notify();
     return;
   }
@@ -255,14 +326,31 @@ export function processLine(line: string) {
     };
 
     completedTasks.push(completed);
+    if (completedTasks.length > MAX_COMPLETED_TASKS) {
+      completedTasks.splice(0, completedTasks.length - MAX_COMPLETED_TASKS);
+    }
+
+    globalAccum.count++;
+    globalAccum.totalPromptSpeed += completed.promptSpeed;
+    globalAccum.totalGenSpeed += completed.outputSpeed;
+    globalAccum.totalPromptTokens += completed.promptTokens;
+    globalAccum.totalOutputTokens += completed.outputTokens;
+    if (completed.draftGenerated > 0) {
+      globalAccum.totalDraftAcceptance += completed.draftAcceptance;
+      globalAccum.draftCount++;
+    }
+
     taskAccumulators.delete(taskId);
 
     const slot = ensureSlot(slotId);
     slot.state = "idle";
     slot.taskId = null;
     slot.generationSpeed = null;
+    slot.decodedTokens = null;
     slot.promptSpeed = null;
     slot.promptProgress = null;
+    slot.cachedTokens = null;
+    slot.pendingTokens = null;
     slot.contextSize = ctxSize;
     slot.lastTask = completed;
     notify();
@@ -274,6 +362,13 @@ export function reset() {
   completedTasks.length = 0;
   taskAccumulators.clear();
   cacheMetrics = null;
+  globalAccum.count = 0;
+  globalAccum.totalPromptSpeed = 0;
+  globalAccum.totalGenSpeed = 0;
+  globalAccum.totalPromptTokens = 0;
+  globalAccum.totalOutputTokens = 0;
+  globalAccum.totalDraftAcceptance = 0;
+  globalAccum.draftCount = 0;
   notify();
 }
 
@@ -282,35 +377,19 @@ export function getSlots(): SlotMetrics[] {
 }
 
 export function getGlobal(): GlobalMetrics | null {
-  if (completedTasks.length === 0) return null;
-
-  let totalPromptSpeed = 0;
-  let totalGenSpeed = 0;
-  let totalPromptTokens = 0;
-  let totalOutputTokens = 0;
-  let totalDraftAcceptance = 0;
-  let draftCount = 0;
-
-  for (const t of completedTasks) {
-    totalPromptSpeed += t.promptSpeed;
-    totalGenSpeed += t.outputSpeed;
-    totalPromptTokens += t.promptTokens;
-    totalOutputTokens += t.outputTokens;
-    if (t.draftGenerated > 0) {
-      totalDraftAcceptance += t.draftAcceptance;
-      draftCount++;
-    }
-  }
+  if (globalAccum.count === 0) return null;
 
   const activeSlots = Array.from(slots.values()).filter(s => s.state !== "idle").length;
 
   return {
-    tasksCompleted: completedTasks.length,
-    avgPromptSpeed: totalPromptSpeed / completedTasks.length,
-    avgGenSpeed: totalGenSpeed / completedTasks.length,
-    totalPromptTokens,
-    totalOutputTokens,
-    avgDraftAcceptance: draftCount > 0 ? totalDraftAcceptance / draftCount : 0,
+    tasksCompleted: globalAccum.count,
+    avgPromptSpeed: globalAccum.totalPromptSpeed / globalAccum.count,
+    avgGenSpeed: globalAccum.totalGenSpeed / globalAccum.count,
+    totalPromptTokens: globalAccum.totalPromptTokens,
+    totalOutputTokens: globalAccum.totalOutputTokens,
+    avgDraftAcceptance: globalAccum.draftCount > 0
+      ? globalAccum.totalDraftAcceptance / globalAccum.draftCount
+      : 0,
     activeSlots,
   };
 }

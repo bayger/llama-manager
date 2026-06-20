@@ -1,17 +1,22 @@
-import { Control } from "../ui/Control.js";
-import { themeColors, fg, fgBg } from "../../lib/theme.js";
-import { ConfigData } from "../../lib/config.js";
-import type { Point, Size, RenderContext } from "../ui/types.js";
+import { Control } from "../ui/Control";
+import { fg, fgBg } from "../../lib/theme";
+import { ConfigData } from "../../lib/config";
+import type { Point, Size, RenderContext } from "../ui/types";
 
 export class ProfileList extends Control {
   focusable = true;
   protected _config: ConfigData | null = null;
   protected _selectedIndex = 0;
   protected _onSelect: ((name: string) => void) | null = null;
+  protected _onEdit: (() => void) | null = null;
   protected _onCancel: (() => void) | null = null;
 
   setSelectCallback(cb: (name: string) => void): void {
     this._onSelect = cb;
+  }
+
+  setEditCallback(cb: () => void): void {
+    this._onEdit = cb;
   }
 
   setCancelCallback(cb: () => void): void {
@@ -33,25 +38,18 @@ export class ProfileList extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender || !this._config) return;
+  draw(ctx: RenderContext): void {
+    if (!this._config) return;
     const canvas = ctx.canvas;
     const { x, y: startY, width, height } = this.rect;
     const names = Object.keys(this._config.server.profiles);
 
     if (names.length === 0) {
-      this.needsRender = false;
       return;
     }
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, startY, width, height);
-    canvas.moveTo(x, startY);
-
     for (let i = 0; i < height; i++) {
       canvas.moveTo(x, startY + i);
-      canvas.styleReset();
 
       if (i < names.length) {
         const name = names[i]!;
@@ -59,20 +57,18 @@ export class ProfileList extends Control {
         const isSelected = i === this._selectedIndex && this.focused;
 
         if (isSelected) {
-          const prefix = isActive ? "● " : "  ";
+          const prefix = isActive ? "✓ " : "  ";
           const line = (prefix + name).padEnd(width);
-          fgBg(canvas, themeColors.selectedText, themeColors.selectedBg, line.substring(0, width));
+          fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
         } else if (isActive) {
-          const line = ("● " + name).padEnd(width);
-          fg(canvas, themeColors.success, line.substring(0, width));
+          const line = ("✓ " + name).padEnd(width);
+          fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
         } else {
           const line = ("  " + name).padEnd(width);
-          fg(canvas, themeColors.text, line.substring(0, width));
+          fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
         }
       }
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {
@@ -107,6 +103,10 @@ export class ProfileList extends Control {
       return true;
     }
     if (key === "RETURN" || key === "ENTER") {
+      if (this._onEdit) this._onEdit();
+      return true;
+    }
+    if (key === "SPACE" || key === " ") {
       const name = names[this._selectedIndex];
       if (name && this._onSelect) {
         this._onSelect(name);

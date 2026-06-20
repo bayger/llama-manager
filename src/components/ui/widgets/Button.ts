@@ -1,7 +1,7 @@
-import { Control } from "../Control.js";
-import { fg, fgBg, themeColors } from "../../../lib/theme.js";
-import { focusManager } from "../FocusManager.js";
-import type { Point, Size, RenderContext } from "../types.js";
+import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
+import { focusManager } from "../FocusManager";
+import type { Point, Size, RenderContext } from "../types";
 
 export interface ButtonConfig {
   label: string;
@@ -60,27 +60,20 @@ export class Button extends Control {
     return { width: this.label.length + 4, height: 1 };
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width } = this.rect;
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, 1);
+    const { x, y } = this.rect;
     canvas.moveTo(x, y);
     const padded = ` ${this.label} `;
 
     if (this.disabled) {
-      fg(canvas, themeColors.borderMuted, `( ${this.label} )`);
+      fgBg(canvas, "borderMuted", "canvas", padded);
     } else if (this.focused) {
       canvas.bold();
-      fgBg(canvas, themeColors.canvas, themeColors.accent, padded);
-      canvas.styleReset();
+      fgBg(canvas, "canvas", "accent", padded);
     } else {
-      fg(canvas, themeColors.textMuted, padded);
+      fgBg(canvas, "textMuted", "canvasSubtle", padded);
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {

@@ -1,25 +1,25 @@
-import { Control } from "../Control.js";
-import { fg, fgBg, themeColors } from "../../../lib/theme.js";
-import type { Point, Size, RenderContext } from "../types.js";
-import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas.js";
+import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
+import type { Point, Size, RenderContext } from "../types";
+import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas";
 
-export interface ListItem<T = any> {
-  id: T;
+export interface ListItem<ID = string, D = unknown> {
+  id: ID;
   label: string;
   sublabel?: string;
-  data?: any;
+  data?: D;
 }
 
-export type ItemRenderer<T> = (canvas: FramebufferCanvas, item: ListItem<T>, index: number, isSelected: boolean, x: number, y: number, width: number) => void;
+export type ItemRenderer<ID, D> = (canvas: FramebufferCanvas, item: ListItem<ID, D>, index: number, isSelected: boolean, x: number, y: number, width: number) => void;
 
-export class List<T = any> extends Control {
+export class List<ID = string, D = unknown> extends Control {
   focusable = true;
-  public items: ListItem<T>[] = [];
+  public items: ListItem<ID, D>[] = [];
   protected _selectedIndex = -1;
   public itemHeight = 1;
-  protected _onSelect: ((item: ListItem<T>) => void) | null = null;
-  protected _onHighlight: ((item: ListItem<T> | null) => void) | null = null;
-  protected _customRenderer: ItemRenderer<T> | null = null;
+  protected _onSelect: ((item: ListItem<ID, D>) => void) | null = null;
+  protected _onHighlight: ((item: ListItem<ID, D> | null) => void) | null = null;
+  protected _customRenderer: ItemRenderer<ID, D> | null = null;
 
   get selectedIndex(): number { return this._selectedIndex; }
   set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
@@ -29,11 +29,11 @@ export class List<T = any> extends Control {
     return { width: this.rect.width || 40, height: h };
   }
 
-  setOnSelect(callback: (item: ListItem<T>) => void): void {
+  setOnSelect(callback: (item: ListItem<ID, D>) => void): void {
     this._onSelect = callback;
   }
 
-  setOnHighlight(callback: (item: ListItem<T> | null) => void): void {
+  setOnHighlight(callback: (item: ListItem<ID, D> | null) => void): void {
     this._onHighlight = callback;
   }
 
@@ -43,11 +43,11 @@ export class List<T = any> extends Control {
     }
   }
 
-  setRenderer(renderer: ItemRenderer<T>): void {
+  setRenderer(renderer: ItemRenderer<ID, D>): void {
     this._customRenderer = renderer;
   }
 
-  updateItems(items: ListItem<T>[]): void {
+  updateItems(items: ListItem<ID, D>[]): void {
     this.items = items;
     if (this.selectedIndex >= items.length) {
       this.selectedIndex = items.length - 1;
@@ -55,15 +55,9 @@ export class List<T = any> extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width, height } = this.rect;
-
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, height);
-    canvas.moveTo(x, y);
+    const { x, y, width } = this.rect;
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
@@ -77,16 +71,13 @@ export class List<T = any> extends Control {
         const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
         if (isSelected) {
-          fgBg(canvas, themeColors.text, themeColors.canvasSubtle, display);
-          fgBg(canvas, themeColors.canvas, themeColors.canvasSubtle, " ".repeat(Math.max(0, width - display.length)));
-          canvas.styleReset();
+          fgBg(canvas, "text", "canvasSubtle", display);
+          fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - display.length)));
         } else {
-          fg(canvas, themeColors.text, display);
+          fg(canvas, "text", display);
         }
       }
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {
@@ -128,7 +119,7 @@ export class List<T = any> extends Control {
     }
   }
 
-  getSelectedItem(): ListItem<T> | null {
+  getSelectedItem(): ListItem<ID, D> | null {
     if (this.selectedIndex >= 0 && this.selectedIndex < this.items.length) {
       return this.items[this.selectedIndex]!;
     }

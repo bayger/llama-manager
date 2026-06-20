@@ -1,4 +1,5 @@
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas.js";
+import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
+import type { ConfigData } from "../../lib/config";
 
 export interface Rect {
   x: number;
@@ -21,7 +22,7 @@ export interface RenderContext {
   canvas: FramebufferCanvas;
   scheduleRender(): void;
   showMessage(msg: string): void;
-  getConfig(): any | null;
+  getConfig(): ConfigData | null;
   showCursor(): void;
 }
 

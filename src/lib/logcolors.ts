@@ -1,38 +1,39 @@
-import { themeColors, fg } from "./theme.js";
-import type { FramebufferCanvas } from "./framebuffer-canvas.js";
+import { fg } from "./theme";
+import type { Color } from "./theme";
+import type { FramebufferCanvas } from "./framebuffer-canvas";
 
 export interface LogSegment {
   text: string;
-  color: string;
+  color: Color;
 }
 
 const mainLineRegex = /^(\d+\.\d+\.\d+\.\d+)\s+([IEW])\s+(.*?):\s+(.*)$/;
 
 export function parseLogLine(line: string): LogSegment[] {
   if (line.includes("ERROR") || line.includes("FATAL")) {
-    return [{ text: line, color: themeColors.danger }];
+    return [{ text: line, color: "danger" }];
   }
 
   const match = line.match(mainLineRegex);
   if (!match) {
-    return [{ text: line, color: themeColors.text }];
+    return [{ text: line, color: "text" }];
   }
 
   const [, timestamp, severity, component, rest] = match;
 
-  const sevColor =
-    severity === "E" ? themeColors.danger :
-    severity === "W" ? themeColors.warning :
-    themeColors.info;
+  const sevColor: Color =
+    severity === "E" ? "danger" :
+    severity === "W" ? "warning" :
+    "info";
 
   return [
-    { text: timestamp, color: themeColors.textMuted },
-    { text: " ", color: themeColors.canvas },
+    { text: timestamp, color: "textMuted" },
+    { text: " ", color: "canvas" },
     { text: severity, color: sevColor },
-    { text: " ", color: themeColors.canvas },
-    { text: component, color: themeColors.textMuted },
-    { text: ": ", color: themeColors.textMuted },
-    { text: rest, color: themeColors.text },
+    { text: " ", color: "canvas" },
+    { text: component, color: "textMuted" },
+    { text: ": ", color: "textMuted" },
+    { text: rest, color: "text" },
   ];
 }
 

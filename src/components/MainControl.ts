@@ -1,22 +1,28 @@
-import { Control } from "./ui/Control.js";
-import { Column } from "./ui/Layout.js";
-import { HalfBar } from "./ui/widgets/HalfBar.js";
-import { fg, themeColors } from "../lib/theme.js";
-import type { Point, Rect, RenderContext, Size } from "./ui/types.js";
-import type { TabContext } from "../lib/tabcontext.js";
+import { Control } from "./ui/Control";
+import { Column } from "./ui/Layout";
+import { HalfBar } from "./ui/widgets/HalfBar";
+import { Color, fg } from "../lib/theme";
+import type { Point, Rect, RenderContext, Size } from "./ui/types";
+import type { TabContext } from "../lib/tabcontext";
+import pkg from "../../package.json";
+import { getStatus, onServerStatusChange } from "../lib/server";
+import { formatUptime } from "../lib/utils";
 
-import { createServerTab } from "./tabs/ServerTab.js";
-import { createTasksTab } from "./tabs/TasksTab.js";
-import { createVersionsTab } from "./tabs/VersionsTab.js";
-import { createDashboardTab } from "./tabs/DashboardTab.js";
-import { createModelsTab } from "./tabs/ModelsTab.js";
-import { createOptionsTab } from "./tabs/OptionsTab.js";
-import { focusManager } from "./ui/FocusManager.js";
+import { createServerTab } from "./tabs/ServerTab";
+import { createTasksTab } from "./tabs/TasksTab";
+import { createVersionsTab } from "./tabs/VersionsTab";
+import { createDashboardTab } from "./tabs/DashboardTab";
+import { createLogsTab } from "./tabs/LogsTab";
+import { createModelsTab } from "./tabs/ModelsTab";
+import { createOptionsTab } from "./tabs/OptionsTab";
+import { focusManager } from "./ui/FocusManager";
 
-export const TABS = ["Dashboard", "Profiles", "Tasks", "Versions", "Models", "Options"] as const;
+export const TABS = ["Dashboard", "Logs", "Tasks", "Profiles", "Versions", "Models", "Options"] as const;
 export type TabId = (typeof TABS)[number];
 
 export class MainControl extends Column {
+  foregroundColor = 'canvas' as Color;
+  backgroundColor = 'canvas' as Color;
   protected _topBar: HalfBar;
   protected _tabBar: TabBar;
   protected _tabContent: TabContent;
@@ -75,7 +81,6 @@ export class MainControl extends Column {
     this._activeTab = tab;
     this._tabBar.setSelectedIndex(TABS.indexOf(tab));
     this._tabContent.setActiveTab(tab);
-    this._statusBar.setActiveTab(tab);
 
     const control = this._tabContent.getActiveControl();
     if (control) {
@@ -106,7 +111,7 @@ export class MainControl extends Column {
       return true;
     }
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       if (key === `F${i + 1}`) {
         this.setActiveTab(TABS[i]);
         return true;
@@ -148,16 +153,18 @@ export class MainControl extends Column {
     return [];
   }
 
-  render(ctx: RenderContext): void {
-    super.render(ctx);
+  draw(_ctx: RenderContext): void {
+    super.draw(_ctx);
   }
 }
 
 class TabBar extends Control {
   focusable = false;
+  backgroundColor: Color = "canvasSubtle";
   protected _selectedIndex = 0;
   protected _tabRects: { start: number; end: number }[] = [];
   protected _onTabClick: ((index: number) => void) | null = null;
+  protected _appStr = `Llama Manager `;
 
   constructor(onTabClick?: (index: number) => void) {
     super();
@@ -173,16 +180,17 @@ class TabBar extends Control {
     this.markDirty();
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, 2);
     canvas.moveTo(x, y);
-    fg(canvas, themeColors.text, " ");
+    fg(canvas, "text", " ");
+    canvas.bold();
+    fg(canvas, "accentColor", this._appStr);
+    canvas.bold(false);
+    fg(canvas, "borderMuted", " │ ");
+
     this._tabRects = [];
     let pos = 0;
     let activeStart = 0;
@@ -191,32 +199,40 @@ class TabBar extends Control {
       const labelLen = `F${i + 1} ${TABS[i]}`.length;
       this._tabRects.push({ start: pos, end: pos + labelLen });
       if (i === this._selectedIndex) {
-        fg(canvas, themeColors.textMuted, `F${i + 1}`);
-        fg(canvas, themeColors.accent, ` ${TABS[i]}`);
+        fg(canvas, "textMuted", `F${i + 1}`);
+        canvas.bold();
+        fg(canvas, "accent", ` ${TABS[i]}`);
+        canvas.bold(false);
         activeStart = pos;
         activeEnd = pos + labelLen;
       } else {
-        fg(canvas, themeColors.border, `F${i + 1}`);
-        fg(canvas, themeColors.textMuted, ` ${TABS[i]}`);
+        fg(canvas, "border", `F${i + 1}`);
+        canvas.bold();
+        fg(canvas, "textMuted", ` ${TABS[i]}`);
+        canvas.bold(false);
       }
       pos += labelLen;
       if (i < TABS.length - 1) {
-        fg(canvas, themeColors.borderMuted, " │ ");
+        fg(canvas, "borderMuted", " │ ");
         pos += 3;
       }
     }
 
-    canvas.moveTo(x, y + 1);
-    for (let i = 0; i < width; i++) {
-      fg(canvas, themeColors.canvas, "\u2584");
+    const rightPadding = 1;
+    const padLen = width - pos - this._appStr.length - rightPadding - 3;
+    if (padLen > 0) {
+      fg(canvas, "borderMuted", " ".repeat(padLen));
     }
 
-    this.needsRender = false;
+    canvas.moveTo(x, y + 1);
+    for (let i = 0; i < width; i++) {
+      fg(canvas, "canvas", "\u2584");
+    }
   }
 
   onMouseDown(point: Point): boolean {
     if (point.y !== this.rect.y) return false;
-    const offset = point.x - this.rect.x - 1;
+    const offset = point.x - this.rect.x - 1 - this._appStr.length - 3;
     for (let i = 0; i < this._tabRects.length; i++) {
       const rect = this._tabRects[i]!;
       if (offset >= rect.start && offset < rect.end) {
@@ -238,6 +254,7 @@ class TabContent extends Control {
 
     const factoryFns: Record<TabId, (ctx: TabContext) => Control> = {
       Dashboard: createDashboardTab,
+      Logs: createLogsTab,
       Profiles: createServerTab,
       Tasks: createTasksTab,
       Versions: createVersionsTab,
@@ -268,23 +285,14 @@ class TabContent extends Control {
     return this._tabs.get(this._activeTab) || null;
   }
 
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const { x, y, width, height } = this.rect;
-    const canvas = ctx.canvas;
-
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvas);
-    canvas.clearRect(x, y, width, height);
 
     const control = this.getActiveControl();
     if (control) {
       const pad = 1;
       control.layout({ x: x + pad, y: y, width: Math.max(0, width - pad * 2), height });
-      control.render(ctx);
     }
-
-    this.needsRender = false;
   }
 
   handleKey(key: string): boolean {
@@ -304,13 +312,60 @@ class TabContent extends Control {
   }
 }
 
+const APP_VERSION = pkg.version;
+
 class StatusBar extends Control {
   focusable = false;
+  backgroundColor: Color = "canvasSubtle";
   protected _message: string | null = null;
-  protected _activeTab: TabId = "Dashboard";
+  protected _serverRunning = false;
+  protected _serverPid: number | null = null;
+  protected _serverUptime = 0;
+  protected _statusUnsubscribe: (() => void) | null = null;
+  protected _uptimeInterval: ReturnType<typeof setInterval> | null = null;
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 80, height: 1 };
+  }
+
+  onInit(): void {
+    super.onInit();
+    this.updateServerStatus();
+    this._statusUnsubscribe = onServerStatusChange(() => {
+      this.updateServerStatus();
+    });
+  }
+
+  onDestroy(): void {
+    super.onDestroy();
+    if (this._statusUnsubscribe) {
+      this._statusUnsubscribe();
+      this._statusUnsubscribe = null;
+    }
+    if (this._uptimeInterval) {
+      clearInterval(this._uptimeInterval);
+      this._uptimeInterval = null;
+    }
+  }
+
+  updateServerStatus(): void {
+    const status = getStatus();
+    this._serverRunning = status.running;
+    this._serverPid = status.pid;
+    this._serverUptime = status.uptime;
+    this.markDirty();
+
+    if (this._uptimeInterval) {
+      clearInterval(this._uptimeInterval);
+      this._uptimeInterval = null;
+    }
+    if (status.running) {
+      this._uptimeInterval = setInterval(() => {
+        const s = getStatus();
+        this._serverUptime = s.uptime;
+        this.markDirty();
+      }, 1000);
+    }
   }
 
   setMessage(msg: string | null): void {
@@ -318,36 +373,46 @@ class StatusBar extends Control {
     this.markDirty();
   }
 
-  setActiveTab(tab: TabId): void {
-    this._activeTab = tab;
-    this.markDirty();
-  }
-
-  render(ctx: RenderContext): void {
-    if (!this.visible || !this.needsRender) return;
+  draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
+    const versionStr = `v${APP_VERSION} `;
 
-    canvas.colorRgbHex(themeColors.canvas);
-    canvas.bgColorRgbHex(themeColors.canvasSubtle);
-    canvas.clearRect(x, y, width, 1);
     canvas.moveTo(x, y);
-    fg(canvas, themeColors.text, " ");
+    fg(canvas, "text", " ");
+
+    let leftLen = 0;
     if (this._message) {
       const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
-      fg(canvas, isError ? themeColors.danger : themeColors.success, this._message);
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "? help");
+      fg(canvas, isError ? "danger" : "success", this._message);
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "? help");
+      leftLen = this._message.length + 10;
     } else {
-      fg(canvas, themeColors.accentColor, this._activeTab);
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "F1-F6 navigate");
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "q quit");
-      fg(canvas, themeColors.borderMuted, "  │  ");
-      fg(canvas, themeColors.textMuted, "? help");
+      fg(canvas, "textMuted", "Server: ");
+      const statusColor: Color = this._serverRunning ? "success" : "danger";
+      const statusLabel = this._serverRunning ? "Running" : "Stopped";
+      fg(canvas, statusColor, statusLabel);
+      if (this._serverRunning) {
+        fg(canvas, "textMuted", ` (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`);
+      }
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "F1-F7 navigate");
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "q quit");
+      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "textMuted", "? help");
+      const serverLen = this._serverRunning
+        ? `Server: Running (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`.length
+        : "Server: Stopped".length;
+      leftLen = serverLen + 40;
     }
 
-    this.needsRender = false;
+    const padding = 2;
+    const padLen = width - leftLen - versionStr.length - padding;
+    if (padLen > 0) {
+      fg(canvas, "borderMuted", " ".repeat(padLen));
+    }
+    fg(canvas, "textMuted", versionStr);
   }
 }

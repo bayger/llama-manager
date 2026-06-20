@@ -67,36 +67,12 @@ export function getDownloadUrl(repoId: string, filename: string): string {
   return `https://huggingface.co/${repoId}/resolve/main/${filename}`;
 }
 
-export interface HFModelInfo {
-  id: string;
-  author: string;
-  likes: number;
-  downloads: number;
-  tags: string[];
-  pipelineTag: string | null;
-  createdAt: string;
-  lastModified: string;
-  private: boolean;
-  disabled: boolean;
-  cardData?: {
-    language?: string[];
-    license?: string;
-    library_name?: string;
-  };
-}
-
 export interface BrowseOptions {
   sort?: "likes" | "downloads" | "lastModified" | "trending" | "created";
   direction?: 1 | -1;
   search?: string;
   filters?: string[];
   limit?: number;
-}
-
-const modelInfoCache = new Map<string, HFModelInfo>();
-
-export function clearModelInfoCache(): void {
-  modelInfoCache.clear();
 }
 
 export async function browseModels(
@@ -135,29 +111,4 @@ export async function browseModels(
   if (!res.ok) throw new Error(`HF browse failed: ${res.status}`);
   const data = await res.json();
   return data.filter((r: HFRepoInfo) => !r.private && !r.disabled);
-}
-
-export async function getModelInfo(
-  repoId: string,
-  token?: string,
-): Promise<HFModelInfo> {
-  const cached = modelInfoCache.get(repoId);
-  if (cached) return cached;
-
-  const res = await fetch(`https://huggingface.co/api/models/${repoId}`, {
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
-
-  if (!res.ok) {
-    if (res.status === 401) throw new Error("Authentication required. Set HF token in config.");
-    if (res.status === 403) throw new Error(`Gated model. Accept terms at https://huggingface.co/${repoId}`);
-    if (res.status === 404) throw new Error(`Repo not found: ${repoId}`);
-    throw new Error(`Failed to fetch model info: ${res.status}`);
-  }
-
-  const data: HFModelInfo = await res.json();
-  modelInfoCache.set(repoId, data);
-  return data;
 }
