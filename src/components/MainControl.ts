@@ -105,10 +105,18 @@ export class MainControl extends Column {
     return this._tabContent.getActiveControl();
   }
 
+  getTabContent(): Control {
+    return this._tabContent;
+  }
+
   handleKey(key: string): boolean {
     if (key === "CTRL_C" || key === "q") {
       this._onQuit();
       return true;
+    }
+
+    if (key === "?" && !focusManager.isTextInputActive()) {
+      return false;
     }
 
     for (let i = 0; i < 7; i++) {

@@ -3,9 +3,11 @@ import { setActiveTheme, setThemeMode, popThemeChanged, fg, fgBg } from "../lib/
 import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
+import { modalManager } from "./ui/ModalManager";
 import { stopServer, setMaxLogLines } from "../lib/server";
 import type { RenderContext } from "./ui/types";
 import type { TabContext } from "../lib/tabcontext";
+import type { Modal } from "./ui/widgets/Modal";
 import { Framebuffer } from "../lib/framebuffer";
 import { FramebufferCanvas } from "../lib/framebuffer-canvas";
 import { diffToTerminal } from "../lib/framebuffer-diff";
@@ -64,10 +66,45 @@ export class App {
           this._canvas.showTerminalCursor();
         }
       },
+      openModal: <T = void>(modal: Modal): Promise<T> => {
+        const m = modal as unknown as Record<string, (...args: unknown[]) => void>;
+        if (typeof m.setResolve === "function" && typeof m.closeWithResult === "function") {
+          return new Promise<T>((resolve) => {
+            m.setResolve(resolve);
+            modal.setOnClose(() => {
+              m.closeWithResult(false);
+            });
+            modalManager.open(modal);
+            if (this._main) this._main.markAllDirty();
+          });
+        }
+        modal.setOnClose(() => {
+          modalManager.close(modal);
+          if (this._main) this._main.markAllDirty();
+        });
+        modalManager.open(modal);
+        if (this._main) this._main.markAllDirty();
+        return Promise.resolve() as Promise<T>;
+      },
+      closeModal: <T = void>(result?: T, modalInstance?: Modal) => {
+        if (modalInstance) {
+          const m = modalInstance as unknown as Record<string, unknown>;
+          if (typeof m.closeWithResult === "function") {
+            m.closeWithResult(result);
+            return;
+          }
+          modalManager.close(modalInstance);
+        } else {
+          modalManager.close();
+        }
+        if (this._main) this._main.markAllDirty();
+      },
     };
 
     this._main = new MainControl(this._ctx, () => this.quit());
     this._main.onInit();
+
+    modalManager.init(this._main.getTabContent());
 
     this.setupKeyHandler();
     this.setupResizeHandler();
@@ -98,7 +135,7 @@ export class App {
     const width = process.stdout.columns || 80;
     const height = process.stdout.rows || 24;
 
-    if (!main.needsRender && !this.helpOverlayVisible) return;
+    if (!main.needsRender && !this.helpOverlayVisible && !modalManager.needsRender) return;
 
     fb.resize(width, height);
 
@@ -123,6 +160,10 @@ export class App {
     } else {
       main.layout({ x: 1, y: 1, width, height });
       main.render(renderCtx);
+
+      if (modalManager.isOpen()) {
+        modalManager.render(canvas);
+      }
     }
 
     term(CURSOR_HIDE);
@@ -210,6 +251,11 @@ export class App {
     this.keyHandler = (name: string, _matches: string[], data: any) => {
       const textActive = focusManager.isTextInputActive();
 
+      if (modalManager.isOpen()) {
+        const top = modalManager.getTop();
+        if (top && top.handleKey(name)) return;
+      }
+
       if (name === "?" && !textActive) {
         this.helpOverlayVisible = !this.helpOverlayVisible;
         if (this._main) {
@@ -236,6 +282,11 @@ export class App {
     this.mouseHandler = (action: string, data: any) => {
       if (typeof data?.x !== "number" || typeof data?.y !== "number") return;
       const point = { x: data.x, y: data.y };
+      if (modalManager.isOpen()) {
+        if (action === "MOUSE_LEFT_BUTTON_PRESSED") modalManager.handleMouseDown(point);
+        else if (action === "MOUSE_LEFT_BUTTON_RELEASED") modalManager.handleMouseUp(point);
+        return;
+      }
       if (action === "MOUSE_LEFT_BUTTON_PRESSED") {
         focusManager.handleMouseDown(point);
       } else if (action === "MOUSE_LEFT_BUTTON_RELEASED") {

@@ -12,3 +12,8 @@ export { HelpBar } from "./HelpBar";
 export { Table } from "./Table";
 export type { TableColumn, TableItem, TableRenderer, ComputedColumn } from "./Table";
 export { Section } from "./Section";
+export { Modal } from "./Modal";
+export { AlertDialog, createAlertDialog } from "./AlertDialog";
+export { ConfirmDialog, createConfirmDialog } from "./ConfirmDialog";
+export { ProgressDialog, createProgressDialog } from "./ProgressDialog";
+export type { ProgressDialogHandle } from "./ProgressDialog";
