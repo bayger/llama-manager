@@ -23,6 +23,7 @@ import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
 import { saveConfig } from "../../lib/config";
 import { fireAsync } from "../../lib/utils";
 import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
+import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
@@ -79,7 +80,7 @@ export class ModelsControl extends Control {
 
     // --- Local models view ---
     this._browseBtn = new Button({ label: "Browse HF" });
-    this._removeBtn = new Button({ label: "Remove" });
+    this._removeBtn = new Button({ label: "Delete" });
     this._buttonRow = new Row();
     this._buttonRow.add(this._browseBtn);
     this._buttonRow.add(this._removeBtn);
@@ -245,7 +246,7 @@ export class ModelsControl extends Control {
     });
 
     this._removeBtn.setAction(() => {
-      this.removeSelected();
+      this.deleteSelected();
     });
 
     this._hfSearchBtn.setAction(() => {
@@ -589,21 +590,26 @@ this._hfResultsList.handleKey = (key: string) => {
     })();
   }
 
-  removeSelected(): void {
+   deleteSelected(): void {
     const selected = this._modelList.getSelectedItem();
     if (!selected) return;
 
     const config = this._ctx?.getConfig();
     if (!config) return;
 
-    (async () => {
+    fireAsync(async () => {
       const model = selected.data!;
+      const confirmed = await this._ctx!.openModal<boolean>(createConfirmDialog(
+        "Delete Model",
+        `Delete ${model.filename}? This will remove the file from disk.`
+      ));
+      if (!confirmed) return;
       const updated = await deleteModel(config, model.path);
       await saveConfig(updated);
       this._ctx?.setConfig(updated);
-      this._ctx?.showMessage(`Removed ${model.filename}`);
+      this._ctx?.showMessage(`Deleted ${model.filename}`);
       this.refreshModels();
-    })();
+    }, this._ctx!);
   }
 
 }

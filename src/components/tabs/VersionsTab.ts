@@ -27,6 +27,7 @@ import {
 import { saveConfig } from "../../lib/config";
 import { fireAsync } from "../../lib/utils";
 import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
+import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../ui/types";
 
@@ -169,7 +170,14 @@ export class VersionsControl extends Control {
         if (!selected) return;
         const config = ctx.getConfig();
         if (!config) throw new Error("No config loaded");
-        await uninstallVersion(config, (selected.data as VersionInfo).version);
+        const version = (selected.data as VersionInfo).version;
+        const confirmed = await ctx.openModal<boolean>(createConfirmDialog(
+          "Delete Version",
+          `Delete ${version}? This will remove all files for this version.`
+        ));
+        if (!confirmed) return;
+        await uninstallVersion(config, version);
+        ctx.showMessage(`Deleted ${version}`);
         if (this._mode === "local") await this.refreshLocal();
       }, ctx);
     });

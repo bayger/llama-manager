@@ -11,8 +11,10 @@ import { ProfileList } from "../specialized/ProfileList";
 import { StyledText } from "../ui/widgets/StyledText";
 import { focusManager } from "../ui/FocusManager";
 import { ConfigData, saveConfig } from "../../lib/config";
+import { fireAsync } from "../../lib/utils";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
+import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 
 export class ServerControl extends Control {
   focusable = true;
@@ -285,17 +287,25 @@ export class ServerControl extends Control {
       return;
     }
 
-    delete profiles[config.server.activeProfile];
-    config.server.activeProfile = "Default";
+    fireAsync(async () => {
+      const confirmed = await this._ctx!.openModal<boolean>(createConfirmDialog(
+        "Delete Profile",
+        `Delete profile "${config.server.activeProfile}"? This cannot be undone.`
+      ));
+      if (!confirmed) return;
 
-    try {
-      saveConfig(config);
-      this._ctx?.showMessage("Profile deleted, switched to Default");
-    } catch (e) {
-      this._ctx?.showMessage(`Error saving: ${e}`);
-    }
+      delete profiles[config.server.activeProfile];
+      config.server.activeProfile = "Default";
 
-    this.refreshConfig();
+      try {
+        saveConfig(config);
+        this._ctx?.showMessage(`Deleted profile "${config.server.activeProfile}", switched to Default`);
+      } catch (e) {
+        this._ctx?.showMessage(`Error saving: ${e}`);
+      }
+
+      this.refreshConfig();
+    }, this._ctx!);
   }
 }
 
