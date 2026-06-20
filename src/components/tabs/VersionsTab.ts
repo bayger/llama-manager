@@ -26,6 +26,7 @@ import {
 } from "../../lib/versions";
 import { saveConfig } from "../../lib/config";
 import { fireAsync } from "../../lib/utils";
+import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../ui/types";
 
@@ -341,20 +342,12 @@ export class VersionsControl extends Control {
     const config = ctx.getConfig();
     if (!config) return;
 
-    this._mode = "installing";
-    this._dividerButtons.visible = false;
-    this._buttonRow.visible = false;
-    this._prompt.visible = false;
-    this._changelogSection.visible = false;
-    this._btnInstall.visible = false;
-    this._btnDelete.visible = false;
-    this._list.items = [];
-    this._progressBar.visible = true;
-    this._progressBar.progress = 0;
-    this._progressBar.label = "Preparing...";
-    this._progressBar.extraLabel = "";
-    this._summary.builder.muted(`Installing ${this._selectedRelease.tag} (${backendId})`);
-    this.markDirty();
+    const dialog = createDownloadDialog(`${this._selectedRelease.tag} (${backendId})`, "Preparing...");
+    const handle = dialog.getHandle();
+    dialog.setButtons([]);
+    dialog.setMinSize(55, 9);
+    dialog.setMaxSize(55, 9);
+    ctx.openModal(dialog);
 
     try {
       const installed = await installVersion(
@@ -362,18 +355,18 @@ export class VersionsControl extends Control {
         this._selectedRelease.tag,
         backendId,
         (pct, label) => {
-          this._progressBar.progress = pct;
-          this._progressBar.label = label;
-          this.markDirty();
+          handle.update(pct, label);
         },
       );
 
+      handle.update(100, "Installation complete!");
+      setTimeout(() => handle.close(), 500);
+      await handle.promise;
       ctx.showMessage(`Installed ${installed}`);
       await this.showLocal();
     } catch (err: any) {
-      ctx.showMessage(`Install failed: ${err.message}`);
-      this._progressBar.visible = false;
-      await this.showBackends(this._selectedRelease);
+      handle.close();
+      throw err;
     }
   }
 

@@ -12,6 +12,10 @@ export class Modal extends Control {
   protected _onClose: (() => void) | null = null;
   protected _selectedButtonIndex = 0;
   protected _buttonRects: { x: number; y: number; width: number; height: number }[] = [];
+  protected _minWidth = 30;
+  protected _maxWidth = 120;
+  protected _minHeight = 8;
+  protected _maxHeight = 30;
 
   set title(v: string) {
     this._title = v;
@@ -30,6 +34,23 @@ export class Modal extends Control {
 
   setOnClose(callback: () => void): void {
     this._onClose = callback;
+  }
+
+  setMinSize(minWidth: number, minHeight: number): void {
+    this._minWidth = minWidth;
+    this._minHeight = minHeight;
+  }
+
+  setMaxSize(maxWidth: number, maxHeight: number): void {
+    this._maxWidth = maxWidth;
+    this._maxHeight = maxHeight;
+  }
+
+  setFixedSize(width: number, height: number): void {
+    this._minWidth = width;
+    this._maxWidth = width;
+    this._minHeight = height;
+    this._maxHeight = height;
   }
 
   public close(): void {
@@ -76,11 +97,19 @@ export class Modal extends Control {
     return false;
   }
 
+  protected _clampSize(size: Size): Size {
+    return {
+      width: Math.max(this._minWidth, Math.min(size.width, this._maxWidth)),
+      height: Math.max(this._minHeight, Math.min(size.height, this._maxHeight)),
+    };
+  }
+
   measure(_parentSize?: Size): Size {
     const titleLen = this._title.length;
     const btnWidth = this._buttons.reduce((max, b) => Math.max(max, b.label.length + 4), 0);
-    const minWidth = Math.max(30, Math.max(titleLen, btnWidth) + 6);
-    return { width: minWidth, height: 6 };
+    let width = Math.max(this._minWidth, Math.max(titleLen, btnWidth) + 6);
+    let height = this._minHeight;
+    return this._clampSize({ width, height });
   }
 
   render(ctx: RenderContext): void {
@@ -129,17 +158,22 @@ export class Modal extends Control {
       fgBg(canvas, "text", "canvasSubtle", " ");
     }
 
-    // Rows 2..height-2: Content area with left border
-    for (let row = 2; row < height - 1; row++) {
+    // Rows 2..height-4: Content area with left border
+    for (let row = 2; row < height - 3; row++) {
       canvas.moveTo(x, y + row);
       canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
 
-    // Row height-1: Button row — V (borderMuted) + buttons right-aligned
+    // Row height-3: Padding row (just left border)
+    canvas.moveTo(x, y + height - 3);
+    canvas.setForegroundColor("borderMuted");
+    canvas.write(V);
+
+    // Row height-2: Button row — V (borderMuted) + buttons right-aligned
     this._buttonRects = [];
     if (this._buttons.length > 0 && height >= 4) {
-      const btnRowY = y + height - 1;
+      const btnRowY = y + height - 2;
       let totalBtnWidth = 0;
       const btnWidths: number[] = [];
       for (const btn of this._buttons) {
@@ -175,10 +209,14 @@ export class Modal extends Control {
         btnX += bw + 2;
       }
     } else {
-      canvas.moveTo(x, y + height - 1);
+      canvas.moveTo(x, y + height - 2);
       canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
+
+    // Row height-1: Bottom padding row (just left border)
+    canvas.moveTo(x, y + height - 1);
+    fgBg(canvas, "borderMuted", "canvasSubtle", V);
 
     canvas.styleReset();
   }

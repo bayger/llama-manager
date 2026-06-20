@@ -62,7 +62,7 @@ export class ProgressDialog extends Modal {
   measure(parentSize?: Size): Size {
     const base = super.measure(parentSize);
     const msgLines = this._message.length > 0 ? Math.ceil(this._message.length / 50) : 0;
-    return { width: Math.max(base.width, 40), height: base.height + Math.max(0, msgLines - 2) + 1 };
+    return this._clampSize({ width: Math.max(base.width, 40), height: base.height + Math.max(0, msgLines - 1) + 1 });
   }
 
   draw(ctx: any): void {
@@ -90,7 +90,7 @@ export class ProgressDialog extends Modal {
       }
       if (currentLine) lines.push(currentLine);
 
-      const maxLines = height - 4;
+      const maxLines = height - 6;
       const msgStartY = y + 2;
 
       for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
@@ -100,7 +100,7 @@ export class ProgressDialog extends Modal {
       }
     }
 
-    const barY = y + height - 2;
+    const barY = y + height - 4;
     const barWidth = Math.max(10, innerW - 6);
     const filled = Math.round((this._progress / 100) * barWidth);
     const empty = barWidth - filled;
@@ -132,6 +132,8 @@ export function createProgressDialog(
 ): ProgressDialog {
   const dialog = new ProgressDialog();
   dialog.title = title;
+  dialog.setMinSize(40, 9);
+  dialog.setMaxSize(80, 20);
   dialog.message = message;
   dialog.setCancellable(opts?.cancellable ?? false);
   dialog.setButtons([

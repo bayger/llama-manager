@@ -17,3 +17,5 @@ export { AlertDialog, createAlertDialog } from "./AlertDialog";
 export { ConfirmDialog, createConfirmDialog } from "./ConfirmDialog";
 export { ProgressDialog, createProgressDialog } from "./ProgressDialog";
 export type { ProgressDialogHandle } from "./ProgressDialog";
+export { DownloadDialog, createDownloadDialog } from "./DownloadDialog";
+export type { DownloadDialogHandle } from "./DownloadDialog";

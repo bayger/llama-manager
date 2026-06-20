@@ -12,7 +12,7 @@ export class AlertDialog extends Modal {
   measure(parentSize?: Size): Size {
     const base = super.measure(parentSize);
     const msgLines = this._message.length > 0 ? Math.ceil(this._message.length / 50) : 0;
-    return { width: Math.max(base.width, this._message.length + 8), height: base.height + Math.max(0, msgLines - 3) };
+    return this._clampSize({ width: Math.max(base.width, this._message.length + 8), height: base.height + Math.max(0, msgLines - 2) });
   }
 
   draw(ctx: any): void {
@@ -38,7 +38,7 @@ export class AlertDialog extends Modal {
     }
     if (currentLine) lines.push(currentLine);
 
-    const maxLines = height - 3;
+    const maxLines = height - 5;
     const msgStartY = y + 2;
 
     for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
@@ -54,6 +54,8 @@ export class AlertDialog extends Modal {
 export function createAlertDialog(title: string, message: string): AlertDialog {
   const dialog = new AlertDialog();
   dialog.title = title;
+  dialog.setMinSize(30, 8);
+  dialog.setMaxSize(80, 25);
   dialog.message = message;
   dialog.setButtons([{
     label: "OK",

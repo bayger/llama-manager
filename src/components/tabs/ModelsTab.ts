@@ -22,6 +22,7 @@ import {
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
 import { saveConfig } from "../../lib/config";
 import { fireAsync } from "../../lib/utils";
+import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
@@ -69,7 +70,6 @@ export class ModelsControl extends Control {
   protected _PAGE_SIZE = 20;
   protected _files: HFFileInfo[] = [];
   protected _downloadAbortController: AbortController | null = null;
-  protected _downloadCancelled = false;
 
   constructor(ctx: TabContext) {
     super();
@@ -343,11 +343,7 @@ this._hfResultsList.handleKey = (key: string) => {
   // --- Key handling ---
   handleKey(key: string): boolean {
     if (this._view !== "local" && key === "ESC") {
-      if (this._view === "downloading") {
-        this.cancelDownload();
-      } else {
-        this.goBack();
-      }
+      this.goBack();
       return true;
     }
     return super.handleKey(key);
@@ -363,7 +359,7 @@ this._hfResultsList.handleKey = (key: string) => {
      focusManager.activateTextInput(true);
    }
 
-  goBack(): void {
+   goBack(): void {
     if (this._view === "results") {
       this._view = "search";
       this._hfResultsList.selectedIndex = -1;
@@ -372,9 +368,6 @@ this._hfResultsList.handleKey = (key: string) => {
       this._hfFilesList.selectedIndex = -1;
       const idx = this._repos.indexOf(this._selectedRepo!);
       if (idx !== -1) this._hfResultsList.selectedIndex = idx;
-    } else if (this._view === "downloading") {
-      this.cancelDownload();
-      return;
     } else if (this._view === "search") {
       this._view = "local";
       focusManager.activateTextInput(false);
@@ -391,7 +384,6 @@ this._hfResultsList.handleKey = (key: string) => {
     const isSearch = this._view === "search";
     const isResults = this._view === "results";
     const isFiles = this._view === "files";
-    const isDownloading = this._view === "downloading";
 
     // Search row visibility
     this._hfSearchRow.visible = true;
@@ -399,7 +391,6 @@ this._hfResultsList.handleKey = (key: string) => {
     // Content visibility
     this._hfResultsSection.visible = isResults;
     this._hfFilesSection.visible = isFiles;
-    this._hfProgressBar.visible = isDownloading;
 
     // Button visibility
     this._hfBackBtn.visible = true;
@@ -407,7 +398,6 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;
     this._hfNextBtn.visible = isResults && (this._searchPage + 1) * this._PAGE_SIZE < this._allRepos.length;
-    this._hfCancelBtn.visible = isDownloading;
     this._hfButtonRow.visible = true;
 
     // Header
@@ -417,8 +407,6 @@ this._hfResultsList.handleKey = (key: string) => {
       this._summary.builder.muted(`Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`);
     } else if (isFiles) {
       this._summary.builder.muted(this._selectedRepo ? this._selectedRepo.id : "Files");
-    } else if (isDownloading) {
-      this._summary.builder.muted("Downloading...");
     }
 
     // Focus
@@ -507,53 +495,54 @@ this._hfResultsList.handleKey = (key: string) => {
   // --- Download ---
   downloadSelectedFile(file: HFFileInfo): void {
     const config = this._ctx?.getConfig();
-    if (!config || !this._selectedRepo) return;
+    if (!config || !this._selectedRepo || !this._ctx) return;
 
     this._downloadAbortController = new AbortController();
-    this._view = "downloading";
-    this._hfProgressBar.progress = 0;
-    this._hfProgressBar.label = "Preparing...";
-    this._hfProgressBar.extraLabel = "";
-    this.updateView();
+    const dialog = createDownloadDialog(file.path, "Preparing...");
+    const handle = dialog.getHandle();
 
     const token = config.hfToken ?? undefined;
 
     fireAsync(async () => {
-      await downloadModel(
-        config,
-        this._selectedRepo!.id,
-        file.path,
-        file.size,
-        (pct, label) => {
-          this._hfProgressBar.progress = pct;
-          this._hfProgressBar.label = `${this._selectedRepo!.id}/${file.path}`;
-          this._hfProgressBar.extraLabel = label;
-          this.markDirty();
-        },
-        token,
-        this._downloadAbortController?.signal,
-      );
+      try {
+        await downloadModel(
+          config,
+          this._selectedRepo!.id,
+          file.path,
+          file.size,
+          (pct, label) => {
+            handle.update(pct, label);
+          },
+          token,
+          this._downloadAbortController?.signal,
+        );
 
-      this._downloadAbortController = null;
-      if (this._downloadCancelled) {
-        this._downloadCancelled = false;
-        return;
+        this._downloadAbortController = null;
+        handle.update(100, "Download complete!");
+        setTimeout(() => handle.close(), 500);
+        await handle.promise;
+        this._ctx?.showMessage(`Downloaded ${file.path}`);
+        this._view = "local";
+        this.updateView();
+        this.refreshModels();
+      } catch (err: any) {
+        this._downloadAbortController = null;
+        if (err.message === "Download cancelled") {
+          return;
+        }
+        handle.close();
+        throw err;
       }
-      this._ctx?.showMessage(`Downloaded ${file.path}`);
-      this._view = "local";
-      this.updateView();
-      this.refreshModels();
-    }, this._ctx!);
+    }, this._ctx);
+
+    this._ctx.openModal(dialog);
   }
 
   cancelDownload(): void {
-    this._downloadCancelled = true;
     if (this._downloadAbortController) {
       this._downloadAbortController.abort();
       this._downloadAbortController = null;
     }
-    this._view = "files";
-    this.updateView();
   }
 
   // --- Local models ---

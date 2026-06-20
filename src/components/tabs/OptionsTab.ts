@@ -9,6 +9,7 @@ import { focusManager } from "../ui/FocusManager";
 import { createAlertDialog } from "../ui/widgets/AlertDialog";
 import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import { createProgressDialog } from "../ui/widgets/ProgressDialog";
+import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
 import { fireAsync } from "../../lib/utils";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
@@ -68,6 +69,32 @@ export class OptionsControl extends Column {
       }, ctx);
     });
     this._testRow.add(progressBtn);
+
+    const downloadBtn = new Button({ label: "Download" });
+    downloadBtn.setAction(() => {
+      fireAsync(async () => {
+        const dialog = createDownloadDialog("test-model.gguf", "Starting download...");
+        const handle = dialog.getHandle();
+        ctx.openModal(dialog);
+        let p = 0;
+        const interval = setInterval(() => {
+          p += 5;
+          if (p >= 100) {
+            clearInterval(interval);
+            handle.update(100, "Download complete!");
+            setTimeout(() => handle.close(), 500);
+          } else {
+            handle.update(p, `Downloading... ${(p * 1.2).toFixed(1)} MB/s  ETA ${Math.round((100 - p) / 5)}s`);
+          }
+        }, 100);
+        const cancelled = await handle.promise;
+        clearInterval(interval);
+        if (cancelled) {
+          await ctx.openModal(createAlertDialog("Cancelled", "Download was cancelled."));
+        }
+      }, ctx);
+    });
+    this._testRow.add(downloadBtn);
 
     this._section = new Section();
     this._section.title = "Options";
