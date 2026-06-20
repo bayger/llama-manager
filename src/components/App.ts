@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme";
+import { setActiveTheme, setThemeMode, popThemeChanged, fg, fgBg } from "../lib/theme";
 import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
@@ -33,6 +33,7 @@ export class App {
   async start(): Promise<void> {
     const config = await loadConfig();
     setActiveTheme(config.themeName);
+    setThemeMode(config.themeMode);
     setMaxLogLines(config.logs.maxLogLines);
     taskStore.init(config);
 
@@ -56,6 +57,7 @@ export class App {
       setConfig: (c: ConfigData) => {
         Object.assign(config, c);
         if (c.logs?.maxLogLines !== undefined) setMaxLogLines(c.logs.maxLogLines);
+        if (c.themeMode !== undefined) setThemeMode(c.themeMode);
       },
       showCursor: () => {
         if (this._canvas) {

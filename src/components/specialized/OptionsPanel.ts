@@ -1,4 +1,4 @@
-import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme } from "../../lib/theme";
+import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme, setThemeMode, getThemeMode, themeHasLightVariant } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
 import { focusManager } from "../ui/FocusManager";
 import { Section } from "../ui/widgets/Section";
@@ -76,8 +76,9 @@ class ThemePickerControl extends Section {
 
 export interface OptionFieldDef {
   key: string;
-  type: "string" | "number" | "boolean";
+  type: "string" | "number" | "boolean" | "enum";
   default: unknown;
+  options?: string[];
   description: string;
 }
 
@@ -164,12 +165,21 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
   {
     name: "Appearance",
     fields: [
+      { key: "themeMode", type: "enum", default: "dark", options: ["dark", "light"], description: "Theme mode" },
       { key: "themeName", type: "string", default: "opencode", description: "UI theme (Enter to browse themes)" },
     ],
     getter: (config) => ({
+      themeMode: config.themeMode,
       themeName: config.themeName,
     }),
     setter: (config, values) => {
+      if (values.themeMode !== undefined) {
+        const mode = values.themeMode as string;
+        if (mode === "dark" || mode === "light") {
+          config.themeMode = mode;
+          setThemeMode(mode);
+        }
+      }
       if (values.themeName !== undefined) {
         const name = values.themeName as string;
         if (name && getThemeNames().includes(name)) {
@@ -236,6 +246,9 @@ export class OptionsPanel extends EditableList {
     const config = this._ctx?.getConfig();
     if (!config) return;
     OPTION_CATEGORIES[row.catIdx]!.setter(config, { [row.field.key]: value });
+    if (row.field.key === "themeMode" && value === "light" && !themeHasLightVariant(config.themeName)) {
+      this._ctx?.showMessage(`Warning: "${config.themeName}" has no light variant`);
+    }
   }
 
   protected getKeyColWidth(): number {
@@ -243,7 +256,7 @@ export class OptionsPanel extends EditableList {
   }
 
   protected supportsEnumCycling(): boolean {
-    return false;
+    return true;
   }
 
   protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, width: number): void {
@@ -274,7 +287,7 @@ export class OptionsPanel extends EditableList {
       const value = formatFieldValue(field, data?.[field.key]);
 
       let extra = "";
-      if (isSelected && field.type === "boolean") {
+      if (isSelected && (field.type === "boolean" || field.type === "enum")) {
         extra = " (toggle)";
       }
 
@@ -341,6 +354,15 @@ export class OptionsPanel extends EditableList {
       }
     }
 
+    // SPACE cycles enum fields
+    if (key === "SPACE") {
+      const row = this._rows[this._selectedIndex];
+      if (row?.type === "field" && row.field?.type === "enum" && row.field.options) {
+        this.cycleEnum(row);
+        return true;
+      }
+    }
+
     return super.handleKey(key);
   }
 
@@ -383,6 +405,9 @@ export class OptionsPanel extends EditableList {
       setActiveTheme(name);
       const config = this._ctx?.getConfig();
       if (config) config.themeName = name;
+      if (!themeHasLightVariant(name) && getThemeMode() === "light") {
+        this._ctx?.showMessage(`Warning: "${name}" has no light variant`);
+      }
       this._ctx?.forceRender();
     };
     if (key === "UP" || key === "k") {
