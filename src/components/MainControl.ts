@@ -12,11 +12,12 @@ import { createServerTab } from "./tabs/ServerTab";
 import { createTasksTab } from "./tabs/TasksTab";
 import { createVersionsTab } from "./tabs/VersionsTab";
 import { createDashboardTab } from "./tabs/DashboardTab";
+import { createLogsTab } from "./tabs/LogsTab";
 import { createModelsTab } from "./tabs/ModelsTab";
 import { createOptionsTab } from "./tabs/OptionsTab";
 import { focusManager } from "./ui/FocusManager";
 
-export const TABS = ["Dashboard", "Tasks", "Profiles", "Versions", "Models", "Options"] as const;
+export const TABS = ["Dashboard", "Logs", "Tasks", "Profiles", "Versions", "Models", "Options"] as const;
 export type TabId = (typeof TABS)[number];
 
 export class MainControl extends Column {
@@ -110,7 +111,7 @@ export class MainControl extends Column {
       return true;
     }
 
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 7; i++) {
       if (key === `F${i + 1}`) {
         this.setActiveTab(TABS[i]);
         return true;
@@ -253,6 +254,7 @@ class TabContent extends Control {
 
     const factoryFns: Record<TabId, (ctx: TabContext) => Control> = {
       Dashboard: createDashboardTab,
+      Logs: createLogsTab,
       Profiles: createServerTab,
       Tasks: createTasksTab,
       Versions: createVersionsTab,
@@ -395,7 +397,7 @@ class StatusBar extends Control {
         fg(canvas, "textMuted", ` (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`);
       }
       fg(canvas, "borderMuted", "  │  ");
-      fg(canvas, "textMuted", "F1-F6 navigate");
+      fg(canvas, "textMuted", "F1-F7 navigate");
       fg(canvas, "borderMuted", "  │  ");
       fg(canvas, "textMuted", "q quit");
       fg(canvas, "borderMuted", "  │  ");

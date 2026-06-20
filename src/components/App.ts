@@ -136,7 +136,7 @@ export class App {
       {
         title: "Navigation",
         keys: [
-          ["F1-F6", "Switch tabs"],
+          ["F1-F7", "Switch tabs"],
           ["Tab / Shift+Tab", "Move focus"],
           ["Enter", "Confirm / select"],
           ["Esc", "Cancel / go back"],
@@ -153,11 +153,12 @@ export class App {
         title: "Tab Shortcuts",
         keys: [
           ["F1", "Dashboard - metrics and server control"],
-          ["F2", "Tasks - inference task history"],
-          ["F3", "Profiles - preset editing and management"],
-          ["F4", "Versions - install and switch llama.cpp builds"],
-          ["F5", "Models - browse, download, and manage GGUF models"],
-          ["F6", "Options - global application settings"],
+          ["F2", "Logs - live server log viewer"],
+          ["F3", "Tasks - inference task history"],
+          ["F4", "Profiles - preset editing and management"],
+          ["F5", "Versions - install and switch llama.cpp builds"],
+          ["F6", "Models - browse, download, and manage GGUF models"],
+          ["F7", "Options - global application settings"],
         ],
       },
     ];
