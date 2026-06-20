@@ -1,14 +1,9 @@
 import { Control } from "../Control";
+import { fg, fgBg } from "../../../lib/theme";
 import type { Point, RenderContext, Size } from "../types";
 
-const TL = "\u250c";
-const TR = "\u2510";
-const BL = "\u2514";
-const BR = "\u2518";
-const H = "\u2500";
 const V = "\u2502";
-const L = "\u251c";
-const R = "\u2524";
+const HALF_BLOCK = "\u2584";
 
 export class Modal extends Control {
   focusable = true;
@@ -60,7 +55,6 @@ export class Modal extends Control {
 
     if (this._buttons.length === 0) return false;
 
-    // Normalize: terminal-kit sends uppercase, but handle both
     const upper = key.toUpperCase();
     if (upper === "ENTER" || upper === "RETURN" || upper === "SPACE") {
       this.activateButton(this._selectedButtonIndex);
@@ -86,7 +80,7 @@ export class Modal extends Control {
     const titleLen = this._title.length;
     const btnWidth = this._buttons.reduce((max, b) => Math.max(max, b.label.length + 4), 0);
     const minWidth = Math.max(30, Math.max(titleLen, btnWidth) + 6);
-    return { width: minWidth, height: 7 };
+    return { width: minWidth, height: 6 };
   }
 
   render(ctx: RenderContext): void {
@@ -95,6 +89,7 @@ export class Modal extends Control {
     const { canvas } = ctx;
 
     canvas.setBackgroundColor("canvasSubtle");
+    canvas.setForegroundColor("text");
     canvas.clearRect(x, y, width, height);
 
     this.draw(ctx);
@@ -110,66 +105,41 @@ export class Modal extends Control {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    if (width < 4 || height < 3) return;
+    if (width < 3 || height < 4) return;
 
     const innerW = width - 2;
 
-    // Top border
+    // Row 0: Half-block top bar (Section style)
     canvas.moveTo(x, y);
-    canvas.setForegroundColor("border");
-    canvas.write(TL);
-    if (this._title) {
-      const titleContent = ` ${this._title} `;
-      const padLeft = Math.floor((innerW - titleContent.length) / 2);
-      const padRight = innerW - titleContent.length - padLeft;
-      if (padLeft > 0) canvas.write(H.repeat(padLeft));
-      canvas.setForegroundColor("accentColor");
-      canvas.write(titleContent);
-      canvas.setForegroundColor("border");
-      if (padRight > 0) canvas.write(H.repeat(padRight));
-    } else {
-      canvas.write(H.repeat(innerW));
+    canvas.setForegroundColor("canvasSubtle");
+    canvas.setBackgroundColor("canvas");
+    for (let col = 0; col < width; col++) {
+      fgBg(canvas, "canvasSubtle", "canvas", HALF_BLOCK);
     }
-    canvas.write(TR);
 
-    // Left/right borders for all middle rows
-    for (let row = 1; row < height - 1; row++) {
+    // Row 1: Title bar — V (accent) + " Title" (accent)
+    canvas.moveTo(x, y + 1);
+    canvas.bold();
+    fgBg(canvas, "accent", "canvasSubtle", V);
+    fgBg(canvas, "accent", "canvasSubtle", ` ${this._title}`);
+    canvas.bold(false);
+    // Fill remaining space with canvasSubtle bg
+    const titleLen = 1 + 1 + this._title.length;
+    for (let col = titleLen; col < width; col++) {
+      fgBg(canvas, "text", "canvasSubtle", " ");
+    }
+
+    // Rows 2..height-2: Content area with left border
+    for (let row = 2; row < height - 1; row++) {
       canvas.moveTo(x, y + row);
-      canvas.setForegroundColor("border");
-      canvas.write(V);
-      canvas.moveTo(x + width - 1, y + row);
+      canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
 
-    // Bottom border
-    canvas.moveTo(x, y + height - 1);
-    canvas.setForegroundColor("border");
-    canvas.write(BL);
-    canvas.write(H.repeat(innerW));
-    canvas.write(BR);
-
-    // Content divider
-    if (height >= 3) {
-      canvas.moveTo(x, y + 1);
-      canvas.setForegroundColor("border");
-      canvas.write(L);
-      canvas.write(H.repeat(innerW));
-      canvas.write(R);
-    }
-
-    // Button bar (2 rows: divider + buttons, placed above bottom border)
-    const btnDividerY = y + height - 3;
-    const btnRowY = y + height - 2;
+    // Row height-1: Button row — V (borderMuted) + buttons right-aligned
     this._buttonRects = [];
-
-    if (height >= 5 && this._buttons.length > 0) {
-      // Button bar divider
-      canvas.moveTo(x, btnDividerY);
-      canvas.setForegroundColor("border");
-      canvas.write(L);
-      canvas.write(H.repeat(innerW));
-      canvas.write(R);
-
+    if (this._buttons.length > 0 && height >= 4) {
+      const btnRowY = y + height - 1;
       let totalBtnWidth = 0;
       const btnWidths: number[] = [];
       for (const btn of this._buttons) {
@@ -179,7 +149,12 @@ export class Modal extends Control {
       }
       totalBtnWidth += Math.max(0, this._buttons.length - 1) * 2;
 
-      let btnX = x + 1 + Math.floor((innerW - totalBtnWidth) / 2);
+      const btnStartX = x + 2 + (innerW - totalBtnWidth);
+      let btnX = btnStartX;
+
+      canvas.moveTo(x, btnRowY);
+      canvas.setForegroundColor("borderMuted");
+      canvas.write(V);
 
       for (let i = 0; i < this._buttons.length; i++) {
         const btn = this._buttons[i]!;
@@ -189,22 +164,20 @@ export class Modal extends Control {
 
         this._buttonRects.push({ x: btnX, y: btnRowY, width: bw, height: 1 });
 
+        canvas.moveTo(btnX, btnRowY);
         if (selected) {
-          canvas.moveTo(btnX, btnRowY);
           canvas.bold();
-          canvas.setBackgroundColor("accent");
-          canvas.setForegroundColor("canvas");
-          canvas.write(padded);
+          fgBg(canvas, "canvas", "accent", padded);
           canvas.bold(false);
         } else {
-          canvas.moveTo(btnX, btnRowY);
-          canvas.setBackgroundColor("canvasSubtle");
-          canvas.setForegroundColor("textMuted");
-          canvas.write(padded);
+          fgBg(canvas, "textMuted", "canvasSubtle", padded);
         }
-        canvas.setBackgroundColor("canvasSubtle");
         btnX += bw + 2;
       }
+    } else {
+      canvas.moveTo(x, y + height - 1);
+      canvas.setForegroundColor("borderMuted");
+      canvas.write(V);
     }
 
     canvas.styleReset();
