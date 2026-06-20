@@ -127,6 +127,9 @@ export class Modal extends Control {
     for (const child of this.children) {
       child.render(ctx);
     }
+
+    canvas.setClipRect(null);
+    canvas.styleReset();
     this.needsRender = false;
   }
 
@@ -135,6 +138,9 @@ export class Modal extends Control {
     const { x, y, width, height } = this.rect;
 
     if (width < 3 || height < 4) return;
+
+    // Clip all drawing to modal bounds
+    canvas.setClipRect({ x, y, width, height });
 
     const innerW = width - 2;
 
@@ -158,8 +164,13 @@ export class Modal extends Control {
       fgBg(canvas, "text", "canvasSubtle", " ");
     }
 
-    // Rows 2..height-4: Content area with left border
-    for (let row = 2; row < height - 3; row++) {
+    // Row 2: Spacing row (just left border)
+    canvas.moveTo(x, y + 2);
+    canvas.setForegroundColor("borderMuted");
+    canvas.write(V);
+
+    // Rows 3..height-4: Content area with left border
+    for (let row = 3; row < height - 3; row++) {
       canvas.moveTo(x, y + row);
       canvas.setForegroundColor("borderMuted");
       canvas.write(V);

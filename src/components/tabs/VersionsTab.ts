@@ -345,8 +345,8 @@ export class VersionsControl extends Control {
     const dialog = createDownloadDialog(`${this._selectedRelease.tag} (${backendId})`, "Preparing...");
     const handle = dialog.getHandle();
     dialog.setButtons([]);
-    dialog.setMinSize(55, 9);
-    dialog.setMaxSize(55, 9);
+    dialog.setMinSize(55, 10);
+    dialog.setMaxSize(55, 10);
     ctx.openModal(dialog);
 
     try {

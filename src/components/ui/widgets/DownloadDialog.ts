@@ -76,14 +76,14 @@ export class DownloadDialog extends Modal {
 
     const innerW = width - 4;
 
-    // File name (row 2)
-    canvas.moveTo(x + 2, y + 2);
+    // File name (row 3)
+    canvas.moveTo(x + 2, y + 3);
     canvas.setForegroundColor("accentColor");
     canvas.write(this._fileName);
 
-    // Status line (row 3)
+    // Status line (row 4)
     if (this._status) {
-      canvas.moveTo(x + 2, y + 3);
+      canvas.moveTo(x + 2, y + 4);
       canvas.setForegroundColor("textMuted");
       canvas.write(this._status);
     }
@@ -119,8 +119,8 @@ export class DownloadDialog extends Modal {
 export function createDownloadDialog(fileName: string, status: string = "Preparing..."): DownloadDialog {
   const dialog = new DownloadDialog();
   dialog.title = "Download";
-  dialog.setMinSize(50, 9);
-  dialog.setMaxSize(50, 9);
+  dialog.setMinSize(60, 10);
+  dialog.setMaxSize(60, 10);
   dialog.fileName = fileName;
   dialog.status = status;
   dialog.progress = 0;

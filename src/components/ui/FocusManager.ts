@@ -22,6 +22,7 @@ export class FocusManager {
     if (this._rootStack.length > 0) {
       this._root = this._rootStack.pop() || null;
     }
+    this.focusFirst();
   }
 
   getFocused(): Control | null {

@@ -80,29 +80,31 @@ export class ModalManager {
   }
 
   render(canvas: FramebufferCanvas): void {
-    if (!this.isOpen() || !this._tabContent) return;
+    if (!this.isOpen()) return;
     this._needsRender = false;
 
-    const { x: bx, y: by, width: bw, height: bh } = this._tabContent.rect;
+    canvas.dimRect(1, 1, canvas.width, canvas.height, 0.2);
 
-    canvas.setForegroundColor("textMuted");
-    canvas.setBackgroundColor("canvas");
-    canvas.clearRect(bx, by, bw, bh);
-    canvas.styleReset();
-
-    const termW = process.stdout.columns || 80;
-    const termH = process.stdout.rows || 24;
+    const termW = canvas.width;
+    const termH = canvas.height;
 
     for (let i = 0; i < this._stack.length; i++) {
       const modal = this._stack[i]!;
       const m = modal.measure({ width: termW, height: termH });
-      const mw = Math.min(m.width, bw - 4);
-      const mh = Math.min(m.height, bh - 2);
-      const mx = bx + Math.max(1, Math.floor((bw - mw) / 2));
-      const my = by + Math.max(1, Math.floor((bh - mh) / 2));
+      const mw = Math.min(m.width, termW - 4);
+      const mh = Math.min(m.height, termH - 2);
+      const mx = 1 + Math.max(1, Math.floor((termW - mw) / 2));
+      const my = 1 + Math.max(1, Math.floor((termH - mh) / 2));
       const offset = i * 2;
+      const modalY = my + offset;
+
+      // Shadow: darker region offset bottom-right
+      const shadowX = mx + 2;
+      const shadowY = modalY + 1;
+      canvas.dimRect(shadowX, shadowY, mw, mh, 0.15);
+
       canvas.setClipRect(null);
-      modal.layout({ x: mx, y: my + offset, width: mw, height: mh });
+      modal.layout({ x: mx, y: modalY, width: mw, height: mh });
       modal.needsRender = true;
       modal.render({ canvas, scheduleRender: () => {}, showMessage: () => {}, getConfig: () => null, showCursor: () => {} });
       canvas.styleReset();
