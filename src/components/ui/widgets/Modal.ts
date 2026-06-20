@@ -32,6 +32,11 @@ export class Modal extends Control {
     this.markDirty();
   }
 
+  setDefaultButton(index: number): void {
+    this._selectedButtonIndex = index;
+    this.markDirty();
+  }
+
   setOnClose(callback: () => void): void {
     this._onClose = callback;
   }

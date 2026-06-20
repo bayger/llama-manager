@@ -35,7 +35,7 @@ export class MainControl extends Column {
 
   constructor(
     protected _ctx: TabContext,
-    protected _onQuit: () => void,
+    protected _onQuit: () => void | Promise<void>,
   ) {
     super();
 

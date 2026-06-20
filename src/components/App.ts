@@ -4,10 +4,11 @@ import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
 import { modalManager } from "./ui/ModalManager";
-import { stopServer, setMaxLogLines } from "../lib/server";
+import { stopServer, setMaxLogLines, getStatus } from "../lib/server";
 import type { RenderContext } from "./ui/types";
 import type { TabContext } from "../lib/tabcontext";
 import type { Modal } from "./ui/widgets/Modal";
+import { createExitDialog } from "./ui/widgets/ExitDialog";
 import { Framebuffer } from "../lib/framebuffer";
 import { FramebufferCanvas } from "../lib/framebuffer-canvas";
 import { diffToTerminal } from "../lib/framebuffer-diff";
@@ -101,7 +102,7 @@ export class App {
       },
     };
 
-    this._main = new MainControl(this._ctx, () => this.quit());
+    this._main = new MainControl(this._ctx, () => this.handleQuit());
     this._main.onInit();
 
     modalManager.init(this._main.getTabContent());
@@ -307,6 +308,23 @@ export class App {
       }, 100);
     };
     this.term.on("resize", this.resizeHandler);
+  }
+
+  private async handleQuit(): Promise<void> {
+    if (!getStatus().running) {
+      this.quit();
+      return;
+    }
+    const result = await this._ctx!.openModal<string>(createExitDialog());
+    if (result === "cancel") return;
+    if (result === "exit") {
+      this.quit();
+      return;
+    }
+    if (result === "stop_and_exit") {
+      await stopServer();
+      this.quit();
+    }
   }
 
   private quit(): void {
