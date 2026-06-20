@@ -5,6 +5,7 @@ import fs from "fs-extra";
 import { ConfigData, PRESET_CATEGORIES, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config";
 import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
+import { processModelLine, resetModelInfo } from "../components/specialized/LoadedModelPanel";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -117,8 +118,9 @@ export function startServer(config: ConfigData): Promise<number> {
                 serverLogLines.splice(0, serverLogLines.length - MAX_LOG_LINES);
               }
               logEmitter.emit("log", part);
-              logParser.processLine(part);
-              processMetricLine(part);
+               logParser.processLine(part);
+               processMetricLine(part);
+               processModelLine(part);
             }
           }
         });
@@ -134,6 +136,7 @@ export function startServer(config: ConfigData): Promise<number> {
         serverStartTime = null;
         if (wasRunning) {
           resetMetrics();
+          resetModelInfo();
         }
         if (wasRunning && code !== 0 && code !== null) {
           serverLogLines.push(`[server] Process exited with code ${code}`);

@@ -6,6 +6,7 @@ import { Label } from "../ui/widgets/Label";
 import { Section } from "../ui/widgets/Section";
 import { LogsViewer } from "../specialized/LogsViewer";
 import { MetricsPanel } from "../specialized/MetricsPanel";
+import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
 import { fg } from "../../lib/theme";
 import { getStatus, startServer, stopServer, serverLogLines, onServerLog, onServerStatusChange } from "../../lib/server";
 import { fireAsync } from "../../lib/utils";
@@ -20,8 +21,10 @@ export class DashboardControl extends Control {
   protected _buttons: Button[];
   protected _profileLabel: Label;
   protected _versionLabel: Label;
+  protected _modelSection: Section;
   protected _metricsSection: Section;
   protected _logsSection: Section;
+  protected _modelPanel: LoadedModelPanel;
   protected _metricsPanel: MetricsPanel;
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
@@ -82,12 +85,17 @@ export class DashboardControl extends Control {
     };
     this._buttonRow.add(this._versionLabel);
 
+    this._modelPanel = new LoadedModelPanel();
     this._metricsPanel = new MetricsPanel();
     this._logsControl = new LogsViewer({
       getLines: () => serverLogLines,
       emptyMessage: "Start the server to see logs",
     });
     this._logsControl.flex = 1;
+
+    this._modelSection = new Section();
+    this._modelSection.title = "Loaded Model";
+    this._modelSection.add(this._modelPanel);
 
     this._metricsSection = new Section();
     this._metricsSection.title = "Realtime Metrics";
@@ -100,6 +108,7 @@ export class DashboardControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
+    this._column.add(this._modelSection);
     this._column.add(this._metricsSection);
     this._column.add(this._logsSection);
 
