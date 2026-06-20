@@ -1,12 +1,14 @@
 import { Control } from "../ui/Control";
 import { Section } from "../ui/widgets/Section";
 import { OptionsPanel } from "../specialized/OptionsPanel";
+import { focusManager } from "../ui/FocusManager";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
 export class OptionsControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _section: Section;
+  protected _panel: OptionsPanel;
 
   constructor(ctx: TabContext) {
     super();
@@ -16,15 +18,20 @@ export class OptionsControl extends Control {
     this._section.title = "Options";
     this._section.flex = 1;
 
-    const panel = new OptionsPanel(ctx);
-    panel.flex = 1;
-    this._section.add(panel);
+    this._panel = new OptionsPanel(ctx);
+    this._panel.flex = 1;
+    this._section.add(this._panel);
 
     this.add(this._section);
   }
 
   measure(parentSize?: Size): Size {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
+  }
+
+  onFocus(): void {
+    super.onFocus();
+    focusManager.setFocus(this._panel);
   }
 
   onDestroy(): void {

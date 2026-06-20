@@ -6,6 +6,7 @@ import { Section } from "../ui/widgets/Section";
 import { MetricsPanel } from "../specialized/MetricsPanel";
 import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
 import { fg } from "../../lib/theme";
+import { focusManager } from "../ui/FocusManager";
 import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
 import { fireAsync } from "../../lib/utils";
 import { BACKEND_LABELS } from "../../lib/versions";
@@ -162,7 +163,7 @@ export class DashboardControl extends Control {
     this.updateButtons();
     const firstEnabled = this._buttons.find(b => !b.disabled);
     if (firstEnabled) {
-      firstEnabled.focus();
+      focusManager.setFocus(firstEnabled);
     }
   }
 

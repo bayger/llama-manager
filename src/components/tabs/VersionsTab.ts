@@ -195,7 +195,7 @@ export class VersionsControl extends Control {
     this._list.handleKey = (key: string) => {
       if (key === "g" && !focusManager.isTextInputActive()) {
         fireAsync(async () => {
-          await this.showLocal();
+          await this.goBack();
         }, ctx);
         return true;
       }
@@ -218,6 +218,14 @@ export class VersionsControl extends Control {
     }
   }
 
+  async goBack(): Promise<void> {
+    if (this._mode === "backends") {
+      await this.showReleases();
+    } else if (this._mode === "releases") {
+      await this.showLocal();
+    }
+  }
+
   async showLocal(): Promise<void> {
     this._mode = "local";
     this._dividerButtons.visible = true;
@@ -229,13 +237,6 @@ export class VersionsControl extends Control {
     this._btnDelete.visible = true;
     this._progressBar.visible = false;
     this._list.setRenderer(this._localRenderer.bind(this));
-    this._list.handleKey = (key: string) => {
-      if (key === "g" && !focusManager.isTextInputActive()) {
-        fireAsync(async () => { await this.showLocal(); }, this._ctx!);
-        return true;
-      }
-      return List.prototype.handleKey.call(this._list, key);
-    };
     await this.refreshLocal();
   }
 
@@ -254,7 +255,7 @@ export class VersionsControl extends Control {
     this._changelogSection.visible = true;
     this._list.selectedIndex = -1;
     this._list.items = [];
-    this._summary.builder.muted("GitHub Releases (press g for local)");
+    this._summary.builder.muted("GitHub Releases (press g for back)");
     this.markDirty();
 
     try {
@@ -278,7 +279,7 @@ export class VersionsControl extends Control {
       this._summary.builder
         .muted("Releases")
         .accentColor(` ${items.length}`)
-        .muted("  (press g for local)");
+        .muted("  (press g for back)");
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
@@ -324,7 +325,7 @@ export class VersionsControl extends Control {
 
       this._list.setRenderer(this._backendRenderer.bind(this));
       this._list.updateItems(items);
-      this._summary.builder.muted(`Backends for ${release.tag}  (press g for releases)`);
+      this._summary.builder.muted(`Backends for ${release.tag}  (press g for back)`);
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {

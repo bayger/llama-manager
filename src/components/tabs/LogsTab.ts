@@ -1,4 +1,5 @@
 import { Control } from "../ui/Control";
+import { focusManager } from "../ui/FocusManager";
 import { LogsViewer } from "../specialized/LogsViewer";
 import { serverLogLines, onServerLog } from "../../lib/server";
 import type { TabContext } from "../../lib/tabcontext";
@@ -55,7 +56,7 @@ export class LogsControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    this._logsControl.focus();
+    focusManager.setFocus(this._logsControl);
   }
 
   handleKey(key: string): boolean {

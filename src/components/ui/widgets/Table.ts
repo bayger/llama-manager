@@ -365,7 +365,7 @@ export class Table<T = any> extends Control {
       return true;
     }
 
-    if (key === "RETURN" || key === "ENTER") {
+    if (key === "RETURN" || key === "ENTER" || key === "SPACE") {
       const selected = this.getSelectedItem();
       if (selected && this._onSelect) {
         this._onSelect(selected);

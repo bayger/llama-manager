@@ -330,6 +330,13 @@ this._hfResultsList.handleKey = (key: string) => {
     super.onFocus();
     if (this._view === "local") {
       focusManager.setFocus(this._browseBtn);
+    } else if (this._view === "search") {
+      focusManager.setFocus(this._hfSearchInput);
+      focusManager.activateTextInput(true);
+    } else if (this._view === "results") {
+      focusManager.setFocus(this._hfResultsList);
+    } else if (this._view === "files") {
+      focusManager.setFocus(this._hfFilesList);
     }
   }
 
