@@ -29,6 +29,10 @@ statusEmitter.setMaxListeners(10);
 
 const MAX_LOG_LINES = 2000;
 export const serverLogLines: string[] = [];
+let maxLogLines = MAX_LOG_LINES;
+export function setMaxLogLines(n: number): void {
+  maxLogLines = Math.max(1, n);
+}
 
 export function onServerLog(listener: (line: string) => void): () => void {
   logEmitter.on("log", listener);
@@ -113,10 +117,10 @@ export function startServer(config: ConfigData): Promise<number> {
           buf = parts.pop() || "";
           for (const part of parts) {
             if (part.length > 0) {
-              serverLogLines.push(part);
-              if (serverLogLines.length > MAX_LOG_LINES) {
-                serverLogLines.splice(0, serverLogLines.length - MAX_LOG_LINES);
-              }
+               serverLogLines.push(part);
+               if (serverLogLines.length > maxLogLines) {
+                 serverLogLines.splice(0, serverLogLines.length - maxLogLines);
+               }
               logEmitter.emit("log", part);
                logParser.processLine(part);
                processMetricLine(part);

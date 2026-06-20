@@ -55,6 +55,11 @@ export class LogsControl extends Control {
 
   onFocus(): void {
     super.onFocus();
+    this._logsControl.focus();
+  }
+
+  handleKey(key: string): boolean {
+    return this._logsControl.handleKey(key);
   }
 }
 

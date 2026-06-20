@@ -3,7 +3,7 @@ import { setActiveTheme, popThemeChanged, fg, fgBg } from "../lib/theme";
 import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
-import { stopServer } from "../lib/server";
+import { stopServer, setMaxLogLines } from "../lib/server";
 import type { RenderContext } from "./ui/types";
 import type { TabContext } from "../lib/tabcontext";
 import { Framebuffer } from "../lib/framebuffer";
@@ -33,6 +33,7 @@ export class App {
   async start(): Promise<void> {
     const config = await loadConfig();
     setActiveTheme(config.themeName);
+    setMaxLogLines(config.logs.maxLogLines);
     taskStore.init(config);
 
     this._fb = new Framebuffer();
@@ -52,7 +53,10 @@ export class App {
       setTextInputFocused: (focused: boolean) => this.setTextInputFocused(focused),
       forceRender: () => this.forceRender(),
       getConfig: () => config,
-      setConfig: (c: ConfigData) => { Object.assign(config, c); },
+      setConfig: (c: ConfigData) => {
+        Object.assign(config, c);
+        if (c.logs?.maxLogLines !== undefined) setMaxLogLines(c.logs.maxLogLines);
+      },
       showCursor: () => {
         if (this._canvas) {
           this._canvas.showTerminalCursor();
