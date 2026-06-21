@@ -481,7 +481,7 @@ this._hfResultsList.handleKey = (key: string) => {
       label: repo.id,
       data: repo,
     }));
-    this._hfResultsList.updateItems(items);
+    this._hfResultsList.items = items;
     this._view = "results";
     this.updateView();
   }
@@ -498,7 +498,7 @@ this._hfResultsList.handleKey = (key: string) => {
         label: file.path,
         data: file,
       }));
-      this._hfFilesList.updateItems(items);
+      this._hfFilesList.items = items;
       this._view = "files";
       this.updateView();
     }, this._ctx!);
@@ -574,7 +574,7 @@ this._hfResultsList.handleKey = (key: string) => {
         data: m,
       }));
 
-      this._modelList.updateItems(items);
+      this._modelList.items = items;
       this._summary.builder
         .muted("Models ")
         .accentColor(String(models.length))

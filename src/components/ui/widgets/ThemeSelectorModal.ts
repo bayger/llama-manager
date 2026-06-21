@@ -402,7 +402,7 @@ export class ThemeSelectorModal extends Modal {
     const maxScroll = Math.max(0, this._allNames.length - VISIBLE_ITEMS);
     this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, maxScroll));
     const visible = this._allNames.slice(this._scrollOffset, this._scrollOffset + VISIBLE_ITEMS);
-    this._list.updateItems(visible.map((name) => ({ id: name, label: name })));
+    this._list.items = visible.map((name) => ({ id: name, label: name }));
     this._list.markDirty();
   }
 

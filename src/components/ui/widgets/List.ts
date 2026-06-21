@@ -14,13 +14,38 @@ export type ItemRenderer<ID, D> = (canvas: FramebufferCanvas, item: ListItem<ID,
 
 export class List<ID = string, D = unknown> extends Control {
   focusable = true;
-  public items: ListItem<ID, D>[] = [];
+  protected _items: ListItem<ID, D>[] = [];
   protected _selectedIndex = -1;
   protected _selectedId: ID | null = null;
   public itemHeight = 1;
   public scrollOffset = 0;
-  public contentHeight = 0;
   protected _viewportHeight = 0;
+  protected _scrollbarWidth = 1;
+
+  get items(): ListItem<ID, D>[] { return this._items; }
+  set items(value: ListItem<ID, D>[]) {
+    this._items = value;
+    this.scrollOffset = 0;
+    if (this.selectedIndex >= value.length) {
+      this.selectedIndex = value.length > 0 ? value.length - 1 : -1;
+    }
+    this.clampScroll();
+    this.markDirty();
+  }
+
+  get contentHeight(): number { return this._items.length; }
+
+  get maxScrollOffset(): number {
+    return Math.max(0, this.contentHeight - this._viewportHeight);
+  }
+
+  get needsScrollbar(): boolean {
+    return this.contentHeight > this._viewportHeight;
+  }
+
+  get contentWidth(): number {
+    return this.needsScrollbar ? this.rect.width - this._scrollbarWidth : this.rect.width;
+  }
   protected _onSelect: ((item: ListItem<ID, D>) => void) | null = null;
   protected _onHighlight: ((item: ListItem<ID, D> | null) => void) | null = null;
   protected _customRenderer: ItemRenderer<ID, D> | null = null;
@@ -70,25 +95,18 @@ export class List<ID = string, D = unknown> extends Control {
     this._customRenderer = renderer;
   }
 
-  updateItems(items: ListItem<ID, D>[]): void {
-    this.items = items;
-    this.contentHeight = items.length;
-    if (this.selectedIndex >= items.length) {
-      this.selectedIndex = items.length > 0 ? items.length - 1 : -1;
-    }
-    this.clampScroll();
-    this.markDirty();
-  }
 
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width } = this.rect;
+    const { x, y, height } = this.rect;
+    const cw = this.contentWidth;
 
     for (let i = 0; i < this._viewportHeight; i++) {
       const globalIndex = i + this.scrollOffset;
       if (globalIndex >= this.items.length) break;
 
-      const item = this.items[globalIndex]!;
+      const item = this.items[globalIndex];
+      if (!item) continue;
       const isHighlighted = globalIndex === this.selectedIndex;
       const isSelected = item.id === this._selectedId;
       const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
@@ -96,7 +114,7 @@ export class List<ID = string, D = unknown> extends Control {
       canvas.moveTo(x, y + i);
 
       if (this._customRenderer) {
-        this._customRenderer(canvas, item, globalIndex, isHighlighted, x, y + i, width);
+        this._customRenderer(canvas, item, globalIndex, isHighlighted, x, y + i, cw);
       } else {
         const label = item.label;
         const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
@@ -104,11 +122,38 @@ export class List<ID = string, D = unknown> extends Control {
         if (isHighlighted) {
           canvas.bold(true);
           fgBg(canvas, fgColor, bgColor, display);
-          fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
+          fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, cw - display.length)));
           canvas.bold(false);
         } else {
           fgBg(canvas, fgColor, bgColor, display);
         }
+      }
+    }
+
+    if (this.needsScrollbar) {
+      this.drawScrollbar(canvas, x + cw, y, this._scrollbarWidth, height);
+    }
+  }
+
+  protected drawScrollbar(canvas: FramebufferCanvas, sx: number, sy: number, sw: number, sh: number): void {
+    if (sh <= 0 || sw <= 0) return;
+
+    const trackTop = sy;
+    const trackHeight = sh;
+    const thumbMinHeight = 2;
+    const ratio = this._viewportHeight / this.contentHeight;
+    const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
+    const maxThumbPos = trackHeight - thumbHeight;
+    const thumbOffset = this.maxScrollOffset > 0
+      ? Math.floor((this.scrollOffset / this.maxScrollOffset) * maxThumbPos)
+      : 0;
+
+    for (let i = 0; i < trackHeight; i++) {
+      canvas.moveTo(sx, trackTop + i);
+      if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
+        fgBg(canvas, "textMuted", "canvasSubtle", " ".repeat(sw));
+      } else {
+        fgBg(canvas, "canvasSubtle", "canvas", " ".repeat(sw));
       }
     }
   }
@@ -168,6 +213,31 @@ export class List<ID = string, D = unknown> extends Control {
 
   onMouseDown(point: Point): boolean {
     if (this.items.length === 0) return false;
+
+    if (this.needsScrollbar) {
+      const sx = this.rect.x + this.contentWidth;
+      const sw = this._scrollbarWidth;
+
+      if (point.x >= sx && point.x < sx + sw) {
+        const trackTop = this.rect.y;
+        const trackHeight = this.rect.height;
+        const clickY = point.y - trackTop;
+        const thumbMinHeight = 2;
+        const ratio = this._viewportHeight / this.contentHeight;
+        const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
+        const maxThumbPos = trackHeight - thumbHeight;
+        const maxScroll = this.maxScrollOffset;
+
+        if (maxScroll > 0) {
+          const newOffset = Math.floor((clickY / maxThumbPos) * maxScroll);
+          this.scrollOffset = Math.max(0, Math.min(maxScroll, newOffset));
+          this.markDirty();
+          return true;
+        }
+        return false;
+      }
+    }
+
     const row = point.y - this.rect.y;
     if (row >= 0 && row < this._viewportHeight) {
       const itemIndex = row + this.scrollOffset;
