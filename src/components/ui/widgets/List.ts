@@ -18,6 +18,9 @@ export class List<ID = string, D = unknown> extends Control {
   protected _selectedIndex = -1;
   protected _selectedId: ID | null = null;
   public itemHeight = 1;
+  public scrollOffset = 0;
+  public contentHeight = 0;
+  protected _viewportHeight = 0;
   protected _onSelect: ((item: ListItem<ID, D>) => void) | null = null;
   protected _onHighlight: ((item: ListItem<ID, D> | null) => void) | null = null;
   protected _customRenderer: ItemRenderer<ID, D> | null = null;
@@ -29,8 +32,24 @@ export class List<ID = string, D = unknown> extends Control {
   set selectedId(v: ID | null) { if (v !== this._selectedId) { this._selectedId = v; this.markDirty(); } }
 
   measure(_parentSize?: Size): Size {
-    const h = Math.max(1, this.items.length * this.itemHeight);
-    return { width: this.rect.width || 40, height: h };
+    return { width: this.rect.width || 40, height: this.rect.height || Math.max(1, this.items.length * this.itemHeight) };
+  }
+
+  onLayout(): void {
+    this._viewportHeight = Math.max(0, Math.floor(this.rect.height / this.itemHeight));
+    this.clampScroll();
+  }
+
+  protected clampScroll(): void {
+    const maxScroll = Math.max(0, this.contentHeight - this._viewportHeight);
+    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxScroll));
+
+    if (this.selectedIndex < this.scrollOffset) {
+      this.scrollOffset = this.selectedIndex;
+    }
+    if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
+      this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
+    }
   }
 
   setOnSelect(callback: (item: ListItem<ID, D>) => void): void {
@@ -53,9 +72,11 @@ export class List<ID = string, D = unknown> extends Control {
 
   updateItems(items: ListItem<ID, D>[]): void {
     this.items = items;
+    this.contentHeight = items.length;
     if (this.selectedIndex >= items.length) {
-      this.selectedIndex = items.length - 1;
+      this.selectedIndex = items.length > 0 ? items.length - 1 : -1;
     }
+    this.clampScroll();
     this.markDirty();
   }
 
@@ -63,16 +84,19 @@ export class List<ID = string, D = unknown> extends Control {
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
 
-    for (let i = 0; i < this.items.length; i++) {
-      const item = this.items[i]!;
-      const isHighlighted = i === this.selectedIndex;
+    for (let i = 0; i < this._viewportHeight; i++) {
+      const globalIndex = i + this.scrollOffset;
+      if (globalIndex >= this.items.length) break;
+
+      const item = this.items[globalIndex]!;
+      const isHighlighted = globalIndex === this.selectedIndex;
       const isSelected = item.id === this._selectedId;
       const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
       const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
       canvas.moveTo(x, y + i);
 
       if (this._customRenderer) {
-        this._customRenderer(canvas, item, i, isHighlighted, x, y + i, width);
+        this._customRenderer(canvas, item, globalIndex, isHighlighted, x, y + i, width);
       } else {
         const label = item.label;
         const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
@@ -95,6 +119,9 @@ export class List<ID = string, D = unknown> extends Control {
     if (key === "UP" || key === "k") {
       if (this.selectedIndex > 0) {
         this.selectedIndex--;
+        if (this.selectedIndex < this.scrollOffset) {
+          this.scrollOffset = this.selectedIndex;
+        }
         this._fireHighlight();
         this.markDirty();
         return true;
@@ -104,6 +131,9 @@ export class List<ID = string, D = unknown> extends Control {
     if (key === "DOWN" || key === "j") {
       if (this.selectedIndex < this.items.length - 1) {
         this.selectedIndex++;
+        if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
+          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
+        }
         this._fireHighlight();
         this.markDirty();
         return true;
@@ -126,6 +156,7 @@ export class List<ID = string, D = unknown> extends Control {
       this._fireHighlight();
       this.markDirty();
     }
+    this.clampScroll();
   }
 
   getSelectedItem(): ListItem<ID, D> | null {
@@ -138,11 +169,14 @@ export class List<ID = string, D = unknown> extends Control {
   onMouseDown(point: Point): boolean {
     if (this.items.length === 0) return false;
     const row = point.y - this.rect.y;
-    if (row >= 0 && row < this.items.length) {
-      this.selectedIndex = row;
-      this._fireHighlight();
-      this.markDirty();
-      return true;
+    if (row >= 0 && row < this._viewportHeight) {
+      const itemIndex = row + this.scrollOffset;
+      if (itemIndex >= 0 && itemIndex < this.items.length) {
+        this.selectedIndex = itemIndex;
+        this._fireHighlight();
+        this.markDirty();
+        return true;
+      }
     }
     return false;
   }
