@@ -1,4 +1,9 @@
 import { Modal } from "./Modal";
+import { Column, Row } from "../Layout";
+import { Button } from "./Button";
+import { Spacer } from "./Spacer";
+import { StyledText } from "./StyledText";
+import { ProgressBar } from "./ProgressBar";
 import { modalManager } from "../ModalManager";
 import type { Size } from "../types";
 
@@ -14,6 +19,8 @@ export class ProgressDialog extends Modal {
   protected _progress = 0;
   protected _cancellable = false;
   protected _resolve: ((value: void) => void) | null = null;
+  protected _messageLabel: StyledText;
+  protected _progressBar: ProgressBar;
 
   setCancellable(value: boolean): void {
     this._cancellable = value;
@@ -21,11 +28,14 @@ export class ProgressDialog extends Modal {
 
   set message(v: string) {
     this._message = v;
+    this._messageLabel.builder.text(v);
     this.markDirty();
   }
 
   set progress(v: number) {
     this._progress = Math.max(0, Math.min(100, v));
+    this._progressBar.progress = v;
+    this._progressBar.extraLabel = `${Math.round(v)}%`;
     this.markDirty();
   }
 
@@ -35,6 +45,34 @@ export class ProgressDialog extends Modal {
 
   setResolve(resolve: (value: void) => void): void {
     this._resolve = resolve;
+  }
+
+  constructor() {
+    super();
+    this._messageLabel = new StyledText();
+    this._progressBar = new ProgressBar();
+    this._progressBar.filledColor = "accent";
+    this._progressBar.emptyColor = "border";
+    this._progressBar.labelColor = "textMuted";
+
+    const buttonRow = new Row();
+    const spacer = new Spacer();
+    spacer.flex = 1;
+    const closeBtn = new Button({ label: this._cancellable ? "Cancel" : "Close" });
+    closeBtn.setAction(() => this.closeWithResult());
+    buttonRow.add(spacer);
+    buttonRow.add(closeBtn);
+
+    const contentColumn = new Column();
+    contentColumn.add(this._messageLabel);
+    contentColumn.add(this._progressBar);
+    const spacer1 = new Spacer();
+    spacer1.flex = 1;
+    contentColumn.add(spacer1);
+    contentColumn.add(buttonRow);
+    contentColumn.flex = 1;
+
+    this.add(contentColumn);
   }
 
   getHandle(): ProgressDialogHandle {
@@ -59,63 +97,6 @@ export class ProgressDialog extends Modal {
     };
   }
 
-  measure(parentSize?: Size): Size {
-    const base = super.measure(parentSize);
-    const msgLines = this._message.length > 0 ? Math.ceil(this._message.length / 50) : 0;
-    return this._clampSize({ width: Math.max(base.width, 40), height: base.height + Math.max(0, msgLines - 2) + 1 });
-  }
-
-  draw(ctx: any): void {
-    super.draw(ctx);
-    const { canvas } = ctx;
-    const { x, y, width, height } = this.rect;
-
-    if (height < 6) return;
-
-    const innerW = width - 4;
-
-    if (this._message.length > 0) {
-      const words = this._message.split(" ");
-      const lines: string[] = [];
-      let currentLine = "";
-
-      for (const word of words) {
-        const test = currentLine ? `${currentLine} ${word}` : word;
-        if (test.length > innerW && currentLine) {
-          lines.push(currentLine);
-          currentLine = word;
-        } else {
-          currentLine = test;
-        }
-      }
-      if (currentLine) lines.push(currentLine);
-
-      const maxLines = height - 7;
-      const msgStartY = y + 3;
-
-      for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
-        canvas.moveTo(x + 2, msgStartY + i);
-        canvas.setForegroundColor("text");
-        canvas.write(lines[i]!);
-      }
-    }
-
-    const barY = y + height - 4;
-    const barWidth = Math.max(10, innerW - 6);
-    const filled = Math.round((this._progress / 100) * barWidth);
-    const empty = barWidth - filled;
-
-    canvas.moveTo(x + 2, barY);
-    canvas.setForegroundColor("accent");
-    canvas.write("\u2588".repeat(filled));
-    canvas.setForegroundColor("border");
-    canvas.write("\u2591".repeat(empty));
-    canvas.setForegroundColor("textMuted");
-    canvas.write(` ${Math.round(this._progress)}%`);
-
-    canvas.styleReset();
-  }
-
   public closeWithResult(): void {
     if (this._resolve) {
       this._resolve();
@@ -136,11 +117,5 @@ export function createProgressDialog(
   dialog.setMaxSize(80, 20);
   dialog.message = message;
   dialog.setCancellable(opts?.cancellable ?? false);
-  dialog.setButtons([
-    {
-      label: (opts?.cancellable ?? false) ? "Cancel" : "Close",
-      action: () => dialog.closeWithResult(),
-    },
-  ]);
   return dialog;
 }

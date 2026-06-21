@@ -105,8 +105,9 @@ export class App {
     this._main = new MainControl(this._ctx, () => this.handleQuit());
     this._main.onInit();
 
-    modalManager.init(this._main.getTabContent());
-
+    modalManager.setOnDirty(() => {
+      if (this._main) this._main.markAllDirty();
+    });
     this.setupKeyHandler();
     this.setupResizeHandler();
     focusManager.setRoot(this._main);
@@ -252,10 +253,7 @@ export class App {
     this.keyHandler = (name: string, _matches: string[], data: any) => {
       const textActive = focusManager.isTextInputActive();
 
-      if (modalManager.isOpen()) {
-        const top = modalManager.getTop();
-        if (top && top.handleKey(name)) return;
-      }
+      if (modalManager.handleKey(name)) return;
 
       if (name === "?" && !textActive) {
         this.helpOverlayVisible = !this.helpOverlayVisible;

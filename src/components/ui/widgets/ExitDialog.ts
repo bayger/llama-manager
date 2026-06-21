@@ -1,4 +1,8 @@
 import { Modal } from "./Modal";
+import { Column, Row } from "../Layout";
+import { Button } from "./Button";
+import { Spacer } from "./Spacer";
+import { StyledText } from "./StyledText";
 import { modalManager } from "../ModalManager";
 import type { Size } from "../types";
 
@@ -7,9 +11,11 @@ export type ExitResult = "cancel" | "exit" | "stop_and_exit";
 export class ExitDialog extends Modal {
   protected _message = "";
   protected _resolve: ((value: ExitResult) => void) | null = null;
+  protected _messageLabel: StyledText;
 
   set message(v: string) {
     this._message = v;
+    this._messageLabel.builder.text(v);
     this.markDirty();
   }
 
@@ -17,31 +23,40 @@ export class ExitDialog extends Modal {
     this._resolve = resolve;
   }
 
+  constructor() {
+    super();
+    this._messageLabel = new StyledText();
+
+    const buttonRow = new Row();
+    const spacer = new Spacer();
+    spacer.flex = 1;
+
+    const cancelBtn = new Button({ label: "Cancel" });
+    const exitBtn = new Button({ label: "Exit Now" });
+    const stopExitBtn = new Button({ label: "Stop & Exit" });
+
+    cancelBtn.setAction(() => this.closeWithResult("cancel"));
+    exitBtn.setAction(() => this.closeWithResult("exit"));
+    stopExitBtn.setAction(() => this.closeWithResult("stop_and_exit"));
+
+    buttonRow.add(spacer);
+    buttonRow.add(cancelBtn);
+    buttonRow.add(exitBtn);
+    buttonRow.add(stopExitBtn);
+
+    const contentColumn = new Column();
+    contentColumn.add(this._messageLabel);
+    const spacer1 = new Spacer();
+    spacer1.flex = 1;
+    contentColumn.add(spacer1);
+    contentColumn.add(buttonRow);
+    contentColumn.flex = 1;
+
+    this.add(contentColumn);
+  }
+
   measure(_parentSize?: Size): Size {
     return this._clampSize({ width: 52, height: 9 });
-  }
-
-  handleKey(key: string): boolean {
-    if (key === "Escape") {
-      this.closeWithResult("cancel");
-      return true;
-    }
-    return super.handleKey(key);
-  }
-
-  draw(ctx: any): void {
-    super.draw(ctx);
-    const { canvas } = ctx;
-    const { x, y, height } = this.rect;
-
-    if (height < 5 || this._message.length === 0) return;
-
-    const msgStartY = y + 3;
-    canvas.moveTo(x + 2, msgStartY);
-    canvas.setForegroundColor("text");
-    canvas.write(this._message);
-
-    canvas.styleReset();
   }
 
   public closeWithResult(result: ExitResult): void {
@@ -61,20 +76,5 @@ export function createExitDialog(message: string = "The server is still running.
   dialog.setMinSize(60, 9);
   dialog.setMaxSize(60, 15);
   dialog.message = message;
-  dialog.setButtons([
-    {
-      label: "Cancel",
-      action: () => dialog.closeWithResult("cancel"),
-    },
-    {
-      label: "Exit Now",
-      action: () => dialog.closeWithResult("exit"),
-    },
-    {
-      label: "Stop & Exit",
-      action: () => dialog.closeWithResult("stop_and_exit"),
-    },
-  ]);
-  dialog.setDefaultButton(2);
   return dialog;
 }

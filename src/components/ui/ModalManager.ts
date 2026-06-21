@@ -1,16 +1,15 @@
 import { focusManager } from "./FocusManager";
-import type { Control } from "./Control";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 import type { Modal } from "./widgets/Modal";
 import type { Point } from "./types";
 
 export class ModalManager {
   private _stack: Modal[] = [];
-  private _tabContent: Control | null = null;
   private _needsRender = false;
+  private _onDirty: (() => void) | null = null;
 
-  init(tabContent: Control): void {
-    this._tabContent = tabContent;
+  setOnDirty(callback: () => void): void {
+    this._onDirty = callback;
   }
 
   open(modal: Modal): void {
@@ -28,7 +27,7 @@ export class ModalManager {
       this._stack.pop();
     }
     this._needsRender = true;
-    if (this._tabContent) this._tabContent.markDirty();
+    if (this._onDirty) this._onDirty();
     if (this._stack.length === 0) {
       focusManager.restoreRoot();
     } else {
@@ -54,29 +53,55 @@ export class ModalManager {
   }
 
   get needsRender(): boolean {
-    return this._needsRender;
+    return this._needsRender || (this._stack.length > 0 && this._stack[this._stack.length - 1]!.needsRender);
   }
 
   handleMouseDown(point: Point): boolean {
     if (!this.isOpen()) return false;
     const top = this.getTop();
     if (!top) return false;
-    if (top.onMouseDown(point)) return true;
-    return this.isPointInTabContent(point);
+    const target = top.hitTest(point);
+    if (target && target.focusable) {
+      focusManager.setFocus(target);
+    } else {
+      focusManager.setFocus(top);
+    }
+    target?.onMouseDown(point);
+    return true;
   }
 
   handleMouseUp(point: Point): boolean {
     if (!this.isOpen()) return false;
     const top = this.getTop();
     if (!top) return false;
-    if (top.onMouseUp(point)) return true;
-    return this.isPointInTabContent(point);
+    const target = top.hitTest(point);
+    target?.onMouseUp(point);
+    return true;
   }
 
-  private isPointInTabContent(point: Point): boolean {
-    if (!this._tabContent) return false;
-    const { x, y, width, height } = this._tabContent.rect;
-    return point.x >= x && point.x < x + width && point.y >= y && point.y < y + height;
+  handleKey(key: string): boolean {
+    if (!this.isOpen()) return false;
+    const top = this.getTop();
+    if (!top) return false;
+
+    if (key === "TAB") {
+      focusManager.nextFocus();
+      return true;
+    }
+    if (key === "SHIFT_TAB") {
+      focusManager.previousFocus();
+      return true;
+    }
+
+    const focused = focusManager.getFocused();
+    if (focused && focused.handleKey(key)) return true;
+    if (focusManager.isTextInputActive()) {
+      if (key.length === 1 && key >= " " && key <= "~") {
+        if (focused?.handleChar(key)) return true;
+      }
+    }
+    if (top.handleKey(key)) return true;
+    return true;
   }
 
   render(canvas: FramebufferCanvas): void {

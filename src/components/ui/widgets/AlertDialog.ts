@@ -1,53 +1,48 @@
 import { Modal } from "./Modal";
+import { Column, Row } from "../Layout";
+import { Button } from "./Button";
+import { Spacer } from "./Spacer";
+import { StyledText } from "./StyledText";
 import type { Size } from "../types";
 
 export class AlertDialog extends Modal {
   protected _message = "";
+  protected _messageLabel: StyledText;
+
+  constructor() {
+    super();
+    this._messageLabel = new StyledText();
+
+    const buttonRow = new Row();
+    const spacer = new Spacer();
+    spacer.flex = 1;
+    const okBtn = new Button({ label: "OK" });
+    okBtn.setAction(() => this.close());
+    buttonRow.add(spacer);
+    buttonRow.add(okBtn);
+
+    const contentColumn = new Column();
+    contentColumn.add(this._messageLabel);
+    const spacer1 = new Spacer();
+    spacer1.flex = 1;
+    contentColumn.add(spacer1);
+    contentColumn.add(buttonRow);
+    contentColumn.flex = 1;
+
+    this.add(contentColumn);
+  }
 
   set message(v: string) {
     this._message = v;
+    this._messageLabel.builder.text(v);
     this.markDirty();
   }
 
   measure(parentSize?: Size): Size {
-    const base = super.measure(parentSize);
     const msgLines = this._message.length > 0 ? Math.ceil(this._message.length / 50) : 0;
-    return this._clampSize({ width: Math.max(base.width, this._message.length + 8), height: base.height + Math.max(0, msgLines - 3) });
-  }
-
-  draw(ctx: any): void {
-    super.draw(ctx);
-    const { canvas } = ctx;
-    const { x, y, width, height } = this.rect;
-
-    if (height < 5 || this._message.length === 0) return;
-
-    const innerW = width - 4;
-    const words = this._message.split(" ");
-    const lines: string[] = [];
-    let currentLine = "";
-
-    for (const word of words) {
-      const test = currentLine ? `${currentLine} ${word}` : word;
-      if (test.length > innerW && currentLine) {
-        lines.push(currentLine);
-        currentLine = word;
-      } else {
-        currentLine = test;
-      }
-    }
-    if (currentLine) lines.push(currentLine);
-
-    const maxLines = height - 6;
-    const msgStartY = y + 3;
-
-    for (let i = 0; i < Math.min(lines.length, maxLines); i++) {
-      canvas.moveTo(x + 2, msgStartY + i);
-      canvas.setForegroundColor("text");
-      canvas.write(lines[i]!);
-    }
-
-    canvas.styleReset();
+    const w = Math.max(this._minWidth, this._message.length + 8);
+    const h = Math.max(this._minHeight, 9 + Math.max(0, msgLines - 3));
+    return this._clampSize({ width: w, height: h });
   }
 }
 
@@ -57,9 +52,5 @@ export function createAlertDialog(title: string, message: string): AlertDialog {
   dialog.setMinSize(30, 9);
   dialog.setMaxSize(80, 25);
   dialog.message = message;
-  dialog.setButtons([{
-    label: "OK",
-    action: () => dialog.close(),
-  }]);
   return dialog;
 }
