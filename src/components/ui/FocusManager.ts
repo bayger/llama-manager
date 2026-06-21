@@ -5,10 +5,24 @@ export class FocusManager {
   private _root: Control | null = null;
   private _focused: Control | null = null;
   private _textInputActive = false;
+  private _rootStack: (Control | null)[] = [];
 
   setRoot(root: Control): void {
     this._root = root;
     this.setFocus(root);
+  }
+
+  saveRoot(): void {
+    this._rootStack.push(this._root);
+    this._root = null;
+    this.clear();
+  }
+
+  restoreRoot(): void {
+    if (this._rootStack.length > 0) {
+      this._root = this._rootStack.pop() || null;
+    }
+    this.focusFirst();
   }
 
   getFocused(): Control | null {

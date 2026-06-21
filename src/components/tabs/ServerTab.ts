@@ -3,7 +3,6 @@ import { Control } from "../ui/Control";
 import { Column, Row } from "../ui/Layout";
 import { Button } from "../ui/widgets/Button";
 import { Spacer } from "../ui/widgets/Spacer";
-import { TextInput } from "../ui/widgets/TextInput";
 import { Section } from "../ui/widgets/Section";
 import { Checkbox } from "../ui/widgets/Checkbox";
 import { SettingsPanel } from "../specialized/SettingsPanel";
@@ -11,15 +10,16 @@ import { ProfileList } from "../specialized/ProfileList";
 import { StyledText } from "../ui/widgets/StyledText";
 import { focusManager } from "../ui/FocusManager";
 import { ConfigData, saveConfig } from "../../lib/config";
+import { fireAsync } from "../../lib/utils";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
+import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
+import { createInputDialog } from "../ui/widgets/InputDialog";
 
 export class ServerControl extends Control {
   focusable = true;
   protected _ctx: TabContext | null = null;
   protected _column: Column;
-  protected _editRow: Row;
-  protected _editInput: TextInput;
   protected _buttonRow: Row;
   protected _buttons: Button[];
   protected _section: Section;
@@ -27,7 +27,6 @@ export class ServerControl extends Control {
   protected _profileList: ProfileList;
   protected _summary: StyledText;
   protected _advancedCheckbox: Checkbox;
-  protected _editMode: "create" | "rename" | null = null;
   protected _showingSettings = false;
 
   constructor(ctx: TabContext) {
@@ -35,15 +34,6 @@ export class ServerControl extends Control {
     this._ctx = ctx;
 
     this._summary = new StyledText();
-
-    this._editInput = new TextInput();
-    this._editInput.placeholder = "Profile name";
-    this._editInput.setOnSubmit((value: string) => this.commitProfileEdit(value));
-    this._editInput.setOnCancel(() => this.cancelProfileEdit());
-
-    this._editRow = new Row();
-    this._editRow.add(this._editInput);
-    this._editRow.visible = false;
 
     this._buttonRow = new Row();
     this._buttons = [
@@ -87,7 +77,6 @@ export class ServerControl extends Control {
     this._section.add(this._profileList);
 
     this._column = new Column();
-    this._column.add(this._editRow);
     this._column.add(this._buttonRow);
     this._column.add(this._section);
     this._buttonRow.add(this._summary);
@@ -107,11 +96,11 @@ export class ServerControl extends Control {
     if (!this._ctx) return;
 
     this._buttons[0]?.setAction(() => {
-      this.startProfileEdit("create");
+      this.createProfile();
     });
 
     this._buttons[1]?.setAction(() => {
-      this.startProfileEdit("rename");
+      this.renameProfile();
     });
 
     this._buttons[2]?.setAction(() => {
@@ -127,7 +116,6 @@ export class ServerControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    if (this._editMode) return;
     if (this._showingSettings) {
       focusManager.setFocus(this._settingsPanel);
     } else {
@@ -190,83 +178,101 @@ export class ServerControl extends Control {
     this.refreshConfig();
   }
 
-  startProfileEdit(mode: "create" | "rename"): void {
+  createProfile(): void {
     const config = this._ctx?.getConfig();
     if (!config) return;
 
-    if (mode === "rename" && config.server.activeProfile === "Default") {
-      this._ctx?.showMessage("Default profile cannot be renamed");
-      return;
-    }
-
-    this._editMode = mode;
-    this._summary.builder.warning(mode === "create" ? "Create: " : "Rename: ");
-    this._editRow.visible = true;
-    this._editInput.value = mode === "create" ? "" : config.server.activeProfile;
-    this._editInput.cursorPos = mode === "create" ? 0 : config.server.activeProfile.length;
-    focusManager.setFocus(this._editInput);
-    this.markDirty();
+    fireAsync(async () => {
+      const name = await this._ctx!.openModal<string | null>(
+        createInputDialog("Create Profile", "Profile name", "")
+      );
+      if (!name) return;
+      this.commitCreateProfile(name, config);
+    }, this._ctx!);
   }
 
-  cancelProfileEdit(): void {
-    this._editMode = null;
-    this._editRow.visible = false;
-    this.refreshConfig();
-    const firstEnabled = this._buttons.find(b => !b.disabled);
-    if (firstEnabled) {
-      focusManager.setFocus(firstEnabled);
-    }
-    this.markDirty();
-  }
-
-  commitProfileEdit(name: string): void {
-    const config = this._ctx?.getConfig();
-    if (!config || !this._editMode) return;
-
+  commitCreateProfile(name: string, config: ConfigData): void {
     name = name.trim();
     if (!name) {
       this._ctx?.showMessage("Profile name cannot be empty");
-      this.cancelProfileEdit();
       return;
     }
     if (name === "Default") {
       this._ctx?.showMessage("Cannot use 'Default' as a profile name");
-      this.cancelProfileEdit();
       return;
     }
     if (config.server.profiles[name]) {
       this._ctx?.showMessage(`Profile '${name}' already exists`);
-      this.cancelProfileEdit();
       return;
     }
 
-    if (this._editMode === "create") {
-      const current = config.server.profiles[config.server.activeProfile];
-      if (!current) {
-        this.cancelProfileEdit();
-        return;
-      }
-      config.server.profiles[name] = JSON.parse(JSON.stringify(current));
-      config.server.activeProfile = name;
-    } else {
-      const current = config.server.profiles[config.server.activeProfile];
-      if (!current) {
-        this.cancelProfileEdit();
-        return;
-      }
-      config.server.profiles[name] = current;
-      delete config.server.profiles[config.server.activeProfile];
-      config.server.activeProfile = name;
-    }
+    const current = config.server.profiles[config.server.activeProfile];
+    if (!current) return;
+
+    config.server.profiles[name] = JSON.parse(JSON.stringify(current));
+    config.server.activeProfile = name;
 
     try {
       saveConfig(config);
-      this._ctx?.showMessage(`${this._editMode === "create" ? "Created" : "Renamed"} profile: ${name}`);
+      this._ctx?.showMessage(`Created profile: ${name}`);
     } catch (e) {
       this._ctx?.showMessage(`Error saving: ${e}`);
     }
 
-    this.cancelProfileEdit();
+    this.refreshConfig();
+  }
+
+  renameProfile(): void {
+    const config = this._ctx?.getConfig();
+    if (!config) return;
+
+    if (config.server.activeProfile === "Default") {
+      this._ctx?.showMessage("Default profile cannot be renamed");
+      return;
+    }
+
+    fireAsync(async () => {
+      const name = await this._ctx!.openModal<string | null>(
+        createInputDialog("Rename Profile", "New name", config.server.activeProfile)
+      );
+      if (!name) return;
+      this.commitRenameProfile(name, config);
+    }, this._ctx!);
+  }
+
+  commitRenameProfile(name: string, config: ConfigData): void {
+    name = name.trim();
+    if (!name) {
+      this._ctx?.showMessage("Profile name cannot be empty");
+      return;
+    }
+    if (name === "Default") {
+      this._ctx?.showMessage("Cannot use 'Default' as a profile name");
+      return;
+    }
+    if (name === config.server.activeProfile) {
+      return;
+    }
+    if (config.server.profiles[name]) {
+      this._ctx?.showMessage(`Profile '${name}' already exists`);
+      return;
+    }
+
+    const current = config.server.profiles[config.server.activeProfile];
+    if (!current) return;
+
+    config.server.profiles[name] = current;
+    delete config.server.profiles[config.server.activeProfile];
+    config.server.activeProfile = name;
+
+    try {
+      saveConfig(config);
+      this._ctx?.showMessage(`Renamed profile to: ${name}`);
+    } catch (e) {
+      this._ctx?.showMessage(`Error saving: ${e}`);
+    }
+
+    this.refreshConfig();
   }
 
   deleteProfile(): void {
@@ -285,17 +291,26 @@ export class ServerControl extends Control {
       return;
     }
 
-    delete profiles[config.server.activeProfile];
-    config.server.activeProfile = "Default";
+    fireAsync(async () => {
+      const confirmed = await this._ctx!.openModal<boolean>(createConfirmDialog(
+        "Delete Profile",
+        `Delete profile "${config.server.activeProfile}"? This cannot be undone.`
+      ));
+      if (!confirmed) return;
 
-    try {
-      saveConfig(config);
-      this._ctx?.showMessage("Profile deleted, switched to Default");
-    } catch (e) {
-      this._ctx?.showMessage(`Error saving: ${e}`);
-    }
+      const oldName = config.server.activeProfile;
+      delete profiles[oldName];
+      config.server.activeProfile = "Default";
 
-    this.refreshConfig();
+      try {
+        saveConfig(config);
+        this._ctx?.showMessage(`Deleted profile "${oldName}", switched to Default`);
+      } catch (e) {
+        this._ctx?.showMessage(`Error saving: ${e}`);
+      }
+
+      this.refreshConfig();
+    }, this._ctx!);
   }
 }
 

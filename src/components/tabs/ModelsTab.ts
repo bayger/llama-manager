@@ -22,6 +22,8 @@ import {
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
 import { saveConfig } from "../../lib/config";
 import { fireAsync } from "../../lib/utils";
+import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
+import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
@@ -69,7 +71,6 @@ export class ModelsControl extends Control {
   protected _PAGE_SIZE = 20;
   protected _files: HFFileInfo[] = [];
   protected _downloadAbortController: AbortController | null = null;
-  protected _downloadCancelled = false;
 
   constructor(ctx: TabContext) {
     super();
@@ -79,7 +80,7 @@ export class ModelsControl extends Control {
 
     // --- Local models view ---
     this._browseBtn = new Button({ label: "Browse HF" });
-    this._removeBtn = new Button({ label: "Remove" });
+    this._removeBtn = new Button({ label: "Delete" });
     this._buttonRow = new Row();
     this._buttonRow.add(this._browseBtn);
     this._buttonRow.add(this._removeBtn);
@@ -94,19 +95,22 @@ export class ModelsControl extends Control {
     this._modelList.setOnSelect((item) => {
       this.selectModel(item.data!);
     });
-    this._modelList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
+    this._modelList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
       const model = item.data!;
-      const prefix = model.active ? "✓ " : "  ";
+      const isSelected = model.active;
+      const prefix = isSelected ? "✓ " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
       const line = (`${prefix}${name}  ${size}`).padEnd(width);
+      const fgColor = isHighlighted ? (this._modelList.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
+      const bgColor = this._modelList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-      if (isSelected) {
-        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
-      } else if (model.active) {
-        fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
       }
     });
 
@@ -134,17 +138,21 @@ export class ModelsControl extends Control {
     this._hfResultsList.setOnSelect((item) => {
       this.openRepoFiles(item.data!);
     });
-    this._hfResultsList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
+    this._hfResultsList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
       const repo = item.data!;
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
       const meta = [likes, downloads].filter(Boolean).join("  ");
       const line = (`${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
+      const fgColor = isHighlighted ? (this._hfResultsList.focused ? "canvas" : "text") : "text";
+      const bgColor = this._hfResultsList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-      if (isSelected) {
-        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
       }
     });
 
@@ -158,15 +166,19 @@ export class ModelsControl extends Control {
     this._hfFilesList.setOnSelect((item) => {
       this.downloadSelectedFile(item.data!);
     });
-    this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
+    this._hfFilesList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
       const file = item.data!;
       const size = formatSize(file.size);
       const line = (`${file.path}  ${size}`).padEnd(width);
+      const fgColor = isHighlighted ? (this._hfFilesList.focused ? "canvas" : "text") : "text";
+      const bgColor = this._hfFilesList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-      if (isSelected) {
-        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
       }
     });
 
@@ -245,7 +257,7 @@ export class ModelsControl extends Control {
     });
 
     this._removeBtn.setAction(() => {
-      this.removeSelected();
+      this.deleteSelected();
     });
 
     this._hfSearchBtn.setAction(() => {
@@ -343,11 +355,7 @@ this._hfResultsList.handleKey = (key: string) => {
   // --- Key handling ---
   handleKey(key: string): boolean {
     if (this._view !== "local" && key === "ESC") {
-      if (this._view === "downloading") {
-        this.cancelDownload();
-      } else {
-        this.goBack();
-      }
+      this.goBack();
       return true;
     }
     return super.handleKey(key);
@@ -363,7 +371,7 @@ this._hfResultsList.handleKey = (key: string) => {
      focusManager.activateTextInput(true);
    }
 
-  goBack(): void {
+   goBack(): void {
     if (this._view === "results") {
       this._view = "search";
       this._hfResultsList.selectedIndex = -1;
@@ -372,9 +380,6 @@ this._hfResultsList.handleKey = (key: string) => {
       this._hfFilesList.selectedIndex = -1;
       const idx = this._repos.indexOf(this._selectedRepo!);
       if (idx !== -1) this._hfResultsList.selectedIndex = idx;
-    } else if (this._view === "downloading") {
-      this.cancelDownload();
-      return;
     } else if (this._view === "search") {
       this._view = "local";
       focusManager.activateTextInput(false);
@@ -391,7 +396,6 @@ this._hfResultsList.handleKey = (key: string) => {
     const isSearch = this._view === "search";
     const isResults = this._view === "results";
     const isFiles = this._view === "files";
-    const isDownloading = this._view === "downloading";
 
     // Search row visibility
     this._hfSearchRow.visible = true;
@@ -399,7 +403,6 @@ this._hfResultsList.handleKey = (key: string) => {
     // Content visibility
     this._hfResultsSection.visible = isResults;
     this._hfFilesSection.visible = isFiles;
-    this._hfProgressBar.visible = isDownloading;
 
     // Button visibility
     this._hfBackBtn.visible = true;
@@ -407,7 +410,6 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;
     this._hfNextBtn.visible = isResults && (this._searchPage + 1) * this._PAGE_SIZE < this._allRepos.length;
-    this._hfCancelBtn.visible = isDownloading;
     this._hfButtonRow.visible = true;
 
     // Header
@@ -417,8 +419,6 @@ this._hfResultsList.handleKey = (key: string) => {
       this._summary.builder.muted(`Search Results  Page ${this._searchPage + 1}  (${this._allRepos.length} repos)`);
     } else if (isFiles) {
       this._summary.builder.muted(this._selectedRepo ? this._selectedRepo.id : "Files");
-    } else if (isDownloading) {
-      this._summary.builder.muted("Downloading...");
     }
 
     // Focus
@@ -507,53 +507,54 @@ this._hfResultsList.handleKey = (key: string) => {
   // --- Download ---
   downloadSelectedFile(file: HFFileInfo): void {
     const config = this._ctx?.getConfig();
-    if (!config || !this._selectedRepo) return;
+    if (!config || !this._selectedRepo || !this._ctx) return;
 
     this._downloadAbortController = new AbortController();
-    this._view = "downloading";
-    this._hfProgressBar.progress = 0;
-    this._hfProgressBar.label = "Preparing...";
-    this._hfProgressBar.extraLabel = "";
-    this.updateView();
+    const dialog = createDownloadDialog(file.path, "Preparing...");
+    const handle = dialog.getHandle();
 
     const token = config.hfToken ?? undefined;
 
     fireAsync(async () => {
-      await downloadModel(
-        config,
-        this._selectedRepo!.id,
-        file.path,
-        file.size,
-        (pct, label) => {
-          this._hfProgressBar.progress = pct;
-          this._hfProgressBar.label = `${this._selectedRepo!.id}/${file.path}`;
-          this._hfProgressBar.extraLabel = label;
-          this.markDirty();
-        },
-        token,
-        this._downloadAbortController?.signal,
-      );
+      try {
+        await downloadModel(
+          config,
+          this._selectedRepo!.id,
+          file.path,
+          file.size,
+          (pct, label) => {
+            handle.update(pct, label);
+          },
+          token,
+          this._downloadAbortController?.signal,
+        );
 
-      this._downloadAbortController = null;
-      if (this._downloadCancelled) {
-        this._downloadCancelled = false;
-        return;
+        this._downloadAbortController = null;
+        handle.update(100, "Download complete!");
+        setTimeout(() => handle.close(), 500);
+        await handle.promise;
+        this._ctx?.showMessage(`Downloaded ${file.path}`);
+        this._view = "local";
+        this.updateView();
+        this.refreshModels();
+      } catch (err: any) {
+        this._downloadAbortController = null;
+        if (err.message === "Download cancelled") {
+          return;
+        }
+        handle.close();
+        throw err;
       }
-      this._ctx?.showMessage(`Downloaded ${file.path}`);
-      this._view = "local";
-      this.updateView();
-      this.refreshModels();
-    }, this._ctx!);
+    }, this._ctx);
+
+    this._ctx.openModal(dialog);
   }
 
   cancelDownload(): void {
-    this._downloadCancelled = true;
     if (this._downloadAbortController) {
       this._downloadAbortController.abort();
       this._downloadAbortController = null;
     }
-    this._view = "files";
-    this.updateView();
   }
 
   // --- Local models ---
@@ -600,21 +601,26 @@ this._hfResultsList.handleKey = (key: string) => {
     })();
   }
 
-  removeSelected(): void {
+   deleteSelected(): void {
     const selected = this._modelList.getSelectedItem();
     if (!selected) return;
 
     const config = this._ctx?.getConfig();
     if (!config) return;
 
-    (async () => {
+    fireAsync(async () => {
       const model = selected.data!;
+      const confirmed = await this._ctx!.openModal<boolean>(createConfirmDialog(
+        "Delete Model",
+        `Delete ${model.filename}? This will remove the file from disk.`
+      ));
+      if (!confirmed) return;
       const updated = await deleteModel(config, model.path);
       await saveConfig(updated);
       this._ctx?.setConfig(updated);
-      this._ctx?.showMessage(`Removed ${model.filename}`);
+      this._ctx?.showMessage(`Deleted ${model.filename}`);
       this.refreshModels();
-    })();
+    }, this._ctx!);
   }
 
 }

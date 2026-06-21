@@ -1,11 +1,11 @@
-import { Control } from "../ui/Control";
+import { Column } from "../ui/Layout";
 import { Section } from "../ui/widgets/Section";
 import { OptionsPanel } from "../specialized/OptionsPanel";
 import { focusManager } from "../ui/FocusManager";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
-export class OptionsControl extends Control {
+export class OptionsControl extends Column {
   protected _ctx: TabContext | null = null;
   protected _section: Section;
   protected _panel: OptionsPanel;
@@ -26,7 +26,8 @@ export class OptionsControl extends Control {
   }
 
   measure(parentSize?: Size): Size {
-    return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
+    const ps = parentSize || { width: 80, height: 24 };
+    return { width: ps.width, height: ps.height };
   }
 
   onFocus(): void {
@@ -39,6 +40,6 @@ export class OptionsControl extends Control {
   }
 }
 
-export function createOptionsTab(ctx: TabContext): Control {
+export function createOptionsTab(ctx: TabContext): OptionsControl {
   return new OptionsControl(ctx);
 }

@@ -67,6 +67,11 @@ function getValue(entry: string | { dark: string; light: string }): string {
   return themeMode === "light" ? entry.light : entry.dark;
 }
 
+function getValueWithMode(entry: string | { dark: string; light: string }, mode: ThemeMode): string {
+  if (typeof entry === "string") return entry;
+  return mode === "light" ? entry.light : entry.dark;
+}
+
 function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
   const { defs, theme: t } = raw;
 
@@ -95,8 +100,41 @@ function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
     warningText: c("warning"),
     info: c("info"),
     selected: c("primary"),
-    selectedBg: c("border"),
-    selectedText: c("background"),
+    selectedBg: c("primary"),
+    selectedText: c("backgroundPanel"),
+  };
+}
+
+function resolveThemeToColorsWithMode(raw: OpencodeThemeRaw, mode: ThemeMode): ThemeColors {
+  const { defs, theme: t } = raw;
+
+  const c = (key: string) => resolveRef(defs, getValueWithMode(t[key] || "#000000", mode));
+
+  return {
+    canvas: c("background"),
+    canvasSubtle: c("backgroundPanel"),
+    sidebar: c("backgroundElement"),
+    border: c("border"),
+    borderMuted: c("borderSubtle"),
+    borderActive: c("borderActive"),
+    text: c("text"),
+    textMuted: c("textMuted"),
+    textLink: c("primary"),
+    accent: c("primary"),
+    accentSubtle: c("secondary"),
+    accentColor: c("accent"),
+    success: c("success"),
+    successText: c("success"),
+    successBg: c("diffAddedBg"),
+    danger: c("error"),
+    dangerText: c("error"),
+    dangerBg: c("diffRemovedBg"),
+    warning: c("warning"),
+    warningText: c("warning"),
+    info: c("info"),
+    selected: c("primary"),
+    selectedBg: c("primary"),
+    selectedText: c("backgroundPanel"),
   };
 }
 
@@ -125,8 +163,8 @@ export const themeColors: ThemeColors = {
   warningText: "#d29922",
   info: "#d29922",
   selected: "#ffffff",
-  selectedBg: "#ffffff",
-  selectedText: "#0d1117",
+  selectedBg: "#58a6ff",
+  selectedText: "#161b22",
 };
 
 export function getThemeNames(): string[] {
@@ -143,6 +181,16 @@ export function loadTheme(name: string): ThemeColors | null {
     const filePath = path.join(THEMES_DIR, `${name}.json`);
     const raw = fs.readJsonSync(filePath) as OpencodeThemeRaw;
     return resolveThemeToColors(raw);
+  } catch {
+    return null;
+  }
+}
+
+export function loadThemeWithMode(name: string, mode: ThemeMode): ThemeColors | null {
+  try {
+    const filePath = path.join(THEMES_DIR, `${name}.json`);
+    const raw = fs.readJsonSync(filePath) as OpencodeThemeRaw;
+    return resolveThemeToColorsWithMode(raw, mode);
   } catch {
     return null;
   }

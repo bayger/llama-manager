@@ -27,7 +27,7 @@ export class TextInput extends Control {
 
   measure(_parentSize?: Size): Size {
     const contentLen = Math.max(this.value.length, this.placeholder.length) + this.prefix.length + 2;
-    return { width: Math.max(contentLen, this.rect.width), height: 1 };
+    return { width: contentLen, height: 1 };
   }
 
   setOnSubmit(callback: (value: string) => void): void {

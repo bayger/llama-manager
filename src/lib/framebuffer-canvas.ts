@@ -12,6 +12,18 @@ export interface ClipRect {
 
 const defaultCell: Cell = { ch: ' ', fg: DEFAULT_FG, bg: DEFAULT_BG, bold: false };
 
+/** Darken a hex color by a factor (0.0 = black, 1.0 = unchanged). */
+function dimColor(hex: string, factor: number): string {
+  if (factor >= 1) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const dr = Math.round(r * factor).toString(16).padStart(2, '0');
+  const dg = Math.round(g * factor).toString(16).padStart(2, '0');
+  const db = Math.round(b * factor).toString(16).padStart(2, '0');
+  return `#${dr}${dg}${db}`;
+}
+
 /** Convert 1-indexed terminal coord to 0-indexed buffer index. */
 function toBuf(v: number): number {
   return Math.max(0, v - 1);
@@ -210,6 +222,26 @@ export class FramebufferCanvas {
         if (this._fg !== null) cell.fg = this._fg;
         if (this._bg !== null) cell.bg = this._bg;
         cell.bold = false;
+      }
+    }
+    return this;
+  }
+
+  dimRect(x: number, y: number, w: number, h: number, factor: number): this {
+    const buf = this._fb.front;
+    const sx = toBuf(this._clip ? Math.max(this._clip.x, x) : x);
+    const ex = toBuf(this._clip ? Math.min(this._clip.x + this._clip.width, x + w) : x + w);
+    const sy = toBuf(this._clip ? Math.max(this._clip.y, y) : y);
+    const ey = toBuf(this._clip ? Math.min(this._clip.y + this._clip.height, y + h) : y + h);
+
+    for (let row = sy; row < ey; row++) {
+      if (row < 0 || row >= this._fb.height) continue;
+      const line = buf[row]!;
+      for (let col = sx; col < ex; col++) {
+        if (col < 0 || col >= this._fb.width) continue;
+        const cell = line[col]!;
+        cell.fg = dimColor(cell.fg, factor);
+        cell.bg = dimColor(cell.bg, factor);
       }
     }
     return this;

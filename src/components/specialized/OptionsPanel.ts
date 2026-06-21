@@ -1,78 +1,12 @@
-import { fg, fgBg, setActiveTheme, getThemeNames, loadTheme, setThemeMode, getThemeMode, themeHasLightVariant } from "../../lib/theme";
-import type { Color } from "../../lib/theme";
+import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant, getThemeMode } from "../../lib/theme";
 import { focusManager } from "../ui/FocusManager";
-import { Section } from "../ui/widgets/Section";
 import { ConfigData, saveConfig } from "../../lib/config";
 import type { TabContext } from "../../lib/tabcontext";
-import type { Size, RenderContext } from "../ui/types";
+import type { RenderContext } from "../ui/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
+import { createThemeSelectorModal } from "../ui/widgets/ThemeSelectorModal";
 
 const KEY_COL_WIDTH = 22;
-const THEME_PICKER_WIDTH = 30;
-
-const V = "\u2502";
-
-class ThemePickerControl extends Section {
-  protected _index = 0;
-  protected _scroll = 0;
-
-  measure(parentSize: Size): Size {
-    return { width: THEME_PICKER_WIDTH, height: parentSize.height };
-  }
-
-  setState(index: number, scroll: number): void {
-    this._index = index;
-    this._scroll = scroll;
-    this.markDirty();
-  }
-
-  draw(ctx: RenderContext): void {
-    const { canvas } = ctx;
-    const { x, y, height } = this.rect;
-    const names = getThemeNames();
-
-    canvas.moveTo(x, y);
-    canvas.bold();
-    fg(canvas, "accent", `${V}`);
-    fg(canvas, "accent", ` ${this.title}`);
-
-    for (let row = 1; row < height; row++) {
-      canvas.moveTo(x, y + row);
-      canvas.setForegroundColor("borderMuted");
-      canvas.write(V);
-    }
-
-    for (let i = 1; i < height; i++) {
-      const themeIdx = i - 1 + this._scroll;
-      if (themeIdx >= names.length) break;
-
-      canvas.moveTo(x + 2, y + i);
-      const name = names[themeIdx]!;
-      const isSelected = themeIdx === this._index;
-      const resolved = loadTheme(name);
-
-      if (isSelected) {
-        fg(canvas, "accent", ">");
-        if (resolved) {
-          fgBg(canvas, resolved.canvas as Color, resolved.text as Color, "\u2588");
-          fgBg(canvas, resolved.text as Color, resolved.canvas as Color, "\u2588");
-          fgBg(canvas, resolved.accent as Color, resolved.canvas as Color, "\u2588");
-        }
-        fg(canvas, "accentColor", ` ${name}`);
-      } else {
-        fg(canvas, "borderMuted", " ");
-        if (resolved) {
-          fgBg(canvas, resolved.canvas as Color, resolved.text as Color, "\u2588");
-          fgBg(canvas, resolved.text as Color, resolved.canvas as Color, "\u2588");
-          fgBg(canvas, resolved.accent as Color, resolved.canvas as Color, "\u2588");
-          fg(canvas, "textMuted", ` ${name}`);
-        } else {
-          fg(canvas, "textMuted", `     ${name}`);
-        }
-      }
-    }
-  }
-}
 
 export interface OptionFieldDef {
   key: string;
@@ -193,19 +127,11 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
 
 export class OptionsPanel extends EditableList {
   protected _ctx: TabContext | null = null;
-  protected _themePickerMode = false;
-  protected _themePickerIndex = 0;
-  protected _themePickerScroll = 0;
   protected _themePickerOriginal = "";
-  protected _themePicker: ThemePickerControl;
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
-    this._themePicker = new ThemePickerControl();
-    this._themePicker.title = "THEMES";
-    this._themePicker.visible = false;
-    this.add(this._themePicker);
     this.buildRows();
     this.clampSelection();
   }
@@ -259,20 +185,24 @@ export class OptionsPanel extends EditableList {
     return true;
   }
 
-  protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, width: number): void {
+  protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, width: number): void {
     const cat = OPTION_CATEGORIES[row.catIdx]!;
     const arrow = this._collapsed.has(row.catIdx) ? "\u25b6" : "\u25bc";
     const headerText = ` ${arrow} ${cat.name}`;
+    const fgColor = isHighlighted ? (this.focused ? "canvas" : "accent") : "accent";
+    const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      const padded = headerText.padEnd(width);
-      fgBg(canvas, "selectedText", "selectedBg", padded);
+    const padded = headerText.padEnd(width);
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, padded);
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "accent", "canvasSubtle", headerText);
+      fgBg(canvas, fgColor, bgColor, padded);
     }
   }
 
-  protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, isEditing: boolean, width: number): void {
+  protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, isEditing: boolean, width: number): void {
     const field = row.field!;
     const cat = OPTION_CATEGORIES[row.catIdx]!;
     const config = this._ctx?.getConfig();
@@ -287,20 +217,26 @@ export class OptionsPanel extends EditableList {
       const value = formatFieldValue(field, data?.[field.key]);
 
       let extra = "";
-      if (isSelected && (field.type === "boolean" || field.type === "enum")) {
+      if (isHighlighted && (field.type === "boolean" || field.type === "enum")) {
         extra = " (toggle)";
       }
 
       const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
       const desc = descSpace > 0 && field.description ? field.description.substring(0, descSpace) : "";
 
-      if (isSelected) {
-        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-        fgBg(canvas, "selectedText", "selectedBg", padded.substring(0, width));
+      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : "text";
+      const fgMutedColor = isHighlighted ? "canvas" : "textMuted";
+      const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+      const content = keyStr + value + extra + (desc ? "  " + desc : "");
+
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, content.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "textMuted", "canvasSubtle", keyStr);
-        fgBg(canvas, "text", "canvasSubtle", value);
-        fgBg(canvas, "textMuted", "canvasSubtle", desc ? "  " + desc : "");
+        fgBg(canvas, fgMutedColor, bgColor, keyStr);
+        fgBg(canvas, fgColor, bgColor, value);
+        fgBg(canvas, fgMutedColor, bgColor, desc ? "  " + desc : "");
       }
     }
   }
@@ -316,40 +252,14 @@ export class OptionsPanel extends EditableList {
     }
   }
 
-  // --- Theme picker hooks ---
-
-  protected isPickerVisible(): boolean {
-    return this._themePickerMode && this.rect.width >= THEME_PICKER_WIDTH + 26;
-  }
-
-  protected getDrawWidth(): number {
-    return this.isPickerVisible() ? this.rect.width - THEME_PICKER_WIDTH : this.rect.width;
-  }
-
-  onLayout(): void {
-    super.onLayout();
-    const { x, y, width, height } = this.rect;
-    if (this.isPickerVisible()) {
-      this._themePicker.visible = true;
-      this._themePicker.setState(this._themePickerIndex, this._themePickerScroll);
-      this._themePicker.layout({ x: x + width - THEME_PICKER_WIDTH, y, width: THEME_PICKER_WIDTH, height });
-    } else {
-      this._themePicker.visible = false;
-    }
-  }
-
-  // --- Override: theme picker + themeName special case ---
+  // --- Override: theme selector modal + themeName special case ---
 
   handleKey(key: string): boolean {
-    if (this._themePickerMode) {
-      return this.handleThemePickerKey(key);
-    }
-
-    // Intercept Enter on themeName to open picker instead of edit
+    // Intercept Enter on themeName to open modal instead of edit
     if ((key === "RETURN" || key === "ENTER") && !this._edit) {
       const row = this._rows[this._selectedIndex];
       if (row?.type === "field" && row.field?.key === "themeName") {
-        this.openThemePicker();
+        this.openThemeSelector();
         return true;
       }
     }
@@ -366,112 +276,24 @@ export class OptionsPanel extends EditableList {
     return super.handleKey(key);
   }
 
-  // --- Theme picker ---
+  // --- Theme selector modal ---
 
-  openThemePicker(): void {
+  openThemeSelector(): void {
     if (!this._ctx) return;
     const config = this._ctx.getConfig();
     if (!config) return;
     this._themePickerOriginal = config.themeName;
-    this._themePickerMode = true;
-    this._themePickerIndex = 0;
-    this._themePickerScroll = 0;
-    const names = getThemeNames();
-    const idx = names.indexOf(config.themeName);
-    if (idx >= 0) this._themePickerIndex = idx;
-    this._themePickerScroll = Math.max(0, this._themePickerIndex - Math.floor(this.rect.height / 2));
-    this._ctx.forceRender();
-    this.markDirty();
-  }
-
-  closeThemePicker(cancel: boolean): void {
-    if (cancel) {
-      setActiveTheme(this._themePickerOriginal);
-      const config = this._ctx?.getConfig();
-      if (config) config.themeName = this._themePickerOriginal;
-    } else {
-      const config = this._ctx?.getConfig();
-      if (config) saveConfig(config);
-    }
-    this._themePickerMode = false;
-    this._ctx?.forceRender();
-    this.markDirty();
-  }
-
-  handleThemePickerKey(key: string): boolean {
-    const names = getThemeNames();
-    const apply = () => {
-      const name = names[this._themePickerIndex]!;
-      setActiveTheme(name);
-      const config = this._ctx?.getConfig();
-      if (config) config.themeName = name;
-      if (!themeHasLightVariant(name) && getThemeMode() === "light") {
-        this._ctx?.showMessage(`Warning: "${name}" has no light variant`);
-      }
-      this._ctx?.forceRender();
-    };
-    if (key === "UP" || key === "k") {
-      if (this._themePickerIndex > 0) {
-        this._themePickerIndex--;
-        if (this._themePickerIndex < this._themePickerScroll) {
-          this._themePickerScroll = this._themePickerIndex;
+    createThemeSelectorModal(config.themeName).then((result) => {
+      if (result) {
+        const cfg = this._ctx?.getConfig();
+        if (cfg) {
+          cfg.themeName = result;
+          cfg.themeMode = getThemeMode();
+          saveConfig(cfg);
         }
-        apply();
-        return true;
+        this._ctx?.forceRender();
+        this.markDirty();
       }
-      return false;
-    }
-    if (key === "DOWN" || key === "j") {
-      if (this._themePickerIndex < names.length - 1) {
-        this._themePickerIndex++;
-        const bottom = this._themePickerScroll + this.rect.height;
-        if (this._themePickerIndex >= bottom) {
-          this._themePickerScroll = this._themePickerIndex - this.rect.height + 1;
-        }
-        apply();
-        return true;
-      }
-      return false;
-    }
-    if (key === "PAGE_UP") {
-      this._themePickerIndex = Math.max(0, this._themePickerIndex - this.rect.height);
-      this._themePickerScroll = Math.max(0, this._themePickerScroll - this.rect.height);
-      apply();
-      return true;
-    }
-    if (key === "PAGE_DOWN") {
-      this._themePickerIndex = Math.min(names.length - 1, this._themePickerIndex + this.rect.height);
-      this._themePickerScroll = Math.min(names.length - this.rect.height, this._themePickerScroll + this.rect.height);
-      apply();
-      return true;
-    }
-    if (key === "HOME") {
-      this._themePickerIndex = 0;
-      this._themePickerScroll = 0;
-      apply();
-      return true;
-    }
-    if (key === "END") {
-      this._themePickerIndex = names.length - 1;
-      this._themePickerScroll = Math.max(0, names.length - this.rect.height);
-      apply();
-      return true;
-    }
-    if (key === "RETURN" || key === "ENTER") {
-      this.closeThemePicker(false);
-      return true;
-    }
-    if (key === "ESCAPE") {
-      this.closeThemePicker(true);
-      return true;
-    }
-    return false;
-  }
-
-  onBlur(): void {
-    super.onBlur();
-    if (this._themePickerMode) {
-      this.closeThemePicker(true);
-    }
+    });
   }
 }

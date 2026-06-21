@@ -26,6 +26,8 @@ import {
 } from "../../lib/versions";
 import { saveConfig } from "../../lib/config";
 import { fireAsync } from "../../lib/utils";
+import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
+import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../ui/types";
 
@@ -168,7 +170,14 @@ export class VersionsControl extends Control {
         if (!selected) return;
         const config = ctx.getConfig();
         if (!config) throw new Error("No config loaded");
-        await uninstallVersion(config, (selected.data as VersionInfo).version);
+        const version = (selected.data as VersionInfo).version;
+        const confirmed = await ctx.openModal<boolean>(createConfirmDialog(
+          "Delete Version",
+          `Delete ${version}? This will remove all files for this version.`
+        ));
+        if (!confirmed) return;
+        await uninstallVersion(config, version);
+        ctx.showMessage(`Deleted ${version}`);
         if (this._mode === "local") await this.refreshLocal();
       }, ctx);
     });
@@ -341,20 +350,9 @@ export class VersionsControl extends Control {
     const config = ctx.getConfig();
     if (!config) return;
 
-    this._mode = "installing";
-    this._dividerButtons.visible = false;
-    this._buttonRow.visible = false;
-    this._prompt.visible = false;
-    this._changelogSection.visible = false;
-    this._btnInstall.visible = false;
-    this._btnDelete.visible = false;
-    this._list.items = [];
-    this._progressBar.visible = true;
-    this._progressBar.progress = 0;
-    this._progressBar.label = "Preparing...";
-    this._progressBar.extraLabel = "";
-    this._summary.builder.muted(`Installing ${this._selectedRelease.tag} (${backendId})`);
-    this.markDirty();
+    const dialog = createDownloadDialog(`${this._selectedRelease.tag} (${backendId})`, "Preparing...");
+    const handle = dialog.getHandle();
+    ctx.openModal(dialog);
 
     try {
       const installed = await installVersion(
@@ -362,18 +360,18 @@ export class VersionsControl extends Control {
         this._selectedRelease.tag,
         backendId,
         (pct, label) => {
-          this._progressBar.progress = pct;
-          this._progressBar.label = label;
-          this.markDirty();
+          handle.update(pct, label);
         },
       );
 
+      handle.update(100, "Installation complete!");
+      setTimeout(() => handle.close(), 500);
+      await handle.promise;
       ctx.showMessage(`Installed ${installed}`);
       await this.showLocal();
     } catch (err: any) {
-      ctx.showMessage(`Install failed: ${err.message}`);
-      this._progressBar.visible = false;
-      await this.showBackends(this._selectedRelease);
+      handle.close();
+      throw err;
     }
   }
 
@@ -418,40 +416,51 @@ export class VersionsControl extends Control {
     }
   }
 
-  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
     const v = item.data as VersionInfo;
-    const prefix = v.active ? "✓ " : "  ";
+    const isSelected = v.active;
+    const prefix = isSelected ? "✓ " : "  ";
     const line = (`${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
+    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
+    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
-    } else if (v.active) {
-      fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
     }
   }
 
-  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
     const r = item.data as RemoteVersion;
     const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
     const line = (`${r.tag}  ${date}`).padEnd(width);
+    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : "text";
+    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
     }
   }
 
-  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
     const b = item.data as AvailableBackend;
     const line = (`${b.label}  ${b.assetName}`).padEnd(width);
+    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : "text";
+    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
     }
   }
 }

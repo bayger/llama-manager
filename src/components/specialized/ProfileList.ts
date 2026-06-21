@@ -54,18 +54,18 @@ export class ProfileList extends Control {
       if (i < names.length) {
         const name = names[i]!;
         const isActive = name === this._config.server.activeProfile;
-        const isSelected = i === this._selectedIndex && this.focused;
+        const isHighlighted = i === this._selectedIndex;
+        const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isActive ? "accent" : "text");
+        const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+        const prefix = isActive ? "✓ " : "  ";
+        const line = (prefix + name).padEnd(width);
 
-        if (isSelected) {
-          const prefix = isActive ? "✓ " : "  ";
-          const line = (prefix + name).padEnd(width);
-          fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
-        } else if (isActive) {
-          const line = ("✓ " + name).padEnd(width);
-          fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
+        if (isHighlighted) {
+          canvas.bold(true);
+          fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+          canvas.bold(false);
         } else {
-          const line = ("  " + name).padEnd(width);
-          fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+          fgBg(canvas, fgColor, bgColor, line.substring(0, width));
         }
       }
     }
