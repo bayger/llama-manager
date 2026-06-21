@@ -56,8 +56,10 @@ export class List<ID = string, D = unknown> extends Control {
   get selectedId(): ID | null { return this._selectedId; }
   set selectedId(v: ID | null) { if (v !== this._selectedId) { this._selectedId = v; this.markDirty(); } }
 
-  measure(_parentSize?: Size): Size {
-    return { width: this.rect.width || 40, height: this.rect.height || Math.max(1, this.items.length * this.itemHeight) };
+  measure(parentSize?: Size): Size {
+    const wantedHeight = Math.max(1, this.items.length * this.itemHeight);
+    const height = parentSize?.height ? Math.min(wantedHeight, parentSize.height) : (this.rect.height || wantedHeight);
+    return { width: this.rect.width || 40, height };
   }
 
   onLayout(): void {
@@ -184,6 +186,51 @@ export class List<ID = string, D = unknown> extends Control {
         return true;
       }
       return false;
+    }
+    if (key === "PAGE_UP") {
+      const viewport = this._viewportHeight;
+      const newIdx = Math.max(0, this.selectedIndex - viewport);
+      if (newIdx !== this.selectedIndex) {
+        this.selectedIndex = newIdx;
+        if (this.selectedIndex < this.scrollOffset) {
+          this.scrollOffset = this.selectedIndex;
+        }
+        this._fireHighlight();
+        this.markDirty();
+      }
+      return true;
+    }
+    if (key === "PAGE_DOWN") {
+      const viewport = this._viewportHeight;
+      const newIdx = Math.min(this.items.length - 1, this.selectedIndex + viewport);
+      if (newIdx !== this.selectedIndex) {
+        this.selectedIndex = newIdx;
+        if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
+          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
+        }
+        this._fireHighlight();
+        this.markDirty();
+      }
+      return true;
+    }
+    if (key === "HOME") {
+      if (this.selectedIndex !== 0) {
+        this.selectedIndex = 0;
+        this.scrollOffset = 0;
+        this._fireHighlight();
+        this.markDirty();
+      }
+      return true;
+    }
+    if (key === "END") {
+      const last = this.items.length - 1;
+      if (this.selectedIndex !== last) {
+        this.selectedIndex = last;
+        this.scrollOffset = Math.max(0, last - this._viewportHeight + 1);
+        this._fireHighlight();
+        this.markDirty();
+      }
+      return true;
     }
     if (key === "RETURN" || key === "ENTER" || key === "SPACE") {
       if (this.selectedIndex >= 0 && this._onSelect) {
