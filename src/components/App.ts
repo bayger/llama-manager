@@ -1,5 +1,5 @@
 import type { Terminal } from "terminal-kit";
-import { setActiveTheme, setThemeMode, popThemeChanged, fg, fgBg } from "../lib/theme";
+import { setActiveTheme, setThemeMode, popThemeChanged, fg, fgBg, getThemeMode } from "../lib/theme";
 import { loadConfig, ConfigData } from "../lib/config";
 import { taskStore } from "../lib/tasks";
 import { focusManager } from "./ui/FocusManager";
@@ -9,6 +9,8 @@ import type { RenderContext } from "./ui/types";
 import type { TabContext } from "../lib/tabcontext";
 import type { Modal } from "./ui/widgets/Modal";
 import { createExitDialog } from "./ui/widgets/ExitDialog";
+import { createThemeSelectorModal } from "./ui/widgets/ThemeSelectorModal";
+import { saveConfig } from "../lib/config";
 import { Framebuffer } from "../lib/framebuffer";
 import { FramebufferCanvas } from "../lib/framebuffer-canvas";
 import { diffToTerminal } from "../lib/framebuffer-diff";
@@ -195,6 +197,7 @@ export class App {
         title: "Actions",
         keys: [
           ["?", "Toggle help"],
+          ["Ctrl+T", "Open theme selector"],
           ["q", "Quit application"],
         ],
       },
@@ -252,6 +255,24 @@ export class App {
   private setupKeyHandler(): void {
     this.keyHandler = (name: string, _matches: string[], data: any) => {
       const textActive = focusManager.isTextInputActive();
+
+      if (name === "CTRL_T" && !textActive && !modalManager.isOpen()) {
+        const config = this._ctx!.getConfig();
+        if (config) {
+          createThemeSelectorModal(config.themeName).then((result) => {
+            if (result) {
+              const cfg = this._ctx?.getConfig();
+              if (cfg) {
+                cfg.themeName = result;
+                cfg.themeMode = getThemeMode();
+                saveConfig(cfg);
+              }
+              this._ctx?.forceRender();
+            }
+          });
+        }
+        return;
+      }
 
       if (modalManager.handleKey(name)) return;
 
