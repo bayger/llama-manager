@@ -48,8 +48,6 @@ Call `hitTest(point)` on the root to find which control was clicked (checks chil
 | `tabIndex` | `number` | `0` | Reserved for ordering (not currently used) |
 | `needsRender` | `boolean` | `true` | Dirty flag for incremental rendering |
 | `flex` | `number` | `0` | Flex factor — `>0` claims proportional space |
-| `minWidth` | `number` | `0` | Minimum width constraint |
-| `minHeight` | `number` | `0` | Minimum height constraint |
 | `visible` | `boolean` | `true` | Getter/setter; toggling calls `onShow()`/`onHide()` and marks dirty |
 | `parent` | `Control \| null` | `null` | Readonly parent reference |
 
