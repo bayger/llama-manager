@@ -33,7 +33,7 @@ class ThemePreviewControl extends Control {
   }
 
   measure(_parentSize?: Size): Size {
-    return { width: 48, height: 17 };
+    return { width: 48, height: 19 };
   }
 
   draw(ctx: RenderContext): void {
@@ -52,7 +52,7 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.text));
     canvas.clearRect(x, y, width, height);
 
-    const availableRows = Math.min(height, 17);
+    const availableRows = Math.min(height, 20);
     let row = 0;
 
     // Title
@@ -69,33 +69,49 @@ class ThemePreviewControl extends Control {
     row++;
     if (row >= availableRows) return;
 
-    // Color palette
-    canvas.moveTo(x, y + row);
-    canvas.write(" ");
+    // Color palette (multi-row)
     const palette: Array<[string, keyof ThemeColors]> = [
       ["bg", "canvas"],
       ["bg-", "canvasSubtle"],
+      ["side", "sidebar"],
       ["txt", "text"],
       ["txt-", "textMuted"],
+      ["lnk", "textLink"],
       ["acc", "accent"],
+      ["acc-", "accentSubtle"],
+      ["acc!", "accentColor"],
       ["suc", "success"],
+      ["sucT", "successText"],
+      ["sucB", "successBg"],
       ["wrn", "warning"],
+      ["wrnT", "warningText"],
       ["err", "danger"],
+      ["errT", "dangerText"],
+      ["errB", "dangerBg"],
       ["inf", "info"],
-      ["brd", "borderMuted"],
+      ["brd", "border"],
+      ["brd-", "borderMuted"],
       ["brd!", "borderActive"],
       ["sel", "selected"],
+      ["selB", "selectedBg"],
+      ["selT", "selectedText"],
     ];
-    for (const [label, role] of palette) {
-      canvas.setForegroundColor(tc(t.canvas));
-      canvas.setBackgroundColor(tc(t[role]));
-      canvas.write(FULL_BLOCK);
-      canvas.setForegroundColor(tc(t[role]));
-      canvas.setBackgroundColor(tc(t.canvas));
-      canvas.write(label);
+    const perRow = Math.floor((width - 1) / 4);
+    for (let pi = 0; pi < palette.length; pi += perRow) {
+      canvas.moveTo(x, y + row);
+      canvas.write(" ");
+      const chunk = palette.slice(pi, pi + perRow);
+      for (const [label, role] of chunk) {
+        canvas.setForegroundColor(tc(t.canvas));
+        canvas.setBackgroundColor(tc(t[role]));
+        canvas.write(FULL_BLOCK);
+        canvas.setForegroundColor(tc(t[role]));
+        canvas.setBackgroundColor(tc(t.canvas));
+        canvas.write(label);
+      }
+      row++;
+      if (row >= availableRows) return;
     }
-    row++;
-    if (row >= availableRows) return;
 
     // Separator
     canvas.moveTo(x, y + row);
@@ -541,8 +557,8 @@ export function createThemeSelectorModal(currentTheme: string): Promise<string |
   return new Promise((resolve) => {
     const modal = new ThemeSelectorModal();
     modal.title = "Select Theme";
-    modal.setMinSize(80, 24);
-    modal.setMaxSize(120, 24);
+    modal.setMinSize(80, 26);
+    modal.setMaxSize(120, 26);
     modal.setInitialTheme(currentTheme);
     modal.setResolve(resolve);
 
