@@ -103,7 +103,7 @@ All children share the same rect (overlaid). Measures to the max child size. Use
 
 **Navigation:**
 - `Tab` / `Shift+Tab` — `nextFocus()` / `previousFocus()` — cycle through all focusable controls (wraps)
-- `Up` / `k` and `Down` / `j` — `focusPrev()` / `focusNext()` — move within current scope (no wrap, silent at boundary)
+- `Up` / `k` and `Down` / `j` — `focusPrev()` / `focusNext()` — move within current scope (wraps, handled by individual widgets)
 - `focusFirst()` — focuses the root control
 - `focusLast()` — focuses last focusable or root if none
 - `setFocus(control)` — programmatically set focus (auto-finds first focusable if control is not focusable)
