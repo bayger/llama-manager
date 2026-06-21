@@ -153,9 +153,9 @@ export class List<ID = string, D = unknown> extends Control {
     for (let i = 0; i < trackHeight; i++) {
       canvas.moveTo(sx, trackTop + i);
       if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
-        fgBg(canvas, "textMuted", "canvasSubtle", " ".repeat(sw));
+        fgBg(canvas, "textMuted", "border", " ".repeat(sw));
       } else {
-        fgBg(canvas, "canvasSubtle", "canvas", " ".repeat(sw));
+        fgBg(canvas, "canvasSubtle", "borderMuted", " ".repeat(sw));
       }
     }
   }
