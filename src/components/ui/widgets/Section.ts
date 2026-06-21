@@ -85,8 +85,8 @@ export class Section extends Control {
     // Caption row
     canvas.moveTo(x, y + 1);
     canvas.bold();
-    fgBg(canvas, "accent", "canvasSubtle", V);
-    fgBg(canvas, "accent", "canvasSubtle", ` ${this.title}`);
+    fgBg(canvas, "accentSubtle", "canvasSubtle", V);
+    fgBg(canvas, "accentSubtle", "canvasSubtle", ` ${this.title}`);
     canvas.bold(false);
 
     // Left border
