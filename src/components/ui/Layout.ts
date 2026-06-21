@@ -5,7 +5,8 @@ export class Column extends Control {
   focusable = false;
 
   measure(parentSize: Size): Size {
-    let totalHeight = 0;
+    let maxHeight = 0;
+    let maxWidth = 0;
     let fixedHeight = 0;
     let flexTotal = 0;
     let hasFlex = false;
@@ -19,12 +20,13 @@ export class Column extends Control {
       } else {
         fixedHeight += childSize.height;
       }
-      totalHeight = Math.max(totalHeight, childSize.height);
+      maxHeight = Math.max(maxHeight, childSize.height);
+      maxWidth = Math.max(maxWidth, childSize.width);
     }
 
     return {
-      width: parentSize.width,
-      height: hasFlex ? parentSize.height : fixedHeight,
+      width: maxWidth,
+      height: fixedHeight,
     };
   }
 
@@ -97,7 +99,7 @@ export class Row extends Control {
     const totalGap = Math.max(0, visibleCount - 1) * gap;
 
     return {
-      width: hasFlex ? parentSize.width : fixedWidth + totalGap,
+      width: fixedWidth + totalGap,
       height: maxHeight,
     };
   }

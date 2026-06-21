@@ -54,10 +54,22 @@ export class Modal extends Control {
     };
   }
 
-  measure(_parentSize?: Size): Size {
+  measure(parentSize?: Size): Size {
     const titleLen = this._title.length;
     let width = Math.max(this._minWidth, titleLen + 6);
     let height = this._minHeight;
+
+    if (parentSize) {
+      const innerWidth = Math.max(0, parentSize.width - 4);
+      const innerHeight = Math.max(0, parentSize.height - 4);
+      for (const child of this.children) {
+        if (!child.visible) continue;
+        const childSize = child.measure({ width: innerWidth, height: innerHeight });
+        width = Math.max(width, childSize.width + 4);
+        height = Math.max(height, childSize.height + 4);
+      }
+    }
+
     return this._clampSize({ width, height });
   }
 
