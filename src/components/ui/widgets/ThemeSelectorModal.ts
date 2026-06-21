@@ -539,7 +539,7 @@ export class ThemeSelectorModal extends Modal {
       this._resolve(null);
       this._resolve = null;
     }
-    modalManager.close(this);
+    modalManager.close();
   }
 
   protected apply(): void {
@@ -549,7 +549,7 @@ export class ThemeSelectorModal extends Modal {
       this._resolve(this._selectedTheme);
       this._resolve = null;
     }
-    modalManager.close(this);
+    modalManager.close();
   }
 }
 

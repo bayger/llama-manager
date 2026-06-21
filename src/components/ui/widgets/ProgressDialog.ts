@@ -102,7 +102,7 @@ export class ProgressDialog extends Modal {
       this._resolve();
       this._resolve = null;
     }
-    modalManager.close(this);
+    modalManager.close();
   }
 }
 

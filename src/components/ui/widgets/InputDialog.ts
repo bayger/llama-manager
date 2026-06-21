@@ -61,7 +61,7 @@ export class InputDialog extends Modal {
       this._resolve(result);
       this._resolve = null;
     }
-    modalManager.close(this);
+    modalManager.close();
   }
 }
 
