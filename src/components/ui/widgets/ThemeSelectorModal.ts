@@ -1,191 +1,18 @@
 import { Modal } from "./Modal";
 import { Control } from "../Control";
+import { List } from "./List";
 import { modalManager } from "../ModalManager";
 import { getThemeNames, loadTheme, setActiveTheme } from "../../../lib/theme";
 import type { Color, ThemeColors } from "../../../lib/theme";
-import type { Point, RenderContext, Size } from "../types";
+import type { RenderContext, Size } from "../types";
 
 const tc = (c: string): Color => c as Color;
 
-const V = "\u2502";
 const H = "\u2500";
 const HALF_BLOCK = "\u2584";
 const FULL_BLOCK = "\u2588";
 
-class ThemeListControl extends Control {
-  focusable = true;
-  protected _index = 0;
-  protected _scroll = 0;
-  protected _onChange: ((index: number) => void) | null = null;
-
-  setOnChange(callback: (index: number) => void): void {
-    this._onChange = callback;
-  }
-
-  setState(index: number, scroll: number): void {
-    this._index = index;
-    this._scroll = scroll;
-    this.markDirty();
-  }
-
-  getIndex(): number {
-    return this._index;
-  }
-
-  moveUp(): boolean {
-    if (this._index > 0) {
-      this._index--;
-      if (this._index < this._scroll) this._scroll = this._index;
-      this._onChange?.(this._index);
-      this.markDirty();
-      return true;
-    }
-    return false;
-  }
-
-  moveDown(): boolean {
-    const names = getThemeNames();
-    if (this._index < names.length - 1) {
-      this._index++;
-      const bottom = this._scroll + this.rect.height;
-      if (this._index >= bottom) this._scroll = this._index - this.rect.height + 1;
-      this._onChange?.(this._index);
-      this.markDirty();
-      return true;
-    }
-    return false;
-  }
-
-  pageUp(): void {
-    const names = getThemeNames();
-    this._index = Math.max(0, this._index - this.rect.height);
-    this._scroll = Math.max(0, this._scroll - this.rect.height);
-    this._onChange?.(this._index);
-    this.markDirty();
-  }
-
-  pageDown(): void {
-    const names = getThemeNames();
-    this._index = Math.min(names.length - 1, this._index + this.rect.height);
-    this._scroll = Math.max(0, names.length - this.rect.height);
-    this._onChange?.(this._index);
-    this.markDirty();
-  }
-
-  home(): void {
-    this._index = 0;
-    this._scroll = 0;
-    this._onChange?.(this._index);
-    this.markDirty();
-  }
-
-  end(): void {
-    const names = getThemeNames();
-    this._index = names.length - 1;
-    this._scroll = Math.max(0, names.length - this.rect.height);
-    this._onChange?.(this._index);
-    this.markDirty();
-  }
-
-  measure(_parentSize?: Size): Size {
-    return { width: 28, height: this.rect.height || 16 };
-  }
-
-  draw(ctx: RenderContext): void {
-    const { canvas } = ctx;
-    const { x, y, width, height } = this.rect;
-    const names = getThemeNames();
-
-    canvas.moveTo(x, y);
-    canvas.bold();
-    canvas.setForegroundColor("accent");
-    canvas.write(`${V} THEMES`);
-    for (let col = 8; col < width; col++) {
-      canvas.write(" ");
-    }
-
-    for (let row = 1; row < height; row++) {
-      canvas.moveTo(x, y + row);
-      canvas.setForegroundColor("borderMuted");
-      canvas.write(V);
-
-      const themeIdx = row + this._scroll;
-      if (themeIdx >= names.length) {
-        canvas.moveTo(x + 1, y + row);
-        canvas.setForegroundColor("textMuted");
-        for (let col = 1; col < width - 1; col++) canvas.write(" ");
-        continue;
-      }
-
-      canvas.moveTo(x + 1, y + row);
-      const name = names[themeIdx]!;
-      const isSelected = themeIdx === this._index;
-      const resolved = loadTheme(name);
-
-      if (isSelected) {
-        canvas.setForegroundColor("accent");
-        canvas.write(">");
-        if (resolved) {
-          this.drawSwatch(canvas, resolved, "canvas", "text");
-          this.drawSwatch(canvas, resolved, "text", "canvas");
-          this.drawSwatch(canvas, resolved, "accent", "canvas");
-          this.drawSwatch(canvas, resolved, "success", "canvas");
-          this.drawSwatch(canvas, resolved, "danger", "canvas");
-        } else {
-          for (let i = 0; i < 5; i++) canvas.write(" ");
-        }
-        canvas.setForegroundColor("accentColor");
-        const remaining = width - 1 - 1 - 5;
-        const displayName = name.substring(0, remaining);
-        canvas.write(displayName);
-        for (let col = displayName.length; col < remaining; col++) canvas.write(" ");
-      } else {
-        canvas.setForegroundColor("textMuted");
-        canvas.write(" ");
-        if (resolved) {
-          this.drawSwatchMuted(canvas, resolved, "canvas", "text");
-          this.drawSwatchMuted(canvas, resolved, "text", "canvas");
-          this.drawSwatchMuted(canvas, resolved, "accent", "canvas");
-          this.drawSwatchMuted(canvas, resolved, "success", "canvas");
-          this.drawSwatchMuted(canvas, resolved, "danger", "canvas");
-        } else {
-          for (let i = 0; i < 5; i++) canvas.write(" ");
-        }
-        const remaining = width - 1 - 1 - 5;
-        const displayName = name.substring(0, remaining);
-        canvas.write(displayName);
-        for (let col = displayName.length; col < remaining; col++) canvas.write(" ");
-      }
-    }
-  }
-
-  protected drawSwatch(canvas: NonNullable<RenderContext["canvas"]>, t: ThemeColors, fgRole: keyof ThemeColors, bgRole: keyof ThemeColors): void {
-    canvas.setForegroundColor(tc(t[bgRole]));
-    canvas.setBackgroundColor(tc(t[fgRole]));
-    canvas.write(FULL_BLOCK);
-  }
-
-  protected drawSwatchMuted(canvas: NonNullable<RenderContext["canvas"]>, t: ThemeColors, fgRole: keyof ThemeColors, bgRole: keyof ThemeColors): void {
-    canvas.setForegroundColor(tc(t[bgRole]));
-    canvas.setBackgroundColor(tc(t[fgRole]));
-    canvas.write(FULL_BLOCK);
-  }
-
-  onMouseDown(point: Point): boolean {
-    const { x, y, height } = this.rect;
-    if (point.x < x || point.x >= x + this.rect.width || point.y < y || point.y >= y + height) return false;
-    const names = getThemeNames();
-    const row = point.y - y;
-    if (row === 0) return true;
-    const idx = row - 1 + this._scroll;
-    if (idx >= 0 && idx < names.length) {
-      this._index = idx;
-      this._onChange?.(this._index);
-      this.markDirty();
-    }
-    return true;
-  }
-}
+const VISIBLE_ITEMS = 15;
 
 class ThemePreviewControl extends Control {
   protected _themeName = "";
@@ -232,10 +59,9 @@ class ThemePreviewControl extends Control {
     }
     canvas.bold(false);
     row++;
-
     if (row >= availableRows) return;
 
-    // Color palette row
+    // Color palette
     canvas.moveTo(x, y + row);
     canvas.write(" ");
     const palette: Array<[string, keyof ThemeColors]> = [
@@ -261,7 +87,6 @@ class ThemePreviewControl extends Control {
       canvas.write(label);
     }
     row++;
-
     if (row >= availableRows) return;
 
     // Separator
@@ -269,38 +94,33 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.borderMuted));
     for (let col = 0; col < width; col++) canvas.write(H);
     row++;
-
     if (row >= availableRows) return;
 
     // Buttons
     canvas.moveTo(x, y + row);
     canvas.write(" ");
-    const btn1 = " [ Start ] ";
     canvas.setForegroundColor(tc(t.canvas));
     canvas.setBackgroundColor(tc(t.accent));
     canvas.bold();
-    canvas.write(btn1);
+    canvas.write(" [ Start ] ");
     canvas.bold(false);
     canvas.setBackgroundColor(tc(t.canvas));
     canvas.write(" ");
-    const btn2 = "[ Stop ]";
     canvas.setForegroundColor(tc(t.textMuted));
     canvas.setBackgroundColor(tc(t.canvasSubtle));
-    canvas.write(btn2);
+    canvas.write("[ Stop ]");
     canvas.setBackgroundColor(tc(t.canvas));
     canvas.write(" ");
-    const btn3 = "[ Kill ]";
     canvas.setForegroundColor(tc(t.canvas));
     canvas.setBackgroundColor(tc(t.danger));
     canvas.bold();
-    canvas.write(btn3);
+    canvas.write("[ Kill ]");
     canvas.bold(false);
     canvas.setBackgroundColor(tc(t.canvas));
     row++;
-
     if (row >= availableRows) return;
 
-    // Labels and status
+    // Labels
     canvas.moveTo(x, y + row);
     canvas.write(" ");
     canvas.setForegroundColor(tc(t.text));
@@ -313,10 +133,9 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.text));
     canvas.write(" llama-3.1-8b");
     row++;
-
     if (row >= availableRows) return;
 
-    // Checkbox line
+    // Checkboxes
     canvas.moveTo(x, y + row);
     canvas.write(" ");
     canvas.setForegroundColor(tc(t.accent));
@@ -328,7 +147,6 @@ class ThemePreviewControl extends Control {
     canvas.write("[ ]");
     canvas.write(" Debug mode");
     row++;
-
     if (row >= availableRows) return;
 
     // Progress bar
@@ -349,7 +167,6 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.text));
     canvas.write(" 65%");
     row++;
-
     if (row >= availableRows) return;
 
     // Separator
@@ -357,7 +174,6 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.borderMuted));
     for (let col = 0; col < width; col++) canvas.write(H);
     row++;
-
     if (row >= availableRows) return;
 
     // Table header
@@ -370,7 +186,6 @@ class ThemePreviewControl extends Control {
     for (let col = hdr.length + 1; col < width; col++) canvas.write(" ");
     canvas.bold(false);
     row++;
-
     if (row >= availableRows) return;
 
     // Table row (selected)
@@ -382,7 +197,6 @@ class ThemePreviewControl extends Control {
     for (let col = selRow.length; col < width; col++) canvas.write(" ");
     canvas.setBackgroundColor(tc(t.canvas));
     row++;
-
     if (row >= availableRows) return;
 
     // Table row (normal)
@@ -392,7 +206,6 @@ class ThemePreviewControl extends Control {
     canvas.write(normRow);
     for (let col = normRow.length; col < width; col++) canvas.write(" ");
     row++;
-
     if (row >= availableRows) return;
 
     // Separator
@@ -400,7 +213,6 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.borderMuted));
     for (let col = 0; col < width; col++) canvas.write(H);
     row++;
-
     if (row >= availableRows) return;
 
     // Log lines
@@ -411,7 +223,6 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.textMuted));
     canvas.write(" Connection refused");
     row++;
-
     if (row >= availableRows) return;
 
     canvas.moveTo(x, y + row);
@@ -421,7 +232,6 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.textMuted));
     canvas.write("  High memory usage  ");
     row++;
-
     if (row >= availableRows) return;
 
     canvas.moveTo(x, y + row);
@@ -430,26 +240,28 @@ class ThemePreviewControl extends Control {
     canvas.write("INFO");
     canvas.setForegroundColor(tc(t.textMuted));
     canvas.write("    Server started on :8080");
-    row++;
   }
 }
 
 export class ThemeSelectorModal extends Modal {
-  protected _list: ThemeListControl;
+  protected _list: List<string>;
   protected _preview: ThemePreviewControl;
   protected _resolve: ((value: string | null) => void) | null = null;
   protected _originalTheme = "";
+  protected _allNames: string[] = [];
+  protected _scrollOffset = 0;
 
   constructor() {
     super();
-    this._list = new ThemeListControl();
+    this._list = new List();
     this._preview = new ThemePreviewControl();
 
-    this._list.setOnChange((index) => {
-      const names = getThemeNames();
-      const name = names[index];
-      if (name) {
-        this._preview.setTheme(name);
+    // Override List key handling so Modal handles navigation + scrolling
+    this._list.handleKey = () => false;
+
+    this._list.setOnHighlight((item) => {
+      if (item) {
+        this._preview.setTheme(item.id);
       }
     });
 
@@ -463,12 +275,91 @@ export class ThemeSelectorModal extends Modal {
 
   setInitialTheme(name: string): void {
     this._originalTheme = name;
-    const names = getThemeNames();
-    const idx = names.indexOf(name);
+    this._allNames = getThemeNames();
+    const idx = this._allNames.indexOf(name);
     if (idx >= 0) {
-      this._list.setState(idx, 0);
-      this._preview.setTheme(name);
+      this._scrollOffset = Math.max(0, idx - Math.floor(VISIBLE_ITEMS / 2));
+      this._list.selectedIndex = idx - this._scrollOffset;
     }
+    this.updateVisibleItems();
+    this._preview.setTheme(name);
+  }
+
+  protected getGlobalIndex(): number {
+    return this._scrollOffset + this._list.selectedIndex;
+  }
+
+  protected updateVisibleItems(): void {
+    const maxScroll = Math.max(0, this._allNames.length - VISIBLE_ITEMS);
+    this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, maxScroll));
+    const visible = this._allNames.slice(this._scrollOffset, this._scrollOffset + VISIBLE_ITEMS);
+    this._list.updateItems(visible.map((name) => ({ id: name, label: name })));
+  }
+
+  protected scrollUp(): boolean {
+    if (this._list.selectedIndex > 0) {
+      this._list.selectedIndex--;
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      return true;
+    }
+    if (this._scrollOffset > 0) {
+      this._scrollOffset--;
+      this.updateVisibleItems();
+      this._list.selectedIndex = VISIBLE_ITEMS - 1;
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      return true;
+    }
+    return false;
+  }
+
+  protected scrollDown(): boolean {
+    const maxIdx = this._list.items.length - 1;
+    if (this._list.selectedIndex < maxIdx) {
+      this._list.selectedIndex++;
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      return true;
+    }
+    if (this._scrollOffset + VISIBLE_ITEMS < this._allNames.length) {
+      this._scrollOffset++;
+      this.updateVisibleItems();
+      this._list.selectedIndex = 0;
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      return true;
+    }
+    return false;
+  }
+
+  protected scrollPageUp(): void {
+    const prevGlobal = this.getGlobalIndex();
+    const newGlobal = Math.max(0, prevGlobal - VISIBLE_ITEMS);
+    this._scrollOffset = Math.max(0, newGlobal - Math.floor(VISIBLE_ITEMS / 2));
+    this.updateVisibleItems();
+    this._list.selectedIndex = newGlobal - this._scrollOffset;
+    this._preview.setTheme(this._allNames[newGlobal]!);
+  }
+
+  protected scrollPageDown(): void {
+    const prevGlobal = this.getGlobalIndex();
+    const newGlobal = Math.min(this._allNames.length - 1, prevGlobal + VISIBLE_ITEMS);
+    this._scrollOffset = Math.max(0, newGlobal - Math.floor(VISIBLE_ITEMS / 2));
+    this.updateVisibleItems();
+    this._list.selectedIndex = newGlobal - this._scrollOffset;
+    this._preview.setTheme(this._allNames[newGlobal]!);
+  }
+
+  protected scrollToHome(): void {
+    this._scrollOffset = 0;
+    this.updateVisibleItems();
+    this._list.selectedIndex = 0;
+    this._preview.setTheme(this._allNames[0]!);
+  }
+
+  protected scrollToEnd(): void {
+    const last = this._allNames.length - 1;
+    this._scrollOffset = Math.max(0, last - VISIBLE_ITEMS + 1);
+    this.updateVisibleItems();
+    this._list.selectedIndex = last - this._scrollOffset;
+    this._preview.setTheme(this._allNames[last]!);
   }
 
   measure(parentSize?: Size): Size {
@@ -488,25 +379,25 @@ export class ThemeSelectorModal extends Modal {
 
   handleKey(key: string): boolean {
     if (key === "UP" || key === "k") {
-      if (this._list.moveUp()) return true;
+      if (this.scrollUp()) return true;
     }
     if (key === "DOWN" || key === "j") {
-      if (this._list.moveDown()) return true;
+      if (this.scrollDown()) return true;
     }
     if (key === "PAGE_UP") {
-      this._list.pageUp();
+      this.scrollPageUp();
       return true;
     }
     if (key === "PAGE_DOWN") {
-      this._list.pageDown();
+      this.scrollPageDown();
       return true;
     }
     if (key === "HOME") {
-      this._list.home();
+      this.scrollToHome();
       return true;
     }
     if (key === "END") {
-      this._list.end();
+      this.scrollToEnd();
       return true;
     }
     if (key === "RETURN" || key === "ENTER") {
@@ -541,12 +432,7 @@ export function createThemeSelectorModal(currentTheme: string): Promise<string |
     modal.setInitialTheme(currentTheme);
     modal.setResolve(resolve);
 
-    const names = getThemeNames();
-    const idx = names.indexOf(currentTheme);
-    if (idx >= 0) {
-      setActiveTheme(currentTheme);
-    }
-
+    setActiveTheme(currentTheme);
     modalManager.open(modal);
   });
 }
