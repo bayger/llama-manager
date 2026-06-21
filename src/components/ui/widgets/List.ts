@@ -10,12 +10,13 @@ export interface ListItem<ID = string, D = unknown> {
   data?: D;
 }
 
-export type ItemRenderer<ID, D> = (canvas: FramebufferCanvas, item: ListItem<ID, D>, index: number, isSelected: boolean, x: number, y: number, width: number) => void;
+export type ItemRenderer<ID, D> = (canvas: FramebufferCanvas, item: ListItem<ID, D>, index: number, isHighlighted: boolean, x: number, y: number, width: number) => void;
 
 export class List<ID = string, D = unknown> extends Control {
   focusable = true;
   public items: ListItem<ID, D>[] = [];
   protected _selectedIndex = -1;
+  protected _selectedId: ID | null = null;
   public itemHeight = 1;
   protected _onSelect: ((item: ListItem<ID, D>) => void) | null = null;
   protected _onHighlight: ((item: ListItem<ID, D> | null) => void) | null = null;
@@ -23,6 +24,9 @@ export class List<ID = string, D = unknown> extends Control {
 
   get selectedIndex(): number { return this._selectedIndex; }
   set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
+
+  get selectedId(): ID | null { return this._selectedId; }
+  set selectedId(v: ID | null) { if (v !== this._selectedId) { this._selectedId = v; this.markDirty(); } }
 
   measure(_parentSize?: Size): Size {
     const h = Math.max(1, this.items.length * this.itemHeight);
@@ -61,20 +65,25 @@ export class List<ID = string, D = unknown> extends Control {
 
     for (let i = 0; i < this.items.length; i++) {
       const item = this.items[i]!;
-      const isSelected = i === this.selectedIndex && this.focused;
+      const isHighlighted = i === this.selectedIndex;
+      const isSelected = item.id === this._selectedId;
+      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
+      const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
       canvas.moveTo(x, y + i);
 
       if (this._customRenderer) {
-        this._customRenderer(canvas, item, i, isSelected, x, y + i, width);
+        this._customRenderer(canvas, item, i, isHighlighted, x, y + i, width);
       } else {
         const label = item.label;
         const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
-        if (isSelected) {
-          fgBg(canvas, "text", "canvasSubtle", display);
-          fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - display.length)));
+        if (isHighlighted) {
+          canvas.bold(true);
+          fgBg(canvas, fgColor, bgColor, display);
+          fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
+          canvas.bold(false);
         } else {
-          fg(canvas, "text", display);
+          fgBg(canvas, fgColor, bgColor, display);
         }
       }
     }

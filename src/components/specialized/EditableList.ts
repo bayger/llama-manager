@@ -72,8 +72,8 @@ export abstract class EditableList extends Control {
   protected abstract buildRows(): void;
   protected abstract getRowValue(row: EditableRowInfo): unknown;
   protected abstract setRowValue(row: EditableRowInfo, value: unknown): void;
-  protected abstract drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, width: number): void;
-  protected abstract drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, isEditing: boolean, width: number): void;
+  protected abstract drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, width: number): void;
+  protected abstract drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, isEditing: boolean, width: number): void;
   protected abstract saveAndMessage(): void;
 
   /** Override to return false to disable enum cycling. */
@@ -137,13 +137,13 @@ export abstract class EditableList extends Control {
       canvas.moveTo(x, startY + i);
       canvas.styleReset();
       const row = this._rows[visualRow]!;
-      const isSelected = visualRow === this._selectedIndex && this.focused;
+      const isHighlighted = visualRow === this._selectedIndex;
       const isEditing = !!(this._edit && visualRow === this._edit.row);
 
       if (row.type === "header") {
-        this.drawHeader(canvas, row, isSelected, width);
+        this.drawHeader(canvas, row, isHighlighted, width);
       } else if (row.type === "field" && row.field) {
-        this.drawField(canvas, row, isSelected, isEditing, width);
+        this.drawField(canvas, row, isHighlighted, isEditing, width);
       }
     }
 

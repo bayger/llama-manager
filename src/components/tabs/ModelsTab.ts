@@ -95,19 +95,22 @@ export class ModelsControl extends Control {
     this._modelList.setOnSelect((item) => {
       this.selectModel(item.data!);
     });
-    this._modelList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
+    this._modelList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
       const model = item.data!;
-      const prefix = model.active ? "✓ " : "  ";
+      const isSelected = model.active;
+      const prefix = isSelected ? "✓ " : "  ";
       const name = `${model.repoId}/${model.filename}`;
       const size = formatSize(model.sizeBytes);
       const line = (`${prefix}${name}  ${size}`).padEnd(width);
+      const fgColor = isHighlighted ? (this._modelList.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
+      const bgColor = this._modelList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-      if (isSelected) {
-        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
-      } else if (model.active) {
-        fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
       }
     });
 
@@ -135,17 +138,21 @@ export class ModelsControl extends Control {
     this._hfResultsList.setOnSelect((item) => {
       this.openRepoFiles(item.data!);
     });
-    this._hfResultsList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
+    this._hfResultsList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
       const repo = item.data!;
       const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
       const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
       const meta = [likes, downloads].filter(Boolean).join("  ");
       const line = (`${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
+      const fgColor = isHighlighted ? (this._hfResultsList.focused ? "canvas" : "text") : "text";
+      const bgColor = this._hfResultsList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-      if (isSelected) {
-        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
       }
     });
 
@@ -159,15 +166,19 @@ export class ModelsControl extends Control {
     this._hfFilesList.setOnSelect((item) => {
       this.downloadSelectedFile(item.data!);
     });
-    this._hfFilesList.setRenderer((canvas, item, _index, isSelected, _x, rowY, width) => {
+    this._hfFilesList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
       const file = item.data!;
       const size = formatSize(file.size);
       const line = (`${file.path}  ${size}`).padEnd(width);
+      const fgColor = isHighlighted ? (this._hfFilesList.focused ? "canvas" : "text") : "text";
+      const bgColor = this._hfFilesList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-      if (isSelected) {
-        fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
       }
     });
 

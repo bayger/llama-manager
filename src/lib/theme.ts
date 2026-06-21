@@ -100,8 +100,8 @@ function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
     warningText: c("warning"),
     info: c("info"),
     selected: c("primary"),
-    selectedBg: c("border"),
-    selectedText: c("background"),
+    selectedBg: c("primary"),
+    selectedText: c("backgroundPanel"),
   };
 }
 
@@ -133,8 +133,8 @@ function resolveThemeToColorsWithMode(raw: OpencodeThemeRaw, mode: ThemeMode): T
     warningText: c("warning"),
     info: c("info"),
     selected: c("primary"),
-    selectedBg: c("border"),
-    selectedText: c("background"),
+    selectedBg: c("primary"),
+    selectedText: c("backgroundPanel"),
   };
 }
 
@@ -163,8 +163,8 @@ export const themeColors: ThemeColors = {
   warningText: "#d29922",
   info: "#d29922",
   selected: "#ffffff",
-  selectedBg: "#ffffff",
-  selectedText: "#0d1117",
+  selectedBg: "#58a6ff",
+  selectedText: "#161b22",
 };
 
 export function getThemeNames(): string[] {

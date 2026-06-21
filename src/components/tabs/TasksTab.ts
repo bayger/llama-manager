@@ -215,8 +215,8 @@ export class TasksControl extends Control {
     }
     this.updateColumns();
 
-    const renderTaskRow: TableRenderer<TaskMetrics> = (canvas, item, _index, isSelected, _x, _y, _width, columns) => {
-      this.renderTaskRow(canvas, item.data!, isSelected, _width, columns);
+    const renderTaskRow: TableRenderer<TaskMetrics> = (canvas, item, _index, isHighlighted, _x, _y, _width, columns) => {
+      this.renderTaskRow(canvas, item.data!, isHighlighted, _width, columns);
     };
     this._table.setRenderer(renderTaskRow);
 
@@ -261,7 +261,7 @@ export class TasksControl extends Control {
     ];
   }
 
-  renderTaskRow(canvas: FramebufferCanvas, task: TaskMetrics, isSelected: boolean, width: number, columns: ComputedColumn[]): void {
+  renderTaskRow(canvas: FramebufferCanvas, task: TaskMetrics, isHighlighted: boolean, width: number, columns: ComputedColumn[]): void {
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
 
@@ -289,11 +289,15 @@ export class TasksControl extends Control {
     }
 
     const row = cols.join(" ").padEnd(width);
+    const fgColor = isHighlighted ? (this._table.focused ? "canvas" : "text") : "text";
+    const bgColor = this._table.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", row.substring(0, width));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, row.substring(0, width));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", row.substring(0, width));
+      fgBg(canvas, fgColor, bgColor, row.substring(0, width));
     }
   }
 

@@ -29,7 +29,7 @@ export type TableRenderer<T> = (
   canvas: FramebufferCanvas,
   item: TableItem<T>,
   index: number,
-  isSelected: boolean,
+  isHighlighted: boolean,
   x: number,
   y: number,
   width: number,
@@ -49,6 +49,7 @@ export class Table<T = any> extends Control {
   public columns: TableColumn[] = [];
   public items: TableItem<T>[] = [];
   protected _selectedIndex = -1;
+  protected _selectedId: string | number | null = null;
   public scrollOffset = 0;
   public contentHeight = 0;
   public showHeader = true;
@@ -65,6 +66,9 @@ export class Table<T = any> extends Control {
 
   get selectedIndex(): number { return this._selectedIndex; }
   set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
+
+  get selectedId(): string | number | null { return this._selectedId; }
+  set selectedId(v: string | number | null) { if (v !== this._selectedId) { this._selectedId = v; this.markDirty(); } }
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 40, height: this.rect.height || 10 };
@@ -240,8 +244,8 @@ export class Table<T = any> extends Control {
 
       if (itemIdx < items.length && items[itemIdx] !== undefined) {
         const item = items[itemIdx]!;
-        const isSelected = globalIndex === this.selectedIndex && this.focused;
-        this.renderRow(canvas, x, bodyStartY + i, width, item, globalIndex, isSelected, visibleCols);
+        const isHighlighted = globalIndex === this.selectedIndex;
+        this.renderRow(canvas, x, bodyStartY + i, width, item, globalIndex, isHighlighted, visibleCols);
       }
     }
   }
@@ -272,7 +276,7 @@ export class Table<T = any> extends Control {
     width: number,
     item: TableItem<T> | undefined,
     index: number,
-    isSelected: boolean,
+    isHighlighted: boolean,
     _visibleCols: VisibleColumn[]
   ): void {
     if (!item) {
@@ -285,19 +289,24 @@ export class Table<T = any> extends Control {
         width: vc.width,
         align: vc.col.align,
       }));
-      this._customRenderer(canvas, item, index, isSelected, x, y, width, computedCols);
+      this._customRenderer(canvas, item, index, isHighlighted, x, y, width, computedCols);
       return;
     }
 
+    const isSelected = item.id === this._selectedId;
+    const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
+    const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
     const label = item.label;
     const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", display);
-      fgBg(canvas, "canvas", "selectedBg", " ".repeat(Math.max(0, width - display.length)));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, display);
+      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", display);
-      fgBg(canvas, "canvas", "canvasSubtle", " ".repeat(Math.max(0, width - display.length)));
+      fgBg(canvas, fgColor, bgColor, display);
+      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
     }
   }
 

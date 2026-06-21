@@ -416,40 +416,51 @@ export class VersionsControl extends Control {
     }
   }
 
-  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
     const v = item.data as VersionInfo;
-    const prefix = v.active ? "✓ " : "  ";
+    const isSelected = v.active;
+    const prefix = isSelected ? "✓ " : "  ";
     const line = (`${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
+    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
+    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
-    } else if (v.active) {
-      fgBg(canvas, "success", "canvasSubtle", line.substring(0, width));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
     }
   }
 
-  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
     const r = item.data as RemoteVersion;
     const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
     const line = (`${r.tag}  ${date}`).padEnd(width);
+    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : "text";
+    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
     }
   }
 
-  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isSelected: boolean, _x: number, rowY: number, width: number): void {
+  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
     const b = item.data as AvailableBackend;
     const line = (`${b.label}  ${b.assetName}`).padEnd(width);
+    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : "text";
+    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      fgBg(canvas, "selectedText", "selectedBg", line.substring(0, width));
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "text", "canvasSubtle", line.substring(0, width));
+      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
     }
   }
 }

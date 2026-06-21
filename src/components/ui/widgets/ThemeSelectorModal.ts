@@ -303,13 +303,15 @@ export class ThemeSelectorModal extends Modal {
 
       canvas.moveTo(x, y);
 
-      const fgColor = isSelected ? "selected" : "text";
+      const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
       const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
       if (isHighlighted) {
+        canvas.bold(true);
         fgBg(canvas, fgColor, bgColor, marker);
         fgBg(canvas, fgColor, bgColor, item.label);
         const filled = marker.length + item.label.length;
         fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - filled)));
+        canvas.bold(false);
       } else {
         fgBg(canvas, fgColor, bgColor, marker);
         fgBg(canvas, fgColor, bgColor, item.label);

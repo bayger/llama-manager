@@ -86,20 +86,24 @@ export class SettingsPanel extends EditableList {
     return KEY_COL_WIDTH;
   }
 
-  protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, width: number): void {
+  protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, width: number): void {
     const cat = PRESET_CATEGORIES[row.catIdx]!;
     const arrow = this._collapsed.has(row.catIdx) ? "\u25b6" : "\u25bc";
     const headerText = ` ${arrow} ${cat.name}`;
+    const fgColor = isHighlighted ? (this.focused ? "canvas" : "accent") : "accent";
+    const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-    if (isSelected) {
-      const padded = headerText.padEnd(width);
-      fgBg(canvas, "selectedText", "selectedBg", padded);
+    const padded = headerText.padEnd(width);
+    if (isHighlighted) {
+      canvas.bold(true);
+      fgBg(canvas, fgColor, bgColor, padded);
+      canvas.bold(false);
     } else {
-      fgBg(canvas, "accent", "canvasSubtle", headerText);
+      fgBg(canvas, fgColor, bgColor, padded);
     }
   }
 
-  protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isSelected: boolean, isEditing: boolean, width: number): void {
+  protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, isEditing: boolean, width: number): void {
     const field = row.field!;
     const cat = PRESET_CATEGORIES[row.catIdx]!;
     const presets = this._config?.server.profiles[this._config?.server.activeProfile]?.presets;
@@ -114,22 +118,28 @@ export class SettingsPanel extends EditableList {
       const value = formatFieldValue(field, presetData?.[field.key]);
 
       let extra = "";
-      if (isSelected && field.type === "boolean") {
+      if (isHighlighted && field.type === "boolean") {
         extra = " (toggle)";
-      } else if (isSelected && field.type === "enum" && field.options) {
+      } else if (isHighlighted && field.type === "enum" && field.options) {
         extra = ` [${field.options.join(" | ")}]`;
       }
 
       const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
       const desc = descSpace > 0 && field.description ? field.description.substring(0, descSpace) : "";
 
-      if (isSelected) {
-        const padded = (keyStr + value + extra + (desc ? "  " + desc : "")).padEnd(width);
-        fgBg(canvas, "selectedText", "selectedBg", padded.substring(0, width));
+      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : "text";
+      const fgMutedColor = isHighlighted ? "canvas" : "textMuted";
+      const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+      const content = keyStr + value + extra + (desc ? "  " + desc : "");
+
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, content.substring(0, width));
+        canvas.bold(false);
       } else {
-        fgBg(canvas, "textMuted", "canvasSubtle", keyStr);
-        fgBg(canvas, "text", "canvasSubtle", value);
-        fgBg(canvas, "textMuted", "canvasSubtle", desc ? "  " + desc : "");
+        fgBg(canvas, fgMutedColor, bgColor, keyStr);
+        fgBg(canvas, fgColor, bgColor, value);
+        fgBg(canvas, fgMutedColor, bgColor, desc ? "  " + desc : "");
       }
     }
   }
