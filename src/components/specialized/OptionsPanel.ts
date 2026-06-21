@@ -1,4 +1,4 @@
-import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant } from "../../lib/theme";
+import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant, getThemeMode } from "../../lib/theme";
 import { focusManager } from "../ui/FocusManager";
 import { ConfigData, saveConfig } from "../../lib/config";
 import type { TabContext } from "../../lib/tabcontext";
@@ -274,9 +274,13 @@ export class OptionsPanel extends EditableList {
     if (!config) return;
     this._themePickerOriginal = config.themeName;
     createThemeSelectorModal(config.themeName).then((result) => {
-      if (result === "confirm") {
+      if (result) {
         const cfg = this._ctx?.getConfig();
-        if (cfg) saveConfig(cfg);
+        if (cfg) {
+          cfg.themeName = result;
+          cfg.themeMode = getThemeMode();
+          saveConfig(cfg);
+        }
         this._ctx?.forceRender();
         this.markDirty();
       }

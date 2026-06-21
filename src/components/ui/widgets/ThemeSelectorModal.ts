@@ -3,11 +3,12 @@ import { Control } from "../Control";
 import { List } from "./List";
 import { Column, Row } from "../Layout";
 import { Button } from "./Button";
+import { Checkbox } from "./Checkbox";
 import { Spacer } from "./Spacer";
 import { modalManager } from "../ModalManager";
-import { getThemeNames, loadTheme, setActiveTheme } from "../../../lib/theme";
+import { getThemeNames, loadThemeWithMode, setActiveTheme, getThemeMode, setThemeMode, themeHasLightVariant } from "../../../lib/theme";
 import { fg, fgBg } from "../../../lib/theme";
-import type { Color, ThemeColors } from "../../../lib/theme";
+import type { Color, ThemeColors, ThemeMode } from "../../../lib/theme";
 import type { RenderContext, Size } from "../types";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas";
 
@@ -21,11 +22,13 @@ const VISIBLE_ITEMS = 16;
 
 class ThemePreviewControl extends Control {
   protected _themeName = "";
+  protected _themeMode: ThemeMode = "dark";
   protected _theme: ThemeColors | null = null;
 
-  setTheme(name: string): void {
+  setTheme(name: string, mode: ThemeMode): void {
     this._themeName = name;
-    this._theme = loadTheme(name);
+    this._themeMode = mode;
+    this._theme = loadThemeWithMode(name, mode);
     this.markDirty();
   }
 
@@ -246,13 +249,17 @@ class ThemePreviewControl extends Control {
 export class ThemeSelectorModal extends Modal {
   protected _list: List<string>;
   protected _preview: ThemePreviewControl;
+  protected _lightModeCb: Checkbox;
   protected _cancelBtn: Button;
   protected _applyBtn: Button;
   protected _contentRow: Row;
+  protected _checkboxRow: Row;
   protected _buttonRow: Row;
   protected _contentColumn: Column;
   protected _resolve: ((value: string | null) => void) | null = null;
   protected _originalTheme = "";
+  protected _originalMode: ThemeMode = "dark";
+  protected _previewMode: ThemeMode = "dark";
   protected _selectedTheme = "";
   protected _allNames: string[] = [];
   protected _scrollOffset = 0;
@@ -262,6 +269,11 @@ export class ThemeSelectorModal extends Modal {
     return this._allNames[globalIdx] || "";
   }
 
+  protected updateLightModeCheckbox(): void {
+    const themeName = this._allNames[this.getGlobalIndex()] || "";
+    this._lightModeCb.disabled = !themeHasLightVariant(themeName);
+  }
+
   constructor() {
     super();
     this._list = new List();
@@ -269,6 +281,7 @@ export class ThemeSelectorModal extends Modal {
     this._cancelBtn = new Button({ label: "Cancel" });
     this._applyBtn = new Button({ label: "Apply" });
     this._contentRow = new Row();
+    this._checkboxRow = new Row();
     this._buttonRow = new Row();
     this._contentColumn = new Column();
 
@@ -277,8 +290,9 @@ export class ThemeSelectorModal extends Modal {
 
     this._list.setOnHighlight((item) => {
       if (item) {
-        this._preview.setTheme(item.id);
+        this._preview.setTheme(item.id, this._previewMode);
       }
+      this.updateLightModeCheckbox();
     });
 
     // Custom renderer: always highlight selected row, mark active theme
@@ -304,6 +318,12 @@ export class ThemeSelectorModal extends Modal {
       }
     });
 
+    this._lightModeCb = new Checkbox({ label: "Light mode", checked: getThemeMode() === "light" });
+    this._lightModeCb.setAction((checked) => {
+      this._previewMode = checked ? "light" : "dark";
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()] || this._selectedTheme, this._previewMode);
+    });
+
     this._cancelBtn.setAction(() => this.cancel());
     this._applyBtn.setAction(() => this.apply());
 
@@ -319,7 +339,13 @@ export class ThemeSelectorModal extends Modal {
     this._contentRow.add(rowSpacer);
     this._contentRow.add(this._preview);
 
+    this._checkboxRow.add(this._lightModeCb);
+    const cbSpacer = new Spacer();
+    cbSpacer.flex = 1;
+    this._checkboxRow.add(cbSpacer);
+
     this._contentColumn.add(this._contentRow);
+    this._contentColumn.add(this._checkboxRow);
     const rowGap = new Control();
     rowGap.measure = () => ({ width: 0, height: 1 });
     rowGap.draw = () => {};
@@ -336,6 +362,8 @@ export class ThemeSelectorModal extends Modal {
 
   setInitialTheme(name: string): void {
     this._originalTheme = name;
+    this._originalMode = getThemeMode();
+    this._previewMode = getThemeMode();
     this._selectedTheme = name;
     this._allNames = getThemeNames();
     const idx = this._allNames.indexOf(name);
@@ -344,7 +372,8 @@ export class ThemeSelectorModal extends Modal {
       this._list.selectedIndex = idx - this._scrollOffset;
     }
     this.updateVisibleItems();
-    this._preview.setTheme(name);
+    this._preview.setTheme(name, this._previewMode);
+    this.updateLightModeCheckbox();
   }
 
   protected getGlobalIndex(): number {
@@ -362,7 +391,8 @@ export class ThemeSelectorModal extends Modal {
   protected scrollUp(): boolean {
     if (this._list.selectedIndex > 0) {
       this._list.selectedIndex--;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
+      this.updateLightModeCheckbox();
       this._list.markDirty();
       return true;
     }
@@ -370,7 +400,8 @@ export class ThemeSelectorModal extends Modal {
       this._scrollOffset--;
       this.updateVisibleItems();
       this._list.selectedIndex = 0;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
+      this.updateLightModeCheckbox();
       this._list.markDirty();
       return true;
     }
@@ -381,7 +412,8 @@ export class ThemeSelectorModal extends Modal {
     const maxIdx = this._list.items.length - 1;
     if (this._list.selectedIndex < maxIdx) {
       this._list.selectedIndex++;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
+      this.updateLightModeCheckbox();
       this._list.markDirty();
       return true;
     }
@@ -389,7 +421,8 @@ export class ThemeSelectorModal extends Modal {
       this._scrollOffset++;
       this.updateVisibleItems();
       this._list.selectedIndex = VISIBLE_ITEMS - 1;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!);
+      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
+      this.updateLightModeCheckbox();
       this._list.markDirty();
       return true;
     }
@@ -402,7 +435,8 @@ export class ThemeSelectorModal extends Modal {
     this._scrollOffset = Math.max(0, newGlobal - Math.floor(VISIBLE_ITEMS / 2));
     this.updateVisibleItems();
     this._list.selectedIndex = newGlobal - this._scrollOffset;
-    this._preview.setTheme(this._allNames[newGlobal]!);
+    this._preview.setTheme(this._allNames[newGlobal]!, this._previewMode);
+    this.updateLightModeCheckbox();
     this._list.markDirty();
   }
 
@@ -412,7 +446,8 @@ export class ThemeSelectorModal extends Modal {
     this._scrollOffset = Math.max(0, newGlobal - Math.floor(VISIBLE_ITEMS / 2));
     this.updateVisibleItems();
     this._list.selectedIndex = newGlobal - this._scrollOffset;
-    this._preview.setTheme(this._allNames[newGlobal]!);
+    this._preview.setTheme(this._allNames[newGlobal]!, this._previewMode);
+    this.updateLightModeCheckbox();
     this._list.markDirty();
   }
 
@@ -420,7 +455,8 @@ export class ThemeSelectorModal extends Modal {
     this._scrollOffset = 0;
     this.updateVisibleItems();
     this._list.selectedIndex = 0;
-    this._preview.setTheme(this._allNames[0]!);
+    this._preview.setTheme(this._allNames[0]!, this._previewMode);
+    this.updateLightModeCheckbox();
     this._list.markDirty();
   }
 
@@ -429,13 +465,14 @@ export class ThemeSelectorModal extends Modal {
     this._scrollOffset = Math.max(0, last - VISIBLE_ITEMS + 1);
     this.updateVisibleItems();
     this._list.selectedIndex = last - this._scrollOffset;
-    this._preview.setTheme(this._allNames[last]!);
+    this._preview.setTheme(this._allNames[last]!, this._previewMode);
+    this.updateLightModeCheckbox();
     this._list.markDirty();
   }
 
   measure(parentSize?: Size): Size {
     const base = super.measure(parentSize);
-    return this._clampSize({ width: Math.max(base.width, 80), height: Math.max(base.height, 23) });
+    return this._clampSize({ width: Math.max(base.width, 80), height: Math.max(base.height, 24) });
   }
 
   handleKey(key: string): boolean {
@@ -488,9 +525,10 @@ export class ThemeSelectorModal extends Modal {
   }
 
   protected apply(): void {
+    setThemeMode(this._previewMode);
     setActiveTheme(this._selectedTheme);
     if (this._resolve) {
-      this._resolve("confirm");
+      this._resolve(this._selectedTheme);
       this._resolve = null;
     }
     modalManager.close(this);
@@ -501,7 +539,7 @@ export function createThemeSelectorModal(currentTheme: string): Promise<string |
   return new Promise((resolve) => {
     const modal = new ThemeSelectorModal();
     modal.title = "Select Theme";
-    modal.setMinSize(80, 23);
+    modal.setMinSize(80, 24);
     modal.setMaxSize(120, 24);
     modal.setInitialTheme(currentTheme);
     modal.setResolve(resolve);
