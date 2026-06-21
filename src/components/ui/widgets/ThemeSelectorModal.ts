@@ -30,7 +30,7 @@ class ThemePreviewControl extends Control {
   }
 
   measure(_parentSize?: Size): Size {
-    return { width: 48, height: 16 };
+    return { width: 48, height: 17 };
   }
 
   draw(ctx: RenderContext): void {
@@ -49,7 +49,7 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.text));
     canvas.clearRect(x, y, width, height);
 
-    const availableRows = Math.min(height, 15);
+    const availableRows = Math.min(height, 17);
     let row = 0;
 
     // Title
@@ -107,20 +107,18 @@ class ThemePreviewControl extends Control {
     canvas.setForegroundColor(tc(t.canvas));
     canvas.setBackgroundColor(tc(t.accent));
     canvas.bold();
-    canvas.write(" [ Start ] ");
+    canvas.write(" Start ");
     canvas.bold(false);
     canvas.setBackgroundColor(tc(t.canvas));
     canvas.write(" ");
     canvas.setForegroundColor(tc(t.textMuted));
     canvas.setBackgroundColor(tc(t.canvasSubtle));
-    canvas.write("[ Stop ]");
+    canvas.write(" Stop ");
     canvas.setBackgroundColor(tc(t.canvas));
     canvas.write(" ");
-    canvas.setForegroundColor(tc(t.canvas));
-    canvas.setBackgroundColor(tc(t.danger));
-    canvas.bold();
-    canvas.write("[ Kill ]");
-    canvas.bold(false);
+    canvas.setForegroundColor(tc(t.textMuted));
+    canvas.setBackgroundColor(tc(t.canvasSubtle));
+    canvas.write(" Kill ");
     canvas.setBackgroundColor(tc(t.canvas));
     row++;
     if (row >= availableRows) return;
@@ -143,34 +141,31 @@ class ThemePreviewControl extends Control {
     // Checkboxes
     canvas.moveTo(x, y + row);
     canvas.write(" ");
-    canvas.setForegroundColor(tc(t.accent));
-    canvas.write("[x]");
-    canvas.setForegroundColor(tc(t.text));
-    canvas.write(" Auto-save");
+    canvas.setForegroundColor(tc(t.textMuted));
+    canvas.write("☑ Auto-save");
     canvas.write("    ");
     canvas.setForegroundColor(tc(t.textMuted));
-    canvas.write("[ ]");
-    canvas.write(" Debug mode");
+    canvas.write("☐ Debug mode");
     row++;
     if (row >= availableRows) return;
 
     // Progress bar
     canvas.moveTo(x, y + row);
     canvas.write(" ");
-    canvas.setForegroundColor(tc(t.text));
-    canvas.write("Loading: ");
+    canvas.setForegroundColor(tc(t.warning));
+    canvas.write("⠋ Loading 65%");
+    row++;
+    if (row >= availableRows) return;
+
+    canvas.moveTo(x, y + row);
+    canvas.write(" ");
     const barWidth = Math.min(30, width - 12);
     const filled = Math.floor(barWidth * 0.65);
-    for (let i = 0; i < filled; i++) {
-      canvas.setForegroundColor(tc(t.accent));
-      canvas.write(HALF_BLOCK);
-    }
-    for (let i = filled; i < barWidth; i++) {
-      canvas.setForegroundColor(tc(t.borderMuted));
-      canvas.write(HALF_BLOCK);
-    }
-    canvas.setForegroundColor(tc(t.text));
-    canvas.write(" 65%");
+    const empty = barWidth - filled;
+    canvas.setForegroundColor(tc(t.accent));
+    canvas.write(FULL_BLOCK.repeat(filled));
+    canvas.setForegroundColor(tc(t.border));
+    canvas.write("\u2591".repeat(empty));
     row++;
     if (row >= availableRows) return;
 
@@ -440,7 +435,7 @@ export class ThemeSelectorModal extends Modal {
 
   measure(parentSize?: Size): Size {
     const base = super.measure(parentSize);
-    return this._clampSize({ width: Math.max(base.width, 80), height: Math.max(base.height, 18) });
+    return this._clampSize({ width: Math.max(base.width, 80), height: Math.max(base.height, 23) });
   }
 
   handleKey(key: string): boolean {
@@ -506,7 +501,7 @@ export function createThemeSelectorModal(currentTheme: string): Promise<string |
   return new Promise((resolve) => {
     const modal = new ThemeSelectorModal();
     modal.title = "Select Theme";
-    modal.setMinSize(80, 18);
+    modal.setMinSize(80, 23);
     modal.setMaxSize(120, 24);
     modal.setInitialTheme(currentTheme);
     modal.setResolve(resolve);
