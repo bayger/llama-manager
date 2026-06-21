@@ -198,6 +198,7 @@ export class App {
         keys: [
           ["?", "Toggle help"],
           ["Ctrl+T", "Open theme selector"],
+          ["Ctrl+Shift+T", "Toggle dark/light mode"],
           ["q", "Quit application"],
         ],
       },
@@ -271,6 +272,18 @@ export class App {
             }
           });
         }
+        return;
+      }
+
+      if (name === "CTRL_SHIFT_T" && !textActive && !modalManager.isOpen()) {
+        const mode = getThemeMode() === "dark" ? "light" : "dark";
+        setThemeMode(mode);
+        const config = this._ctx!.getConfig();
+        if (config) {
+          config.themeMode = mode;
+          saveConfig(config);
+        }
+        if (this._main) this._main.markAllDirty();
         return;
       }
 
