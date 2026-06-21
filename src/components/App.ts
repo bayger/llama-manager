@@ -105,7 +105,7 @@ export class App {
     };
 
     this._main = new MainControl(this._ctx, () => this.handleQuit());
-    this._main.onInit();
+    this._main.init();
 
     modalManager.setOnDirty(() => {
       if (this._main) this._main.markAllDirty();

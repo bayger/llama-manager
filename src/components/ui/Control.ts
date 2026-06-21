@@ -195,16 +195,15 @@ export class Control {
 
   // - Lifecycle -
 
-  onInit(): void {
+  init(): void {
+    this.onInit();
     for (const child of this.children) {
-      child.onInit();
+      child.init();
     }
   }
-  onDestroy(): void {
-    for (const child of this.children) {
-      child.onDestroy();
-    }
-  }
+
+  onInit(): void {}
+  onDestroy(): void {}
   onShow(): void {}
   onHide(): void {}
   onFocus(): void {}
