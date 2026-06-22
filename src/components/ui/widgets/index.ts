@@ -1,3 +1,4 @@
+export { BarChart } from "./BarChart";
 export { Label } from "./Label";
 export { Button } from "./Button";
 export { Checkbox } from "./Checkbox";
