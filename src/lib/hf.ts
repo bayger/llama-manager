@@ -7,6 +7,9 @@ export interface HFRepoInfo {
   private: boolean;
   disabled?: boolean;
   ggufCount?: number;
+  pipeline_tag?: string;
+  library_name?: string;
+  createdAt?: string;
 }
 
 export interface HFFileInfo {

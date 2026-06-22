@@ -19,7 +19,7 @@ import {
 } from "../../lib/models";
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
 import { saveConfig } from "../../lib/config";
-import { fireAsync } from "../../lib/utils";
+import { fireAsync, formatDate } from "../../lib/utils";
 import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
 import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import type { TabContext } from "../../lib/tabcontext";
@@ -139,6 +139,12 @@ export class ModelsControl extends Control {
         format: (v, row: HFRepoInfo) => row.id,
       },
       {
+        label: "Task",
+        width: 10,
+        align: "left",
+        format: (v, row: HFRepoInfo) => row.pipeline_tag || "-",
+      },
+      {
         label: "Likes",
         width: 8,
         align: "right",
@@ -149,6 +155,12 @@ export class ModelsControl extends Control {
         width: 10,
         align: "right",
         format: (v, row: HFRepoInfo) => row.downloads ? `\u2193 ${row.downloads}` : "-",
+      },
+      {
+        label: "Date",
+        width: 10,
+        align: "right",
+        format: (v, row: HFRepoInfo) => row.createdAt ? formatDate(row.createdAt) : "-",
       },
     ];
 
