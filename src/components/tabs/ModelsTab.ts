@@ -75,6 +75,7 @@ export class ModelsControl extends Control {
     this._ctx = ctx;
 
     this._summary = new StyledText();
+    this._summary.flex = 1;
 
     // --- Local models view ---
     this._browseBtn = new Button({ label: "Browse HF" });

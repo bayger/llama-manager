@@ -100,6 +100,7 @@ export class VersionsControl extends Control {
     this._ctx = ctx;
 
     this._summary = new StyledText();
+    this._summary.flex = 1;
     this._prompt = new StyledText();
     this._prompt.visible = false;
 

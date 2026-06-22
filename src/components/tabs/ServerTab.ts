@@ -34,6 +34,7 @@ export class ServerControl extends Control {
     this._ctx = ctx;
 
     this._summary = new StyledText();
+    this._summary.flex = 1;
 
     this._buttonRow = new Row();
     this._buttons = [
