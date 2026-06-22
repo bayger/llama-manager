@@ -5,6 +5,7 @@ import { Label } from "../ui/widgets/Label";
 import { Section } from "../ui/widgets/Section";
 import { MetricsPanel } from "../specialized/MetricsPanel";
 import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
+import { TaskChartsSection } from "../specialized/TaskChartsSection";
 import { fg } from "../../lib/theme";
 import { focusManager } from "../ui/FocusManager";
 import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
@@ -22,6 +23,7 @@ export class DashboardControl extends Control {
   protected _versionLabel: Label;
   protected _modelSection: Section;
   protected _metricsSection: Section;
+  protected _chartsSection: TaskChartsSection;
   protected _modelPanel: LoadedModelPanel;
   protected _metricsPanel: MetricsPanel;
   protected _statusUnsub: (() => void) | null = null;
@@ -92,10 +94,13 @@ export class DashboardControl extends Control {
     this._metricsSection.add(this._metricsPanel);
     this._metricsSection.flex = 1;
 
+    this._chartsSection = new TaskChartsSection();
+
     this._column = new Column();
     this._column.add(this._buttonRow);
     this._column.add(this._modelSection);
     this._column.add(this._metricsSection);
+    this._column.add(this._chartsSection);
 
     this.add(this._column);
   }
