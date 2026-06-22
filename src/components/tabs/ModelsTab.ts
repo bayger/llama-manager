@@ -1,13 +1,11 @@
 import { Control } from "../ui/Control";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 import { Column, Row } from "../ui/Layout";
 import { Button } from "../ui/widgets/Button";
 import { Spacer } from "../ui/widgets/Spacer";
-import { List, ListItem } from "../ui/widgets/List";
+import { Table, TableItem } from "../ui/widgets/Table";
 import { TextInput } from "../ui/widgets/TextInput";
 import { ProgressBar } from "../ui/widgets/ProgressBar";
 import { Section } from "../ui/widgets/Section";
-import { fg, fgBg } from "../../lib/theme";
 import { StyledText } from "../ui/widgets/StyledText";
 import { focusManager } from "../ui/FocusManager";
 import {
@@ -41,7 +39,7 @@ export class ModelsControl extends Control {
   protected _browseBtn: Button;
   protected _removeBtn: Button;
   protected _modelsSection: Section;
-  protected _modelList: List<string, LocalModel>;
+  protected _modelList: Table<LocalModel>;
   protected _summary: StyledText;
 
   // HF Browser
@@ -52,9 +50,9 @@ export class ModelsControl extends Control {
   protected _hfBrowseBtn: Button;
   protected _hfContentColumn: Column;
   protected _hfResultsSection: Section;
-  protected _hfResultsList: List<string, HFRepoInfo>;
+  protected _hfResultsList: Table<HFRepoInfo>;
   protected _hfFilesSection: Section;
-  protected _hfFilesList: List<string, HFFileInfo>;
+  protected _hfFilesList: Table<HFFileInfo>;
   protected _hfProgressBar: ProgressBar;
   protected _hfButtonRow: Row;
   protected _hfBackBtn: Button;
@@ -85,7 +83,26 @@ export class ModelsControl extends Control {
     this._buttonRow.add(this._browseBtn);
     this._buttonRow.add(this._removeBtn);
 
-    this._modelList = new List<string, LocalModel>();
+    this._modelList = new Table<LocalModel>();
+    this._modelList.showHeader = true;
+    this._modelList.columns = [
+      {
+        label: "Name",
+        width: 30,
+        flex: 1,
+        align: "left",
+        format: (v, row: LocalModel) => {
+          const m = row;
+          return m.active ? `✓ ${m.repoId}/${m.filename}` : `  ${m.repoId}/${m.filename}`;
+        },
+      },
+      {
+        label: "Size",
+        width: 10,
+        align: "right",
+        format: (v, row: LocalModel) => formatSize(row.sizeBytes),
+      },
+    ];
 
     this._modelsSection = new Section();
     this._modelsSection.title = "Downloaded Models";
@@ -94,24 +111,6 @@ export class ModelsControl extends Control {
 
     this._modelList.setOnSelect((item) => {
       this.selectModel(item.data!);
-    });
-    this._modelList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
-      const model = item.data!;
-      const isSelected = model.active;
-      const prefix = isSelected ? "✓ " : "  ";
-      const name = `${model.repoId}/${model.filename}`;
-      const size = formatSize(model.sizeBytes);
-      const line = (`${prefix}${name}  ${size}`).padEnd(width);
-      const fgColor = isHighlighted ? (this._modelList.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-      const bgColor = this._modelList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-
-      if (isHighlighted) {
-        canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-        canvas.bold(false);
-      } else {
-        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-      }
     });
 
     this._column = new Column();
@@ -129,7 +128,29 @@ export class ModelsControl extends Control {
     this._hfSearchRow = new Row();
     this._hfSearchRow.add(this._hfSearchInput);
 
-    this._hfResultsList = new List<string, HFRepoInfo>();
+    this._hfResultsList = new Table<HFRepoInfo>();
+    this._hfResultsList.showHeader = true;
+    this._hfResultsList.columns = [
+      {
+        label: "Repo",
+        width: 30,
+        flex: 1,
+        align: "left",
+        format: (v, row: HFRepoInfo) => row.id,
+      },
+      {
+        label: "Likes",
+        width: 8,
+        align: "right",
+        format: (v, row: HFRepoInfo) => row.likes > 0 ? `\u2665 ${row.likes}` : "-",
+      },
+      {
+        label: "Downloads",
+        width: 10,
+        align: "right",
+        format: (v, row: HFRepoInfo) => row.downloads ? `\u2193 ${row.downloads}` : "-",
+      },
+    ];
 
     this._hfResultsSection = new Section();
     this._hfResultsSection.title = "Results";
@@ -138,25 +159,24 @@ export class ModelsControl extends Control {
     this._hfResultsList.setOnSelect((item) => {
       this.openRepoFiles(item.data!);
     });
-    this._hfResultsList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
-      const repo = item.data!;
-      const likes = repo.likes > 0 ? `\u2665 ${repo.likes}` : "";
-      const downloads = repo.downloads ? `\u2193 ${repo.downloads}` : "";
-      const meta = [likes, downloads].filter(Boolean).join("  ");
-      const line = (`${repo.id}${meta ? `  ${meta}` : ""}`).padEnd(width);
-      const fgColor = isHighlighted ? (this._hfResultsList.focused ? "canvas" : "text") : "text";
-      const bgColor = this._hfResultsList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
 
-      if (isHighlighted) {
-        canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-        canvas.bold(false);
-      } else {
-        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-      }
-    });
-
-    this._hfFilesList = new List<string, HFFileInfo>();
+    this._hfFilesList = new Table<HFFileInfo>();
+    this._hfFilesList.showHeader = true;
+    this._hfFilesList.columns = [
+      {
+        label: "File",
+        width: 30,
+        flex: 1,
+        align: "left",
+        format: (v, row: HFFileInfo) => row.path,
+      },
+      {
+        label: "Size",
+        width: 10,
+        align: "right",
+        format: (v, row: HFFileInfo) => formatSize(row.size),
+      },
+    ];
 
     this._hfFilesSection = new Section();
     this._hfFilesSection.title = "Files";
@@ -165,21 +185,6 @@ export class ModelsControl extends Control {
 
     this._hfFilesList.setOnSelect((item) => {
       this.downloadSelectedFile(item.data!);
-    });
-    this._hfFilesList.setRenderer((canvas, item, _index, isHighlighted, _x, rowY, width) => {
-      const file = item.data!;
-      const size = formatSize(file.size);
-      const line = (`${file.path}  ${size}`).padEnd(width);
-      const fgColor = isHighlighted ? (this._hfFilesList.focused ? "canvas" : "text") : "text";
-      const bgColor = this._hfFilesList.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-
-      if (isHighlighted) {
-        canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-        canvas.bold(false);
-      } else {
-        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-      }
     });
 
     this._hfProgressBar = new ProgressBar();
@@ -316,7 +321,7 @@ this._hfResultsList.handleKey = (key: string) => {
        this.goBack();
        return true;
      }
-     return List.prototype.handleKey.call(this._hfResultsList, key);
+      return Table.prototype.handleKey.call(this._hfResultsList, key);
    };
 
    this._hfFilesList.handleKey = (key: string) => {
@@ -324,7 +329,7 @@ this._hfResultsList.handleKey = (key: string) => {
        this.goBack();
        return true;
      }
-     return List.prototype.handleKey.call(this._hfFilesList, key);
+      return Table.prototype.handleKey.call(this._hfFilesList, key);
    };
 
    this.refreshModels();
@@ -476,12 +481,12 @@ this._hfResultsList.handleKey = (key: string) => {
   }
 
   showResults(): void {
-    const items: ListItem<string, HFRepoInfo>[] = this._repos.map((repo, i) => ({
+    const items: TableItem<HFRepoInfo>[] = this._repos.map((repo, i) => ({
       id: String(i),
       label: repo.id,
       data: repo,
     }));
-    this._hfResultsList.items = items;
+    this._hfResultsList.updateItems(items);
     this._view = "results";
     this.updateView();
   }
@@ -493,12 +498,12 @@ this._hfResultsList.handleKey = (key: string) => {
       const config = this._ctx?.getConfig();
       const token = config?.hfToken ?? undefined;
       this._files = await listFiles(repo.id, token);
-      const items: ListItem<string, HFFileInfo>[] = this._files.map((file, i) => ({
+      const items: TableItem<HFFileInfo>[] = this._files.map((file, i) => ({
         id: String(i),
         label: file.path,
         data: file,
       }));
-      this._hfFilesList.items = items;
+      this._hfFilesList.updateItems(items);
       this._view = "files";
       this.updateView();
     }, this._ctx!);
@@ -568,13 +573,13 @@ this._hfResultsList.handleKey = (key: string) => {
         getTotalModelsSize(config),
       ]);
 
-      const items: ListItem<string, LocalModel>[] = models.map(m => ({
+      const items: TableItem<LocalModel>[] = models.map(m => ({
         id: m.path,
         label: `${m.repoId}/${m.filename}`,
         data: m,
       }));
 
-      this._modelList.items = items;
+      this._modelList.updateItems(items);
       this._summary.builder
         .muted("Models ")
         .accentColor(String(models.length))
