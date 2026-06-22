@@ -6,19 +6,21 @@
 
 ## Braille encoding
 
-Each Braille cell = 2 bars × 2 height levels:
+Each Braille cell = 2 bars × 4 height levels:
 
 ```
   ┌─ left bar  ─┐┌─ right bar ─┐
-T │ dot 1 (bit0)││ dot 4 (bit3)│
-B │ dot 2 (bit1)││ dot 5 (bit4)│
+  │ dot 1 (bit0)││ dot 4 (bit3)│
+  │ dot 2 (bit1)││ dot 5 (bit4)│
+  │ dot 3 (bit2)││ dot 6 (bit5)│
+  │ dot 7 (bit6)││ dot 8 (bit7)│
 ```
 
 - Bar height 0 → `⠀` (empty cell)
-- Bar height 1 (bottom) → `⠂` (dot 2) or `⠐` (dot 5)
-- Bar height 2 (full) → `⠃` (dots 1+2) or `⠘` (dots 4+5)
+- Bar height 1 → `⠃` (dot 7) or `⠿` (dot 8)
+- Bar height 4 (full) → all dots set
 
-For a chart with `H` logical rows, output spans `ceil(H / 2)` Braille rows. For `N` data values, each row is `ceil(N / 2)` characters wide.
+For a chart with `H` logical rows, output spans `ceil(H / 4)` Braille rows. For `N` data values, each row is `ceil(N / 2)` characters wide.
 
 ## API
 
@@ -78,8 +80,8 @@ interface BarChartProps {
 For each bar at index `i` with normalized value `v` (0–1):
 1. Logical height = `v * chartLogicalHeight`
 2. For each logical row `y` from 0 to `H-1`:
-   - Determine Braille cell `(col, row)` = `(floor(i/2), floor(y/2))`
-   - Determine dot within cell: left/right bar, top/bottom position
+   - Determine Braille cell `(col, row)` = `(floor(i/2), floor(y/4))`
+   - Determine dot within cell: left/right bar, row within cell (`y % 4`)
    - Set corresponding bit if `y < logicalHeight` (bottom-up) or `y >= H - logicalHeight` (top-down)
 3. Compose Braille character: `0x2800 | accumulated_bits`
 4. Apply color (single, gradient, or threshold)
