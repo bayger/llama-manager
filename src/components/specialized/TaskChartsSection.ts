@@ -77,7 +77,6 @@ export class TaskChartsSection extends Section {
 
   fetchData(capacity: number): void {
     const tasks = taskStore.getRange(0, capacity, undefined, "timestamp", "desc");
-    if (tasks.length === 0) return;
 
     const speedData: number[] = [];
     const tokensData: number[] = [];
@@ -92,7 +91,6 @@ export class TaskChartsSection extends Section {
 
     this._speedChart.setData(speedData, labels);
     this._tokensChart.setData(tokensData, labels);
-    this.markDirty();
   }
 
   refreshData(): void {
