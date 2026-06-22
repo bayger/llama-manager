@@ -296,8 +296,27 @@ export class Table<T = any> extends Control {
     const isSelected = item.id === this._selectedId;
     const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
     const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-    const label = item.label;
-    const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
+
+    let display: string;
+
+    if (_visibleCols.length > 0 && typeof item.data === "object" && item.data !== null && !Array.isArray(item.data)) {
+      const parts = _visibleCols.map((vc) => {
+        let cellValue = (item.data as Record<string, any>)[vc.col.label];
+        let text: string;
+        if (vc.col.format) {
+          text = vc.col.format(cellValue, item.data);
+        } else {
+          text = cellValue !== undefined && cellValue !== null ? String(cellValue) : "-";
+        }
+        if (text.length > vc.width) {
+          text = "…" + text.substring(text.length - (vc.width - 1));
+        }
+        return vc.col.align === "right" ? text.padStart(vc.width) : text.padEnd(vc.width);
+      });
+      display = parts.join(" ");
+    } else {
+      display = `${item.label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
+    }
 
     if (isHighlighted) {
       canvas.bold(true);
