@@ -9,6 +9,7 @@ export class TextInput extends Control {
   protected _placeholder = "";
   protected _cursorPos = 0;
   protected _prefix = "";
+  protected _viewportOffset = 0;
 
   get value(): string { return this._value; }
   set value(v: string) { if (v !== this._value) { this._value = v; this.markDirty(); } }
@@ -17,7 +18,13 @@ export class TextInput extends Control {
   set placeholder(v: string) { if (v !== this._placeholder) { this._placeholder = v; this.markDirty(); } }
 
   get cursorPos(): number { return this._cursorPos; }
-  set cursorPos(v: number) { if (v !== this._cursorPos) { this._cursorPos = v; this.markDirty(); } }
+  set cursorPos(v: number) {
+    if (v !== this._cursorPos) {
+      this._cursorPos = v;
+      this.updateViewport();
+      this.markDirty();
+    }
+  }
 
   get prefix(): string { return this._prefix; }
   set prefix(v: string) { if (v !== this._prefix) { this._prefix = v; this.markDirty(); } }
@@ -42,6 +49,16 @@ export class TextInput extends Control {
     this._onChange = callback;
   }
 
+  protected updateViewport(): void {
+    const visibleWidth = Math.max(1, this.rect.width - this.prefix.length - 2);
+    if (this._cursorPos < this._viewportOffset) {
+      this._viewportOffset = this._cursorPos;
+    } else if (this._cursorPos >= this._viewportOffset + visibleWidth) {
+      this._viewportOffset = this._cursorPos - visibleWidth + 1;
+    }
+    this._viewportOffset = Math.max(0, Math.min(this._viewportOffset, this.value.length));
+  }
+
   onFocus(): void {
     super.onFocus();
     focusManager.activateTextInput(true);
@@ -53,7 +70,7 @@ export class TextInput extends Control {
     focusManager.activateTextInput(false);
   }
 
- draw(ctx: RenderContext): void {
+  draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y } = this.rect;
 
@@ -67,14 +84,18 @@ export class TextInput extends Control {
       fg(canvas, "textMuted", this.prefix);
     }
 
+    const visibleWidth = Math.max(1, this.rect.width - this.prefix.length - 2);
+    this.updateViewport();
+
     const display = this.value || this.placeholder;
     const displayColor = this.value ? "text" : "textMuted";
-    fg(canvas, displayColor, display);
+    const visible = display.slice(this._viewportOffset, this._viewportOffset + visibleWidth);
+    fg(canvas, displayColor, visible);
 
     fgBg(canvas, borderColor, bg, "│");
 
     if (this.focused) {
-      const cursorX = x + 1 + this.prefix.length + this.cursorPos;
+      const cursorX = x + 1 + this.prefix.length + (this.cursorPos - this._viewportOffset);
       canvas.setTerminalCursor(cursorX, y);
       canvas.showTerminalCursor();
     }
@@ -146,12 +167,12 @@ export class TextInput extends Control {
     const { x, y } = this.rect;
     if (point.x < x || point.x >= x + this.rect.width || point.y !== y) return false;
 
-    // Layout: left border (1) + prefix + value + right border (1)
+    // Layout: left border (1) + prefix + visible text + right border (1)
     const offsetX = point.x - x;
     if (offsetX === 0) {
       this.cursorPos = 0;
     } else {
-      this.cursorPos = Math.min(this.value.length, Math.max(0, offsetX - 1 - this.prefix.length));
+      this.cursorPos = Math.min(this.value.length, Math.max(0, this._viewportOffset + offsetX - 1 - this.prefix.length));
     }
     this.markDirty();
     return true;

@@ -41,6 +41,7 @@ export class StyledTextBuilder {
 export class StyledText extends Control {
   focusable = false;
   public segments: TextSegment[] = [];
+  public truncate: "tail" | "head" | false = "tail";
   protected _builder: StyledTextBuilder;
 
   constructor() {
@@ -59,10 +60,61 @@ export class StyledText extends Control {
     return { width: len || this.rect.width, height: 1 };
   }
 
+  protected _truncateSegments(): TextSegment[] {
+    if (this.truncate === false) return this.segments;
+
+    const maxWidth = this.rect.width;
+    if (maxWidth <= 0) return [];
+
+    let totalLen = 0;
+    for (const s of this.segments) totalLen += s.text.length;
+
+    if (totalLen <= maxWidth) return this.segments;
+
+    const contentBudget = maxWidth - 1;
+    const result: TextSegment[] = [];
+
+    if (this.truncate === "tail") {
+      let consumed = 0;
+      for (let i = 0; i < this.segments.length; i++) {
+        const seg = this.segments[i]!;
+        const remaining = contentBudget - consumed;
+        if (remaining <= 0) break;
+        if (seg.text.length <= remaining) {
+          result.push({ ...seg });
+          consumed += seg.text.length;
+        } else {
+          result.push({ text: seg.text.substring(0, remaining), color: seg.color });
+          consumed = contentBudget;
+          break;
+        }
+      }
+      result.push({ text: "\u2026", color: result.length > 0 ? result[result.length - 1]!.color : "text" });
+    } else {
+      let consumed = 0;
+      for (let i = this.segments.length - 1; i >= 0; i--) {
+        const seg = this.segments[i]!;
+        const remaining = contentBudget - consumed;
+        if (remaining <= 0) break;
+        if (seg.text.length <= remaining) {
+          result.unshift({ ...seg });
+          consumed += seg.text.length;
+        } else {
+          result.unshift({ text: "\u2026" + seg.text.substring(seg.text.length - remaining), color: seg.color });
+          consumed = contentBudget;
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
+
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     canvas.moveTo(this.rect.x, this.rect.y);
-    for (const seg of this.segments) {
+    const segments = this._truncateSegments();
+    for (const seg of segments) {
       fg(canvas, seg.color, seg.text);
     }
   }

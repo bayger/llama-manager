@@ -65,7 +65,7 @@ export class ConfirmDialog extends Modal {
       this._resolve = null;
     }
     if (modalManager.getTop() === this) {
-      modalManager.close(this);
+      modalManager.close();
     }
   }
 }

@@ -5,24 +5,14 @@ export class FocusManager {
   private _root: Control | null = null;
   private _focused: Control | null = null;
   private _textInputActive = false;
-  private _rootStack: (Control | null)[] = [];
 
   setRoot(root: Control): void {
     this._root = root;
     this.setFocus(root);
   }
 
-  saveRoot(): void {
-    this._rootStack.push(this._root);
-    this._root = null;
-    this.clear();
-  }
-
-  restoreRoot(): void {
-    if (this._rootStack.length > 0) {
-      this._root = this._rootStack.pop() || null;
-    }
-    this.focusFirst();
+  getRoot(): Control | null {
+    return this._root;
   }
 
   getFocused(): Control | null {
@@ -90,19 +80,27 @@ export class FocusManager {
   }
 
   focusNext(): void {
-    if (!this._root || !this._focused) return;
+    if (!this._root) return;
     const focusable = this._root.getAllFocusable();
-    const idx = focusable.indexOf(this._focused);
-    if (idx === -1 || idx >= focusable.length - 1) return;
-    this.setFocus(focusable[idx + 1]);
+    if (focusable.length === 0) return;
+    const currentIdx = this._focused ? focusable.indexOf(this._focused) : -1;
+    if (currentIdx === -1 || currentIdx >= focusable.length - 1) {
+      this.setFocus(focusable[0]);
+    } else {
+      this.setFocus(focusable[currentIdx + 1]);
+    }
   }
 
   focusPrev(): void {
-    if (!this._root || !this._focused) return;
+    if (!this._root) return;
     const focusable = this._root.getAllFocusable();
-    const idx = focusable.indexOf(this._focused);
-    if (idx === -1 || idx <= 0) return;
-    this.setFocus(focusable[idx - 1]);
+    if (focusable.length === 0) return;
+    const currentIdx = this._focused ? focusable.indexOf(this._focused) : -1;
+    if (currentIdx === -1 || currentIdx <= 0) {
+      this.setFocus(focusable[focusable.length - 1]);
+    } else {
+      this.setFocus(focusable[currentIdx - 1]);
+    }
   }
 
   focusFirst(): void {
@@ -164,14 +162,6 @@ export class FocusManager {
       return this._root.handleKey(key);
     }
     if (this._root.handleKey(key)) return true;
-    if ((key === "UP" || key === "k") && this._focused) {
-      this.focusPrev();
-      return true;
-    }
-    if ((key === "DOWN" || key === "j") && this._focused) {
-      this.focusNext();
-      return true;
-    }
     return false;
   }
 }

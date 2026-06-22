@@ -61,9 +61,10 @@ export class Column extends Control {
       } else {
         const remainingHeight = height - measuredHeight;
         const childSize = child.measure({ width: innerWidth, height: Math.max(0, remainingHeight) });
-        child.layout({ x: x + padding, y: currentY, width: innerWidth, height: childSize.height });
-        currentY += childSize.height;
-        measuredHeight += childSize.height;
+        const childHeight = Math.min(childSize.height, remainingHeight);
+        child.layout({ x: x + padding, y: currentY, width: innerWidth, height: childHeight });
+        currentY += childHeight;
+        measuredHeight += childHeight;
       }
     }
   }
@@ -123,17 +124,22 @@ export class Row extends Control {
 
     const totalGap = Math.max(0, visibleChildren.length - 1) * gap;
     const flexSpace = Math.max(0, width - fixedTotal - totalGap);
+    let measuredWidth = 0;
 
     for (let i = 0; i < visibleChildren.length; i++) {
       const child = visibleChildren[i]!;
+      const remainingWidth = width - measuredWidth - (i < visibleChildren.length - 1 ? gap : 0);
       if (child.flex > 0) {
         const cw = flexSpace > 0 ? Math.floor((child.flex / flexTotal) * flexSpace) : 0;
         child.layout({ x: currentX, y, width: cw, height });
         currentX += cw;
+        measuredWidth += cw;
       } else {
-        const childSize = child.measure({ width, height });
-        child.layout({ x: currentX, y, width: childSize.width, height });
-        currentX += childSize.width;
+        const childSize = child.measure({ width: Math.max(0, remainingWidth), height });
+        const childWidth = Math.min(childSize.width, remainingWidth);
+        child.layout({ x: currentX, y, width: childWidth, height });
+        currentX += childWidth;
+        measuredWidth += childWidth;
       }
       if (i < visibleChildren.length - 1) {
         currentX += gap;

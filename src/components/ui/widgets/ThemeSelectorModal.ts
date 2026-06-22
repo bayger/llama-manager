@@ -18,8 +18,6 @@ const H = "\u2500";
 const HALF_BLOCK = "\u2584";
 const FULL_BLOCK = "\u2588";
 
-const VISIBLE_ITEMS = 16;
-
 class ThemePreviewControl extends Control {
   protected _themeName = "";
   protected _themeMode: ThemeMode = "dark";
@@ -277,17 +275,15 @@ export class ThemeSelectorModal extends Modal {
   protected _originalMode: ThemeMode = "dark";
   protected _previewMode: ThemeMode = "dark";
   protected _selectedTheme = "";
-  protected _allNames: string[] = [];
-  protected _scrollOffset = 0;
 
   protected getSelectedTheme(): string {
-    const globalIdx = this.getGlobalIndex();
-    return this._allNames[globalIdx] || "";
+    const item = this._list.getSelectedItem();
+    return item ? item.id : "";
   }
 
   protected updateLightModeCheckbox(): void {
-    const themeName = this._allNames[this.getGlobalIndex()] || "";
-    this._lightModeCb.disabled = !themeHasLightVariant(themeName);
+    const item = this._list.getSelectedItem();
+    this._lightModeCb.disabled = !item || !themeHasLightVariant(item.id);
   }
 
   constructor() {
@@ -297,12 +293,16 @@ export class ThemeSelectorModal extends Modal {
     this._cancelBtn = new Button({ label: "Cancel" });
     this._applyBtn = new Button({ label: "Apply" });
     this._contentRow = new Row();
+    this._contentRow.flex = 1;
     this._checkboxRow = new Row();
     this._buttonRow = new Row();
     this._contentColumn = new Column();
 
-    // Override List key handling so Modal handles navigation + scrolling
-    this._list.handleKey = () => false;
+    const listNav = this._list.handleKey.bind(this._list);
+    this._list.handleKey = (key) => {
+      if (key === "RETURN" || key === "ENTER" || key === "SPACE" || key === " ") return false;
+      return listNav(key);
+    };
 
     this._list.setOnHighlight((item) => {
       if (item) {
@@ -311,7 +311,6 @@ export class ThemeSelectorModal extends Modal {
       this.updateLightModeCheckbox();
     });
 
-    // Custom renderer: always highlight selected row, mark active theme
     this._list.setRenderer((canvas, item, index, _isSelected, x, y, width) => {
       const isHighlighted = index === this._list.selectedIndex;
       const isSelected = item.id === this._selectedTheme;
@@ -339,7 +338,8 @@ export class ThemeSelectorModal extends Modal {
     this._lightModeCb = new Checkbox({ label: "Light mode", checked: getThemeMode() === "light" });
     this._lightModeCb.setAction((checked) => {
       this._previewMode = checked ? "light" : "dark";
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()] || this._selectedTheme, this._previewMode);
+      const item = this._list.getSelectedItem();
+      this._preview.setTheme(item ? item.id : this._selectedTheme, this._previewMode);
     });
 
     this._cancelBtn.setAction(() => this.cancel());
@@ -383,109 +383,14 @@ export class ThemeSelectorModal extends Modal {
     this._originalMode = getThemeMode();
     this._previewMode = getThemeMode();
     this._selectedTheme = name;
-    this._allNames = getThemeNames();
-    const idx = this._allNames.indexOf(name);
+    const allNames = getThemeNames();
+    this._list.items = allNames.map((n) => ({ id: n, label: n }));
+    const idx = allNames.indexOf(name);
     if (idx >= 0) {
-      this._scrollOffset = Math.max(0, idx - Math.floor(VISIBLE_ITEMS / 2));
-      this._list.selectedIndex = idx - this._scrollOffset;
+      this._list.selectedIndex = idx;
     }
-    this.updateVisibleItems();
     this._preview.setTheme(name, this._previewMode);
     this.updateLightModeCheckbox();
-  }
-
-  protected getGlobalIndex(): number {
-    return this._scrollOffset + this._list.selectedIndex;
-  }
-
-  protected updateVisibleItems(): void {
-    const maxScroll = Math.max(0, this._allNames.length - VISIBLE_ITEMS);
-    this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, maxScroll));
-    const visible = this._allNames.slice(this._scrollOffset, this._scrollOffset + VISIBLE_ITEMS);
-    this._list.updateItems(visible.map((name) => ({ id: name, label: name })));
-    this._list.markDirty();
-  }
-
-  protected scrollUp(): boolean {
-    if (this._list.selectedIndex > 0) {
-      this._list.selectedIndex--;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
-      this.updateLightModeCheckbox();
-      this._list.markDirty();
-      return true;
-    }
-    if (this._scrollOffset > 0) {
-      this._scrollOffset--;
-      this.updateVisibleItems();
-      this._list.selectedIndex = 0;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
-      this.updateLightModeCheckbox();
-      this._list.markDirty();
-      return true;
-    }
-    return false;
-  }
-
-  protected scrollDown(): boolean {
-    const maxIdx = this._list.items.length - 1;
-    if (this._list.selectedIndex < maxIdx) {
-      this._list.selectedIndex++;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
-      this.updateLightModeCheckbox();
-      this._list.markDirty();
-      return true;
-    }
-    if (this._scrollOffset + VISIBLE_ITEMS < this._allNames.length) {
-      this._scrollOffset++;
-      this.updateVisibleItems();
-      this._list.selectedIndex = VISIBLE_ITEMS - 1;
-      this._preview.setTheme(this._allNames[this.getGlobalIndex()]!, this._previewMode);
-      this.updateLightModeCheckbox();
-      this._list.markDirty();
-      return true;
-    }
-    return false;
-  }
-
-  protected scrollPageUp(): void {
-    const prevGlobal = this.getGlobalIndex();
-    const newGlobal = Math.max(0, prevGlobal - VISIBLE_ITEMS);
-    this._scrollOffset = Math.max(0, newGlobal - Math.floor(VISIBLE_ITEMS / 2));
-    this.updateVisibleItems();
-    this._list.selectedIndex = newGlobal - this._scrollOffset;
-    this._preview.setTheme(this._allNames[newGlobal]!, this._previewMode);
-    this.updateLightModeCheckbox();
-    this._list.markDirty();
-  }
-
-  protected scrollPageDown(): void {
-    const prevGlobal = this.getGlobalIndex();
-    const newGlobal = Math.min(this._allNames.length - 1, prevGlobal + VISIBLE_ITEMS);
-    this._scrollOffset = Math.max(0, newGlobal - Math.floor(VISIBLE_ITEMS / 2));
-    this.updateVisibleItems();
-    this._list.selectedIndex = newGlobal - this._scrollOffset;
-    this._preview.setTheme(this._allNames[newGlobal]!, this._previewMode);
-    this.updateLightModeCheckbox();
-    this._list.markDirty();
-  }
-
-  protected scrollToHome(): void {
-    this._scrollOffset = 0;
-    this.updateVisibleItems();
-    this._list.selectedIndex = 0;
-    this._preview.setTheme(this._allNames[0]!, this._previewMode);
-    this.updateLightModeCheckbox();
-    this._list.markDirty();
-  }
-
-  protected scrollToEnd(): void {
-    const last = this._allNames.length - 1;
-    this._scrollOffset = Math.max(0, last - VISIBLE_ITEMS + 1);
-    this.updateVisibleItems();
-    this._list.selectedIndex = last - this._scrollOffset;
-    this._preview.setTheme(this._allNames[last]!, this._previewMode);
-    this.updateLightModeCheckbox();
-    this._list.markDirty();
   }
 
   measure(parentSize?: Size): Size {
@@ -494,28 +399,6 @@ export class ThemeSelectorModal extends Modal {
   }
 
   handleKey(key: string): boolean {
-    if (key === "UP" || key === "k") {
-      if (this.scrollUp()) return true;
-    }
-    if (key === "DOWN" || key === "j") {
-      if (this.scrollDown()) return true;
-    }
-    if (key === "PAGE_UP") {
-      this.scrollPageUp();
-      return true;
-    }
-    if (key === "PAGE_DOWN") {
-      this.scrollPageDown();
-      return true;
-    }
-    if (key === "HOME") {
-      this.scrollToHome();
-      return true;
-    }
-    if (key === "END") {
-      this.scrollToEnd();
-      return true;
-    }
     if (key === "RETURN" || key === "ENTER") {
       this._selectedTheme = this.getSelectedTheme();
       this.apply();
@@ -530,7 +413,7 @@ export class ThemeSelectorModal extends Modal {
       this.cancel();
       return true;
     }
-    return false;
+    return super.handleKey(key);
   }
 
   protected cancel(): void {
@@ -539,7 +422,7 @@ export class ThemeSelectorModal extends Modal {
       this._resolve(null);
       this._resolve = null;
     }
-    modalManager.close(this);
+    modalManager.close();
   }
 
   protected apply(): void {
@@ -549,7 +432,7 @@ export class ThemeSelectorModal extends Modal {
       this._resolve(this._selectedTheme);
       this._resolve = null;
     }
-    modalManager.close(this);
+    modalManager.close();
   }
 }
 

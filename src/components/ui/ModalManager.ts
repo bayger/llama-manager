@@ -1,10 +1,12 @@
 import { focusManager } from "./FocusManager";
+import type { Control } from "./Control";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 import type { Modal } from "./widgets/Modal";
 import type { Point } from "./types";
 
 export class ModalManager {
   private _stack: Modal[] = [];
+  private _savedRoots: (Control | null)[] = [];
   private _needsRender = false;
   private _onDirty: (() => void) | null = null;
 
@@ -13,25 +15,20 @@ export class ModalManager {
   }
 
   open(modal: Modal): void {
+    this._savedRoots.push(focusManager.getRoot());
     this._stack.push(modal);
     this._needsRender = true;
-    focusManager.saveRoot();
     focusManager.setRoot(modal);
   }
 
-  close(modal?: Modal): void {
-    if (modal) {
-      const idx = this._stack.indexOf(modal);
-      if (idx !== -1) this._stack.splice(idx, 1);
-    } else if (this._stack.length > 0) {
-      this._stack.pop();
-    }
+  close(): void {
+    if (this._stack.length === 0) return;
+    this._stack.pop();
     this._needsRender = true;
     if (this._onDirty) this._onDirty();
     if (this._stack.length === 0) {
-      focusManager.restoreRoot();
+      focusManager.setRoot(this._savedRoots.pop()!);
     } else {
-      focusManager.restoreRoot();
       focusManager.setRoot(this._stack[this._stack.length - 1]);
     }
   }

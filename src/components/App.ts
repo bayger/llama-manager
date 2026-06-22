@@ -82,7 +82,7 @@ export class App {
           });
         }
         modal.setOnClose(() => {
-          modalManager.close(modal);
+          modalManager.close();
           if (this._main) this._main.markAllDirty();
         });
         modalManager.open(modal);
@@ -96,7 +96,7 @@ export class App {
             m.closeWithResult(result);
             return;
           }
-          modalManager.close(modalInstance);
+          modalManager.close();
         } else {
           modalManager.close();
         }
@@ -105,7 +105,7 @@ export class App {
     };
 
     this._main = new MainControl(this._ctx, () => this.handleQuit());
-    this._main.onInit();
+    this._main.init();
 
     modalManager.setOnDirty(() => {
       if (this._main) this._main.markAllDirty();

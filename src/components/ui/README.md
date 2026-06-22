@@ -48,8 +48,6 @@ Call `hitTest(point)` on the root to find which control was clicked (checks chil
 | `tabIndex` | `number` | `0` | Reserved for ordering (not currently used) |
 | `needsRender` | `boolean` | `true` | Dirty flag for incremental rendering |
 | `flex` | `number` | `0` | Flex factor — `>0` claims proportional space |
-| `minWidth` | `number` | `0` | Minimum width constraint |
-| `minHeight` | `number` | `0` | Minimum height constraint |
 | `visible` | `boolean` | `true` | Getter/setter; toggling calls `onShow()`/`onHide()` and marks dirty |
 | `parent` | `Control \| null` | `null` | Readonly parent reference |
 
@@ -105,7 +103,7 @@ All children share the same rect (overlaid). Measures to the max child size. Use
 
 **Navigation:**
 - `Tab` / `Shift+Tab` — `nextFocus()` / `previousFocus()` — cycle through all focusable controls (wraps)
-- `Up` / `k` and `Down` / `j` — `focusPrev()` / `focusNext()` — move within current scope (no wrap, silent at boundary)
+- `Up` / `k` and `Down` / `j` — `focusPrev()` / `focusNext()` — move within current scope (wraps, handled by individual widgets)
 - `focusFirst()` — focuses the root control
 - `focusLast()` — focuses last focusable or root if none
 - `setFocus(control)` — programmatically set focus (auto-finds first focusable if control is not focusable)

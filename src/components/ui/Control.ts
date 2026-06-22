@@ -8,11 +8,8 @@ export class Control {
   public enabled = true;
   public focused = false;
   public focusable = false;
-  public tabIndex = 0;
   public needsRender = true;
   public flex = 0;
-  public minWidth = 0;
-  public minHeight = 0;
   public foregroundColor: Color = "None";
   public backgroundColor: Color = "None";
 
@@ -195,16 +192,15 @@ export class Control {
 
   // - Lifecycle -
 
-  onInit(): void {
+  init(): void {
+    this.onInit();
     for (const child of this.children) {
-      child.onInit();
+      child.init();
     }
   }
-  onDestroy(): void {
-    for (const child of this.children) {
-      child.onDestroy();
-    }
-  }
+
+  onInit(): void {}
+  onDestroy(): void {}
   onShow(): void {}
   onHide(): void {}
   onFocus(): void {}

@@ -100,11 +100,13 @@ export class VersionsControl extends Control {
     this._ctx = ctx;
 
     this._summary = new StyledText();
+    this._summary.flex = 1;
     this._prompt = new StyledText();
     this._prompt.visible = false;
 
     this._list = new List();
-    this._list.tabIndex = 0;
+
+    this._list.flex = 1;
 
     this._versionsSection = new Section();
     this._versionsSection.title = "Installed Versions";
@@ -284,7 +286,7 @@ export class VersionsControl extends Control {
           this._changelog.clear();
         }
       });
-      this._list.updateItems(items);
+      this._list.items = items;
       this._summary.builder
         .muted("Releases")
         .accentColor(` ${items.length}`)
@@ -333,7 +335,7 @@ export class VersionsControl extends Control {
       }));
 
       this._list.setRenderer(this._backendRenderer.bind(this));
-      this._list.updateItems(items);
+      this._list.items = items;
       this._summary.builder.muted(`Backends for ${release.tag}  (press g for back)`);
       focusManager.setFocus(this._list);
       this.markDirty();
@@ -399,7 +401,7 @@ export class VersionsControl extends Control {
       }));
 
       this._list.setRenderer(this._localRenderer.bind(this));
-      this._list.updateItems(items);
+      this._list.items = items;
 
       if (config.activeVersion) {
         const activeIdx = items.findIndex(i => (i.data as VersionInfo).active);
