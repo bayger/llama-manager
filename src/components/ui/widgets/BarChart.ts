@@ -6,8 +6,8 @@ import type { Size, RenderContext, Point } from "../types";
 // Braille dot bit positions for chart bars (2 bars × 4 rows per cell):
 //   Left bar:  dot 1 (bit 0, +1),  dot 2 (bit 1, +2),  dot 3 (bit 2, +4),  dot 7 (bit 6, +64)
 //   Right bar: dot 4 (bit 3, +8),  dot 5 (bit 4, +16), dot 6 (bit 5, +32), dot 8 (bit 7, +128)
-const LEFT_DOTS  = [1, 2, 4, 64];
-const RIGHT_DOTS = [8, 16, 32, 128];
+const LEFT_DOTS  = [64, 4, 2, 1];
+const RIGHT_DOTS = [128, 32, 16, 8];
 
 function barBit(row: number, isLeft: boolean): number {
   const dots = isLeft ? LEFT_DOTS : RIGHT_DOTS;
