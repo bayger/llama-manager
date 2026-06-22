@@ -1,6 +1,5 @@
-import { Control } from "../ui/Control";
-import { Row } from "../ui/Layout";
 import { Section } from "../ui/widgets/Section";
+import { Row } from "../ui/Layout";
 import { BarChart } from "../ui/widgets/BarChart";
 import { taskStore } from "../../lib/tasks";
 import type { Size, RenderContext } from "../ui/types";
@@ -8,18 +7,17 @@ import type { Size, RenderContext } from "../ui/types";
 // Y-axis + separator takes ~5 chars (label width + border), leaving rest for bars.
 const AXIS_OVERHEAD = 5;
 
-export class TaskChartsSection extends Control {
-  focusable = false;
-
-  protected _section: Section;
+export class TaskChartsSection extends Section {
   protected _row: Row;
   protected _speedChart: BarChart;
   protected _tokensChart: BarChart;
   protected _refreshHandler: (() => void) | null = null;
   protected _lastCapacity = 0;
+  protected _chartWidth = 0;
 
   constructor() {
     super();
+    this.title = "Recent Tasks";
 
     this._speedChart = new BarChart();
     this._speedChart.title = "Output Speed (t/s)";
@@ -37,11 +35,7 @@ export class TaskChartsSection extends Control {
     this._row.add(this._speedChart);
     this._row.add(this._tokensChart);
 
-    this._section = new Section();
-    this._section.title = "Recent Tasks";
-    this._section.add(this._row);
-
-    this.add(this._section);
+    this.add(this._row);
   }
 
   measure(parentSize?: Size): Size {
@@ -63,15 +57,16 @@ export class TaskChartsSection extends Control {
   }
 
   onLayout(): void {
-    const { x, y, width, height } = this.rect;
-    this._section.layout({ x, y, width, height });
+    super.onLayout();
+    this._chartWidth = this._speedChart.rect.width;
   }
 
-  draw(_ctx: RenderContext): void {
-    const chartWidth = this._speedChart.rect.width;
-    if (chartWidth <= AXIS_OVERHEAD) return;
+  draw(ctx: RenderContext): void {
+    super.draw(ctx);
 
-    const barCols = chartWidth - AXIS_OVERHEAD;
+    if (this._chartWidth <= AXIS_OVERHEAD) return;
+
+    const barCols = this._chartWidth - AXIS_OVERHEAD;
     const capacity = barCols * 2;
 
     if (capacity === this._lastCapacity) return;
@@ -97,6 +92,7 @@ export class TaskChartsSection extends Control {
 
     this._speedChart.setData(speedData, labels);
     this._tokensChart.setData(tokensData, labels);
+    this.markDirty();
   }
 
   refreshData(): void {
