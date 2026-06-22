@@ -8,9 +8,12 @@ import type { Size, RenderContext } from "../ui/types";
 const AXIS_OVERHEAD = 5;
 
 export class TaskChartsSection extends Section {
-  protected _row: Row;
-  protected _speedChart: BarChart;
-  protected _tokensChart: BarChart;
+  protected _outputRow: Row;
+  protected _inputRow: Row;
+  protected _outputSpeedChart: BarChart;
+  protected _outputTokensChart: BarChart;
+  protected _inputSpeedChart: BarChart;
+  protected _inputTokensChart: BarChart;
   protected _refreshHandler: (() => void) | null = null;
   protected _lastCapacity = 0;
   protected _chartWidth = 0;
@@ -19,30 +22,49 @@ export class TaskChartsSection extends Section {
     super();
     this.title = "Recent Tasks";
 
-    this._speedChart = new BarChart();
-    this._speedChart.title = "Output Speed (t/s)";
-    this._speedChart.color = "accent";
-    this._speedChart.yTickCount = 4;
-    this._speedChart.showXAxis = false;
-    this._speedChart.flex = 1;
+    this._outputSpeedChart = new BarChart();
+    this._outputSpeedChart.title = "Output Speed (t/s)";
+    this._outputSpeedChart.color = "accentColor";
+    this._outputSpeedChart.yTickCount = 4;
+    this._outputSpeedChart.showXAxis = false;
+    this._outputSpeedChart.flex = 1;
 
-    this._tokensChart = new BarChart();
-    this._tokensChart.title = "Generated Tokens";
-    this._tokensChart.color = "success";
-    this._tokensChart.yTickCount = 4;
-    this._tokensChart.showXAxis = false;
-    this._tokensChart.flex = 1;
+    this._outputTokensChart = new BarChart();
+    this._outputTokensChart.title = "Generated Tokens";
+    this._outputTokensChart.color = "success";
+    this._outputTokensChart.yTickCount = 4;
+    this._outputTokensChart.showXAxis = false;
+    this._outputTokensChart.flex = 1;
 
-    this._row = new Row();
-    this._row.add(this._speedChart);
-    this._row.add(this._tokensChart);
+    this._inputSpeedChart = new BarChart();
+    this._inputSpeedChart.title = "Input Speed (t/s)";
+    this._inputSpeedChart.color = "warning";
+    this._inputSpeedChart.yTickCount = 4;
+    this._inputSpeedChart.showXAxis = false;
+    this._inputSpeedChart.flex = 1;
 
-    this.add(this._row);
+    this._inputTokensChart = new BarChart();
+    this._inputTokensChart.title = "Prompt Tokens";
+    this._inputTokensChart.color = "danger";
+    this._inputTokensChart.yTickCount = 4;
+    this._inputTokensChart.showXAxis = false;
+    this._inputTokensChart.flex = 1;
+
+    this._outputRow = new Row();
+    this._outputRow.add(this._outputSpeedChart);
+    this._outputRow.add(this._outputTokensChart);
+
+    this._inputRow = new Row();
+    this._inputRow.add(this._inputSpeedChart);
+    this._inputRow.add(this._inputTokensChart);
+
+    this.add(this._outputRow);
+    this.add(this._inputRow);
   }
 
   measure(parentSize?: Size): Size {
-    const p = parentSize || { width: this.rect.width || 80, height: this.rect.height || 12 };
-    return { width: p.width, height: 12 };
+    const p = parentSize || { width: this.rect.width || 80, height: this.rect.height || 20 };
+    return { width: p.width, height: 20 };
   }
 
   onInit(): void {
@@ -60,7 +82,7 @@ export class TaskChartsSection extends Section {
 
   onLayout(): void {
     super.onLayout();
-    this._chartWidth = this._speedChart.rect.width;
+    this._chartWidth = this._outputSpeedChart.rect.width;
   }
 
   draw(ctx: RenderContext): void {
@@ -80,19 +102,25 @@ export class TaskChartsSection extends Section {
   fetchData(capacity: number): void {
     const tasks = taskStore.getRange(0, capacity, undefined, "timestamp", "desc");
 
-    const speedData: number[] = [];
-    const tokensData: number[] = [];
+    const outputSpeedData: number[] = [];
+    const outputTokensData: number[] = [];
+    const inputSpeedData: number[] = [];
+    const inputTokensData: number[] = [];
     const labels: string[] = [];
 
     for (let i = tasks.length - 1; i >= 0; i--) {
       const t = tasks[i]!;
-      speedData.push(t.outputSpeed);
-      tokensData.push(t.outputTokens);
+      outputSpeedData.push(t.outputSpeed);
+      outputTokensData.push(t.outputTokens);
+      inputSpeedData.push(t.promptSpeed);
+      inputTokensData.push(t.promptTokens);
       labels.push(`T${t.taskId}`);
     }
 
-    this._speedChart.setData(speedData, labels);
-    this._tokensChart.setData(tokensData, labels);
+    this._outputSpeedChart.setData(outputSpeedData, labels);
+    this._outputTokensChart.setData(outputTokensData, labels);
+    this._inputSpeedChart.setData(inputSpeedData, labels);
+    this._inputTokensChart.setData(inputTokensData, labels);
   }
 
   refreshData(): void {
