@@ -41,7 +41,7 @@ export class StyledTextBuilder {
 export class StyledText extends Control {
   focusable = false;
   public segments: TextSegment[] = [];
-  public truncate: "tail" | "head" | false = false;
+  public truncate: "tail" | "head" | false = "tail";
   protected _builder: StyledTextBuilder;
 
   constructor() {
