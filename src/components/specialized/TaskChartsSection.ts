@@ -25,11 +25,13 @@ export class TaskChartsSection extends Control {
     this._speedChart.title = "Output Speed (t/s)";
     this._speedChart.color = "accent";
     this._speedChart.yTickCount = 4;
+    this._speedChart.flex = 1;
 
     this._tokensChart = new BarChart();
     this._tokensChart.title = "Generated Tokens";
     this._tokensChart.color = "success";
     this._tokensChart.yTickCount = 4;
+    this._tokensChart.flex = 1;
 
     this._row = new Row();
     this._row.add(this._speedChart);
@@ -50,6 +52,7 @@ export class TaskChartsSection extends Control {
   onInit(): void {
     this._refreshHandler = () => this.refreshData();
     taskStore.on("updated", this._refreshHandler);
+    this.refreshData();
   }
 
   onDestroy(): void {
@@ -66,10 +69,12 @@ export class TaskChartsSection extends Control {
 
   draw(_ctx: RenderContext): void {
     const chartWidth = this._speedChart.rect.width;
-    const barCols = Math.max(0, chartWidth - AXIS_OVERHEAD);
+    if (chartWidth <= AXIS_OVERHEAD) return;
+
+    const barCols = chartWidth - AXIS_OVERHEAD;
     const capacity = barCols * 2;
 
-    if (capacity === 0 || capacity === this._lastCapacity) return;
+    if (capacity === this._lastCapacity) return;
 
     this._lastCapacity = capacity;
     this.fetchData(capacity);
