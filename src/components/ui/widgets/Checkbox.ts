@@ -18,6 +18,7 @@ export class Checkbox extends Control {
   protected _label = "";
   protected _checked = false;
   protected _action: ((checked: boolean) => void) | null = null;
+  protected _pressed = false;
 
   get label(): string { return this._label; }
   set label(v: string) { if (v !== this._label) { this._label = v; this.markDirty(); } }
@@ -97,15 +98,22 @@ export class Checkbox extends Control {
   }
 
   onMouseDown(_point: Point): boolean {
-    if (!this.disabled) {
+    this._pressed = true;
+    return true;
+  }
+
+  onMouseUp(point: Point): boolean {
+    if (this._pressed && !this.disabled && this.isPointInside(point)) {
       this._checked = !this._checked;
       this.markDirty();
       if (this._action) this._action(this._checked);
     }
+    this._pressed = false;
     return true;
   }
 
-  onMouseUp(_point: Point): boolean {
-    return true;
+  protected isPointInside(point: Point): boolean {
+    const { x, y, width, height } = this.rect;
+    return point.x >= x && point.x < x + width && point.y >= y && point.y < y + height;
   }
 }
