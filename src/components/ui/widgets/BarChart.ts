@@ -324,8 +324,8 @@ export class BarChart extends Control {
 
   private formatTick(value: number): string {
     let s: string;
-    if (value >= 1_000_000) s = `${(value / 1_000_000).toFixed(1)}M`;
-    else if (value >= 1_000) s = `${(value / 1_000).toFixed(1)}k`;
+    if (value >= 1_000_000) s = `${(value / 1_000_000).toFixed(0)}M`;
+    else if (value >= 1_000) s = `${(value / 1_000).toFixed(0)}k`;
     else if (Number.isInteger(value)) s = String(value);
     else if (Math.abs(value) >= 100) s = value.toFixed(0);
     else if (Math.abs(value) >= 10) s = value.toFixed(1);
