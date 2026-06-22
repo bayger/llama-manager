@@ -3,17 +3,15 @@ import { fg } from "../../../lib/theme";
 import type { Color } from "../../../lib/theme";
 import type { Size, RenderContext, Point } from "../types";
 
-// Braille dot bit positions for chart bars (4 cols × 2 rows per cell):
-//   col 0: top=dot1(bit0,+1)  bottom=dot2(bit1,+2)
-//   col 1: top=dot4(bit3,+8)  bottom=dot5(bit4,+16)
-const LEFT_TOP = 1;
-const LEFT_BOTTOM = 2;
-const RIGHT_TOP = 8;
-const RIGHT_BOTTOM = 16;
+// Braille dot bit positions for chart bars (2 bars × 4 rows per cell):
+//   Left bar:  dot 1 (bit 0, +1),  dot 2 (bit 1, +2),  dot 3 (bit 2, +4),  dot 7 (bit 6, +64)
+//   Right bar: dot 4 (bit 3, +8),  dot 5 (bit 4, +16), dot 6 (bit 5, +32), dot 8 (bit 7, +128)
+const LEFT_DOTS  = [1, 2, 4, 64];
+const RIGHT_DOTS = [8, 16, 32, 128];
 
-function barBit(isLeft: boolean, isTop: boolean): number {
-  if (isLeft) return isTop ? LEFT_TOP : LEFT_BOTTOM;
-  return isTop ? RIGHT_TOP : RIGHT_BOTTOM;
+function barBit(row: number, isLeft: boolean): number {
+  const dots = isLeft ? LEFT_DOTS : RIGHT_DOTS;
+  return dots[Math.min(row, 3)] || 0;
 }
 
 function brailleChar(bits: number): string {
@@ -168,7 +166,7 @@ export class BarChart extends Control {
     const chartRows = Math.max(1, height - titleRows - xAxisRows);
     const yAxisWidth = this._showYAxis ? this.computeYAxisWidth(yMin, yMax) : 0;
     const chartWidth = Math.max(1, width - yAxisWidth - 1);
-    const logicalHeight = chartRows * 2;
+    const logicalHeight = chartRows * 4;
 
     // Braille columns
     this._totalBrailleCols = Math.ceil(this._data.length / 2);
@@ -203,11 +201,10 @@ export class BarChart extends Control {
         const barHeight = Math.round(normalized * logicalHeight);
 
         for (let y = 0; y < barHeight; y++) {
-          const br = Math.floor(y / 2);
-          const withinPair = y % 2;
-          const isTop = withinPair === 1;
+          const br = Math.floor(y / 4);
+          const dotRow = y % 4;
           const isLeft = side === 0;
-          grid[br]![bc]! |= barBit(isLeft, isTop);
+          grid[br]![bc]! |= barBit(dotRow, isLeft);
         }
       }
     }
@@ -219,7 +216,7 @@ export class BarChart extends Control {
         const fraction = this._yTickCount === 1 ? 0.5 : i / (this._yTickCount - 1);
         const value = yMin + fraction * range;
         const logicalRow = Math.round(fraction * (logicalHeight - 1));
-        const brRow = Math.min(chartRows - 1, Math.floor(logicalRow / 2));
+        const brRow = Math.min(chartRows - 1, Math.floor(logicalRow / 4));
         ticks.push({ row: brRow, label: this.formatTick(value) });
       }
     }
@@ -402,12 +399,11 @@ export class BarChart extends Control {
     // Check if the bar at this position actually has data at this height
     const { yMin, yMax } = this.computeScale();
     const range = yMax - yMin || 1;
-    const logicalHeight = chartRows * 2;
+    const logicalHeight = chartRows * 4;
 
     // Braille row (0 = bottom)
     const br = chartRows - 1 - relY;
-    const logicalRowTop = br * 2 + 1;
-    const logicalRowBot = br * 2;
+    const logicalRowBot = br * 4;
 
     for (let side = 0; side < 2; side++) {
       const idx = dataIdx + side;
