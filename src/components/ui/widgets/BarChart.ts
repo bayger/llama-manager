@@ -318,24 +318,18 @@ export class BarChart extends Control {
     return { yMin: min, yMax: max };
   }
 
-  private computeYAxisWidth(yMin: number, yMax: number): number {
-    let maxLen = 0;
-    const range = yMax - yMin || 1;
-    for (let i = 0; i < this._yTickCount; i++) {
-      const fraction = this._yTickCount === 1 ? 0.5 : i / (this._yTickCount - 1);
-      const value = yMin + fraction * range;
-      const len = this.formatTick(value).length;
-      if (len > maxLen) maxLen = len;
-    }
-    return Math.max(1, Math.min(maxLen + 1, 10));
+  private computeYAxisWidth(_yMin: number, _yMax: number): number {
+    return 4;
   }
 
   private formatTick(value: number): string {
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`;
-    if (Number.isInteger(value)) return String(value);
-    if (Math.abs(value) >= 100) return value.toFixed(0);
-    if (Math.abs(value) >= 10) return value.toFixed(1);
-    return value.toFixed(2);
+    let s: string;
+    if (value >= 1_000_000) s = `${(value / 1_000_000).toFixed(1)}M`;
+    else if (value >= 1_000) s = `${(value / 1_000).toFixed(1)}k`;
+    else if (Number.isInteger(value)) s = String(value);
+    else if (Math.abs(value) >= 100) s = value.toFixed(0);
+    else if (Math.abs(value) >= 10) s = value.toFixed(1);
+    else s = value.toFixed(2);
+    return s.padStart(4);
   }
 }
