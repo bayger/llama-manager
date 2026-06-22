@@ -1,5 +1,5 @@
 import { Control } from "../Control";
-import { fg } from "../../../lib/theme";
+import { fg, fgBg } from "../../../lib/theme";
 import type { Color } from "../../../lib/theme";
 import type { Size, RenderContext, Point } from "../types";
 
@@ -40,9 +40,6 @@ export class BarChart extends Control {
   // ── Scroll ──
   protected _scrollOffset = 0;
   protected _viewportCols = 0;
-
-  // ── Hover / click ──
-  protected _hoverIndex = -1;
 
   // ── Getters / setters ──
 
@@ -136,13 +133,7 @@ export class BarChart extends Control {
     return false;
   }
 
-  onMouseDown(point: Point): boolean {
-    const idx = this.dataIndexAtPoint(point);
-    if (idx >= 0 && idx < this._data.length) {
-      this._hoverIndex = idx;
-      this.markDirty();
-      return true;
-    }
+  onMouseDown(_point: Point): boolean {
     return false;
   }
 
@@ -259,32 +250,12 @@ export class BarChart extends Control {
 
       // Braille bars
       const rowBits = grid[br]!;
-      if (this._hoverIndex >= 0) {
-        // Render with per-cell coloring for hover highlight
-        const hoverCol = Math.floor(this._hoverIndex / 2) - visibleStartCol;
-
-        for (let bc = 0; bc < visibleCols; bc++) {
-          const bits = rowBits[bc]!;
-          if (!bits) {
-            canvas.write(" ");
-            continue;
-          }
-
-          if (bc === hoverCol) {
-            fg(canvas, "accentColor", brailleChar(bits));
-          } else {
-            fg(canvas, this._color, brailleChar(bits));
-          }
-        }
-      } else {
-        // Single-color render: build string and write once
-        let line = "";
-        for (let bc = 0; bc < visibleCols; bc++) {
-          const bits = rowBits[bc]!;
-          line += bits ? brailleChar(bits) : " ";
-        }
-        fg(canvas, this._color, line);
+      let line = "";
+      for (let bc = 0; bc < visibleCols; bc++) {
+        const bits = rowBits[bc]!;
+        line += bits ? brailleChar(bits) : " ";
       }
+      fg(canvas, this._color, line);
 
       cursorY++;
     }
@@ -318,12 +289,6 @@ export class BarChart extends Control {
       cursorY++;
     }
 
-    // Hover tooltip
-    if (this._hoverIndex >= 0 && this._hoverIndex < this._data.length) {
-      const val = this._data[this._hoverIndex]!;
-      const lbl = this._labels[this._hoverIndex] ?? `#${this._hoverIndex}`;
-      ctx.showMessage(`${lbl}: ${val}`);
-    }
   }
 
   // ── Helpers ──
@@ -372,51 +337,5 @@ export class BarChart extends Control {
     if (Math.abs(value) >= 100) return value.toFixed(0);
     if (Math.abs(value) >= 10) return value.toFixed(1);
     return value.toFixed(2);
-  }
-
-  private dataIndexAtPoint(point: Point): number {
-    const { x: px, y: py } = point;
-    const { x: ox, y: oy } = this.rect;
-
-    const titleRows = this._title ? 1 : 0;
-    const xAxisRows = this._showXAxis ? 1 : 0;
-    const chartRows = Math.max(1, this.rect.height - titleRows - xAxisRows);
-    const yAxisWidth = this._showYAxis ? this.computeYAxisWidth(this._yMin, this._yMax) : 0;
-    const chartWidth = Math.max(1, this.rect.width - yAxisWidth - 1);
-
-    // Check if point is within chart area
-    const relY = py - oy - titleRows;
-    const relX = px - ox - yAxisWidth - 1;
-
-    if (relY < 0 || relY >= chartRows) return -1;
-    if (relX < 0 || relX >= chartWidth) return -1;
-
-    const bc = relX + this._scrollOffset;
-    const dataIdx = bc * 2;
-
-    if (dataIdx >= this._data.length) return -1;
-
-    // Check if the bar at this position actually has data at this height
-    const { yMin, yMax } = this.computeScale();
-    const range = yMax - yMin || 1;
-    const logicalHeight = chartRows * 4;
-
-    // Braille row (0 = bottom)
-    const br = chartRows - 1 - relY;
-    const logicalRowBot = br * 4;
-
-    for (let side = 0; side < 2; side++) {
-      const idx = dataIdx + side;
-      if (idx >= this._data.length) break;
-      const val = this._data[idx]!;
-      const normalized = Math.max(0, Math.min(1, (val - yMin) / range));
-      const barHeight = Math.round(normalized * logicalHeight);
-
-      if (barHeight > logicalRowBot) {
-        return idx;
-      }
-    }
-
-    return -1;
   }
 }
