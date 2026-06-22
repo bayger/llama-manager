@@ -8,7 +8,6 @@ export class Control {
   public enabled = true;
   public focused = false;
   public focusable = false;
-  public tabIndex = 0;
   public needsRender = true;
   public flex = 0;
   public foregroundColor: Color = "None";

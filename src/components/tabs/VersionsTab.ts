@@ -104,7 +104,7 @@ export class VersionsControl extends Control {
     this._prompt.visible = false;
 
     this._list = new List();
-    this._list.tabIndex = 0;
+
     this._list.flex = 1;
 
     this._versionsSection = new Section();

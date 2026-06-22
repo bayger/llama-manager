@@ -145,7 +145,7 @@ export class TasksControl extends Control {
 
     this._table = new Table<TaskMetrics>();
     this._table.showHeader = true;
-    this._table.tabIndex = 0;
+
     this._table.setOnHighlight((item) => {
       this._detailsPanel.update(item ? item.data ?? null : null);
       this.markDirty();
