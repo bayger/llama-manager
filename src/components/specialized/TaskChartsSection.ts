@@ -23,12 +23,14 @@ export class TaskChartsSection extends Section {
     this._speedChart.title = "Output Speed (t/s)";
     this._speedChart.color = "accent";
     this._speedChart.yTickCount = 4;
+    this._speedChart.showXAxis = false;
     this._speedChart.flex = 1;
 
     this._tokensChart = new BarChart();
     this._tokensChart.title = "Generated Tokens";
     this._tokensChart.color = "success";
     this._tokensChart.yTickCount = 4;
+    this._tokensChart.showXAxis = false;
     this._tokensChart.flex = 1;
 
     this._row = new Row();
