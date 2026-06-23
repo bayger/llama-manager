@@ -74,9 +74,11 @@ Follows XDG Base Directory spec. All paths configurable in Options.
 
 33 bundled themes including Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, and more. Selectable from the Options tab.
 
+These themes was copied from **opencode** project. Thanks! You can use any theme that is compatible with the opencode theme format.
+
 ## Tech Stack
 
-TypeScript, terminal-kit (input only), undici, better-sqlite3, custom Control-based UI framework with double-buffered framebuffer rendering (no React, no Ink).
+TypeScript, terminal-kit (input only), undici, better-sqlite3, custom Control-based UI framework with double-buffered framebuffer rendering (no React, no Ink). 
 
 ## License
 
