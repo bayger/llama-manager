@@ -1,6 +1,6 @@
 {
   "name": "llama-manager",
-  "version": "1.4.0",
+  "version": "1.3.2",
   "description": "Terminal UI for managing llama.cpp",
   "main": "dist/main.js",
   "bin": {
