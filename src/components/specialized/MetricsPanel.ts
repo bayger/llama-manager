@@ -1,4 +1,4 @@
-import { Control } from "../ui/Control";
+import { Scrollable } from "../ui/widgets/Scrollable";
 import { fg } from "../../lib/theme";
 import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
 import { formatNum, formatDraftRate, formatMs, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
@@ -60,7 +60,7 @@ function slotHeight(s: SlotMetrics): number {
   return h;
 }
 
-export class MetricsPanel extends Control {
+export class MetricsPanel extends Scrollable {
   focusable = false;
   protected _unsub: (() => void) | null = null;
   protected _renderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -96,65 +96,81 @@ export class MetricsPanel extends Control {
 
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width } = this.rect;
-
+    const { x, y } = this.rect;
+    const viewportH = this.rect.height;
+    const cw = this.contentWidth;
     const global = getGlobal();
     const slots = getSlots();
     const numSlots = slots.length;
 
-    let cy = y;
+    // Calculate content height
+    const globalLines = global ? 2 : 1;
+    const gapAfterGlobal = global && numSlots > 0 ? 1 : 0;
+    const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
+    const gapBetweenSlots = Math.max(0, numSlots - 1);
+    const contentH = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
+    this.contentHeight = contentH;
 
-    if (cy >= y + this.rect.height) {
-      return;
-    }
+    const scrollOff = this.scrollOffset;
+    const bottom = y + viewportH;
 
+    let cy = 0;
     if (global) {
-      canvas.moveTo(x, cy);
-      fg(canvas, "textMuted", "Tasks ");
-      fg(canvas, "accent", String(global.tasksCompleted));
-      fg(canvas, "textMuted", `  ${SEP}  PP `);
-      fg(canvas, "info", `${global.avgPromptSpeed.toFixed(1)} t/s`);
-      fg(canvas, "textMuted", `  ${SEP}  TG `);
-      fg(canvas, "success", `${global.avgGenSpeed.toFixed(1)} t/s`);
-      fg(canvas, "textMuted", `  ${SEP}  Tokens `);
-      fg(canvas, "info", `${formatNum(global.totalPromptTokens)}p`);
-      fg(canvas, "textMuted", " / ");
-      fg(canvas, "success", `${formatNum(global.totalOutputTokens)}o`);
+      if (cy - scrollOff + y < bottom) {
+        canvas.moveTo(x, cy - scrollOff + y);
+        fg(canvas, "textMuted", "Tasks ");
+        fg(canvas, "accent", String(global.tasksCompleted));
+        fg(canvas, "textMuted", `  ${SEP}  PP `);
+        fg(canvas, "info", `${global.avgPromptSpeed.toFixed(1)} t/s`);
+        fg(canvas, "textMuted", `  ${SEP}  TG `);
+        fg(canvas, "success", `${global.avgGenSpeed.toFixed(1)} t/s`);
+        fg(canvas, "textMuted", `  ${SEP}  Tokens `);
+        fg(canvas, "info", `${formatNum(global.totalPromptTokens)}p`);
+        fg(canvas, "textMuted", " / ");
+        fg(canvas, "success", `${formatNum(global.totalOutputTokens)}o`);
+      }
       cy++;
 
-      if (cy < y + this.rect.height) {
-        canvas.moveTo(x, cy);
+      if (cy - scrollOff + y < bottom) {
+        canvas.moveTo(x, cy - scrollOff + y);
         fg(canvas, "textMuted", "  Draft ");
         fg(canvas, "accentColor", formatDraftRate(global.avgDraftAcceptance));
         if (global.activeSlots > 0) {
           fg(canvas, "textMuted", `  ${SEP}  Active `);
           fg(canvas, "warning", String(global.activeSlots));
         }
-        cy++;
       }
+      cy++;
     } else {
-      canvas.moveTo(x, cy);
-      fg(canvas, "textMuted", "No finished tasks yet - start server and send a request");
+      if (cy - scrollOff + y < bottom) {
+        canvas.moveTo(x, cy - scrollOff + y);
+        fg(canvas, "textMuted", "No finished tasks yet - start server and send a request");
+      }
       cy++;
     }
 
-    if (cy >= y + this.rect.height) {
-      return;
+    if (global && numSlots > 0) {
+      cy += 1; // gap after global metrics
     }
 
-    cy += 1; // gap after global metrics
     for (let i = 0; i < numSlots; i++) {
       const slot = slots[i];
 
-      if (i > 0 && cy < y + this.rect.height) {
-        canvas.moveTo(x, cy);
-        fg(canvas, "canvas", " ".repeat(width));
+      if (i > 0 && cy - scrollOff + y < bottom) {
+        canvas.moveTo(x, cy - scrollOff + y);
+        fg(canvas, "canvas", " ".repeat(cw));
         cy++;
       }
 
-      if (cy >= y + this.rect.height) break;
+      if (cy - scrollOff + y >= bottom) break;
 
-      cy = this.renderSlot(canvas, x, cy, width, slot);
+      const slotH = slotHeight(slot);
+      this.renderSlot(canvas, x, cy - scrollOff + y, cw, slot);
+      cy += slotH;
+    }
+
+    if (this.needsScrollbar) {
+      this.drawScrollbar(canvas, x + cw, y, this._scrollbarWidth, viewportH);
     }
   }
 
@@ -164,7 +180,7 @@ export class MetricsPanel extends Control {
     startY: number,
     width: number,
     slot: SlotMetrics
-  ): number {
+  ): void {
     let cy = startY;
     const stateColor = STATE_COLOR[slot.state as keyof typeof STATE_COLOR] || "textMuted";
     const dot = slot.state === "idle" ? "\u25cb" : spinnerChar();
@@ -191,7 +207,7 @@ export class MetricsPanel extends Control {
       slot.checkpoints.length === 0 &&
       slot.nCtxSlot === null
     ) {
-      return cy;
+      return;
     }
 
     // Line 2: Live speed + decoded count + context bar + checkpoints
@@ -278,8 +294,6 @@ export class MetricsPanel extends Control {
       }
       cy++;
     }
-
-    return cy;
   }
 
   onDestroy(): void {

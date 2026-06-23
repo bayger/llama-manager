@@ -1,10 +1,13 @@
 import { Control } from "../Control";
+import { fgBg } from "../../../lib/theme";
 import type { Point, Size } from "../types";
+import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas";
 
 export class Scrollable extends Control {
   public scrollOffset = 0;
   public contentHeight = 0;
   protected _viewportHeight = 0;
+  protected _scrollbarWidth = 1;
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 40, height: this.rect.height || 10 };
@@ -12,21 +15,29 @@ export class Scrollable extends Control {
 
   onLayout(): void {
     this._viewportHeight = this.rect.height;
-    if (this.scrollOffset >= Math.max(0, this.contentHeight - this._viewportHeight)) {
-      this.scrollOffset = Math.max(0, this.contentHeight - this._viewportHeight);
-    }
+    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
+  }
+
+  get maxScrollOffset(): number {
+    return Math.max(0, this.contentHeight - this._viewportHeight);
+  }
+
+  get needsScrollbar(): boolean {
+    return this.contentHeight > this._viewportHeight;
+  }
+
+  get contentWidth(): number {
+    return this.needsScrollbar ? this.rect.width - this._scrollbarWidth : this.rect.width;
   }
 
   setScrollOffset(offset: number): void {
-    this.scrollOffset = Math.max(0, Math.min(offset, Math.max(0, this.contentHeight - this._viewportHeight)));
+    this.scrollOffset = Math.max(0, Math.min(offset, this.maxScrollOffset));
     this.markDirty();
   }
 
   setContentHeight(h: number): void {
     this.contentHeight = h;
-    if (this.scrollOffset >= Math.max(0, this.contentHeight - this._viewportHeight)) {
-      this.scrollOffset = Math.max(0, this.contentHeight - this._viewportHeight);
-    }
+    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
     this.markDirty();
   }
 
@@ -35,7 +46,30 @@ export class Scrollable extends Control {
   }
 
   canScrollDown(): boolean {
-    return this.scrollOffset < Math.max(0, this.contentHeight - this._viewportHeight);
+    return this.scrollOffset < this.maxScrollOffset;
+  }
+
+  drawScrollbar(canvas: FramebufferCanvas, sx: number, sy: number, sw: number, sh: number): void {
+    if (sh <= 0 || sw <= 0) return;
+
+    const trackTop = sy;
+    const trackHeight = sh;
+    const thumbMinHeight = 2;
+    const ratio = this._viewportHeight / this.contentHeight;
+    const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
+    const maxThumbPos = trackHeight - thumbHeight;
+    const thumbOffset = this.maxScrollOffset > 0
+      ? Math.floor((this.scrollOffset / this.maxScrollOffset) * maxThumbPos)
+      : 0;
+
+    for (let i = 0; i < trackHeight; i++) {
+      canvas.moveTo(sx, trackTop + i);
+      if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
+        fgBg(canvas, "textMuted", "border", " ".repeat(sw));
+      } else {
+        fgBg(canvas, "canvasSubtle", "borderMuted", " ".repeat(sw));
+      }
+    }
   }
 
   handleKey(key: string): boolean {
@@ -55,8 +89,7 @@ export class Scrollable extends Control {
       return true;
     }
     if (key === "PAGE_DOWN") {
-      const maxScroll = Math.max(0, this.contentHeight - this._viewportHeight);
-      this.scrollOffset = Math.min(maxScroll, this.scrollOffset + this._viewportHeight - 1);
+      this.scrollOffset = Math.min(this.maxScrollOffset, this.scrollOffset + this._viewportHeight - 1);
       this.markDirty();
       return true;
     }
@@ -66,7 +99,7 @@ export class Scrollable extends Control {
       return true;
     }
     if (key === "END") {
-      this.scrollOffset = Math.max(0, this.contentHeight - this._viewportHeight);
+      this.scrollOffset = this.maxScrollOffset;
       this.markDirty();
       return true;
     }
