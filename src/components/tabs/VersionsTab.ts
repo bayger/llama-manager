@@ -61,16 +61,22 @@ class ChangelogView extends Scrollable {
 
   draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
-    const { x, y, width, height } = this.rect;
+    const { x, y } = this.rect;
+    const height = this.rect.height;
+    const cw = this.contentWidth;
 
     for (let i = 0; i < height; i++) {
       const lineIdx = i + this.scrollOffset;
       canvas.moveTo(x, y + i);
       if (lineIdx < this._lines.length) {
         const line = this._lines[lineIdx] || "";
-        const display = line.padEnd(width).substring(0, width);
+        const display = line.padEnd(cw).substring(0, cw);
         fg(canvas, "textMuted", display);
       }
+    }
+
+    if (this.needsScrollbar) {
+      this.drawScrollbar(canvas, x + cw, y, this._scrollbarWidth, height);
     }
   }
 }
