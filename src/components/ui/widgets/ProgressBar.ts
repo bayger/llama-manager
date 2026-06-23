@@ -1,9 +1,8 @@
 import { Control } from "../Control";
 import { fg, themeColors } from "../../../lib/theme";
+import { spinnerChar } from "../../../lib/utils";
 import type { Color } from "../../../lib/theme";
 import type { Size, RenderContext } from "../types";
-
-const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠇"];
 
 export class ProgressBar extends Control {
   focusable = false;
@@ -43,7 +42,7 @@ export class ProgressBar extends Control {
     const barWidth = Math.max(10, width - this.label.length - 10);
     const filled = Math.round((this.progress / 100) * barWidth);
     const empty = barWidth - filled;
-    const frame = SPINNER_FRAMES[Math.floor(Date.now() / 100) % SPINNER_FRAMES.length];
+    const frame = spinnerChar();
 
     canvas.moveTo(x, y);
     fg(canvas, this.labelColor, `${frame} ${this.label} ${this.progress}%`);

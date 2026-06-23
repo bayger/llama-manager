@@ -1,16 +1,10 @@
 import { Control } from "../ui/Control";
 import { fg } from "../../lib/theme";
 import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
-import { formatNum, formatDraftRate, formatMs } from "../../lib/utils";
+import { formatNum, formatDraftRate, formatMs, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
 import type { RenderContext, Size } from "../ui/types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
-
-const STATE_DOT = {
-  idle: "\u25cb",
-  prompting: "\u25cf",
-  generating: "\u25cf",
-};
 
 const STATE_COLOR: Record<string, Color> = {
   idle: "textMuted",
@@ -70,6 +64,7 @@ export class MetricsPanel extends Control {
   focusable = false;
   protected _unsub: (() => void) | null = null;
   protected _renderTimer: ReturnType<typeof setTimeout> | null = null;
+  protected _spinnerTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     super();
@@ -79,6 +74,9 @@ export class MetricsPanel extends Control {
         this.markDirty();
       }, 100);
     });
+    this._spinnerTimer = setInterval(() => {
+      this.markDirty();
+    }, SPINNER_INTERVAL);
   }
 
   measure(parentSize?: Size): Size {
@@ -169,7 +167,7 @@ export class MetricsPanel extends Control {
   ): number {
     let cy = startY;
     const stateColor = STATE_COLOR[slot.state as keyof typeof STATE_COLOR] || "textMuted";
-    const dot = STATE_DOT[slot.state as keyof typeof STATE_DOT] || "\u25cb";
+    const dot = slot.state === "idle" ? "\u25cb" : spinnerChar();
 
     // Line 1: Slot N  ● State  Task #N  ∞
     canvas.moveTo(x, cy);
@@ -292,6 +290,10 @@ export class MetricsPanel extends Control {
     if (this._renderTimer) {
       clearTimeout(this._renderTimer);
       this._renderTimer = null;
+    }
+    if (this._spinnerTimer) {
+      clearInterval(this._spinnerTimer);
+      this._spinnerTimer = null;
     }
   }
 }

@@ -1,3 +1,10 @@
+export const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠇"];
+export const SPINNER_INTERVAL = 100;
+
+export function spinnerChar(): string {
+  return SPINNER_FRAMES[Math.floor(Date.now() / SPINNER_INTERVAL) % SPINNER_FRAMES.length];
+}
+
 export function fireAsync(fn: () => Promise<void>, app: { showMessage: (msg: string) => void }): void {
   fn().catch((err) => {
     app.showMessage(`Error: ${err.message}`);
