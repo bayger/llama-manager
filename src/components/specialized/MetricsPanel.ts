@@ -1,7 +1,7 @@
 import { Scrollable } from "../ui/widgets/Scrollable";
 import { fg } from "../../lib/theme";
 import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
-import { formatNum, formatDraftRate, formatMs, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
+import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
 import type { RenderContext, Size } from "../ui/types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
@@ -13,9 +13,11 @@ const STATE_COLOR: Record<string, Color> = {
 };
 
 const THINKING_ICON = "\u221e";
-const SEP = "\u2502";
+const CONTEXT_BAR_WIDTH = 30;
 
-const CONTEXT_BAR_WIDTH = 32;
+function formatCtxNum(n: number): string {
+  return n.toLocaleString("en-US");
+}
 
 function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
   const segments = 10;
@@ -29,34 +31,23 @@ function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): stri
   return bar;
 }
 
-function padLeft(n: number, w: number): string {
-  return String(n).padStart(w);
+function hasCtxData(s: SlotMetrics): boolean {
+  return s.nCtxSlot !== null || s.contextSize > 0;
+}
+
+function hasSpeedData(s: SlotMetrics): boolean {
+  if (s.state === "prompting") return true;
+  if (s.state === "generating") return true;
+  if (s.lastTask) return true;
+  return false;
 }
 
 function slotHeight(s: SlotMetrics): number {
-  // Line 1: header (always)
   let h = 1;
-  // Early return if truly idle (no lastTask, no live data, no context info)
-  if (
-    !s.lastTask &&
-    s.generationSpeed === null &&
-    s.promptSpeed === null &&
-    s.contextSize === 0 &&
-    s.checkpoints.length === 0 &&
-    s.nCtxSlot === null
-  ) {
-    return h;
-  }
-  // Line 2: speed + context bar + checkpoints
-  h++;
-  // Line 3: last task summary
-  if (s.lastTask) {
-    h++;
-  }
-  // Line 4: draft + truncation (only with lastTask)
-  if (s.lastTask) {
-    h++;
-  }
+  if (hasCtxData(s)) h++;
+  if (hasSpeedData(s)) h++;
+  if (s.lastTask) h++;
+  if (s.checkpoints.length > 0) h++;
   return h;
 }
 
@@ -103,7 +94,6 @@ export class MetricsPanel extends Scrollable {
     const slots = getSlots();
     const numSlots = slots.length;
 
-    // Calculate content height
     const globalLines = global ? 2 : 1;
     const gapAfterGlobal = global && numSlots > 0 ? 1 : 0;
     const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
@@ -120,11 +110,11 @@ export class MetricsPanel extends Scrollable {
         canvas.moveTo(x, cy - scrollOff + y);
         fg(canvas, "textMuted", "Tasks ");
         fg(canvas, "accent", String(global.tasksCompleted));
-        fg(canvas, "textMuted", `  ${SEP}  PP `);
+        fg(canvas, "textMuted", `  |  PP `);
         fg(canvas, "info", `${global.avgPromptSpeed.toFixed(1)} t/s`);
-        fg(canvas, "textMuted", `  ${SEP}  TG `);
+        fg(canvas, "textMuted", `  |  TG `);
         fg(canvas, "success", `${global.avgGenSpeed.toFixed(1)} t/s`);
-        fg(canvas, "textMuted", `  ${SEP}  Tokens `);
+        fg(canvas, "textMuted", `  |  Tokens `);
         fg(canvas, "info", `${formatNum(global.totalPromptTokens)}p`);
         fg(canvas, "textMuted", " / ");
         fg(canvas, "success", `${formatNum(global.totalOutputTokens)}o`);
@@ -136,7 +126,7 @@ export class MetricsPanel extends Scrollable {
         fg(canvas, "textMuted", "  Draft ");
         fg(canvas, "accentColor", formatDraftRate(global.avgDraftAcceptance));
         if (global.activeSlots > 0) {
-          fg(canvas, "textMuted", `  ${SEP}  Active `);
+          fg(canvas, "textMuted", `  |  Active `);
           fg(canvas, "warning", String(global.activeSlots));
         }
       }
@@ -150,7 +140,7 @@ export class MetricsPanel extends Scrollable {
     }
 
     if (global && numSlots > 0) {
-      cy += 1; // gap after global metrics
+      cy += 1;
     }
 
     for (let i = 0; i < numSlots; i++) {
@@ -182,10 +172,12 @@ export class MetricsPanel extends Scrollable {
     slot: SlotMetrics
   ): void {
     let cy = startY;
-    const stateColor = STATE_COLOR[slot.state as keyof typeof STATE_COLOR] || "textMuted";
+    const stateColor = STATE_COLOR[slot.state] || "textMuted";
     const dot = slot.state === "idle" ? "\u25cb" : spinnerChar();
+    const isActive = slot.state !== "idle";
+    const rightCol = 42;
 
-    // Line 1: Slot N  ● State  Task #N  ∞
+    // 1. Header
     canvas.moveTo(x, cy);
     fg(canvas, "textMuted", `Slot ${slot.slotId}  `);
     fg(canvas, stateColor, `${dot} ${slot.state}`);
@@ -198,100 +190,113 @@ export class MetricsPanel extends Scrollable {
     }
     cy++;
 
-    // Compact idle slot with no tasks and no live data - stop here
-    if (
-      !slot.lastTask &&
-      slot.generationSpeed === null &&
-      slot.promptSpeed === null &&
-      slot.contextSize === 0 &&
-      slot.checkpoints.length === 0 &&
-      slot.nCtxSlot === null
-    ) {
-      return;
-    }
-
-    // Line 2: Live speed + decoded count + context bar + checkpoints
-    const isActive = slot.state !== "idle";
-    canvas.moveTo(x, cy);
-    fg(canvas, "textMuted", "  ");
-    if (slot.generationSpeed !== null) {
-      fg(canvas, "textMuted", "TG ");
-      fg(canvas, "success", `${slot.generationSpeed.toFixed(1)} t/s`);
-      if (slot.decodedTokens !== null) {
-        fg(canvas, "textMuted", ` (${slot.decodedTokens} tok)`);
-      }
-    } else if (slot.promptSpeed !== null && slot.state === "prompting") {
-      fg(canvas, "textMuted", "PP ");
-      fg(canvas, "info", `${slot.promptSpeed.toFixed(0)} t/s`);
-    }
-
-    // Context bar (always visible when limit known)
-    // Green = already processed, Orange = waiting to be processed, Gray = free
-    const limit = slot.nCtxSlot;
-    if (limit !== null && limit > 0) {
-      const cached = slot.cachedTokens ?? 0;
-      const processed = slot.state === "prompting"
-        ? cached
-        : slot.state === "generating"
-          ? ((slot.pendingTokens ?? 0) + (slot.decodedTokens ?? 0))
-          : slot.contextSize;
-      const pending = slot.state === "prompting"
-        ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
-        : 0;
-      const totalUsed = processed + pending;
-      const totalLen = Math.min(Math.floor((totalUsed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-      const processedLen = Math.min(Math.floor((processed / limit) * CONTEXT_BAR_WIDTH), totalLen);
-      const pendingLen = totalLen - processedLen;
-      const freeLen = CONTEXT_BAR_WIDTH - totalLen;
-      const usageRatio = totalUsed / limit;
-      const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
-      fg(canvas, "textMuted", `  ${SEP}  Ctx `);
-      if (isActive) {
-        fg(canvas, "success", "\u2588".repeat(processedLen));
-        fg(canvas, "warning", "\u2593".repeat(pendingLen));
-        fg(canvas, freeColor, "\u2591".repeat(freeLen));
-      } else {
-        fg(canvas, "textMuted", "\u2588".repeat(processedLen) + "\u2591".repeat(pendingLen + freeLen));
-      }
-      fg(canvas, "textMuted", `  ${formatNum(totalUsed)}/${formatNum(limit)}`);
-    } else if (slot.contextSize > 0) {
-      fg(canvas, "textMuted", `  ${SEP}  Context `);
-      fg(canvas, "text", `${formatNum(slot.contextSize)} tok`);
-    }
-
-    if (slot.checkpoints.length > 0) {
-      const bar = checkpointBar(slot.contextSize, slot.checkpoints);
-      const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
-      fg(canvas, "textMuted", `  ${SEP}  Chk: `);
-      fg(canvas, "accent", bar);
-      fg(canvas, "textMuted", `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
-    }
-    cy++;
-
-    // Line 3: last task summary
-    if (slot.lastTask) {
+    // 2. Ctx bar
+    if (hasCtxData(slot)) {
       canvas.moveTo(x, cy);
-      fg(canvas, "textMuted", "  ");
-      fg(canvas, "textMuted", "PP ");
-      fg(canvas, "info", `${padLeft(slot.lastTask.promptTokens, 5)}t @ ${slot.lastTask.promptSpeed.toFixed(1)}t/s`);
-      fg(canvas, "textMuted", `  ${SEP}  TG `);
-      fg(canvas, "success", `${padLeft(slot.lastTask.outputTokens, 5)}t @ ${slot.lastTask.outputSpeed.toFixed(1)}t/s`);
-      fg(canvas, "textMuted", `  ${SEP}  ${formatMs(slot.lastTask.totalTimeMs)}`);
+      fg(canvas, "textMuted", "  Ctx ");
+
+      const limit = slot.nCtxSlot;
+      if (limit !== null && limit > 0) {
+        const cached = slot.cachedTokens ?? 0;
+        const processed = slot.state === "prompting"
+          ? cached
+          : slot.state === "generating"
+            ? ((slot.pendingTokens ?? 0) + (slot.decodedTokens ?? 0))
+            : slot.contextSize;
+        const pending = slot.state === "prompting"
+          ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
+          : 0;
+        const totalUsed = processed + pending;
+        const usageRatio = totalUsed / limit;
+        const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
+
+        if (isActive) {
+          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
+          const pendingLen = Math.min(Math.round((totalUsed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH) - processedLen;
+          const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
+          fg(canvas, "success", "\u2588".repeat(processedLen));
+          fg(canvas, "warning", "\u2593".repeat(pendingLen));
+          fg(canvas, freeColor, "\u2591".repeat(freeLen));
+        } else {
+          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
+          fg(canvas, "textMuted", "\u2588".repeat(processedLen));
+          fg(canvas, "textMuted", "\u2591".repeat(CONTEXT_BAR_WIDTH - processedLen));
+        }
+
+        fg(canvas, "textMuted", `  Used `);
+        fg(canvas, "text", `${formatCtxNum(totalUsed)} / ${formatCtxNum(limit)}`);
+      } else if (slot.contextSize > 0) {
+        fg(canvas, "text", `${formatCtxNum(slot.contextSize)} tok`);
+      }
       cy++;
     }
 
-    // Line 4: Draft + truncation (last task data only)
+    // 3. Speeds
+    if (hasSpeedData(slot)) {
+      canvas.moveTo(x, cy);
+      const lt = slot.lastTask;
+
+      const ppSpeed = slot.state === "prompting" ? slot.promptSpeed : lt?.promptSpeed ?? null;
+      const tgSpeed = slot.state === "generating" ? slot.generationSpeed : lt?.outputSpeed ?? null;
+
+      const ll = "PP";
+      const rl = "TG";
+      const lw = Math.max(ll.length, rl.length);
+
+      fg(canvas, "textMuted", `  ${ll}`.padEnd(2 + lw + 1));
+      fg(canvas, ppSpeed !== null ? "info" : "textMuted", ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s` : "-");
+
+      const leftLen = 2 + lw + 1 + (ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s`.length : 1);
+      const rightPad = Math.max(2, rightCol - leftLen);
+
+      fg(canvas, "canvas", " ".repeat(rightPad));
+      fg(canvas, "textMuted", rl.padEnd(lw + 1));
+      if (tgSpeed !== null) {
+        fg(canvas, "success", `${tgSpeed.toFixed(1)} t/s`);
+        if (slot.state === "generating" && slot.decodedTokens !== null) {
+          fg(canvas, "textMuted", ` (${slot.decodedTokens} tok)`);
+        }
+      } else {
+        fg(canvas, "textMuted", "-");
+      }
+      cy++;
+    }
+
+    // 4. Last task
     if (slot.lastTask) {
       canvas.moveTo(x, cy);
-      fg(canvas, "textMuted", "  ");
-      if (slot.lastTask.draftGenerated > 0) {
-        fg(canvas, "textMuted", "Draft ");
-        fg(canvas, "accentColor", `${formatDraftRate(slot.lastTask.draftAcceptance)} (${slot.lastTask.draftAccepted}/${slot.lastTask.draftGenerated})`);
-        fg(canvas, "textMuted", `  ${SEP}  Truncated `);
-        fg(canvas, slot.lastTask.truncated ? "danger" : "success", slot.lastTask.truncated ? "yes" : "no");
+      const lt = slot.lastTask;
+
+      const ll = "Time";
+      const rl = "Draft";
+      const lw = Math.max(ll.length, rl.length);
+
+      fg(canvas, "textMuted", `  ${ll}`.padEnd(2 + lw + 1));
+      fg(canvas, "text", formatMs(lt.totalTimeMs));
+
+      const leftLen = 2 + lw + 1 + formatMs(lt.totalTimeMs).length;
+      const rightPad = Math.max(2, rightCol - leftLen);
+
+      fg(canvas, "canvas", " ".repeat(rightPad));
+      fg(canvas, "textMuted", rl.padEnd(lw + 1));
+      if (lt.draftGenerated > 0) {
+        fg(canvas, "accentColor", `${formatDraftRate(lt.draftAcceptance)} (${lt.draftAccepted}/${lt.draftGenerated})`);
+        fg(canvas, "textMuted", "  Trunc ");
+        fg(canvas, lt.truncated ? "danger" : "success", lt.truncated ? "yes" : "no");
       } else {
         fg(canvas, "textMuted", "No speculative decoding");
       }
+      cy++;
+    }
+
+    // 5. Checkpoints
+    if (slot.checkpoints.length > 0) {
+      canvas.moveTo(x, cy);
+      const bar = checkpointBar(slot.contextSize, slot.checkpoints);
+      const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
+      fg(canvas, "textMuted", "  Chk ");
+      fg(canvas, "accent", bar);
+      fg(canvas, "textMuted", `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
       cy++;
     }
   }
