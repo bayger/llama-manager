@@ -20,14 +20,14 @@ export class TaskChartsSection extends Section {
     this.title = "Recent Tasks";
 
     this._inputSpeedChart = new BarChart();
-    this._inputSpeedChart.title = "Input Speed (t/s)";
+    this._inputSpeedChart.title = "PP Speed";
     this._inputSpeedChart.color = "warning";
     this._inputSpeedChart.yTickCount = 4;
     this._inputSpeedChart.showXAxis = false;
     this._inputSpeedChart.flex = 1;
 
     this._outputSpeedChart = new BarChart();
-    this._outputSpeedChart.title = "Output Speed (t/s)";
+    this._outputSpeedChart.title = "TG Speed";
     this._outputSpeedChart.color = "accentColor";
     this._outputSpeedChart.yTickCount = 4;
     this._outputSpeedChart.showXAxis = false;
