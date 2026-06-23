@@ -5,6 +5,88 @@ export function spinnerChar(): string {
   return SPINNER_FRAMES[Math.floor(Date.now() / SPINNER_INTERVAL) % SPINNER_FRAMES.length];
 }
 
+// - Responsive breakpoints -
+
+export type Breakpoint = "sm" | "md" | "lg" | "xl" | "2xl";
+
+const widthBreakpoints: [Breakpoint, number][] = [
+  ["sm", 0],
+  ["md", 100],
+  ["lg", 140],
+  ["xl", 180],
+  ["2xl", 240],
+];
+
+const heightBreakpoints: [Breakpoint, number][] = [
+  ["sm", 0],
+  ["md", 30],
+  ["lg", 50],
+  ["xl", 80],
+  ["2xl", 120],
+];
+
+function getBreakpointFor(width: number, breakpoints: [Breakpoint, number][]): Breakpoint {
+  let result: Breakpoint = "sm";
+  for (const [bp, min] of breakpoints) {
+    if (width >= min) result = bp;
+    else break;
+  }
+  return result;
+}
+
+export function getBreakpoint(width: number): Breakpoint {
+  return getBreakpointFor(width, widthBreakpoints);
+}
+
+export function getBreakpointHeight(height: number): Breakpoint {
+  return getBreakpointFor(height, heightBreakpoints);
+}
+
+export function isAtLeast(width: number, minBp: Breakpoint): boolean {
+  const min = widthBreakpoints.find(bp => bp[0] === minBp)?.[1] ?? Infinity;
+  return width >= min;
+}
+
+export function isAtLeastHeight(height: number, minBp: Breakpoint): boolean {
+  const min = heightBreakpoints.find(bp => bp[0] === minBp)?.[1] ?? Infinity;
+  return height >= min;
+}
+
+export function isBelow(width: number, maxBp: Breakpoint): boolean {
+  const entry = widthBreakpoints.find(bp => bp[0] === maxBp);
+  if (!entry) return false;
+  const idx = widthBreakpoints.indexOf(entry);
+  const nextMin = idx < widthBreakpoints.length - 1 ? widthBreakpoints[idx + 1]?.[1] ?? Infinity : Infinity;
+  return width < nextMin;
+}
+
+export function isBelowHeight(height: number, maxBp: Breakpoint): boolean {
+  const entry = heightBreakpoints.find(bp => bp[0] === maxBp);
+  if (!entry) return false;
+  const idx = heightBreakpoints.indexOf(entry);
+  const nextMin = idx < heightBreakpoints.length - 1 ? heightBreakpoints[idx + 1]?.[1] ?? Infinity : Infinity;
+  return height < nextMin;
+}
+
+const orderedBreakpoints: Breakpoint[] = ["sm", "md", "lg", "xl", "2xl"];
+
+function responsiveFor<T>(bp: Breakpoint, values: { sm: T; md?: T; lg?: T; xl?: T; "2xl"?: T }): T {
+  const idx = orderedBreakpoints.indexOf(bp);
+  for (let i = idx; i >= 0; i--) {
+    const key = orderedBreakpoints[i]!;
+    if (values[key] !== undefined) return values[key];
+  }
+  return values.sm;
+}
+
+export function responsive<T>(width: number, values: { sm: T; md?: T; lg?: T; xl?: T; "2xl"?: T }): T {
+  return responsiveFor(getBreakpoint(width), values);
+}
+
+export function responsiveHeight<T>(height: number, values: { sm: T; md?: T; lg?: T; xl?: T; "2xl"?: T }): T {
+  return responsiveFor(getBreakpointHeight(height), values);
+}
+
 export function fireAsync(fn: () => Promise<void>, app: { showMessage: (msg: string) => void }): void {
   fn().catch((err) => {
     app.showMessage(`Error: ${err.message}`);
