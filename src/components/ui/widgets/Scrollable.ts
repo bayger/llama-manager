@@ -1,5 +1,5 @@
 import { Control } from "../Control";
-import type { Size } from "../types";
+import type { Point, Size } from "../types";
 
 export class Scrollable extends Control {
   public scrollOffset = 0;
@@ -67,6 +67,20 @@ export class Scrollable extends Control {
     }
     if (key === "END") {
       this.scrollOffset = Math.max(0, this.contentHeight - this._viewportHeight);
+      this.markDirty();
+      return true;
+    }
+    return false;
+  }
+
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    if (direction === 'up' && this.canScrollUp()) {
+      this.scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this.canScrollDown()) {
+      this.scrollOffset++;
       this.markDirty();
       return true;
     }

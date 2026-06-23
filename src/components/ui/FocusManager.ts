@@ -141,6 +141,18 @@ export class FocusManager {
     return true;
   }
 
+  handleMouseWheel(point: Point, direction: 'up' | 'down'): boolean {
+    if (!this._root) return false;
+    const target = this._root.hitTest(point);
+    if (!target) return false;
+    let current: Control | null = target;
+    while (current) {
+      if (current.onMouseWheel(point, direction)) return true;
+      current = current.parent;
+    }
+    return false;
+  }
+
   handleKey(key: string): boolean {
     if (!this._root) return false;
 

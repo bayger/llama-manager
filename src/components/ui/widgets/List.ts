@@ -64,19 +64,27 @@ export class List<ID = string, D = unknown> extends Control {
 
   onLayout(): void {
     this._viewportHeight = Math.max(0, Math.floor(this.rect.height / this.itemHeight));
-    this.clampScroll();
+    this.clampScrollBounds();
   }
 
-  protected clampScroll(): void {
+  protected clampScrollBounds(): void {
     const maxScroll = Math.max(0, this.contentHeight - this._viewportHeight);
     this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxScroll));
+  }
 
+  protected ensureSelectedVisible(): void {
     if (this.selectedIndex < this.scrollOffset) {
       this.scrollOffset = this.selectedIndex;
     }
     if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
       this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
     }
+    this.clampScrollBounds();
+  }
+
+  protected clampScroll(): void {
+    this.clampScrollBounds();
+    this.ensureSelectedVisible();
   }
 
   setOnSelect(callback: (item: ListItem<ID, D>) => void): void {
@@ -248,7 +256,7 @@ export class List<ID = string, D = unknown> extends Control {
       this._fireHighlight();
       this.markDirty();
     }
-    this.clampScroll();
+    this.ensureSelectedVisible();
   }
 
   getSelectedItem(): ListItem<ID, D> | null {
@@ -256,6 +264,21 @@ export class List<ID = string, D = unknown> extends Control {
       return this.items[this.selectedIndex]!;
     }
     return null;
+  }
+
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    if (this.items.length === 0) return false;
+    if (direction === 'up' && this.scrollOffset > 0) {
+      this.scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this.scrollOffset < this.maxScrollOffset) {
+      this.scrollOffset++;
+      this.markDirty();
+      return true;
+    }
+    return false;
   }
 
   onMouseDown(point: Point): boolean {
@@ -291,6 +314,7 @@ export class List<ID = string, D = unknown> extends Control {
       if (itemIndex >= 0 && itemIndex < this.items.length) {
         this.selectedIndex = itemIndex;
         this._fireHighlight();
+        this.ensureSelectedVisible();
         this.markDirty();
         return true;
       }

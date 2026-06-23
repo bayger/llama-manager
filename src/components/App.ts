@@ -315,6 +315,10 @@ export class App {
     this.mouseHandler = (action: string, data: any) => {
       if (typeof data?.x !== "number" || typeof data?.y !== "number") return;
       const point = { x: data.x, y: data.y };
+      if (action === "MOUSE_WHEEL_UP" || action === "MOUSE_WHEEL_DOWN") {
+        focusManager.handleMouseWheel(point, action === "MOUSE_WHEEL_UP" ? "up" : "down");
+        return;
+      }
       if (modalManager.isOpen()) {
         if (action === "MOUSE_LEFT_BUTTON_PRESSED") modalManager.handleMouseDown(point);
         else if (action === "MOUSE_LEFT_BUTTON_RELEASED") modalManager.handleMouseUp(point);

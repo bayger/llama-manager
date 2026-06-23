@@ -83,6 +83,7 @@ class TaskStore extends EventEmitter {
     logParser.clearCompleted();
 
     this.stopTailer = logParser.startFileTailer(logFile);
+    this.emit("updated");
   }
 
   private createTables() {

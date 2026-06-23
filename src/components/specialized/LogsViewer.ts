@@ -180,6 +180,25 @@ export class LogsViewer extends Control {
     return false;
   }
 
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    if (this._totalLines === 0) return false;
+    if (direction === 'up' && this._scrollOffset > 0) {
+      this._autoScroll = false;
+      this._scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this._scrollOffset < this.maxScrollOffset) {
+      this._scrollOffset++;
+      if (this._scrollOffset === this.maxScrollOffset) {
+        this._autoScroll = true;
+      }
+      this.markDirty();
+      return true;
+    }
+    return false;
+  }
+
   onMouseDown(point: Point): boolean {
     if (!this.needsScrollbar) return false;
 
