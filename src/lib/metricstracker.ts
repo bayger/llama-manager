@@ -87,8 +87,8 @@ const globalAccum: GlobalAccum = {
 };
 
 const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*processing task/;
-const newPromptRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*(\d+),\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
-const cachedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
+const newPromptRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*(\d+),\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
+const cachedRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
 const promptProgressRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt processing,\s*n_tokens\s*=\s*(\d+),\s*progress\s*=\s*([\d.]+),\s*t\s*=\s*[\d.]+\s*s\s*\/\s*([\d.]+)\s*tokens per second/;
 const reasoningRegex = /reasoning-budget:\s*(activated|deactivated)/;
@@ -98,9 +98,9 @@ const totalTimeRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s
 const draftRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*draft acceptance\s*=\s*([\d.]+)\s*\(\s*(\d+)\s*accepted\s*\/\s*(\d+)\s*generated\)/;
 const releaseRegex = /slot\s+release: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*stop processing: n_tokens\s*=\s*(\d+),\s*truncated\s*=\s*(\d)/;
 const cacheStateRegex = /cache state:\s*(\d+)\s+prompts,\s*([\d.]+)\s+MiB\s*\(limits:\s*([\d.]+)\s+MiB/;
-const checkpointCreateRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*created context checkpoint \d+ of \d+ \(pos_min\s*=\s*(\d+),\s*pos_max\s*=\s*\d+,\s*n_tokens\s*=\s*\d+,\s*size\s*=\s*([\d.]+)\s+MiB/;
-const checkpointErasedRegex = /slot update_slots: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erased invalidated context checkpoint \(pos_min\s*=\s*(\d+)/;
-const checkpointErasingOldRegex = /slot create_check: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erasing old context checkpoint \(pos_min\s*=\s*(\d+)/;
+const checkpointCreateRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*created context checkpoint \d+ of \d+ \(pos_min\s*=\s*(\d+),\s*pos_max\s*=\s*\d+,\s*n_tokens\s*=\s*\d+,\s*size\s*=\s*([\d.]+)\s+MiB/;
+const checkpointErasedRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erased invalidated context checkpoint \(pos_min\s*=\s*(\d+)/;
+const checkpointErasingOldRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erasing old context checkpoint \(pos_min\s*=\s*(\d+)/;
 
 const taskAccumulators = new Map<number, Partial<CompletedTask>>();
 

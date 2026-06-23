@@ -64,12 +64,17 @@ export function processModelLine(line: string): void {
   let m: RegExpMatchArray | null;
 
   if ((m = line.match(reLoadModel))) {
+    for (const key of Object.keys(accum)) {
+      delete accum[key as keyof typeof accum];
+    }
+    currentModel = null;
     const filePath = m[1];
     const fileName = filePath.split("/").pop() || filePath;
     const name = fileName.replace(/\.gguf$/i, "").replace(/[-_]Q\d+_[A-Z]+$/, "").replace(/[-_]Q\d+$/, "");
     accum.filePath = filePath;
     accum.fileName = fileName;
     accum.name = name;
+    notify();
     return;
   }
 
@@ -182,6 +187,14 @@ export function getModelInfo(): ParsedModelInfo | null {
   return currentModel;
 }
 
+export function isModelLoading(): boolean {
+  return !currentModel && !!accum.name;
+}
+
+export function getLoadingModelName(): string | null {
+  return isModelLoading() ? accum.name || null : null;
+}
+
 function fmtCtx(n: number): string {
   if (n >= 1024) return `${(n / 1024).toFixed(n % 1024 === 0 ? 0 : 1)}K`;
   return String(n);
@@ -217,7 +230,14 @@ export class LoadedModelPanel extends Control {
     if (!model) {
       if (this.rect.height > 0) {
         canvas.moveTo(x, y);
-        fg(canvas, "textMuted", "No model loaded - start the server");
+        const loadingName = getLoadingModelName();
+        if (loadingName) {
+          fg(canvas, "textMuted", "Loading model: ");
+          fg(canvas, "accent", loadingName);
+          fg(canvas, "textMuted", " ...");
+        } else {
+          fg(canvas, "textMuted", "No model loaded - start the server");
+        }
       }
       return;
     }
