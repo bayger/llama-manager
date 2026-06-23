@@ -6,7 +6,7 @@ import { App } from "./components/App";
 const term = terminalKit.terminal;
 
 term.fullscreen(true);
-term.grabInput({ mouse: 'button' });
+term.grabInput({ mouse: 'drag' });
 term.hideCursor();
 
 const app = new App(term);

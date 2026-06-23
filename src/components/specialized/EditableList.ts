@@ -166,6 +166,22 @@ export abstract class EditableList extends Control {
     return 18; // default, override in subclass
   }
 
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    const len = this._rows.length;
+    const maxScroll = Math.max(0, len - this.rect.height);
+    if (direction === 'up' && this._scrollOffset > 0) {
+      this._scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this._scrollOffset < maxScroll) {
+      this._scrollOffset++;
+      this.markDirty();
+      return true;
+    }
+    return false;
+  }
+
   handleKey(key: string): boolean {
     if (this._edit) {
       return this.handleEditKey(key);

@@ -77,7 +77,7 @@ export class Table<T = any> extends Control {
   onLayout(): void {
     const bodyHeight = this.rect.height - (this.showHeader ? this.headerHeight : 0);
     this._viewportHeight = Math.max(0, bodyHeight);
-    this.clampScroll();
+    this.clampScrollBounds();
   }
 
   setOnSelect(callback: (item: TableItem<T>) => void): void {
@@ -148,16 +148,24 @@ export class Table<T = any> extends Control {
     }
   }
 
-  protected clampScroll(): void {
+  protected clampScrollBounds(): void {
     const maxScroll = Math.max(0, this.contentHeight - this._viewportHeight);
     this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxScroll));
+  }
 
+  protected ensureSelectedVisible(): void {
     if (this.selectedIndex < this.scrollOffset) {
       this.scrollOffset = this.selectedIndex;
     }
     if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
       this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
     }
+    this.clampScrollBounds();
+  }
+
+  protected clampScroll(): void {
+    this.clampScrollBounds();
+    this.ensureSelectedVisible();
   }
 
   protected computeVisibleColumns(availableWidth: number): VisibleColumn[] {
@@ -413,6 +421,22 @@ export class Table<T = any> extends Control {
       this.markDirty();
     }
     this.clampScroll();
+  }
+
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    const maxScroll = Math.max(0, total - this._viewportHeight);
+    if (direction === 'up' && this.scrollOffset > 0) {
+      this.scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this.scrollOffset < maxScroll) {
+      this.scrollOffset++;
+      this.markDirty();
+      return true;
+    }
+    return false;
   }
 
   onMouseDown(point: Point): boolean {

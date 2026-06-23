@@ -211,6 +211,9 @@ export class Control {
   onMouseUp(_point: Point): boolean {
     return false;
   }
+  onMouseWheel(_point: Point, _direction: 'up' | 'down'): boolean {
+    return false;
+  }
   onLayout(): void {
     for (const child of this.children) {
       if (child.visible) {

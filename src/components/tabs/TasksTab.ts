@@ -9,7 +9,7 @@ import { focusManager } from "../ui/FocusManager";
 import { fireAsync, formatMs } from "../../lib/utils";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks";
 import type { TabContext } from "../../lib/tabcontext";
-import type { Size, RenderContext } from "../ui/types";
+import type { Point, Size, RenderContext } from "../ui/types";
 import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
@@ -50,6 +50,24 @@ class TaskDetailsControl extends Section {
     const maxOffset = Math.max(0, lines.length - height);
     this._scrollOffset = Math.max(0, Math.min(maxOffset, this._scrollOffset + delta));
     this.markDirty();
+  }
+
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    if (!this._task) return false;
+    const lines = this._getLines();
+    const { height } = this.rect;
+    const maxOffset = Math.max(0, lines.length - height);
+    if (direction === 'up' && this._scrollOffset > 0) {
+      this._scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this._scrollOffset < maxOffset) {
+      this._scrollOffset++;
+      this.markDirty();
+      return true;
+    }
+    return false;
   }
 
   _getLines(): { label: string; value: string }[] {
