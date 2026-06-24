@@ -1,5 +1,5 @@
 import { Scrollable } from "../ui/widgets/Scrollable";
-import { fg } from "../../lib/theme";
+import { fg, fgBg } from "../../lib/theme";
 import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
 import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
@@ -212,13 +212,13 @@ export class MetricsPanel extends Scrollable {
 
         const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
 
-        fg(canvas, barColor, "\u2588".repeat(fullBlocks));
+        fgBg(canvas, barColor, barColor, " ".repeat(fullBlocks));
         if (remainder > 0) {
-          fg(canvas, barColor, partialBlocks[remainder]);
+          fgBg(canvas, barColor, "border", partialBlocks[remainder]);
         }
-        fg(canvas, "textMuted", "\u2591".repeat(empty));
+        fgBg(canvas, "border", "border", " ".repeat(empty));
 
-        fg(canvas, "textMuted", `  Used `);
+        fgBg(canvas, "textMuted", "canvasSubtle", `  Used `);
         fg(canvas, "text", `${formatCtxNum(used)} / ${formatCtxNum(limit)}`);
       } else if (slot.contextSize > 0) {
         fg(canvas, "text", `${formatCtxNum(slot.contextSize)} tok`);
