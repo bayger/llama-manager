@@ -197,34 +197,15 @@ export class MetricsPanel extends Scrollable {
 
       const limit = slot.nCtxSlot;
       if (limit !== null && limit > 0) {
-        const cached = slot.cachedTokens ?? 0;
-        const processed = slot.state === "prompting"
-          ? cached
-          : slot.state === "generating"
-            ? ((slot.pendingTokens ?? 0) + (slot.decodedTokens ?? 0))
-            : slot.contextSize;
-        const pending = slot.state === "prompting"
-          ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
-          : 0;
-        const totalUsed = processed + pending;
-        const usageRatio = totalUsed / limit;
-        const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
-
-        if (isActive) {
-          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-          const pendingLen = Math.min(Math.round((totalUsed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH) - processedLen;
-          const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
-          fg(canvas, "success", "\u2588".repeat(processedLen));
-          fg(canvas, "warning", "\u2593".repeat(pendingLen));
-          fg(canvas, freeColor, "\u2591".repeat(freeLen));
-        } else {
-          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-          fg(canvas, "textMuted", "\u2588".repeat(processedLen));
-          fg(canvas, "textMuted", "\u2591".repeat(CONTEXT_BAR_WIDTH - processedLen));
-        }
+        const used = slot.cachedTokens ?? slot.contextSize;
+        const usageRatio = used / limit;
+        const barColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : isActive ? "success" : "textMuted";
+        const usedLen = Math.min(Math.round(usageRatio * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
+        fg(canvas, barColor, "\u2588".repeat(usedLen));
+        fg(canvas, "textMuted", "\u2591".repeat(CONTEXT_BAR_WIDTH - usedLen));
 
         fg(canvas, "textMuted", `  Used `);
-        fg(canvas, "text", `${formatCtxNum(totalUsed)} / ${formatCtxNum(limit)}`);
+        fg(canvas, "text", `${formatCtxNum(used)} / ${formatCtxNum(limit)}`);
       } else if (slot.contextSize > 0) {
         fg(canvas, "text", `${formatCtxNum(slot.contextSize)} tok`);
       }
