@@ -237,7 +237,7 @@ export class MetricsPanel extends Scrollable {
       fg(canvas, "textMuted", "  PP   ");
       if (ppSpeed !== null) {
         const ppText = slot.state === "prompting" && slot.promptProgress !== null
-          ? `${ppSpeed.toFixed(1)} t/s (${slot.promptProgress.toFixed(0)}%)`
+          ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`
           : `${ppSpeed.toFixed(1)} t/s`;
         fg(canvas, "info", ppText);
       } else {
@@ -246,7 +246,7 @@ export class MetricsPanel extends Scrollable {
 
       const leftLen = 7 + (ppSpeed !== null
         ? (slot.state === "prompting" && slot.promptProgress !== null
-          ? `${ppSpeed.toFixed(1)} t/s (${slot.promptProgress.toFixed(0)}%)`.length
+          ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`.length
           : `${ppSpeed.toFixed(1)} t/s`.length)
         : 1);
       const rightPad = Math.max(2, rightCol - leftLen);
