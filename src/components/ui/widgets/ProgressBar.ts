@@ -1,5 +1,5 @@
 import { Control } from "../Control";
-import { fg, themeColors } from "../../../lib/theme";
+import { fg, fgBg, themeColors } from "../../../lib/theme";
 import { spinnerChar } from "../../../lib/utils";
 import type { Color } from "../../../lib/theme";
 import type { Size, RenderContext } from "../types";
@@ -40,18 +40,26 @@ export class ProgressBar extends Control {
     const { x, y, width } = this.rect;
 
     const barWidth = Math.max(10, width - this.label.length - 10);
-    const filled = Math.round((this.progress / 100) * barWidth);
-    const empty = barWidth - filled;
+    const exactFilled = (this.progress / 100) * barWidth;
+    const fullBlocks = Math.floor(exactFilled);
+    const remainder = Math.round((exactFilled - fullBlocks) * 8);
+    const empty = barWidth - fullBlocks - (remainder > 0 ? 1 : 0);
     const frame = spinnerChar();
 
+    // Partial fill characters: index 0=none, 1-8=eighths
+    const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
+
     canvas.moveTo(x, y);
-    fg(canvas, this.labelColor, `${frame} ${this.label} ${this.progress}%`);
+    fg(canvas, this.labelColor, `${frame} ${this.label} ${this.progress.toFixed(1)}%`);
     if (this.extraLabel) {
       fg(canvas, "textMuted", ` ${this.extraLabel}`);
     }
 
     canvas.moveTo(x, y + 1);
-    fg(canvas, this.filledColor, "\u2588".repeat(filled));
-    fg(canvas, this.emptyColor, "\u2591".repeat(empty));
+    fgBg(canvas, this.filledColor, this.filledColor, " ".repeat(fullBlocks));
+    if (remainder > 0) {
+      fgBg(canvas, this.filledColor, this.emptyColor, partialBlocks[remainder]);
+    }
+    fgBg(canvas, this.emptyColor, this.emptyColor, " ".repeat(empty));
   }
 }

@@ -131,6 +131,7 @@ export class ModelsControl extends Control {
 
     this._hfResultsList = new Table<HFRepoInfo>();
     this._hfResultsList.showHeader = true;
+    this._hfResultsList.flex = 1;
     this._hfResultsList.columns = [
       {
         label: "Repo",
@@ -175,6 +176,7 @@ export class ModelsControl extends Control {
 
     this._hfFilesList = new Table<HFFileInfo>();
     this._hfFilesList.showHeader = true;
+    this._hfFilesList.flex = 1;
     this._hfFilesList.columns = [
       {
         label: "File",
