@@ -200,9 +200,19 @@ export class MetricsPanel extends Scrollable {
         const used = slot.cachedTokens ?? slot.contextSize;
         const usageRatio = used / limit;
         const barColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : isActive ? "success" : "textMuted";
-        const usedLen = Math.min(Math.round(usageRatio * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-        fg(canvas, barColor, "\u2588".repeat(usedLen));
-        fg(canvas, "textMuted", "\u2591".repeat(CONTEXT_BAR_WIDTH - usedLen));
+
+        const exactFilled = usageRatio * CONTEXT_BAR_WIDTH;
+        const fullBlocks = Math.min(Math.floor(exactFilled), CONTEXT_BAR_WIDTH);
+        const remainder = Math.round((exactFilled - fullBlocks) * 8);
+        const empty = CONTEXT_BAR_WIDTH - fullBlocks - (remainder > 0 ? 1 : 0);
+
+        const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
+
+        fg(canvas, barColor, "\u2588".repeat(fullBlocks));
+        if (remainder > 0) {
+          fg(canvas, barColor, partialBlocks[remainder]);
+        }
+        fg(canvas, "textMuted", "\u2591".repeat(empty));
 
         fg(canvas, "textMuted", `  Used `);
         fg(canvas, "text", `${formatCtxNum(used)} / ${formatCtxNum(limit)}`);
