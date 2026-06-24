@@ -35,7 +35,6 @@ export class ProgressDialog extends Modal {
   set progress(v: number) {
     this._progress = Math.max(0, Math.min(100, v));
     this._progressBar.progress = v;
-    this._progressBar.extraLabel = `${Math.round(v)}%`;
     this.markDirty();
   }
 
@@ -53,7 +52,6 @@ export class ProgressDialog extends Modal {
     this._progressBar = new ProgressBar();
     this._progressBar.filledColor = "accent";
     this._progressBar.emptyColor = "border";
-    this._progressBar.labelColor = "textMuted";
 
     const buttonRow = new Row();
     const spacer = new Spacer();

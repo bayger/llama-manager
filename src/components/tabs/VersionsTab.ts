@@ -135,7 +135,6 @@ export class VersionsControl extends Control {
     this._progressBar.visible = false;
     this._progressBar.filledColor = "accent";
     this._progressBar.emptyColor = "border";
-    this._progressBar.labelColor = "textMuted";
 
     this._dividerButtons = new Spacer();
 
