@@ -13,7 +13,7 @@ const STATE_COLOR: Record<string, Color> = {
 };
 
 const THINKING_ICON = "\u221e";
-const CONTEXT_BAR_WIDTH = 34;
+const CONTEXT_BAR_WIDTH = 33;
 
 function formatCtxNum(n: number): string {
   return n.toLocaleString("en-US");
@@ -193,7 +193,7 @@ export class MetricsPanel extends Scrollable {
     // 2. Ctx bar
     if (hasCtxData(slot)) {
       canvas.moveTo(x, cy);
-      fg(canvas, "textMuted", "  Ctx ");
+      fg(canvas, "textMuted", "  Ctx  ");
 
       const limit = slot.nCtxSlot;
       if (limit !== null && limit > 0) {
@@ -239,18 +239,14 @@ export class MetricsPanel extends Scrollable {
       const ppSpeed = slot.state === "prompting" ? slot.promptSpeed : lt?.promptSpeed ?? null;
       const tgSpeed = slot.state === "generating" ? slot.generationSpeed : lt?.outputSpeed ?? null;
 
-      const ll = "PP";
-      const rl = "TG";
-      const lw = Math.max(ll.length, rl.length);
-
-      fg(canvas, "textMuted", `  ${ll}`.padEnd(2 + lw + 1));
+      fg(canvas, "textMuted", "  PP   ");
       fg(canvas, ppSpeed !== null ? "info" : "textMuted", ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s` : "-");
 
-      const leftLen = 2 + lw + 1 + (ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s`.length : 1);
+      const leftLen = 7 + (ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s`.length : 1);
       const rightPad = Math.max(2, rightCol - leftLen);
 
       fg(canvas, "canvas", " ".repeat(rightPad));
-      fg(canvas, "textMuted", rl.padEnd(lw + 1));
+      fg(canvas, "textMuted", "TG   ");
       if (tgSpeed !== null) {
         fg(canvas, "success", `${tgSpeed.toFixed(1)} t/s`);
         if (slot.state === "generating" && slot.decodedTokens !== null) {
@@ -267,24 +263,20 @@ export class MetricsPanel extends Scrollable {
       canvas.moveTo(x, cy);
       const lt = slot.lastTask;
 
-      const ll = "Time";
-      const rl = "Draft";
-      const lw = Math.max(ll.length, rl.length);
-
-      fg(canvas, "textMuted", `  ${ll}`.padEnd(2 + lw + 1));
+      fg(canvas, "textMuted", "  Time ");
       fg(canvas, "text", formatMs(lt.totalTimeMs));
 
-      const leftLen = 2 + lw + 1 + formatMs(lt.totalTimeMs).length;
+      const leftLen = 7 + formatMs(lt.totalTimeMs).length;
       const rightPad = Math.max(2, rightCol - leftLen);
 
       fg(canvas, "canvas", " ".repeat(rightPad));
-      fg(canvas, "textMuted", rl.padEnd(lw + 1));
+      fg(canvas, "textMuted", "Draft");
       if (lt.draftGenerated > 0) {
-        fg(canvas, "accentColor", `${formatDraftRate(lt.draftAcceptance)} (${lt.draftAccepted}/${lt.draftGenerated})`);
+        fg(canvas, "accentColor", ` ${formatDraftRate(lt.draftAcceptance)} (${lt.draftAccepted}/${lt.draftGenerated})`);
         fg(canvas, "textMuted", "  Trunc ");
         fg(canvas, lt.truncated ? "danger" : "success", lt.truncated ? "yes" : "no");
       } else {
-        fg(canvas, "textMuted", "No speculative decoding");
+        fg(canvas, "textMuted", " No speculative decoding");
       }
       cy++;
     }
@@ -294,7 +286,7 @@ export class MetricsPanel extends Scrollable {
       canvas.moveTo(x, cy);
       const bar = checkpointBar(slot.contextSize, slot.checkpoints);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
-      fg(canvas, "textMuted", "  Chk ");
+      fg(canvas, "textMuted", "  Chk  ");
       fg(canvas, "accent", bar);
       fg(canvas, "textMuted", `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
       cy++;
