@@ -39,7 +39,7 @@ export class ProgressBar extends Control {
     const { canvas } = ctx;
     const { x, y, width } = this.rect;
 
-    const barWidth = Math.max(10, width - this.label.length - 10);
+    const barWidth = Math.max(10, width);
     const exactFilled = (this.progress / 100) * barWidth;
     const fullBlocks = Math.floor(exactFilled);
     const remainder = Math.round((exactFilled - fullBlocks) * 8);
