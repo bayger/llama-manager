@@ -1,5 +1,5 @@
 import { Scrollable } from "../ui/widgets/Scrollable";
-import { fg } from "../../lib/theme";
+import { fg, fgBg } from "../../lib/theme";
 import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
 import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
@@ -29,6 +29,46 @@ function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): stri
     bar += hasCp ? "\u2588" : "\u2591";
   }
   return bar;
+}
+
+// Partial fill characters: index 0=none, 1-8=eighths
+const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
+
+function renderMultiStateBar(
+  canvas: FramebufferCanvas,
+  width: number,
+  segments: { ratio: number; fgColor: Color; bgColor: Color }[]
+): void {
+  for (let i = 0; i < width; i++) {
+    const cellStart = i / width;
+    const cellEnd = (i + 1) / width;
+    let maxOverlap = 0;
+    let fgColor = segments[segments.length - 1].fgColor;
+    let bgColor = segments[segments.length - 1].bgColor;
+
+    for (let j = 0; j < segments.length; j++) {
+      const segStart = j > 0 ? segments[j - 1].ratio : 0;
+      const segEnd = segments[j].ratio;
+      const overlapStart = Math.max(cellStart, segStart);
+      const overlapEnd = Math.min(cellEnd, segEnd);
+      const overlap = overlapEnd - overlapStart;
+      if (overlap > maxOverlap) {
+        maxOverlap = overlap;
+        fgColor = segments[j].fgColor;
+        bgColor = segments[j].bgColor;
+      }
+    }
+
+    const fill = maxOverlap / (cellEnd - cellStart);
+    const eighth = Math.round(fill * 8);
+    if (eighth === 0) {
+      fgBg(canvas, fgColor, bgColor, " ");
+    } else if (eighth === 8) {
+      fgBg(canvas, fgColor, bgColor, "\u2588");
+    } else {
+      fgBg(canvas, fgColor, bgColor, partialBlocks[eighth]);
+    }
+  }
 }
 
 function hasCtxData(s: SlotMetrics): boolean {
@@ -211,16 +251,19 @@ export class MetricsPanel extends Scrollable {
         const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
 
         if (isActive) {
-          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-          const pendingLen = Math.min(Math.round((totalUsed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH) - processedLen;
-          const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
-          fg(canvas, "success", "\u2588".repeat(processedLen));
-          fg(canvas, "warning", "\u2593".repeat(pendingLen));
-          fg(canvas, freeColor, "\u2591".repeat(freeLen));
+          const processedRatio = Math.min(processed / limit, 1);
+          const totalRatio = Math.min(totalUsed / limit, 1);
+          renderMultiStateBar(canvas, CONTEXT_BAR_WIDTH, [
+            { ratio: processedRatio, fgColor: "success", bgColor: "success" },
+            { ratio: totalRatio, fgColor: "warning", bgColor: "warning" },
+            { ratio: 1, fgColor: freeColor, bgColor: freeColor },
+          ]);
         } else {
-          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-          fg(canvas, "textMuted", "\u2588".repeat(processedLen));
-          fg(canvas, "textMuted", "\u2591".repeat(CONTEXT_BAR_WIDTH - processedLen));
+          const processedRatio = Math.min(processed / limit, 1);
+          renderMultiStateBar(canvas, CONTEXT_BAR_WIDTH, [
+            { ratio: processedRatio, fgColor: "textMuted", bgColor: "textMuted" },
+            { ratio: 1, fgColor: "textMuted", bgColor: "textMuted" },
+          ]);
         }
 
         fg(canvas, "textMuted", `  Used `);
