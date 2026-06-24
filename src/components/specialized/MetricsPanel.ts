@@ -20,13 +20,17 @@ function formatCtxNum(n: number): string {
 }
 
 function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
-  const segments = 10;
+  const maxCpSize = Math.max(1, ...checkpoints.map(cp => cp.sizeMiB));
+  const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
   let bar = "";
-  for (let i = segments - 1; i >= 0; i--) {
-    const lo = (i / segments) * contextSize;
-    const hi = ((i + 1) / segments) * contextSize;
-    const hasCp = checkpoints.some(cp => cp.pos >= lo && cp.pos < hi);
-    bar += hasCp ? "\u2588" : "\u2591";
+  for (let i = 0; i < CONTEXT_BAR_WIDTH; i++) {
+    const lo = (i / CONTEXT_BAR_WIDTH) * contextSize;
+    const hi = ((i + 1) / CONTEXT_BAR_WIDTH) * contextSize;
+    const segmentCps = checkpoints.filter(cp => cp.pos >= lo && cp.pos < hi);
+    const fill = segmentCps.length > 0
+      ? Math.min(8, Math.ceil((segmentCps.reduce((s, cp) => s + cp.sizeMiB, 0) / maxCpSize) * 8))
+      : 0;
+    bar += fill > 0 ? partialBlocks[fill] : "\u2591";
   }
   return bar;
 }
