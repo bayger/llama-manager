@@ -13,7 +13,7 @@ const STATE_COLOR: Record<string, Color> = {
 };
 
 const THINKING_ICON = "\u221e";
-const CONTEXT_BAR_WIDTH = 30;
+const CONTEXT_BAR_WIDTH = 34;
 
 function formatCtxNum(n: number): string {
   return n.toLocaleString("en-US");
