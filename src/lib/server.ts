@@ -6,6 +6,7 @@ import { ConfigData, PRESET_CATEGORIES, getVersionsDir, getLogFile, getActivePre
 import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
 import { processModelLine, resetModelInfo } from "../components/specialized/LoadedModelPanel";
+import { taskStore } from "./tasks";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -97,9 +98,10 @@ export function startServer(config: ConfigData): Promise<number> {
 
       const logFile = getLogFile(config);
       await fs.ensureDir(path.dirname(logFile));
+      taskStore.setLogFile(logFile);
       const logStream = await fs.createWriteStream(logFile, { flags: "a" });
 
-      const args = buildArgs(config);
+      const args = buildArgs(config, logFile);
       serverStartTime = Date.now();
       serverProcess = spawn(binary, args, {
         stdio: ["ignore", "pipe", "pipe"],
@@ -205,13 +207,13 @@ export function getStatus(): ServerStatus {
   };
 }
 
-export function buildArgs(config: ConfigData): string[] {
+export function buildArgs(config: ConfigData, logFile: string): string[] {
   const args: string[] = [];
   const p = getActivePresets(config);
 
   // Non-schema args
   if (config.hfToken) args.push("--hf-token", config.hfToken);
-  args.push("--log-file", getLogFile(config));
+  args.push("--log-file", logFile);
   args.push("--log-verbosity", "4");
 
   // Iterate schema to build args

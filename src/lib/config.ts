@@ -460,9 +460,16 @@ export function getTasksDb(config: ConfigData): string {
   return path.join(DATA_DIR, "tasks.db");
 }
 
+const LOGS_DIR = path.join(STATE_DIR, "logs");
+
+export function getLogsDir(): string {
+  return LOGS_DIR;
+}
+
 export function getLogFile(config: ConfigData): string {
   if (config.server.logFile) return config.server.logFile;
-  return path.join(STATE_DIR, "server.log");
+  const ts = new Date().toISOString().replace(/:/g, "-");
+  return path.join(LOGS_DIR, `server.${ts}.log`);
 }
 
 export function getActivePresets(config: ConfigData): ServerPresets {
