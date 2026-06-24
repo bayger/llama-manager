@@ -290,7 +290,7 @@ export class MetricsPanel extends Scrollable {
     // 5. Checkpoints
     if (slot.checkpoints.length > 0) {
       canvas.moveTo(x, cy);
-      const bar = checkpointBar(slot.contextSize, slot.checkpoints);
+      const bar = checkpointBar(slot.nCtxSlot ?? slot.contextSize, slot.checkpoints);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
       fg(canvas, "textMuted", "  Chk  ");
       fg(canvas, "accent", bar);
