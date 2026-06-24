@@ -1,7 +1,18 @@
 import fs from "fs-extra";
 import path from "path";
 import Database from "better-sqlite3";
-import { ConfigData, getTasksFile, getTasksDb, getLogFile } from "./config";
+import { ConfigData, getTasksFile, getTasksDb, getLogFile, getLogsDir } from "./config";
+
+function findLatestLogFile(config: ConfigData): string | null {
+  if (config.server.logFile) return config.server.logFile;
+  const logsDir = getLogsDir();
+  if (!fs.pathExistsSync(logsDir)) return null;
+  const files = fs.readdirSync(logsDir)
+    .filter((f: string) => /^server\.\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.log$/.test(f))
+    .sort();
+  if (files.length === 0) return null;
+  return path.join(logsDir, files[files.length - 1]);
+}
 import { TaskMetrics, logParser } from "./logparser";
 export type { TaskMetrics } from "./logparser";
 import { EventEmitter } from "events";
@@ -74,16 +85,24 @@ class TaskStore extends EventEmitter {
     logParser.seedCompleted(this.getAllTaskIds());
     logParser.setConfig(config);
 
-    const logFile = getLogFile(config);
-    await logParser.parseExistingFile(logFile);
+    const latestLog = findLatestLogFile(config);
+    if (latestLog) {
+      await logParser.parseExistingFile(latestLog);
+    }
 
     // Clear completed IDs so live tailing only tracks tasks in the current session.
     // Task IDs are not unique across server restarts, so keeping old IDs would
     // cause new tasks with reused IDs to be silently skipped.
     logParser.clearCompleted();
 
-    this.stopTailer = logParser.startFileTailer(logFile);
     this.emit("updated");
+  }
+
+  setLogFile(logFile: string) {
+    if (this.stopTailer) {
+      this.stopTailer();
+    }
+    this.stopTailer = logParser.startFileTailer(logFile);
   }
 
   private createTables() {
