@@ -4,7 +4,6 @@ import { Column, Row } from "../ui/Layout";
 import { Button } from "../ui/widgets/Button";
 import { Spacer } from "../ui/widgets/Spacer";
 import { List, ListItem } from "../ui/widgets/List";
-import { ProgressBar } from "../ui/widgets/ProgressBar";
 import { Scrollable } from "../ui/widgets/Scrollable";
 import { Section } from "../ui/widgets/Section";
 import { fg, fgBg } from "../../lib/theme";
@@ -93,7 +92,6 @@ export class VersionsControl extends Control {
   protected _list: List<string, VersionInfo | RemoteVersion | AvailableBackend>;
   protected _changelogSection: Section;
   protected _changelog: ChangelogView;
-  protected _progressBar: ProgressBar;
   protected _summary: StyledText;
   protected _prompt: StyledText;
 
@@ -131,11 +129,6 @@ export class VersionsControl extends Control {
     this._buttonRow.add(this._btnInstall);
     this._buttonRow.add(this._btnDelete);
 
-    this._progressBar = new ProgressBar();
-    this._progressBar.visible = false;
-    this._progressBar.filledColor = "accent";
-    this._progressBar.emptyColor = "border";
-
     this._dividerButtons = new Spacer();
 
     this._contentRow = new Row();
@@ -152,7 +145,6 @@ export class VersionsControl extends Control {
     //this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
-    this._column.add(this._progressBar);
 
     this.add(this._column);
   }
@@ -251,7 +243,6 @@ export class VersionsControl extends Control {
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
     this._btnDelete.visible = true;
-    this._progressBar.visible = false;
     this._list.setRenderer(this._localRenderer.bind(this));
     await this.refreshLocal();
   }
@@ -267,7 +258,6 @@ export class VersionsControl extends Control {
     this._prompt.builder.warning("Select version");
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
-    this._progressBar.visible = false;
     this._changelogSection.visible = true;
     this._list.selectedIndex = -1;
     this._list.items = [];
@@ -316,7 +306,6 @@ export class VersionsControl extends Control {
     this._changelogSection.visible = false;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
-    this._progressBar.visible = false;
     this._list.selectedIndex = -1;
     this._list.items = [];
     this.markDirty();
