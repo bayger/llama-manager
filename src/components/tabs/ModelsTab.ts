@@ -52,8 +52,10 @@ export class ModelsControl extends Control {
   protected _hfContentColumn: Column;
   protected _hfResultsSection: Section;
   protected _hfResultsList: Table<HFRepoInfo>;
+  protected _hfResultsEmpty: StyledText;
   protected _hfFilesSection: Section;
   protected _hfFilesList: Table<HFFileInfo>;
+  protected _hfFilesEmpty: StyledText;
   protected _hfButtonRow: Row;
   protected _hfBackBtn: Button;
   protected _hfPrevBtn: Button;
@@ -170,6 +172,12 @@ export class ModelsControl extends Control {
     this._hfResultsSection.title = "Results";
     this._hfResultsSection.add(this._hfResultsList);
 
+    this._hfResultsEmpty = new StyledText();
+    this._hfResultsEmpty.builder.muted("No models found.");
+    this._hfResultsEmpty.flex = 1;
+    this._hfResultsEmpty.visible = false;
+    this._hfResultsSection.add(this._hfResultsEmpty);
+
     this._hfResultsList.setOnSelect((item) => {
       this.openRepoFiles(item.data!);
     });
@@ -198,6 +206,12 @@ export class ModelsControl extends Control {
     this._hfFilesSection.visible = false;
     this._hfFilesSection.add(this._hfFilesList);
 
+    this._hfFilesEmpty = new StyledText();
+    this._hfFilesEmpty.builder.muted("No GGUF files found in this repo.");
+    this._hfFilesEmpty.flex = 1;
+    this._hfFilesEmpty.visible = false;
+    this._hfFilesSection.add(this._hfFilesEmpty);
+
     this._hfFilesList.setOnSelect((item) => {
       this.downloadSelectedFile(item.data!);
     });
@@ -221,13 +235,13 @@ export class ModelsControl extends Control {
     this._hfCancelBtn.visible = false;
     this._hfButtonRow = new Row();
     this._hfButtonRow.add(this._hfBackBtn);
-    this._hfButtonRow.add(this._hfSearchBtn);
     this._hfButtonRow.add(this._hfBrowseBtn);
     this._hfButtonRow.add(this._hfPrevBtn);
     this._hfButtonRow.add(this._hfNextBtn);
     this._hfButtonRow.add(this._hfCancelBtn);
     this._hfButtonRow.add(this._hfSearchLabel);
     this._hfButtonRow.add(this._hfSearchInput);
+    this._hfButtonRow.add(this._hfSearchBtn);
 
     this._hfColumn = new Column();
     this._hfColumn.add(this._hfButtonRow);
@@ -414,7 +428,11 @@ this._hfResultsList.handleKey = (key: string) => {
 
     // Content visibility
     this._hfResultsSection.visible = isResults;
+    this._hfResultsList.visible = this._allRepos.length > 0;
+    this._hfResultsEmpty.visible = this._allRepos.length === 0;
     this._hfFilesSection.visible = isFiles;
+    this._hfFilesList.visible = this._files.length > 0;
+    this._hfFilesEmpty.visible = this._files.length === 0;
 
     // Button visibility
     this._hfBackBtn.visible = true;
@@ -437,10 +455,10 @@ this._hfResultsList.handleKey = (key: string) => {
     if (isSearch) {
       focusManager.setFocus(this._hfSearchInput);
       focusManager.activateTextInput(true);
-    } else if (isResults) {
+    } else if (isResults && this._allRepos.length > 0) {
       focusManager.activateTextInput(false);
       focusManager.setFocus(this._hfResultsList);
-    } else if (isFiles) {
+    } else if (isFiles && this._files.length > 0) {
       focusManager.activateTextInput(false);
       focusManager.setFocus(this._hfFilesList);
     }
