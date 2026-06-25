@@ -88,10 +88,10 @@ export async function browseModels(
     limit: String(options.limit || 20),
   });
 
+  params.set("library_name", "gguf");
+
   if (options.search) {
-    params.set("search", `${options.search} gguf`);
-  } else {
-    params.set("search", "gguf");
+    params.set("search", options.search);
   }
 
   const filterParts: string[] = [];
