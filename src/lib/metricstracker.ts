@@ -353,6 +353,7 @@ export function processLine(line: string) {
     slot.pendingTokens = null;
     slot.contextSize = ctxSize;
     slot.lastTask = completed;
+    slot.checkpoints = [];
     notify();
   }
 }

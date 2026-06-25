@@ -184,20 +184,15 @@ export async function downloadModel(
         const elapsed = (now - lastTime) / 1000;
         const deltaBytes = received - lastBytes;
         const speed = deltaBytes / elapsed;
-        const remaining = total - received;
-        const eta = remaining / speed;
 
-        const pct = total > 0 ? Math.round((received / total) * 100) : 0;
+        const pct = total > 0 ? ((received / total) * 100) : 0;
         const speedStr = speed > 1024 * 1024
           ? `${(speed / (1024 * 1024)).toFixed(1)} MB/s`
           : `${(speed / 1024).toFixed(1)} KB/s`;
-        const etaStr = eta > 60
-          ? `${Math.round(eta / 60)}m ${Math.round(eta % 60)}s`
-          : `${Math.round(eta)}s`;
 
         onProgress(
           pct,
-          `${formatSize(received)} / ${formatSize(total)}  ${speedStr}  ETA ${etaStr}`,
+          `${formatSize(received)} / ${formatSize(total)}  ${speedStr}`,
         );
 
         lastUpdate = now;

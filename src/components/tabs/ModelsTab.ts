@@ -4,7 +4,6 @@ import { Button } from "../ui/widgets/Button";
 import { Spacer } from "../ui/widgets/Spacer";
 import { Table, TableItem } from "../ui/widgets/Table";
 import { TextInput } from "../ui/widgets/TextInput";
-import { ProgressBar } from "../ui/widgets/ProgressBar";
 import { Section } from "../ui/widgets/Section";
 import { StyledText } from "../ui/widgets/StyledText";
 import { focusManager } from "../ui/FocusManager";
@@ -25,7 +24,7 @@ import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
-type ViewMode = "local" | "search" | "results" | "files" | "downloading";
+type ViewMode = "local" | "search" | "results" | "files";
 
 export class ModelsControl extends Control {
   focusable = true;
@@ -53,7 +52,6 @@ export class ModelsControl extends Control {
   protected _hfResultsList: Table<HFRepoInfo>;
   protected _hfFilesSection: Section;
   protected _hfFilesList: Table<HFFileInfo>;
-  protected _hfProgressBar: ProgressBar;
   protected _hfButtonRow: Row;
   protected _hfBackBtn: Button;
   protected _hfPrevBtn: Button;
@@ -131,6 +129,7 @@ export class ModelsControl extends Control {
 
     this._hfResultsList = new Table<HFRepoInfo>();
     this._hfResultsList.showHeader = true;
+    this._hfResultsList.flex = 1;
     this._hfResultsList.columns = [
       {
         label: "Repo",
@@ -175,6 +174,7 @@ export class ModelsControl extends Control {
 
     this._hfFilesList = new Table<HFFileInfo>();
     this._hfFilesList.showHeader = true;
+    this._hfFilesList.flex = 1;
     this._hfFilesList.columns = [
       {
         label: "File",
@@ -200,17 +200,12 @@ export class ModelsControl extends Control {
       this.downloadSelectedFile(item.data!);
     });
 
-    this._hfProgressBar = new ProgressBar();
-    this._hfProgressBar.visible = false;
-    this._hfProgressBar.filledColor = "success";
-
     this._hfContentColumn = new Column();
     this._hfContentColumn.flex = 1;
     this._hfContentColumn.add(this._hfResultsSection);
     this._hfResultsSection.flex = 1;
     this._hfContentColumn.add(this._hfFilesSection);
     this._hfFilesSection.flex = 1;
-    this._hfContentColumn.add(this._hfProgressBar);
 
     this._hfBackBtn = new Button({ label: "Back" });
     this._hfSearchBtn = new Button({ label: "Search" });

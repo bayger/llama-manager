@@ -1,6 +1,6 @@
 import { Scrollable } from "../ui/widgets/Scrollable";
-import { fg } from "../../lib/theme";
-import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
+import { fg, fgBg } from "../../lib/theme";
+import { getGlobal, getSlots, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker";
 import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
 import type { RenderContext, Size } from "../ui/types";
@@ -19,17 +19,6 @@ function formatCtxNum(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
-  const segments = 10;
-  let bar = "";
-  for (let i = segments - 1; i >= 0; i--) {
-    const lo = (i / segments) * contextSize;
-    const hi = ((i + 1) / segments) * contextSize;
-    const hasCp = checkpoints.some(cp => cp.pos >= lo && cp.pos < hi);
-    bar += hasCp ? "\u2588" : "\u2591";
-  }
-  return bar;
-}
 
 function hasCtxData(s: SlotMetrics): boolean {
   return s.nCtxSlot !== null || s.contextSize > 0;
@@ -197,34 +186,25 @@ export class MetricsPanel extends Scrollable {
 
       const limit = slot.nCtxSlot;
       if (limit !== null && limit > 0) {
-        const cached = slot.cachedTokens ?? 0;
-        const processed = slot.state === "prompting"
-          ? cached
-          : slot.state === "generating"
-            ? ((slot.pendingTokens ?? 0) + (slot.decodedTokens ?? 0))
-            : slot.contextSize;
-        const pending = slot.state === "prompting"
-          ? Math.max(0, (slot.pendingTokens ?? 0) - cached)
-          : 0;
-        const totalUsed = processed + pending;
-        const usageRatio = totalUsed / limit;
-        const freeColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "textMuted";
+        const used = slot.cachedTokens ?? slot.contextSize;
+        const usageRatio = used / limit;
+        const barColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : isActive ? "success" : "textMuted";
 
-        if (isActive) {
-          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-          const pendingLen = Math.min(Math.round((totalUsed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH) - processedLen;
-          const freeLen = CONTEXT_BAR_WIDTH - processedLen - pendingLen;
-          fg(canvas, "success", "\u2588".repeat(processedLen));
-          fg(canvas, "warning", "\u2593".repeat(pendingLen));
-          fg(canvas, freeColor, "\u2591".repeat(freeLen));
-        } else {
-          const processedLen = Math.min(Math.round((processed / limit) * CONTEXT_BAR_WIDTH), CONTEXT_BAR_WIDTH);
-          fg(canvas, "textMuted", "\u2588".repeat(processedLen));
-          fg(canvas, "textMuted", "\u2591".repeat(CONTEXT_BAR_WIDTH - processedLen));
+        const exactFilled = usageRatio * CONTEXT_BAR_WIDTH;
+        const fullBlocks = Math.min(Math.floor(exactFilled), CONTEXT_BAR_WIDTH);
+        const remainder = Math.round((exactFilled - fullBlocks) * 8);
+        const empty = CONTEXT_BAR_WIDTH - fullBlocks - (remainder > 0 ? 1 : 0);
+
+        const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
+
+        fgBg(canvas, barColor, barColor, " ".repeat(fullBlocks));
+        if (remainder > 0) {
+          fgBg(canvas, barColor, "border", partialBlocks[remainder]);
         }
+        fgBg(canvas, "border", "border", " ".repeat(empty));
 
-        fg(canvas, "textMuted", `  Used `);
-        fg(canvas, "text", `${formatCtxNum(totalUsed)} / ${formatCtxNum(limit)}`);
+        fgBg(canvas, "textMuted", "canvasSubtle", `  Used `);
+        fg(canvas, "text", `${formatCtxNum(used)} / ${formatCtxNum(limit)}`);
       } else if (slot.contextSize > 0) {
         fg(canvas, "text", `${formatCtxNum(slot.contextSize)} tok`);
       }
@@ -240,9 +220,20 @@ export class MetricsPanel extends Scrollable {
       const tgSpeed = slot.state === "generating" ? slot.generationSpeed : lt?.outputSpeed ?? null;
 
       fg(canvas, "textMuted", "  PP   ");
-      fg(canvas, ppSpeed !== null ? "info" : "textMuted", ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s` : "-");
+      if (ppSpeed !== null) {
+        const ppText = slot.state === "prompting" && slot.promptProgress !== null
+          ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`
+          : `${ppSpeed.toFixed(1)} t/s`;
+        fg(canvas, "info", ppText);
+      } else {
+        fg(canvas, "textMuted", "-");
+      }
 
-      const leftLen = 7 + (ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s`.length : 1);
+      const leftLen = 7 + (ppSpeed !== null
+        ? (slot.state === "prompting" && slot.promptProgress !== null
+          ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`.length
+          : `${ppSpeed.toFixed(1)} t/s`.length)
+        : 1);
       const rightPad = Math.max(2, rightCol - leftLen);
 
       fg(canvas, "canvas", " ".repeat(rightPad));
@@ -284,11 +275,10 @@ export class MetricsPanel extends Scrollable {
     // 5. Checkpoints
     if (slot.checkpoints.length > 0) {
       canvas.moveTo(x, cy);
-      const bar = checkpointBar(slot.contextSize, slot.checkpoints);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
       fg(canvas, "textMuted", "  Chk  ");
-      fg(canvas, "accent", bar);
-      fg(canvas, "textMuted", `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
+      fg(canvas, "accent", `${slot.checkpoints.length}`);
+      fg(canvas, "textMuted", `  ${totalChkMiB.toFixed(1)} MiB`);
       cy++;
     }
   }
