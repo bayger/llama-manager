@@ -1,7 +1,7 @@
 import fs from "fs-extra";
 import path from "path";
 import Database from "better-sqlite3";
-import { ConfigData, getTasksFile, getTasksDb, getLogFile, getLogsDir } from "./config";
+import { ConfigData, getTasksFile, getTasksDb, getLogsDir } from "./config";
 
 function findLatestLogFile(config: ConfigData): string | null {
   if (config.server.logFile) return config.server.logFile;
