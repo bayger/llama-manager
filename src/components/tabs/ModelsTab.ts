@@ -1,6 +1,7 @@
 import { Control } from "../ui/Control";
 import { Column, Row } from "../ui/Layout";
 import { Button } from "../ui/widgets/Button";
+import { Label } from "../ui/widgets/Label";
 import { Spacer } from "../ui/widgets/Spacer";
 import { Table, TableItem } from "../ui/widgets/Table";
 import { TextInput } from "../ui/widgets/TextInput";
@@ -43,8 +44,9 @@ export class ModelsControl extends Control {
 
   // HF Browser
   protected _hfColumn: Column;
-  protected _hfSearchRow: Row;
+
   protected _hfSearchInput: TextInput;
+  protected _hfSearchLabel: Label;
   protected _hfSearchBtn: Button;
   protected _hfBrowseBtn: Button;
   protected _hfContentColumn: Column;
@@ -122,10 +124,10 @@ export class ModelsControl extends Control {
 
     this._hfSearchInput = new TextInput();
     this._hfSearchInput.placeholder = "Search models...";
-    this._hfSearchInput.prefix = "> ";
+    this._hfSearchInput.flex = 1;
 
-    this._hfSearchRow = new Row();
-    this._hfSearchRow.add(this._hfSearchInput);
+    this._hfSearchLabel = new Label();
+    this._hfSearchLabel.text = "Search: ";
 
     this._hfResultsList = new Table<HFRepoInfo>();
     this._hfResultsList.showHeader = true;
@@ -224,10 +226,10 @@ export class ModelsControl extends Control {
     this._hfButtonRow.add(this._hfPrevBtn);
     this._hfButtonRow.add(this._hfNextBtn);
     this._hfButtonRow.add(this._hfCancelBtn);
+    this._hfButtonRow.add(this._hfSearchLabel);
+    this._hfButtonRow.add(this._hfSearchInput);
 
     this._hfColumn = new Column();
-    this._hfColumn.add(this._hfSearchRow);
-    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfButtonRow);
     //this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfContentColumn);
@@ -409,9 +411,6 @@ this._hfResultsList.handleKey = (key: string) => {
     const isSearch = this._view === "search";
     const isResults = this._view === "results";
     const isFiles = this._view === "files";
-
-    // Search row visibility
-    this._hfSearchRow.visible = true;
 
     // Content visibility
     this._hfResultsSection.visible = isResults;
