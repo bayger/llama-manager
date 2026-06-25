@@ -1,6 +1,6 @@
 import { Scrollable } from "../ui/widgets/Scrollable";
 import { fg, fgBg } from "../../lib/theme";
-import { getGlobal, getSlots, onMetricsChange, type SlotMetrics, type SlotCheckpoint } from "../../lib/metricstracker";
+import { getGlobal, getSlots, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker";
 import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
 import type { RenderContext, Size } from "../ui/types";
@@ -19,21 +19,6 @@ function formatCtxNum(n: number): string {
   return n.toLocaleString("en-US");
 }
 
-function checkpointBar(contextSize: number, checkpoints: SlotCheckpoint[]): string {
-  const maxCpSize = Math.max(1, ...checkpoints.map(cp => cp.sizeMiB));
-  const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
-  let bar = "";
-  for (let i = 0; i < CONTEXT_BAR_WIDTH; i++) {
-    const lo = (i / CONTEXT_BAR_WIDTH) * contextSize;
-    const hi = ((i + 1) / CONTEXT_BAR_WIDTH) * contextSize;
-    const segmentCps = checkpoints.filter(cp => cp.pos >= lo && cp.pos < hi);
-    const fill = segmentCps.length > 0
-      ? Math.min(8, Math.ceil((segmentCps.reduce((s, cp) => s + cp.sizeMiB, 0) / maxCpSize) * 8))
-      : 0;
-    bar += fill > 0 ? partialBlocks[fill] : "\u2591";
-  }
-  return bar;
-}
 
 function hasCtxData(s: SlotMetrics): boolean {
   return s.nCtxSlot !== null || s.contextSize > 0;
@@ -290,11 +275,10 @@ export class MetricsPanel extends Scrollable {
     // 5. Checkpoints
     if (slot.checkpoints.length > 0) {
       canvas.moveTo(x, cy);
-      const bar = checkpointBar(slot.nCtxSlot ?? slot.contextSize, slot.checkpoints);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
-      fg(canvas, "textMuted", "  Chk  ");
-      fg(canvas, "accent", bar);
-      fg(canvas, "textMuted", `  ${slot.checkpoints.length}/32  ${totalChkMiB.toFixed(1)} MiB`);
+      fg(canvas, "textMuted", "  Chk ");
+      fg(canvas, "accent", `${slot.checkpoints.length}`);
+      fg(canvas, "textMuted", `  ${totalChkMiB.toFixed(1)} MiB`);
       cy++;
     }
   }
