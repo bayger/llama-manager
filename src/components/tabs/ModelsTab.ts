@@ -123,7 +123,7 @@ export class ModelsControl extends Control {
     // --- HF Browser view ---
 
     this._hfSearchInput = new TextInput();
-    this._hfSearchInput.placeholder = "Search models...";
+    this._hfSearchInput.placeholder = "model name...";
     this._hfSearchInput.flex = 1;
 
     this._hfSearchLabel = new Label();

@@ -48,7 +48,7 @@ export async function searchRepos(
 }
 
 export async function listFiles(repoId: string, token?: string): Promise<HFFileInfo[]> {
-  const res = await fetch(`https://huggingface.co/api/models/${repoId}/tree/main`, {
+  const res = await fetch(`https://huggingface.co/api/models/${repoId}/tree/main?recursive=true`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
