@@ -276,7 +276,7 @@ export class MetricsPanel extends Scrollable {
     if (slot.checkpoints.length > 0) {
       canvas.moveTo(x, cy);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
-      fg(canvas, "textMuted", "  Chk ");
+      fg(canvas, "textMuted", "  Chk  ");
       fg(canvas, "accent", `${slot.checkpoints.length}`);
       fg(canvas, "textMuted", `  ${totalChkMiB.toFixed(1)} MiB`);
       cy++;
