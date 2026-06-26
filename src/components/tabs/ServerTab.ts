@@ -68,8 +68,8 @@ export class ServerControl extends Control {
     this._profileList.setSelectCallback((name: string) => {
       this.switchProfile(name);
     });
-    this._profileList.setEditCallback(() => {
-      this.showSettings();
+    this._profileList.setEditCallback((name: string) => {
+      this.showSettings(name);
     });
 
     this._section = new Section();
@@ -148,19 +148,25 @@ export class ServerControl extends Control {
     this._settingsPanel.visible = false;
     this._advancedCheckbox.visible = false;
     this._profileList.visible = true;
+    this._section.title = "Available Profiles";
+    this._settingsPanel.setEditingProfile(null);
     const config = this._ctx?.getConfig();
     if (config) this._profileList.setConfig(config);
     focusManager.setFocus(this._profileList);
     this.markDirty();
   }
 
-  showSettings(): void {
+  showSettings(profileName?: string): void {
     this._showingSettings = true;
     this._settingsPanel.visible = true;
     this._advancedCheckbox.visible = true;
     this._profileList.visible = false;
     const config = this._ctx?.getConfig();
-    if (config) this._settingsPanel.setConfig(config);
+    if (config) {
+      this._settingsPanel.setConfig(config);
+      this._settingsPanel.setEditingProfile(profileName ?? null);
+    }
+    this._section.title = `Edit Profile - ${profileName || config?.server.activeProfile || ""}`;
     focusManager.setFocus(this._settingsPanel);
     this.markDirty();
   }

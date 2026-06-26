@@ -24,6 +24,7 @@ export class SettingsPanel extends EditableList {
   protected _ctx: TabContext | null = null;
   protected _onMessage: ((msg: string) => void) | null = null;
   protected _onEscape: (() => void) | null = null;
+  protected _editingProfile: string | null = null;
 
   setTabContext(ctx: TabContext | null): void {
     this._ctx = ctx;
@@ -35,6 +36,10 @@ export class SettingsPanel extends EditableList {
 
   setOnEscape(cb: () => void): void {
     this._onEscape = cb;
+  }
+
+  setEditingProfile(profile: string | null): void {
+    this._editingProfile = profile;
   }
 
   setConfig(config: ConfigData): void {
@@ -59,7 +64,8 @@ export class SettingsPanel extends EditableList {
   protected buildRows(): void {
     this._rows = [];
     if (!this._config) return;
-    const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config.server.activeProfile;
+    const presets = this._config.server.profiles[profileName]?.presets;
     if (!presets) return;
 
     for (let catIdx = 0; catIdx < PRESET_CATEGORIES.length; catIdx++) {
@@ -80,14 +86,16 @@ export class SettingsPanel extends EditableList {
 
   protected getRowValue(row: EditableRowInfo): unknown {
     if (row.type !== "field" || !row.field || !this._config) return undefined;
-    const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config.server.activeProfile;
+    const presets = this._config.server.profiles[profileName]?.presets;
     const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
     return presetData?.[row.field.key];
   }
 
   protected setRowValue(row: EditableRowInfo, value: unknown): void {
     if (row.type !== "field" || !row.field || !this._config) return;
-    const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config.server.activeProfile;
+    const presets = this._config.server.profiles[profileName]?.presets;
     const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
     if (presetData) {
       presetData[row.field.key] = value;
@@ -118,7 +126,8 @@ export class SettingsPanel extends EditableList {
   protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, isEditing: boolean, width: number): void {
     const field = row.field!;
     const cat = PRESET_CATEGORIES[row.catIdx]!;
-    const presets = this._config?.server.profiles[this._config?.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config?.server.activeProfile || "";
+    const presets = this._config?.server.profiles[profileName]?.presets;
     const presetData = presets?.[cat.presetKey];
     const keyStr = ` ${field.key}`.padEnd(KEY_COL_WIDTH);
 
@@ -198,7 +207,8 @@ export class SettingsPanel extends EditableList {
       await modal.scanDevices();
       const result = await ctx.openModal<string | null>(modal);
       if (result !== null) {
-        const presets = config.server.profiles[config.server.activeProfile]?.presets;
+        const profileName = this._editingProfile || config.server.activeProfile;
+        const presets = config.server.profiles[profileName]?.presets;
         const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
         if (presetData) {
           presetData[field.key] = result;
