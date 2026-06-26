@@ -89,6 +89,7 @@ export async function browseModels(
   });
 
   params.set("library_name", "gguf");
+  params.set("filter", "gguf");
 
   if (options.search) {
     params.set("search", options.search);
@@ -113,5 +114,10 @@ export async function browseModels(
 
   if (!res.ok) throw new Error(`HF browse failed: ${res.status}`);
   const data = await res.json();
-  return data.filter((r: HFRepoInfo) => !r.private && !r.disabled);
+  const llmTags = new Set(["text-generation", "image-text-to-text"]);
+  return data.filter((r: HFRepoInfo) =>
+    !r.private &&
+    !r.disabled &&
+    (r.pipeline_tag === undefined || llmTags.has(r.pipeline_tag)),
+  );
 }

@@ -144,7 +144,7 @@ export class ModelsControl extends Control {
       },
       {
         label: "Task",
-        width: 10,
+        width: 20,
         align: "left",
         format: (v, row: HFRepoInfo) => row.pipeline_tag || "-",
       },
