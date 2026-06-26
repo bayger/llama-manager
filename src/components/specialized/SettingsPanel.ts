@@ -193,7 +193,26 @@ export class SettingsPanel extends EditableList {
       }
     }
 
+    if (key === "DELETE" && !this._edit) {
+      this.restoreDefault();
+      return true;
+    }
+
     return super.handleKey(key);
+  }
+
+  protected restoreDefault(): void {
+    const row = this._rows[this._selectedIndex];
+    if (!row || row.type !== "field" || !row.field) return;
+
+    const cat = PRESET_CATEGORIES[row.catIdx]!;
+    const fieldDef = cat.fields.find(f => f.key === row.field!.key);
+    if (!fieldDef) return;
+
+    this.setRowValue(row, fieldDef.default);
+    this.saveAndMessage();
+    this._onMessage?.(`Restored ${row.field.key} to default: ${fieldDef.default}`);
+    this.markDirty();
   }
 
   protected openDeviceSelector(row: import("./EditableList").EditableRowInfo): void {
