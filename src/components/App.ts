@@ -31,6 +31,7 @@ export class App {
   private _resizeTimer: ReturnType<typeof setTimeout> | null = null;
   private _renderInterval: ReturnType<typeof setInterval> | null = null;
   private _firstRender = true;
+  private _cursorVisible = false;
   private helpOverlayVisible = false;
 
   constructor(public term: Terminal) {}
@@ -170,12 +171,14 @@ export class App {
       }
     }
 
-    term(CURSOR_HIDE);
     diffToTerminal(fb.back, fb.front, (text) => term(text), width, height);
 
     term(`\x1b[${canvas.terminalCursorY};${canvas.terminalCursorX}H`);
-    if (canvas.terminalCursorVisible) {
-      term(CURSOR_SHOW);
+
+    const wantVisible = canvas.terminalCursorVisible;
+    if (wantVisible !== this._cursorVisible) {
+      term(wantVisible ? CURSOR_SHOW : CURSOR_HIDE);
+      this._cursorVisible = wantVisible;
     }
   }
 
