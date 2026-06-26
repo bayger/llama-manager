@@ -48,7 +48,7 @@ export async function searchRepos(
 }
 
 export async function listFiles(repoId: string, token?: string): Promise<HFFileInfo[]> {
-  const res = await fetch(`https://huggingface.co/api/models/${repoId}/tree/main`, {
+  const res = await fetch(`https://huggingface.co/api/models/${repoId}/tree/main?recursive=true`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
@@ -88,10 +88,11 @@ export async function browseModels(
     limit: String(options.limit || 20),
   });
 
+  params.set("library_name", "gguf");
+  params.set("filter", "gguf");
+
   if (options.search) {
-    params.set("search", `${options.search} gguf`);
-  } else {
-    params.set("search", "gguf");
+    params.set("search", options.search);
   }
 
   const filterParts: string[] = [];
@@ -113,5 +114,10 @@ export async function browseModels(
 
   if (!res.ok) throw new Error(`HF browse failed: ${res.status}`);
   const data = await res.json();
-  return data.filter((r: HFRepoInfo) => !r.private && !r.disabled);
+  const llmTags = new Set(["text-generation", "image-text-to-text"]);
+  return data.filter((r: HFRepoInfo) =>
+    !r.private &&
+    !r.disabled &&
+    (r.pipeline_tag === undefined || llmTags.has(r.pipeline_tag)),
+  );
 }

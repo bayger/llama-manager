@@ -33,7 +33,7 @@ export class TextInput extends Control {
   protected _onChange: ((value: string) => void) | null = null;
 
   measure(_parentSize?: Size): Size {
-    const contentLen = Math.max(this.value.length, this.placeholder.length) + this.prefix.length + 2;
+    const contentLen = Math.max(this.value.length, this.placeholder.length) + this.prefix.length;
     return { width: contentLen, height: 1 };
   }
 
@@ -50,7 +50,7 @@ export class TextInput extends Control {
   }
 
   protected updateViewport(): void {
-    const visibleWidth = Math.max(1, this.rect.width - this.prefix.length - 2);
+    const visibleWidth = Math.max(1, this.rect.width - this.prefix.length);
     if (this._cursorPos < this._viewportOffset) {
       this._viewportOffset = this._cursorPos;
     } else if (this._cursorPos >= this._viewportOffset + visibleWidth) {
@@ -78,13 +78,14 @@ export class TextInput extends Control {
     const borderColor = this.focused ? "borderActive" : "borderMuted";
 
     canvas.moveTo(x, y);
-    fgBg(canvas, borderColor, bg, "│");
+    fgBg(canvas, "None", bg, " ".repeat(this.rect.width));
+    canvas.moveTo(x, y);
 
     if (this.prefix) {
       fg(canvas, "textMuted", this.prefix);
     }
 
-    const visibleWidth = Math.max(1, this.rect.width - this.prefix.length - 2);
+    const visibleWidth = Math.max(1, this.rect.width - this.prefix.length);
     this.updateViewport();
 
     const display = this.value || this.placeholder;
@@ -92,10 +93,8 @@ export class TextInput extends Control {
     const visible = display.slice(this._viewportOffset, this._viewportOffset + visibleWidth);
     fg(canvas, displayColor, visible);
 
-    fgBg(canvas, borderColor, bg, "│");
-
     if (this.focused) {
-      const cursorX = x + 1 + this.prefix.length + (this.cursorPos - this._viewportOffset);
+      const cursorX = x + this.prefix.length + (this.cursorPos - this._viewportOffset);
       canvas.setTerminalCursor(cursorX, y);
       canvas.showTerminalCursor();
     }
@@ -167,12 +166,12 @@ export class TextInput extends Control {
     const { x, y } = this.rect;
     if (point.x < x || point.x >= x + this.rect.width || point.y !== y) return false;
 
-    // Layout: left border (1) + prefix + visible text + right border (1)
+    // Layout: prefix + visible text
     const offsetX = point.x - x;
-    if (offsetX === 0) {
+    if (offsetX < this.prefix.length) {
       this.cursorPos = 0;
     } else {
-      this.cursorPos = Math.min(this.value.length, Math.max(0, this._viewportOffset + offsetX - 1 - this.prefix.length));
+      this.cursorPos = Math.min(this.value.length, Math.max(0, this._viewportOffset + offsetX - this.prefix.length));
     }
     this.markDirty();
     return true;
