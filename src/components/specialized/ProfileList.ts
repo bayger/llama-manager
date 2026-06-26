@@ -7,6 +7,7 @@ export class ProfileList extends Control {
   focusable = true;
   protected _config: ConfigData | null = null;
   protected _selectedIndex = 0;
+  protected _scrollOffset = 0;
   protected _onSelect: ((name: string) => void) | null = null;
   protected _onEdit: ((name: string) => void) | null = null;
   protected _onCancel: (() => void) | null = null;
@@ -26,6 +27,7 @@ export class ProfileList extends Control {
   setConfig(config: ConfigData): void {
     this._config = config;
     this._selectedIndex = 0;
+    this._scrollOffset = 0;
     if (config) {
       const names = Object.keys(config.server.profiles);
       const idx = names.indexOf(config.server.activeProfile);
@@ -36,6 +38,21 @@ export class ProfileList extends Control {
 
   measure(parentSize?: Size): Size {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
+  }
+
+  onLayout(): void {
+    if (!this._config) return;
+    const names = Object.keys(this._config.server.profiles);
+    const len = names.length;
+    this._selectedIndex = Math.max(0, Math.min(this._selectedIndex, len - 1));
+    const maxScroll = Math.max(0, len - this.rect.height);
+    this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, maxScroll));
+    if (this._selectedIndex < this._scrollOffset) {
+      this._scrollOffset = this._selectedIndex;
+    }
+    if (this._selectedIndex >= this._scrollOffset + this.rect.height) {
+      this._scrollOffset = this._selectedIndex - this.rect.height + 1;
+    }
   }
 
   draw(ctx: RenderContext): void {
@@ -51,22 +68,23 @@ export class ProfileList extends Control {
     for (let i = 0; i < height; i++) {
       canvas.moveTo(x, startY + i);
 
-      if (i < names.length) {
-        const name = names[i]!;
-        const isActive = name === this._config.server.activeProfile;
-        const isHighlighted = i === this._selectedIndex;
-        const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isActive ? "accent" : "text");
-        const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-        const prefix = isActive ? "✓ " : "  ";
-        const line = (prefix + name).padEnd(width);
+      const visualRow = i + this._scrollOffset;
+      if (visualRow >= names.length) break;
 
-        if (isHighlighted) {
-          canvas.bold(true);
-          fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-          canvas.bold(false);
-        } else {
-          fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-        }
+      const name = names[visualRow]!;
+      const isActive = name === this._config.server.activeProfile;
+      const isHighlighted = visualRow === this._selectedIndex;
+      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isActive ? "accent" : "text");
+      const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+      const prefix = isActive ? "✓ " : "  ";
+      const line = (prefix + name).padEnd(width);
+
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
+        canvas.bold(false);
+      } else {
+        fgBg(canvas, fgColor, bgColor, line.substring(0, width));
       }
     }
   }
@@ -79,6 +97,9 @@ export class ProfileList extends Control {
     if (key === "UP" || key === "k") {
       if (this._selectedIndex > 0) {
         this._selectedIndex--;
+        if (this._selectedIndex < this._scrollOffset) {
+          this._scrollOffset = this._selectedIndex;
+        }
         this.markDirty();
         return true;
       }
@@ -87,6 +108,10 @@ export class ProfileList extends Control {
     if (key === "DOWN" || key === "j") {
       if (this._selectedIndex < names.length - 1) {
         this._selectedIndex++;
+        const viewportBottom = this._scrollOffset + this.rect.height;
+        if (this._selectedIndex >= viewportBottom) {
+          this._scrollOffset = this._selectedIndex - this.rect.height + 1;
+        }
         this.markDirty();
         return true;
       }
@@ -94,11 +119,13 @@ export class ProfileList extends Control {
     }
     if (key === "HOME") {
       this._selectedIndex = 0;
+      this._scrollOffset = 0;
       this.markDirty();
       return true;
     }
     if (key === "END") {
       this._selectedIndex = names.length - 1;
+      this._scrollOffset = Math.max(0, names.length - this.rect.height);
       this.markDirty();
       return true;
     }
@@ -136,8 +163,27 @@ export class ProfileList extends Control {
     const names = Object.keys(this._config.server.profiles);
     if (names.length === 0) return false;
     const row = point.y - this.rect.y;
-    if (row >= 0 && row < names.length) {
-      this._selectedIndex = row;
+    if (row < 0) return false;
+    const visualRow = row + this._scrollOffset;
+    if (visualRow >= 0 && visualRow < names.length) {
+      this._selectedIndex = visualRow;
+      this.markDirty();
+      return true;
+    }
+    return false;
+  }
+
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    const names = Object.keys(this._config?.server.profiles || {});
+    const len = names.length;
+    const maxScroll = Math.max(0, len - this.rect.height);
+    if (direction === 'up' && this._scrollOffset > 0) {
+      this._scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this._scrollOffset < maxScroll) {
+      this._scrollOffset++;
       this.markDirty();
       return true;
     }
