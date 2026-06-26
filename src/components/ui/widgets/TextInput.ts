@@ -12,7 +12,7 @@ export class TextInput extends Control {
   protected _viewportOffset = 0;
 
   get value(): string { return this._value; }
-  set value(v: string) { if (v !== this._value) { this._value = v; this.markDirty(); } }
+  set value(v: string) { if (v !== this._value) { this._value = v; this._cursorPos = 0; this._viewportOffset = 0; this.markDirty(); } }
 
   get placeholder(): string { return this._placeholder; }
   set placeholder(v: string) { if (v !== this._placeholder) { this._placeholder = v; this.markDirty(); } }
@@ -50,6 +50,7 @@ export class TextInput extends Control {
   }
 
   protected updateViewport(): void {
+    if (this.rect.width === 0) return;
     const visibleWidth = Math.max(1, this.rect.width - this.prefix.length);
     if (this._cursorPos < this._viewportOffset) {
       this._viewportOffset = this._cursorPos;
