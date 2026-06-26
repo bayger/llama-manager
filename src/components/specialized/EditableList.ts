@@ -90,7 +90,7 @@ export abstract class EditableList extends Control {
 
   // --- Shared logic ---
 
-  protected clampSelection(): void {
+  protected clampBounds(): void {
     const len = this._rows.length;
     if (len === 0) {
       this._selectedIndex = 0;
@@ -100,6 +100,10 @@ export abstract class EditableList extends Control {
     this._selectedIndex = Math.max(0, Math.min(this._selectedIndex, len - 1));
     const maxScroll = Math.max(0, len - this.rect.height);
     this._scrollOffset = Math.max(0, Math.min(this._scrollOffset, maxScroll));
+  }
+
+  protected clampSelection(): void {
+    this.clampBounds();
     if (this._selectedIndex < this._scrollOffset) {
       this._scrollOffset = this._selectedIndex;
     }
@@ -113,7 +117,7 @@ export abstract class EditableList extends Control {
   }
 
   onLayout(): void {
-    this.clampSelection();
+    this.clampBounds();
   }
 
   /** Override to return a different effective width (e.g. when a sidebar is visible). */
