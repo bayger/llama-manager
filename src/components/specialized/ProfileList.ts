@@ -8,14 +8,14 @@ export class ProfileList extends Control {
   protected _config: ConfigData | null = null;
   protected _selectedIndex = 0;
   protected _onSelect: ((name: string) => void) | null = null;
-  protected _onEdit: (() => void) | null = null;
+  protected _onEdit: ((name: string) => void) | null = null;
   protected _onCancel: (() => void) | null = null;
 
   setSelectCallback(cb: (name: string) => void): void {
     this._onSelect = cb;
   }
 
-  setEditCallback(cb: () => void): void {
+  setEditCallback(cb: (name: string) => void): void {
     this._onEdit = cb;
   }
 
@@ -23,13 +23,18 @@ export class ProfileList extends Control {
     this._onCancel = cb;
   }
 
-  setConfig(config: ConfigData): void {
+  setConfig(config: ConfigData, preserveIndex?: boolean): void {
     this._config = config;
-    this._selectedIndex = 0;
-    if (config) {
+    if (!preserveIndex) {
+      this._selectedIndex = 0;
+      if (config) {
+        const names = Object.keys(config.server.profiles);
+        const idx = names.indexOf(config.server.activeProfile);
+        if (idx !== -1) this._selectedIndex = idx;
+      }
+    } else if (config) {
       const names = Object.keys(config.server.profiles);
-      const idx = names.indexOf(config.server.activeProfile);
-      if (idx !== -1) this._selectedIndex = idx;
+      this._selectedIndex = Math.max(0, Math.min(this._selectedIndex, names.length - 1));
     }
     this.markDirty();
   }
@@ -103,7 +108,8 @@ export class ProfileList extends Control {
       return true;
     }
     if (key === "RETURN" || key === "ENTER") {
-      if (this._onEdit) this._onEdit();
+      const name = names[this._selectedIndex];
+      if (name && this._onEdit) this._onEdit(name);
       return true;
     }
     if (key === "SPACE" || key === " ") {

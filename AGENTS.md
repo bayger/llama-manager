@@ -66,3 +66,8 @@ Uses terminal-kit 3 (input only), better-sqlite3, undici 7, TypeScript 5, fs-ext
 - Follow the directory structure from SPEC.md. New features go under `src/components/tabs/` or `src/lib/`.
 - Tabs use factory functions (`createXxxTab(ctx)`) that return either a `Control` or a legacy `TabModule`. App wraps Controls automatically.
 - `fireAsync` from `utils.ts` should be used for async button handlers - it catches errors and shows them via the provided app's `showMessage`.
+
+## Important
+
+- DO NOT COMMIT or PUSH without permission
+- Only commit or push when explicitly asked

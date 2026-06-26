@@ -15,3 +15,4 @@ export { Modal } from "./Modal";
 export { ConfirmDialog, createConfirmDialog } from "./ConfirmDialog";
 export { DownloadDialog, createDownloadDialog } from "./DownloadDialog";
 export { ExitDialog, createExitDialog } from "./ExitDialog";
+export { DeviceSelectorModal, createDeviceSelectorModal } from "./DeviceSelectorModal";

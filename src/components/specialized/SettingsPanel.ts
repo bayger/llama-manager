@@ -8,14 +8,27 @@ import {
 } from "../../lib/config";
 import type { RenderContext } from "../ui/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
+import { createDeviceSelectorModal } from "../ui/widgets/DeviceSelectorModal";
+import type { TabContext } from "../../lib/tabcontext";
+import { fireAsync } from "../../lib/utils";
 
 const KEY_COL_WIDTH = 18;
+
+interface ModalFieldDef extends PresetFieldDef {
+  modal?: boolean;
+}
 
 export class SettingsPanel extends EditableList {
   protected _config: ConfigData | null = null;
   protected _advancedMode = false;
+  protected _ctx: TabContext | null = null;
   protected _onMessage: ((msg: string) => void) | null = null;
   protected _onEscape: (() => void) | null = null;
+  protected _editingProfile: string | null = null;
+
+  setTabContext(ctx: TabContext | null): void {
+    this._ctx = ctx;
+  }
 
   setMessageCallback(cb: (msg: string) => void): void {
     this._onMessage = cb;
@@ -23,6 +36,10 @@ export class SettingsPanel extends EditableList {
 
   setOnEscape(cb: () => void): void {
     this._onEscape = cb;
+  }
+
+  setEditingProfile(profile: string | null): void {
+    this._editingProfile = profile;
   }
 
   setConfig(config: ConfigData): void {
@@ -47,7 +64,8 @@ export class SettingsPanel extends EditableList {
   protected buildRows(): void {
     this._rows = [];
     if (!this._config) return;
-    const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config.server.activeProfile;
+    const presets = this._config.server.profiles[profileName]?.presets;
     if (!presets) return;
 
     for (let catIdx = 0; catIdx < PRESET_CATEGORIES.length; catIdx++) {
@@ -68,14 +86,16 @@ export class SettingsPanel extends EditableList {
 
   protected getRowValue(row: EditableRowInfo): unknown {
     if (row.type !== "field" || !row.field || !this._config) return undefined;
-    const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config.server.activeProfile;
+    const presets = this._config.server.profiles[profileName]?.presets;
     const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
     return presetData?.[row.field.key];
   }
 
   protected setRowValue(row: EditableRowInfo, value: unknown): void {
     if (row.type !== "field" || !row.field || !this._config) return;
-    const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config.server.activeProfile;
+    const presets = this._config.server.profiles[profileName]?.presets;
     const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
     if (presetData) {
       presetData[row.field.key] = value;
@@ -106,7 +126,8 @@ export class SettingsPanel extends EditableList {
   protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, isEditing: boolean, width: number): void {
     const field = row.field!;
     const cat = PRESET_CATEGORIES[row.catIdx]!;
-    const presets = this._config?.server.profiles[this._config?.server.activeProfile]?.presets;
+    const profileName = this._editingProfile || this._config?.server.activeProfile || "";
+    const presets = this._config?.server.profiles[profileName]?.presets;
     const presetData = presets?.[cat.presetKey];
     const keyStr = ` ${field.key}`.padEnd(KEY_COL_WIDTH);
 
@@ -153,7 +174,7 @@ export class SettingsPanel extends EditableList {
     }
   }
 
-  // --- Override for escape callback ---
+  // --- Override for escape callback and modal fields ---
 
   handleKey(key: string): boolean {
     if (key === "ESCAPE") {
@@ -163,6 +184,61 @@ export class SettingsPanel extends EditableList {
       this._onEscape?.();
       return true;
     }
+
+    if (key === "RETURN" || key === "ENTER") {
+      const row = this._rows[this._selectedIndex];
+      if (row && row.type === "field" && (row.field as ModalFieldDef)?.modal) {
+        this.openDeviceSelector(row);
+        return true;
+      }
+    }
+
+    if (key === "DELETE" && !this._edit) {
+      this.restoreDefault();
+      return true;
+    }
+
     return super.handleKey(key);
+  }
+
+  protected restoreDefault(): void {
+    const row = this._rows[this._selectedIndex];
+    if (!row || row.type !== "field" || !row.field) return;
+
+    const cat = PRESET_CATEGORIES[row.catIdx]!;
+    const fieldDef = cat.fields.find(f => f.key === row.field!.key);
+    if (!fieldDef) return;
+
+    this.setRowValue(row, fieldDef.default);
+    this.saveAndMessage();
+    this._onMessage?.(`Restored ${row.field.key} to default: ${fieldDef.default}`);
+    this.markDirty();
+  }
+
+  protected openDeviceSelector(row: import("./EditableList").EditableRowInfo): void {
+    const config = this._config;
+    const ctx = this._ctx;
+    if (!config || !ctx) return;
+    const field = row.field!;
+
+    fireAsync(async () => {
+      const modal = createDeviceSelectorModal(config);
+      await modal.scanDevices();
+      const result = await ctx.openModal<string | null>(modal);
+      if (result !== null) {
+        const profileName = this._editingProfile || config.server.activeProfile;
+        const presets = config.server.profiles[profileName]?.presets;
+        const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
+        if (presetData) {
+          presetData[field.key] = result;
+          try {
+            saveConfig(config);
+            this._onMessage?.(`Set ${field.key} to: ${result}`);
+          } catch (e) {
+            this._onMessage?.(`Error saving: ${e}`);
+          }
+        }
+      }
+    }, ctx);
   }
 }
