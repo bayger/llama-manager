@@ -23,13 +23,18 @@ export class ProfileList extends Control {
     this._onCancel = cb;
   }
 
-  setConfig(config: ConfigData): void {
+  setConfig(config: ConfigData, preserveIndex?: boolean): void {
     this._config = config;
-    this._selectedIndex = 0;
-    if (config) {
+    if (!preserveIndex) {
+      this._selectedIndex = 0;
+      if (config) {
+        const names = Object.keys(config.server.profiles);
+        const idx = names.indexOf(config.server.activeProfile);
+        if (idx !== -1) this._selectedIndex = idx;
+      }
+    } else if (config) {
       const names = Object.keys(config.server.profiles);
-      const idx = names.indexOf(config.server.activeProfile);
-      if (idx !== -1) this._selectedIndex = idx;
+      this._selectedIndex = Math.max(0, Math.min(this._selectedIndex, names.length - 1));
     }
     this.markDirty();
   }

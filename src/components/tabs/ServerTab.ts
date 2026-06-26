@@ -161,7 +161,7 @@ export class ServerControl extends Control {
     this._backButton.visible = false;
     for (const btn of this._buttons) btn.visible = true;
     const config = this._ctx?.getConfig();
-    if (config) this._profileList.setConfig(config);
+    if (config) this._profileList.setConfig(config, true);
     focusManager.setFocus(this._profileList);
     this.markDirty();
   }
