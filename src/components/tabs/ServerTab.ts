@@ -26,6 +26,7 @@ export class ServerControl extends Control {
   protected _settingsPanel: SettingsPanel;
   protected _profileList: ProfileList;
   protected _summary: StyledText;
+  protected _backButton: Button;
   protected _advancedCheckbox: Checkbox;
   protected _showingSettings = false;
 
@@ -45,6 +46,13 @@ export class ServerControl extends Control {
     for (const btn of this._buttons) {
       this._buttonRow.add(btn);
     }
+
+    this._backButton = new Button({ label: "Back" });
+    this._backButton.visible = false;
+    this._backButton.setAction(() => {
+      this.showProfileList();
+    });
+    this._buttonRow.add(this._backButton);
 
     this._settingsPanel = new SettingsPanel();
     this._settingsPanel.flex = 1;
@@ -150,6 +158,8 @@ export class ServerControl extends Control {
     this._profileList.visible = true;
     this._section.title = "Available Profiles";
     this._settingsPanel.setEditingProfile(null);
+    this._backButton.visible = false;
+    for (const btn of this._buttons) btn.visible = true;
     const config = this._ctx?.getConfig();
     if (config) this._profileList.setConfig(config);
     focusManager.setFocus(this._profileList);
@@ -161,6 +171,8 @@ export class ServerControl extends Control {
     this._settingsPanel.visible = true;
     this._advancedCheckbox.visible = true;
     this._profileList.visible = false;
+    this._backButton.visible = true;
+    for (const btn of this._buttons) btn.visible = false;
     const config = this._ctx?.getConfig();
     if (config) {
       this._settingsPanel.setConfig(config);
