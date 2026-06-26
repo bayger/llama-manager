@@ -8,14 +8,26 @@ import {
 } from "../../lib/config";
 import type { RenderContext } from "../ui/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
+import { createDeviceSelectorModal } from "../ui/widgets/DeviceSelectorModal";
+import type { TabContext } from "../../lib/tabcontext";
+import { fireAsync } from "../../lib/utils";
 
 const KEY_COL_WIDTH = 18;
+
+interface ModalFieldDef extends PresetFieldDef {
+  modal?: boolean;
+}
 
 export class SettingsPanel extends EditableList {
   protected _config: ConfigData | null = null;
   protected _advancedMode = false;
+  protected _ctx: TabContext | null = null;
   protected _onMessage: ((msg: string) => void) | null = null;
   protected _onEscape: (() => void) | null = null;
+
+  setTabContext(ctx: TabContext | null): void {
+    this._ctx = ctx;
+  }
 
   setMessageCallback(cb: (msg: string) => void): void {
     this._onMessage = cb;
@@ -153,7 +165,7 @@ export class SettingsPanel extends EditableList {
     }
   }
 
-  // --- Override for escape callback ---
+  // --- Override for escape callback and modal fields ---
 
   handleKey(key: string): boolean {
     if (key === "ESCAPE") {
@@ -163,6 +175,41 @@ export class SettingsPanel extends EditableList {
       this._onEscape?.();
       return true;
     }
+
+    if (key === "RETURN" || key === "ENTER") {
+      const row = this._rows[this._selectedIndex];
+      if (row && row.type === "field" && (row.field as ModalFieldDef)?.modal) {
+        this.openDeviceSelector(row);
+        return true;
+      }
+    }
+
     return super.handleKey(key);
+  }
+
+  protected openDeviceSelector(row: import("./EditableList").EditableRowInfo): void {
+    const config = this._config;
+    const ctx = this._ctx;
+    if (!config || !ctx) return;
+    const field = row.field!;
+
+    fireAsync(async () => {
+      const modal = createDeviceSelectorModal(config);
+      await modal.scanDevices();
+      const result = await ctx.openModal<string | null>(modal);
+      if (result !== null) {
+        const presets = config.server.profiles[config.server.activeProfile]?.presets;
+        const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
+        if (presetData) {
+          presetData[field.key] = result;
+          try {
+            saveConfig(config);
+            this._onMessage?.(`Set ${field.key} to: ${result}`);
+          } catch (e) {
+            this._onMessage?.(`Error saving: ${e}`);
+          }
+        }
+      }
+    }, ctx);
   }
 }

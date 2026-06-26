@@ -26,6 +26,8 @@ export interface PresetFieldDef {
   negate?: boolean;
   /** When value equals this, skip the flag entirely. */
   skipValue?: unknown;
+  /** When true, pressing ENTER opens a modal instead of text edit. */
+  modal?: boolean;
 }
 
 export interface PresetCategory {
@@ -175,7 +177,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
       { key: "splitMode", flag: "--split-mode", type: "enum", default: "layer", options: ["none", "layer", "row", "tensor"], description: "Multi-GPU split", advanced: true },
       { key: "tensorSplit", flag: "--tensor-split", type: "string", default: null, description: "GPU proportions (3,1)", advanced: true },
       { key: "mainGpu", flag: "--main-gpu", type: "number", default: 0, description: "Primary GPU index", advanced: true },
-      { key: "device", flag: "--device", type: "string", default: null, description: "Device list", advanced: true },
+      { key: "device", flag: "--device", type: "string", default: null, description: "Device list", advanced: true, modal: true },
       { key: "fit", flag: "--fit", type: "enum", default: "on", options: ["on", "off"], description: "Auto-fit to VRAM", advanced: true },
       { key: "fitTarget", flag: "--fit-target", type: "string", default: null, description: "Target VRAM margin per GPU (MiB)", advanced: true },
       { key: "fitCtx", flag: "--fit-ctx", type: "number", default: null, description: "Min ctx size for --fit", advanced: true },

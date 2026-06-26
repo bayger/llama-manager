@@ -49,6 +49,7 @@ export class ServerControl extends Control {
     this._settingsPanel = new SettingsPanel();
     this._settingsPanel.flex = 1;
     this._settingsPanel.visible = false;
+    this._settingsPanel.setTabContext(this._ctx);
     this._settingsPanel.setMessageCallback((msg: string) => {
       this._ctx?.showMessage(msg);
     });
