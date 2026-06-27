@@ -317,28 +317,36 @@ class TaskStore extends EventEmitter {
     ups.run("total_draft_accepted", (dda?.value ?? 0) + (task.draftAccepted ?? 0));
     ups.run("total_draft_generated", (ddg?.value ?? 0) + (task.draftGenerated ?? 0));
 
+    // Flush any buffered speed samples for this task now that the task row exists.
+    const buffered = this.sampleBuffer.get(task.taskId);
+    if (buffered && buffered.length > 0) {
+      this.sampleBuffer.delete(task.taskId);
+      this.flushSamples(buffered);
+    }
+
     this.emit("updated");
   }
 
-  private sampleBuffer: SpeedSample[] = [];
+  private sampleBuffer = new Map<number, SpeedSample[]>();
 
   onSpeedSample(sample: SpeedSample) {
-    this.sampleBuffer.push(sample);
-    if (this.sampleBuffer.length >= 10) {
-      this.flushSamples();
+    let buf = this.sampleBuffer.get(sample.taskId);
+    if (!buf) {
+      buf = [];
+      this.sampleBuffer.set(sample.taskId, buf);
     }
+    buf.push(sample);
   }
 
-  flushSamples() {
-    if (!this.db || this.sampleBuffer.length === 0) return;
+  private flushSamples(samples: SpeedSample[]) {
+    if (!this.db || samples.length === 0) return;
     const stmt = this.getStmts().insertSpeedSample!;
     const ins = this.db.transaction(() => {
-      for (const s of this.sampleBuffer) {
+      for (const s of samples) {
         stmt.run(s.taskId, s.phase, s.position, s.speedTps, s.msPerToken, s.elapsedS);
       }
     });
     ins();
-    this.sampleBuffer.length = 0;
   }
 
   getTotalCount(filter?: TaskFilter): number {
@@ -501,7 +509,10 @@ class TaskStore extends EventEmitter {
   }
 
   dispose() {
-    this.flushSamples();
+    for (const samples of this.sampleBuffer.values()) {
+      this.flushSamples(samples);
+    }
+    this.sampleBuffer.clear();
     if (this.stopTailer) this.stopTailer();
     logParser.stop();
     if (this.db) {
