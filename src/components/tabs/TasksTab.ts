@@ -9,6 +9,7 @@ import { TextInput } from "../ui/widgets/TextInput";
 import { focusManager } from "../ui/FocusManager";
 import { fireAsync, formatMs } from "../../lib/utils";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir, TaskFilter } from "../../lib/tasks";
+import { TaskDetailsView } from "../specialized/TaskDetailsView";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Point, Size, RenderContext } from "../ui/types";
 import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table";
@@ -176,6 +177,8 @@ export class TasksControl extends Control {
   protected _sortField: TaskSortField = "timestamp";
   protected _sortDir: TaskSortDir = "desc";
   protected _filter: TaskFilter = {};
+  protected _detailsView: TaskDetailsView | null = null;
+  protected _showingDetails = false;
 
   constructor(ctx: TabContext) {
     super();
@@ -216,8 +219,11 @@ export class TasksControl extends Control {
       this._detailsPanel.update(item ? item.data ?? null : null);
       this.markDirty();
     });
-    this._table.setOnSelect(() => {
-      fireAsync(async () => {}, ctx);
+    this._table.setOnSelect((item) => {
+      const task = item?.data;
+      if (task) {
+        this.showTaskDetails(task);
+      }
     });
 
     this._tasksSection = new Section();
@@ -259,8 +265,35 @@ export class TasksControl extends Control {
     this._ctx = null;
   }
 
+  showTaskDetails(task: TaskMetrics): void {
+    this._showingDetails = true;
+    this._detailsView = new TaskDetailsView(task, () => this.hideTaskDetails());
+    this.add(this._detailsView);
+    this._column.visible = false;
+    this._detailsView.visible = true;
+    this._detailsView.focus();
+    this.markDirty();
+  }
+
+  hideTaskDetails(): void {
+    if (!this._detailsView) return;
+    this._showingDetails = false;
+    this.remove(this._detailsView);
+    this._detailsView.destroy();
+    this._detailsView = null;
+    this._column.visible = true;
+    this.onFocus();
+    this.markDirty();
+  }
+
   onLayout(): void {
     const { x, y, width, height } = this.rect;
+
+    if (this._showingDetails && this._detailsView) {
+      this._detailsView.layout({ x, y, width, height });
+      return;
+    }
+
     const showDetails = width >= DETAILS_WIDTH + 26;
     this._detailsPanel.visible = showDetails;
     this._column.layout({ x, y, width, height });
@@ -378,6 +411,10 @@ export class TasksControl extends Control {
   }
 
  handleKey(key: string): boolean {
+    if (this._showingDetails && this._detailsView) {
+      return this._detailsView.handleKey(key);
+    }
+
     if (key === "s") {
       const idx = SORT_FIELDS.findIndex((s) => s.field === this._sortField);
       if (idx < SORT_FIELDS.length - 1) {
@@ -413,7 +450,9 @@ export class TasksControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    focusManager.setFocus(this._table);
+    if (!this._showingDetails) {
+      focusManager.setFocus(this._table);
+    }
     this.markDirty();
   }
 
