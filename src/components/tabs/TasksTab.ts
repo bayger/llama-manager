@@ -3,7 +3,6 @@ import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 import { Column, Row } from "../ui/Layout";
 import { Table } from "../ui/widgets/Table";
 import { Section } from "../ui/widgets/Section";
-import { BrailleChart } from "../ui/widgets/BrailleChart";
 import { fg, fgBg } from "../../lib/theme";
 import { StyledText } from "../ui/widgets/StyledText";
 import { TextInput } from "../ui/widgets/TextInput";
@@ -13,7 +12,6 @@ import { taskStore, TaskMetrics, TaskSortField, TaskSortDir, TaskFilter } from "
 import type { TabContext } from "../../lib/tabcontext";
 import type { Point, Size, RenderContext } from "../ui/types";
 import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table";
-import type { ChartSeries } from "../ui/widgets/BrailleChart";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "timestamp", label: "Time" },
@@ -43,15 +41,6 @@ function fmtNum(n: number): string {
 class TaskDetailsControl extends Section {
   protected _task: TaskMetrics | null = null;
   protected _scrollOffset = 0;
-  protected _speedChart: BrailleChart;
-  protected _hasSpeedData = false;
-
-  constructor() {
-    super();
-    this._speedChart = new BrailleChart();
-    this._speedChart.visible = false;
-    this.add(this._speedChart);
-  }
 
   measure(parentSize: Size): Size {
     return { width: DETAILS_WIDTH, height: parentSize.height };
@@ -60,41 +49,14 @@ class TaskDetailsControl extends Section {
   update(task: TaskMetrics | null): void {
     this._task = task;
     this._scrollOffset = 0;
-
-    if (task) {
-      const samples = taskStore.getSpeedSamples(task.taskId);
-      const promptPts = samples.filter((s) => s.phase === "prompt").map((s) => ({ x: s.position, y: s.speedTps }));
-      const genPts = samples.filter((s) => s.phase === "generation").map((s) => ({ x: s.position, y: s.speedTps }));
-
-      const allPts = [...promptPts, ...genPts];
-      if (allPts.length > 0) {
-        const series: ChartSeries[] = [];
-        if (promptPts.length > 0) {
-          series.push({ label: "P", color: "success", points: promptPts });
-        }
-        if (genPts.length > 0) {
-          series.push({ label: "G", color: "accentColor", points: genPts });
-        }
-        this._speedChart.setSeries(series);
-        this._speedChart.visible = true;
-        this._hasSpeedData = true;
-      } else {
-        this._speedChart.visible = false;
-        this._hasSpeedData = false;
-      }
-    } else {
-      this._speedChart.visible = false;
-      this._hasSpeedData = false;
-    }
-
     this.markDirty();
   }
 
   scroll(delta: number): void {
     if (!this._task) return;
     const lines = this._getLines();
-    const metaHeight = this._getMetaHeight();
-    const maxOffset = Math.max(0, lines.length - metaHeight);
+    const { height } = this.rect;
+    const maxOffset = Math.max(0, lines.length - height);
     this._scrollOffset = Math.max(0, Math.min(maxOffset, this._scrollOffset + delta));
     this.markDirty();
   }
@@ -102,8 +64,8 @@ class TaskDetailsControl extends Section {
   onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
     if (!this._task) return false;
     const lines = this._getLines();
-    const metaHeight = this._getMetaHeight();
-    const maxOffset = Math.max(0, lines.length - metaHeight);
+    const { height } = this.rect;
+    const maxOffset = Math.max(0, lines.length - height);
     if (direction === 'up' && this._scrollOffset > 0) {
       this._scrollOffset--;
       this.markDirty();
@@ -115,14 +77,6 @@ class TaskDetailsControl extends Section {
       return true;
     }
     return false;
-  }
-
-  _getMetaHeight(): number {
-    const { height } = this.rect;
-    if (!this._hasSpeedData) return height - 4;
-    const chartMinH = 8;
-    const avail = height - 4;
-    return Math.max(4, Math.min(avail, avail - chartMinH + 2));
   }
 
   _getLines(): { label: string; value: string }[] {
@@ -165,17 +119,6 @@ class TaskDetailsControl extends Section {
     ];
   }
 
-  onLayout(): void {
-    super.onLayout();
-    const { x, y, width, height } = this.rect;
-    const metaHeight = this._getMetaHeight();
-    const chartHeight = this._hasSpeedData ? height - metaHeight - 2 : 0;
-    this._speedChart.visible = this._hasSpeedData && chartHeight >= 6;
-    if (this._speedChart.visible) {
-      this._speedChart.layout({ x: x + 1, y: y + metaHeight + 1, width: width - 2, height: chartHeight });
-    }
-  }
-
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
@@ -189,13 +132,12 @@ class TaskDetailsControl extends Section {
     const lines = this._getLines();
     const innerW = width - 2;
     const labelWidth = 14;
-    const metaHeight = this._getMetaHeight();
 
     // blank separator row
     canvas.moveTo(x + 2, y + 2);
     fgBg(canvas, "canvasSubtle", "canvasSubtle", " ".repeat(innerW));
 
-    for (let i = 0; i < metaHeight - 1; i++) {
+    for (let i = 0; i < height - 4; i++) {
       const lineIdx = i + this._scrollOffset;
       canvas.moveTo(x + 2, y + i + 3);
 
@@ -214,17 +156,6 @@ class TaskDetailsControl extends Section {
           fg(canvas, "text", ` ${value}`);
         }
       }
-    }
-
-    // Speed data empty state
-    if (this._task && !this._hasSpeedData) {
-      const emptyY = y + metaHeight + 1;
-      canvas.moveTo(x + 2, emptyY);
-      fg(canvas, "textMuted", " No speed data");
-      canvas.moveTo(x + 2, emptyY + 1);
-      fg(canvas, "textMuted", " (task predates");
-      canvas.moveTo(x + 2, emptyY + 2);
-      fg(canvas, "textMuted", "  speed tracking)");
     }
   }
 }

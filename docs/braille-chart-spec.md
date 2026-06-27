@@ -2,7 +2,7 @@
 
 ## Overview
 
-A terminal-based scatter plot component that renders (x, y) data points using Braille Unicode characters (`U+2800`–`U+28FF`). Each Braille character encodes up to 8 dots in a 2×4 grid, providing 8× the resolution of standard character-cell plots. Dot encoding follows [ISO/TR 11548-1](https://en.wikipedia.org/wiki/Braille_Patterns) (Unicode Braille Patterns block).
+A terminal-based scatter plot component that renders (x, y) data points using Braille Unicode characters (`U+2800`–`U+28FF`). Each Braille character encodes up to 8 dots in a 2×4 grid, providing 8× the resolution of standard character-cell plots.
 
 Primary use: visualizing speed curves from `task_speed_samples` data (position vs speed_tps) in the task details panel.
 
@@ -10,61 +10,40 @@ Primary use: visualizing speed curves from `task_speed_samples` data (position v
 
 ## Braille Dot Mapping
 
-Per [ISO/TR 11548-1](https://en.wikipedia.org/wiki/Braille_Patterns), Unicode uses standard dot numbering 1–8. The irregular numbering (1-2-3-**7** left, 4-5-6-**8** right) reflects the historical addition of dots 7 and 8 below the original 6-dot cell.
-
 ### Dot Grid
 
+Each Braille character represents a 2-column × 4-row dot grid:
+
 ```
-Standard dot numbering:
-  1  4
-  2  5
-  3  6
-  7  8
+Dot indices (row-major):
+  0  1
+  2  3
+  4  5
+  6  7
 ```
-
-### Virtual Pixel Resolution
-
-Each character cell acts as a 2×4 block of virtual pixels. A grid of `W` columns × `H` rows of characters yields `W*2` × `H*4` virtual pixels — 2× horizontal and 4× vertical resolution over standard character-cell plots.
-
-| Char grid | Virtual pixels | Capacity |
-|-----------|---------------|----------|
-| 10 × 10   | 20 × 40       | up to 800 points per cell |
-| 20 × 8    | 40 × 32       |                       |
-| 38 × 12   | 76 × 48       |                       |
-
-Multiple data points can map to different dots within the same character cell, all rendered in a single Braille character via bit OR.
 
 ### Unicode Encoding
 
-Per [Braille Patterns](https://en.wikipedia.org/wiki/Braille_Patterns), each dot maps to a hex bit in little-endian order. The code point is `U+2800` + sum of hex values of raised dots:
+Braille pattern `U+2800` is the empty cell. Each dot is a bit:
 
-| Dot | Hex value | Character (example) |
-|-----|-----------|---------------------|
-| 1   | 0x01      | ⠁ DOTS-1 |
-| 2   | 0x02      | ⠂ DOTS-2 |
-| 3   | 0x04      | ⠃ DOTS-3 |
-| 4   | 0x08      | ⠄ DOTS-4 |
-| 5   | 0x10      | ⠅ DOTS-5 |
-| 6   | 0x20      | ⠆ DOTS-6 |
-| 7   | 0x40      | ⠇ DOTS-7 |
-| 8   | 0x80      | ⠐ DOTS-8 |
+| Dot | Bit | Unicode offset | Character |
+|-----|-----|----------------|-----------|
+| 0   | 1   | 0x01           | ⠁ |
+| 1   | 2   | 0x02           | ⠂ |
+| 2   | 4   | 0x04           | ⠃ |
+| 3   | 8   | 0x08           | ⠄ |
+| 4   | 16  | 0x10           | ⠅ |
+| 5   | 32  | 0x20           | ⠆ |
+| 6   | 64  | 0x40           | ⠇ |
+| 7   | 128 | 0x80           | ⠐ |
 
-Composite: `U+2800 + sum of dot hex values`. E.g., dots 1+2+5 → 0x01 + 0x02 + 0x10 = 0x13 → `U+2813` ⠓ BRAILLE PATTERN DOTS-125.
+Composite: `char = String.fromCodePoint(0x2800 | dot0*1 | dot1*2 | dot2*4 | dot3*8 | dot4*16 | dot5*32 | dot6*64 | dot7*128)`
 
-### Virtual Pixel to Dot Mapping
+### Data-to-Dot Mapping
 
-For chart purposes, virtual pixel coordinates within a cell map to Braille dots as follows (Y inverted: row 0 = top):
-
-| virtX % 2 | virtY % 4 | Dot | Hex |
-|-----------|-----------|-----|-----|
-| 0 | 0 | 1 | 0x01 |
-| 1 | 0 | 4 | 0x08 |
-| 0 | 1 | 2 | 0x02 |
-| 1 | 1 | 5 | 0x10 |
-| 0 | 2 | 3 | 0x04 |
-| 1 | 2 | 6 | 0x20 |
-| 0 | 3 | 7 | 0x40 |
-| 1 | 3 | 8 | 0x80 |
+- **X axis** → horizontal dot column (0 or 1), determined by `floor(xInCell) % 2`
+- **Y axis** → vertical dot row (0–3), determined by `3 - floor(yInCell) % 4` (inverted: row 0 = top)
+- Multiple points falling in the same dot cell → OR their bits together
 
 ---
 
@@ -107,18 +86,13 @@ For chart purposes, virtual pixel coordinates within a cell map to Braille dots 
 
 ### Input
 
-Each series holds its own array of points — no per-point series field needed:
+Array of points with series assignment:
 
 ```typescript
 interface ChartPoint {
   x: number;    // position (tokens)
   y: number;    // speed (t/s)
-}
-
-interface ChartSeries {
-  label: string;
-  color: ThemeColor;
-  points: ChartPoint[];
+  series: string; // "P" or "G"
 }
 ```
 
@@ -131,19 +105,13 @@ interface ChartSeries {
 
 ### Coordinate Conversion
 
-Data coordinates → virtual pixel coordinates → Braille cell + dot hex (via lookup table above):
-
 ```
-virtX = floor((point.x / maxX) * (gridWidth * 2 - 1))   // 0..W*2-1
-virtY = floor((1 - point.y / maxY) * (gridHeight * 4 - 1)) // 0..H*4-1
-
-charCol = floor(virtX / 2)                              // which character column
-charRow = floor(virtY / 4)                              // which character row
-dotHex = (1 << (virtY % 4)) * ((virtX % 2) ? 8 : 1)    // hex offset from table
+brailleCol = floor((point.x / maxX) * (gridWidth - 1))
+brailleRow = floor((1 - point.y / maxY) * (gridHeight - 1))
+dotCol = brailleCol % 2
+dotRow = brailleRow % 4
+dotIndex = dotRow * 2 + dotCol
 ```
-
-Accumulate dot hex values per `(charCol, charRow)` cell (OR together), then render:
-`char = String.fromCodePoint(0x2800 | accumulatedHex)`
 
 ### Y-Axis Ticks
 
@@ -209,6 +177,12 @@ Text overlay in legend: `Deg: 1.48x` (first speed / last speed for generation ph
 ## Component API
 
 ```typescript
+interface ChartSeries {
+  label: string;
+  color: ThemeColor;
+  points: ChartPoint[];
+}
+
 class BrailleChart extends Control {
   focusable = false;
   series: ChartSeries[];
@@ -241,14 +215,14 @@ const series: ChartSeries[] = [
     label: "P",
     color: "green",
     points: samples.filter(s => s.phase === "prompt").map(s => ({
-      x: s.position, y: s.speed_tps
+      x: s.position, y: s.speed_tps, series: "P"
     }))
   },
   {
     label: "G",
     color: "cyan",
     points: samples.filter(s => s.phase === "generation").map(s => ({
-      x: s.position, y: s.speed_tps
+      x: s.position, y: s.speed_tps, series: "G"
     }))
   }
 ];

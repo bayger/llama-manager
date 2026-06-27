@@ -508,24 +508,6 @@ class TaskStore extends EventEmitter {
     };
   }
 
-  getSpeedSamples(taskId: number): SpeedSample[] {
-    if (!this.db) return [];
-    const rows = this.db.prepare(`
-      SELECT task_id, phase, position, speed_tps, ms_per_token, elapsed_s
-      FROM task_speed_samples
-      WHERE task_id = ?
-      ORDER BY position
-    `).all(taskId) as Record<string, unknown>[];
-    return rows.map(r => ({
-      taskId: r.task_id as number,
-      phase: r.phase as "prompt" | "generation",
-      position: r.position as number,
-      speedTps: r.speed_tps as number,
-      msPerToken: r.ms_per_token as number,
-      elapsedS: r.elapsed_s as number,
-    }));
-  }
-
   dispose() {
     for (const samples of this.sampleBuffer.values()) {
       this.flushSamples(samples);
