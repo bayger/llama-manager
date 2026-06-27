@@ -77,7 +77,7 @@ class TaskStore extends EventEmitter {
         pending_tokens, n_ctx_slot, cached_prompt_tokens,
         prompt_ms_per_token, output_ms_per_token, tts_ms,
         draft_mean_accept_len, slot_similarity
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     this.stmts.insertSpeedSample = this.db!.prepare(`
       INSERT INTO task_speed_samples (task_id, phase, position, speed_tps, ms_per_token, elapsed_s)
