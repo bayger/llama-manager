@@ -5,9 +5,10 @@ import { Table } from "../ui/widgets/Table";
 import { Section } from "../ui/widgets/Section";
 import { fg, fgBg } from "../../lib/theme";
 import { StyledText } from "../ui/widgets/StyledText";
+import { TextInput } from "../ui/widgets/TextInput";
 import { focusManager } from "../ui/FocusManager";
 import { fireAsync, formatMs } from "../../lib/utils";
-import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks";
+import { taskStore, TaskMetrics, TaskSortField, TaskSortDir, TaskFilter } from "../../lib/tasks";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Point, Size, RenderContext } from "../ui/types";
 import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table";
@@ -21,6 +22,14 @@ const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "promptTokens", label: "Prompt" },
   { field: "outputTokens", label: "Output" },
   { field: "totalTimeMs", label: "Duration" },
+  { field: "cachedPromptTokens", label: "Cache" },
+  { field: "ttsMs", label: "TTS" },
+  { field: "promptMsPerToken", label: "P ms/t" },
+  { field: "outputMsPerToken", label: "O ms/t" },
+  { field: "draftMeanAcceptLen", label: "Draft Len" },
+  { field: "slotSimilarity", label: "Slot Sim" },
+  { field: "nCtxSlot", label: "n_ctx" },
+  { field: "pendingTokens", label: "Pending" },
 ];
 
 const DETAILS_WIDTH = 40;
@@ -157,17 +166,48 @@ export class TasksControl extends Control {
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _summary: StyledText;
+  protected _filterRow: Row;
+  protected _cacheFilter: TextInput;
+  protected _ctxFilter: TextInput;
   protected _tasksSection: Section;
   protected _table: Table<TaskMetrics>;
   protected _detailsPanel: TaskDetailsControl;
   protected _contentRow: Row;
   protected _sortField: TaskSortField = "timestamp";
   protected _sortDir: TaskSortDir = "desc";
+  protected _filter: TaskFilter = {};
 
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
     this._summary = new StyledText();
+
+    this._cacheFilter = new TextInput();
+    this._cacheFilter.placeholder = "Min cache %";
+    this._cacheFilter.prefix = "Cache≥";
+    this._cacheFilter.setOnSubmit((v) => {
+      this._filter.minCacheHitRatio = v ? parseFloat(v) / 100 : undefined;
+      this._table.selectedIndex = 0;
+      this._table.scrollOffset = 0;
+      this.markDirty();
+    });
+
+    this._ctxFilter = new TextInput();
+    this._ctxFilter.placeholder = "Max ctx size";
+    this._ctxFilter.prefix = "Ctx≤";
+    this._ctxFilter.setOnSubmit((v) => {
+      this._filter.maxCtxSize = v ? parseInt(v, 10) : undefined;
+      this._table.selectedIndex = 0;
+      this._table.scrollOffset = 0;
+      this.markDirty();
+    });
+
+    this._filterRow = new Row();
+    this._filterRow.add(this._cacheFilter);
+    const spacer = new StyledText();
+    spacer.builder.text("   ");
+    this._filterRow.add(spacer);
+    this._filterRow.add(this._ctxFilter);
 
     this._table = new Table<TaskMetrics>();
     this._table.showHeader = true;
@@ -195,6 +235,7 @@ export class TasksControl extends Control {
 
     this._column = new Column();
     this._column.add(this._summary);
+    this._column.add(this._filterRow);
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
 
@@ -224,10 +265,10 @@ export class TasksControl extends Control {
     this._detailsPanel.visible = showDetails;
     this._column.layout({ x, y, width, height });
 
-    const total = taskStore.getTotalCount();
+    const total = taskStore.getTotalCount(this._filter);
 
     this._table.setVirtualLoader(total, (start, end) => {
-      const tasks = taskStore.getRange(start, end - start, undefined, this._sortField, this._sortDir);
+      const tasks = taskStore.getRange(start, end - start, this._filter, this._sortField, this._sortDir);
       return tasks.map((t) => ({
         id: t.taskId,
         label: this.formatTime(t.timestamp),
@@ -251,11 +292,16 @@ export class TasksControl extends Control {
   }
 
   draw(_ctx: RenderContext): void {
-    const stats = taskStore.getStats();
+    const stats = taskStore.getStats(this._filter);
+    const hasFilters = this._filter.minCacheHitRatio !== undefined || this._filter.maxCtxSize !== undefined;
 
     this._summary.builder
       .muted("Tasks ")
-      .accentColor(`${stats.count}`)
+      .accentColor(`${stats.count}`);
+    if (hasFilters) {
+      this._summary.builder.muted(` / ${taskStore.getTotalCount()}`);
+    }
+    this._summary.builder
       .muted("  Prompt ")
       .text(`${stats.totalPromptTokens.toLocaleString()}`)
       .muted("  Output ")
@@ -283,8 +329,8 @@ export class TasksControl extends Control {
       { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined },
       { label: "Prompt", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined },
       { label: "Output", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined },
-      { label: "Cache", width: 8, align: "right" as const },
-      { label: "TTS", width: 7, align: "right" as const },
+      { label: "Cache", width: 8, align: "right" as const, headerSuffix: this._sortField === "cachedPromptTokens" ? sortIndicator : undefined },
+      { label: "TTS", width: 7, align: "right" as const, headerSuffix: this._sortField === "ttsMs" ? sortIndicator : undefined },
       { label: "Duration", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined },
     ];
   }

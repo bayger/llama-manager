@@ -26,9 +26,11 @@ export interface TaskFilter {
   minSpeed?: number;
   maxSpeed?: number;
   taskId?: number;
+  minCacheHitRatio?: number;
+  maxCtxSize?: number;
 }
 
-export type TaskSortField = "taskId" | "timestamp" | "slotId" | "promptSpeed" | "outputSpeed" | "totalTimeMs" | "promptTokens" | "outputTokens";
+export type TaskSortField = "taskId" | "timestamp" | "slotId" | "promptSpeed" | "outputSpeed" | "totalTimeMs" | "promptTokens" | "outputTokens" | "pendingTokens" | "nCtxSlot" | "cachedPromptTokens" | "promptMsPerToken" | "outputMsPerToken" | "ttsMs" | "draftMeanAcceptLen" | "slotSimilarity";
 export type TaskSortDir = "asc" | "desc";
 
 const SORT_FIELD_MAP: Record<TaskSortField, string> = {
@@ -40,6 +42,14 @@ const SORT_FIELD_MAP: Record<TaskSortField, string> = {
   totalTimeMs: "total_time_ms",
   promptTokens: "prompt_tokens",
   outputTokens: "output_tokens",
+  pendingTokens: "pending_tokens",
+  nCtxSlot: "n_ctx_slot",
+  cachedPromptTokens: "cached_prompt_tokens",
+  promptMsPerToken: "prompt_ms_per_token",
+  outputMsPerToken: "output_ms_per_token",
+  ttsMs: "tts_ms",
+  draftMeanAcceptLen: "draft_mean_accept_len",
+  slotSimilarity: "slot_similarity",
 };
 
 class TaskStore extends EventEmitter {
@@ -442,6 +452,14 @@ class TaskStore extends EventEmitter {
     if (filter.taskId !== undefined) {
       conditions.push("task_id = ?");
       params.push(filter.taskId);
+    }
+    if (filter.minCacheHitRatio !== undefined) {
+      conditions.push("(CASE WHEN pending_tokens > 0 THEN cached_prompt_tokens * 1.0 / pending_tokens ELSE 0 END) >= ?");
+      params.push(filter.minCacheHitRatio);
+    }
+    if (filter.maxCtxSize !== undefined) {
+      conditions.push("n_ctx_slot <= ?");
+      params.push(filter.maxCtxSize);
     }
 
     return conditions.length > 0
