@@ -133,16 +133,15 @@ class SpeedSamplesList extends Control {
   }
 
   _formatHeader(): string {
-    return "Elapsed   Phase  Pos    Speed(t/s)  ms/t";
+    return "Elapsed   Phase  Speed(t/s)  ms/t";
   }
 
   _formatSample(s: SpeedSample): string {
     const elapsed = s.elapsedS.toFixed(2).padStart(6);
     const phase = (s.phase === "prompt" ? "P" : "G").padEnd(5);
-    const pos = String(s.position).padStart(5);
     const speed = s.speedTps.toFixed(1).padStart(11);
     const mspt = s.msPerToken.toFixed(1).padStart(5);
-    return `${elapsed}   ${phase} ${pos}   ${speed}   ${mspt}`;
+    return `${elapsed}   ${phase} ${speed}   ${mspt}`;
   }
 
   handleKey(key: string): boolean {
