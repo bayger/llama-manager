@@ -1,4 +1,6 @@
 export { BarChart } from "./BarChart";
+export { BrailleChart } from "./BrailleChart";
+export type { ChartPoint, ChartSeries } from "./BrailleChart";
 export { Label } from "./Label";
 export { Button } from "./Button";
 export { Checkbox } from "./Checkbox";
