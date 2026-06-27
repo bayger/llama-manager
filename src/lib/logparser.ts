@@ -320,7 +320,7 @@ export class LogParser extends EventEmitter {
     return null;
   }
 
-  async parseExistingFile(filePath: string): Promise<void> {
+  async parseExistingFile(filePath: string, lineProcessor?: (line: string) => void): Promise<void> {
     if (!(await fs.pathExists(filePath))) {
       return;
     }
@@ -329,6 +329,9 @@ export class LogParser extends EventEmitter {
     for (const line of lines) {
       if (line.trim()) {
         this.processLine(line);
+        if (lineProcessor) {
+          lineProcessor(line);
+        }
       }
     }
   }

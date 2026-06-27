@@ -279,7 +279,6 @@ export class TaskDetailsView extends Control {
 
     this._samplesList = new SpeedSamplesList();
     this._samplesSection = new Section();
-    this._samplesSection.title = `Task #${task.taskId}  S${task.slotId}  ${formatDate(task.timestamp)}`;
     this._samplesSection.add(this._samplesList);
     this._samplesList.flex = 1;
 
@@ -295,17 +294,16 @@ export class TaskDetailsView extends Control {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : { width: 80, height: 20 };
   }
 
-  onInit(): void {
-    const allSamples = taskStore.getSpeedSamples(this._task.taskId);
-    this._promptSamples = allSamples.filter(s => s.phase === "prompt");
-    this._genSamples = allSamples.filter(s => s.phase === "generation");
-    this._samplesList.update(allSamples);
-    this.markDirty();
-  }
-
   onLayout(): void {
     const { x, y, width, height } = this.rect;
     this._column.layout({ x, y, width, height });
+
+    const allSamples = taskStore.getSpeedSamples(this._task.taskId);
+    this._promptSamples = allSamples.filter(s => s.phase === "prompt");
+    this._genSamples = allSamples.filter(s => s.phase === "generation");
+    this._samplesSection.title = `Task #${this._task.taskId}  S${this._task.slotId}  ${formatDate(this._task.timestamp)}  Count: ${allSamples.length}`;
+    this._samplesList.update(allSamples);
+    this.markDirty();
   }
 
   draw(_ctx: RenderContext): void {

@@ -16,6 +16,7 @@ function findLatestLogFile(config: ConfigData): string | null {
 import { TaskMetrics, SpeedSample, logParser } from "./logparser";
 export type { TaskMetrics, SpeedSample } from "./logparser";
 import { EventEmitter } from "events";
+import { processLine as processMetricLine } from "./metricstracker";
 
 export interface TaskFilter {
   slotId?: number;
@@ -105,7 +106,7 @@ class TaskStore extends EventEmitter {
 
     const latestLog = findLatestLogFile(config);
     if (latestLog) {
-      await logParser.parseExistingFile(latestLog);
+      await logParser.parseExistingFile(latestLog, processMetricLine);
     }
 
     // Clear completed IDs so live tailing only tracks tasks in the current session.
