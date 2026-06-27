@@ -441,7 +441,8 @@ export class TasksControl extends Control {
     if (this._table.contentHeight === 0) return false;
 
     if (key === "UP" || key === "DOWN" || key === "k" || key === "j" ||
-        key === "PAGE_UP" || key === "PAGE_DOWN" || key === "HOME" || key === "END") {
+        key === "PAGE_UP" || key === "PAGE_DOWN" || key === "HOME" || key === "END" ||
+        key === "RETURN" || key === "ENTER" || key === "SPACE") {
       return this._table.handleKey(key);
     }
 
