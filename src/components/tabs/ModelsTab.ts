@@ -20,8 +20,10 @@ import {
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
 import { saveConfig } from "../../lib/config";
 import { fireAsync, formatDate } from "../../lib/utils";
+import { inspectGGUF } from "../../lib/gguf";
 import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
 import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
+import { GGUFInfoPanel } from "../specialized/GGUFInfoPanel";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
@@ -38,9 +40,13 @@ export class ModelsControl extends Control {
   protected _buttonRow: Row;
   protected _browseBtn: Button;
   protected _removeBtn: Button;
-  protected _modelsSection: Section;
+  protected _modelListSection: Section;
+  protected _detailsSection: Section;
   protected _modelList: Table<LocalModel>;
+  protected _ggufPanel: GGUFInfoPanel;
   protected _summary: StyledText;
+  protected _debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  protected _lastInspectedPath = "";
 
   // HF Browser
   protected _hfColumn: Column;
@@ -107,20 +113,41 @@ export class ModelsControl extends Control {
       },
     ];
 
-    this._modelsSection = new Section();
-    this._modelsSection.title = "Downloaded Models";
-    this._modelsSection.add(this._modelList);
-    this._modelList.flex = 1;
-
     this._modelList.setOnSelect((item) => {
       this.selectModel(item.data!);
     });
 
+    this._modelList.setOnHighlight((item) => {
+      this._handleHighlight(item);
+    });
+
+    this._modelListSection = new Section();
+    this._modelListSection.title = "Downloaded Models";
+    this._modelListSection.add(this._modelList);
+
+    this._ggufPanel = new GGUFInfoPanel();
+
+    this._detailsSection = new Section();
+    this._detailsSection.title = "Model Details";
+    this._detailsSection.add(this._ggufPanel);
+    this._ggufPanel.flex = 1;
+
+    this._modelListSection.flex = 1;
+    const origDetailsMeasure = this._detailsSection.measure.bind(this._detailsSection);
+    this._detailsSection.measure = (parentSize?: Size): Size => {
+      const s = origDetailsMeasure(parentSize);
+      return { width: 40, height: s.height };
+    };
+
+    const _contentRow = new Row();
+    _contentRow.add(this._modelListSection);
+    _contentRow.add(this._detailsSection);
+
     this._column = new Column();
     this._column.add(this._buttonRow);
     //this._column.add(new Spacer());
-    this._column.add(this._modelsSection);
-    this._modelsSection.flex = 1;
+    this._column.add(_contentRow);
+    _contentRow.flex = 1;
 
     // --- HF Browser view ---
 
@@ -365,6 +392,31 @@ this._hfResultsList.handleKey = (key: string) => {
       this._downloadAbortController.abort();
       this._downloadAbortController = null;
     }
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+    }
+  }
+
+  protected _handleHighlight(item: TableItem<LocalModel> | null): void {
+    if (!item || !this._ctx) return;
+    const modelPath = item.data!.path;
+    if (modelPath === this._lastInspectedPath) return;
+    this._lastInspectedPath = modelPath;
+    this._ggufPanel.setLoading(true);
+
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+    }
+    this._debounceTimer = setTimeout(() => {
+      this._debounceTimer = null;
+      fireAsync(async () => {
+        const config = this._ctx?.getConfig();
+        if (!config) return;
+        const info = await inspectGGUF(config, modelPath);
+      this._ggufPanel.setInfo(info);
+        }, this._ctx!);
+    }, 1000);
   }
 
   onFocus(): void {
@@ -392,13 +444,15 @@ this._hfResultsList.handleKey = (key: string) => {
 
   // --- View transitions ---
  enterBrowseMode(): void {
-     this._view = "search";
-     this._searchPage = 0;
-     this._hfSearchInput.value = "";
-     this.updateView();
-     focusManager.setFocus(this._hfSearchInput);
-     focusManager.activateTextInput(true);
-   }
+      this._view = "search";
+      this._searchPage = 0;
+      this._hfSearchInput.value = "";
+      this._ggufPanel.setInfo(null);
+      this._lastInspectedPath = "";
+      this.updateView();
+      focusManager.setFocus(this._hfSearchInput);
+      focusManager.activateTextInput(true);
+    }
 
    goBack(): void {
     if (this._view === "results") {
