@@ -87,13 +87,13 @@ export class VersionsControl extends Control {
   protected _buttonRow: Row;
   protected _btnInstall: Button;
   protected _btnDelete: Button;
+  protected _btnBack: Button;
   protected _contentRow: Row;
   protected _versionsSection: Section;
   protected _list: List<string, VersionInfo | RemoteVersion | AvailableBackend>;
   protected _changelogSection: Section;
   protected _changelog: ChangelogView;
   protected _summary: StyledText;
-  protected _prompt: StyledText;
 
   protected _mode: ViewMode = "local";
   protected _selectedRelease: RemoteVersion | null = null;
@@ -105,8 +105,6 @@ export class VersionsControl extends Control {
 
     this._summary = new StyledText();
     this._summary.flex = 1;
-    this._prompt = new StyledText();
-    this._prompt.visible = false;
 
     this._list = new List();
 
@@ -125,7 +123,10 @@ export class VersionsControl extends Control {
 
     this._btnInstall = new Button({ label: "Install" });
     this._btnDelete = new Button({ label: "Delete" });
+    this._btnBack = new Button({ label: "Back" });
+    this._btnBack.visible = false;
     this._buttonRow = new Row();
+    this._buttonRow.add(this._btnBack);
     this._buttonRow.add(this._btnInstall);
     this._buttonRow.add(this._btnDelete);
 
@@ -139,7 +140,6 @@ export class VersionsControl extends Control {
 
     this._column = new Column();
     this._buttonRow.add(this._summary);
-    this._column.add(this._prompt);
     //this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
     //this._column.add(new Spacer());
@@ -160,6 +160,12 @@ export class VersionsControl extends Control {
     this._btnInstall.setAction(() => {
       fireAsync(async () => {
         await this.showReleases();
+      }, ctx);
+    });
+
+    this._btnBack.setAction(() => {
+      fireAsync(async () => {
+        await this.goBack();
       }, ctx);
     });
 
@@ -238,8 +244,9 @@ export class VersionsControl extends Control {
     this._mode = "local";
     this._dividerButtons.visible = true;
     this._buttonRow.visible = true;
-    this._prompt.visible = false;
+    this._versionsSection.title = "Installed Versions";
     this._changelogSection.visible = false;
+    this._btnBack.visible = false;
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
     this._btnDelete.visible = true;
@@ -253,15 +260,15 @@ export class VersionsControl extends Control {
 
     this._mode = "releases";
     this._dividerButtons.visible = true;
-    this._buttonRow.visible = false;
-    this._prompt.visible = true;
-    this._prompt.builder.warning("Select version");
+    this._buttonRow.visible = true;
+    this._versionsSection.title = "Select version";
+    this._btnBack.visible = true;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._changelogSection.visible = true;
     this._list.selectedIndex = -1;
     this._list.items = [];
-    this._summary.builder.muted("GitHub Releases (press g for back)");
+    this._summary.builder.muted("GitHub Releases");
     this.markDirty();
 
     try {
@@ -284,8 +291,7 @@ export class VersionsControl extends Control {
       this._list.items = items;
       this._summary.builder
         .muted("Releases")
-        .accentColor(` ${items.length}`)
-        .muted("  (press g for back)");
+        .accentColor(` ${items.length}`);
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
@@ -300,10 +306,10 @@ export class VersionsControl extends Control {
 
     this._mode = "backends";
     this._dividerButtons.visible = true;
-    this._buttonRow.visible = false;
-    this._prompt.visible = true;
-    this._prompt.builder.warning("Select backend");
+    this._buttonRow.visible = true;
+    this._versionsSection.title = "Select backend";
     this._changelogSection.visible = false;
+    this._btnBack.visible = true;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._list.selectedIndex = -1;
@@ -330,7 +336,7 @@ export class VersionsControl extends Control {
 
       this._list.setRenderer(this._backendRenderer.bind(this));
       this._list.items = items;
-      this._summary.builder.muted(`Backends for ${release.tag}  (press g for back)`);
+      this._summary.builder.muted(`Backends for ${release.tag}`);
       focusManager.setFocus(this._list);
       this.markDirty();
     } catch (err: any) {
