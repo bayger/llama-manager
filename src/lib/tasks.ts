@@ -13,8 +13,8 @@ function findLatestLogFile(config: ConfigData): string | null {
   if (files.length === 0) return null;
   return path.join(logsDir, files[files.length - 1]);
 }
-import { TaskMetrics, logParser } from "./logparser";
-export type { TaskMetrics } from "./logparser";
+import { TaskMetrics, SpeedSample, logParser } from "./logparser";
+export type { TaskMetrics, SpeedSample } from "./logparser";
 import { EventEmitter } from "events";
 
 export interface TaskFilter {
@@ -49,6 +49,7 @@ class TaskStore extends EventEmitter {
 
   private stmts = {
     insertTask: null as Database.Statement | null,
+    insertSpeedSample: null as Database.Statement | null,
     upsertStats: null as Database.Statement | null,
     getCache: null as Database.Statement | null,
   };
@@ -62,8 +63,15 @@ class TaskStore extends EventEmitter {
         output_tokens, eval_time_ms, output_speed,
         total_tokens, total_time_ms,
         draft_accepted, draft_generated,
-        context_size, truncated, graphs_reused
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        context_size, truncated, graphs_reused,
+        pending_tokens, n_ctx_slot, cached_prompt_tokens,
+        prompt_ms_per_token, output_ms_per_token, tts_ms,
+        draft_mean_accept_len, slot_similarity
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    this.stmts.insertSpeedSample = this.db!.prepare(`
+      INSERT INTO task_speed_samples (task_id, phase, position, speed_tps, ms_per_token, elapsed_s)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
     this.stmts.upsertStats = this.db!.prepare("INSERT OR REPLACE INTO stats_cache (key, value) VALUES (?, ?)");
     this.stmts.getCache = this.db!.prepare("SELECT value FROM stats_cache WHERE key = ?");
@@ -136,11 +144,44 @@ class TaskStore extends EventEmitter {
         key TEXT PRIMARY KEY,
         value REAL
       );
+      CREATE TABLE IF NOT EXISTS task_speed_samples (
+        rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL REFERENCES tasks(task_id),
+        phase TEXT NOT NULL CHECK(phase IN ('prompt', 'generation')),
+        position INTEGER NOT NULL,
+        speed_tps REAL NOT NULL,
+        ms_per_token REAL DEFAULT 0,
+        elapsed_s REAL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_samples_task ON task_speed_samples(task_id, phase, position);
+      CREATE INDEX IF NOT EXISTS idx_samples_task_id ON task_speed_samples(task_id);
     `);
+
+    this.migrateColumns();
 
     const cnt = this.db!.prepare("SELECT COUNT(*) as cnt FROM stats_cache").get() as { cnt: number };
     if (cnt.cnt === 0) {
       this.rebuildStats();
+    }
+  }
+
+  private migrateColumns() {
+    const columns = [
+      "pending_tokens INTEGER DEFAULT 0",
+      "n_ctx_slot INTEGER DEFAULT 0",
+      "cached_prompt_tokens INTEGER DEFAULT 0",
+      "prompt_ms_per_token REAL DEFAULT 0",
+      "output_ms_per_token REAL DEFAULT 0",
+      "tts_ms REAL DEFAULT 0",
+      "draft_mean_accept_len REAL DEFAULT 0",
+      "slot_similarity REAL DEFAULT 0",
+    ];
+    for (const col of columns) {
+      try {
+        this.db!.exec(`ALTER TABLE tasks ADD COLUMN ${col}`);
+      } catch {
+        /* column already exists */
+      }
     }
   }
 
@@ -245,6 +286,9 @@ class TaskStore extends EventEmitter {
       task.totalTokens, task.totalTimeMs,
       task.draftAccepted ?? 0, task.draftGenerated ?? 0,
       task.contextSize, task.truncated ? 1 : 0, task.graphsReused ?? 0,
+      task.pendingTokens ?? 0, task.nCtxSlot ?? 0, task.cachedPromptTokens ?? 0,
+      task.promptMsPerToken ?? 0, task.outputMsPerToken ?? 0, task.ttsMs ?? 0,
+      task.draftMeanAcceptLen ?? 0, task.slotSimilarity ?? 0,
     );
 
     const da = gc.get("total_count") as { value: number } | undefined;
@@ -264,6 +308,27 @@ class TaskStore extends EventEmitter {
     ups.run("total_draft_generated", (ddg?.value ?? 0) + (task.draftGenerated ?? 0));
 
     this.emit("updated");
+  }
+
+  private sampleBuffer: SpeedSample[] = [];
+
+  onSpeedSample(sample: SpeedSample) {
+    this.sampleBuffer.push(sample);
+    if (this.sampleBuffer.length >= 10) {
+      this.flushSamples();
+    }
+  }
+
+  flushSamples() {
+    if (!this.db || this.sampleBuffer.length === 0) return;
+    const stmt = this.getStmts().insertSpeedSample!;
+    const ins = this.db.transaction(() => {
+      for (const s of this.sampleBuffer) {
+        stmt.run(s.taskId, s.phase, s.position, s.speedTps, s.msPerToken, s.elapsedS);
+      }
+    });
+    ins();
+    this.sampleBuffer.length = 0;
   }
 
   getTotalCount(filter?: TaskFilter): number {
@@ -406,10 +471,19 @@ class TaskStore extends EventEmitter {
       contextSize: row.context_size as number,
       truncated: (row.truncated as number) === 1,
       graphsReused: row.graphs_reused as number,
+      pendingTokens: (row.pending_tokens as number) ?? 0,
+      nCtxSlot: (row.n_ctx_slot as number) ?? 0,
+      cachedPromptTokens: (row.cached_prompt_tokens as number) ?? 0,
+      promptMsPerToken: (row.prompt_ms_per_token as number) ?? 0,
+      outputMsPerToken: (row.output_ms_per_token as number) ?? 0,
+      ttsMs: (row.tts_ms as number) ?? 0,
+      draftMeanAcceptLen: (row.draft_mean_accept_len as number) ?? 0,
+      slotSimilarity: (row.slot_similarity as number) ?? 0,
     };
   }
 
   dispose() {
+    this.flushSamples();
     if (this.stopTailer) this.stopTailer();
     logParser.stop();
     if (this.db) {
@@ -423,4 +497,9 @@ export const taskStore = new TaskStore();
 
 logParser.on("task", (task: TaskMetrics) => {
   taskStore.onTask(task);
+});
+
+import { onSpeedSample as trackSpeedSample } from "./metricstracker";
+trackSpeedSample((sample) => {
+  taskStore.onSpeedSample(sample);
 });

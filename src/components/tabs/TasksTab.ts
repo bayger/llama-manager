@@ -85,19 +85,27 @@ class TaskDetailsControl extends Section {
       { label: "Model", value: task.model || "-" },
       { label: "Version", value: task.version || "-" },
       { label: "", value: "" },
+      { label: "Pending Tokens", value: fmtNum(task.pendingTokens) },
       { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
+      { label: "Cached Tokens", value: task.cachedPromptTokens > 0 && task.pendingTokens > 0 ? `${fmtNum(task.cachedPromptTokens)} (${((task.cachedPromptTokens / task.pendingTokens) * 100).toFixed(1)}%)` : task.cachedPromptTokens > 0 ? fmtNum(task.cachedPromptTokens) : "-" },
       { label: "Prompt Time", value: formatMs(task.promptTimeMs) },
       { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
+      { label: "P ms/t", value: task.promptMsPerToken > 0 ? `${task.promptMsPerToken.toFixed(2)} ms` : "-" },
       { label: "", value: "" },
       { label: "Output Tokens", value: fmtNum(task.outputTokens) },
       { label: "Eval Time", value: formatMs(task.evalTimeMs) },
       { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
+      { label: "O ms/t", value: task.outputMsPerToken > 0 ? `${task.outputMsPerToken.toFixed(2)} ms` : "-" },
       { label: "", value: "" },
+      { label: "TTS", value: task.ttsMs > 0 ? `${task.ttsMs.toFixed(0)} ms` : "-" },
       { label: "Total Tokens", value: fmtNum(task.totalTokens) },
       { label: "Total Time", value: formatMs(task.totalTimeMs) },
       { label: "", value: "" },
       { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
+      { label: "Draft Mean Len", value: task.draftMeanAcceptLen > 0 ? `${task.draftMeanAcceptLen.toFixed(2)}` : "-" },
       { label: "Context Size", value: fmtNum(task.contextSize) },
+      { label: "n_ctx_slot", value: task.nCtxSlot > 0 ? fmtNum(task.nCtxSlot) : "-" },
+      { label: "Slot Sim.", value: task.slotSimilarity > 0 ? `${task.slotSimilarity.toFixed(3)}` : "-" },
       { label: "Truncated", value: task.truncated ? "Yes" : "No" },
     ];
   }
@@ -275,6 +283,8 @@ export class TasksControl extends Control {
       { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined },
       { label: "Prompt", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined },
       { label: "Output", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined },
+      { label: "Cache", width: 8, align: "right" as const },
+      { label: "TTS", width: 7, align: "right" as const },
       { label: "Duration", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined },
     ];
   }
@@ -294,6 +304,8 @@ export class TasksControl extends Control {
       TG: `${task.outputSpeed.toFixed(1)} tps`,
       Prompt: `${task.promptTokens}`,
       Output: `${task.outputTokens}`,
+      Cache: task.cachedPromptTokens > 0 && task.pendingTokens > 0 ? `${((task.cachedPromptTokens / task.pendingTokens) * 100).toFixed(0)}%` : "-",
+      TTS: task.ttsMs > 0 ? `${task.ttsMs.toFixed(0)}ms` : "-",
       Duration: formatMs(task.totalTimeMs),
     };
 

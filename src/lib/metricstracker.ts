@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import type { SpeedSample } from "./logparser";
 
 export interface SlotCheckpoint {
   pos: number;
@@ -61,6 +62,14 @@ export function onMetricsChange(listener: () => void): () => void {
   return () => { emitter.off("change", listener); };
 }
 
+const speedSampleEmitter = new EventEmitter();
+speedSampleEmitter.setMaxListeners(10);
+
+export function onSpeedSample(listener: (sample: SpeedSample) => void): () => void {
+  speedSampleEmitter.on("speedSample", listener);
+  return () => { speedSampleEmitter.off("speedSample", listener); };
+}
+
 const slots = new Map<number, SlotMetrics>();
 const completedTasks: CompletedTask[] = [];
 const MAX_COMPLETED_TASKS = 1000;
@@ -90,7 +99,7 @@ const launchRegex = /slot\s+launch_slot_: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*
 const newPromptRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*(\d+),\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
 const cachedRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
 const decodedRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*(\d+),\s*tg\s*=\s*([\d.]+)\s*t\/s/;
-const promptProgressRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt processing,\s*n_tokens\s*=\s*(\d+),\s*progress\s*=\s*([\d.]+),\s*t\s*=\s*[\d.]+\s*s\s*\/\s*([\d.]+)\s*tokens per second/;
+const promptProgressRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt processing,\s*n_tokens\s*=\s*(\d+),\s*progress\s*=\s*([\d.]+),\s*t\s*=\s*([\d.]+)\s*s\s*\/\s*([\d.]+)\s*tokens per second/;
 const reasoningRegex = /reasoning-budget:\s*(activated|deactivated)/;
 const promptEvalRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*prompt eval time\s*=\s*([\d.]+)\s*ms\s*\/\s*(\d+)\s*tokens\s*\(\s*([\d.]+)\s*ms per token,\s*([\d.]+)\s*tokens per second/;
 const evalTimeRegex = /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*eval time\s*=\s*([\d.]+)\s*ms\s*\/\s*(\d+)\s*tokens\s*\(\s*([\d.]+)\s*ms per token,\s*([\d.]+)\s*tokens per second/;
@@ -103,6 +112,7 @@ const checkpointErasedRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s
 const checkpointErasingOldRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erasing old context checkpoint \(pos_min\s*=\s*(\d+)/;
 
 const taskAccumulators = new Map<number, Partial<CompletedTask>>();
+const taskLaunchTimes = new Map<number, number>();
 
 function ensureSlot(slotId: number): SlotMetrics {
   if (!slots.has(slotId)) {
@@ -191,6 +201,7 @@ export function processLine(line: string) {
     const slot = ensureSlot(slotId);
     slot.taskId = taskId;
     slot.state = "prompting";
+    taskLaunchTimes.set(taskId, Date.now());
     slot.thinking = false;
     slot.promptProgress = null;
     slot.generationSpeed = null;
@@ -231,6 +242,17 @@ export function processLine(line: string) {
     slot.state = "generating";
     slot.generationSpeed = parseFloat(m[4]);
     slot.decodedTokens = parseInt(m[3]);
+    const launchTime = taskLaunchTimes.get(slot.taskId);
+    if (launchTime) {
+      speedSampleEmitter.emit("speedSample", {
+        taskId: slot.taskId,
+        phase: "generation",
+        position: parseInt(m[3]),
+        speedTps: parseFloat(m[4]),
+        msPerToken: 0,
+        elapsedS: (Date.now() - launchTime) / 1000,
+      });
+    }
     notify();
     return;
   }
@@ -241,7 +263,16 @@ export function processLine(line: string) {
     if (slot.taskId === null || slot.taskId !== parseInt(m[2])) return;
     slot.state = "prompting";
     slot.promptProgress = parseFloat(m[4]);
-    slot.promptSpeed = parseFloat(m[5]);
+    slot.promptSpeed = parseFloat(m[6]);
+    const elapsed = parseFloat(m[5]);
+    speedSampleEmitter.emit("speedSample", {
+      taskId: slot.taskId,
+      phase: "prompt",
+      position: parseInt(m[3]),
+      speedTps: parseFloat(m[6]),
+      msPerToken: parseFloat(m[6]) > 0 ? 1000 / parseFloat(m[6]) : 0,
+      elapsedS: elapsed,
+    });
     notify();
     return;
   }
@@ -341,6 +372,7 @@ export function processLine(line: string) {
     }
 
     taskAccumulators.delete(taskId);
+    taskLaunchTimes.delete(taskId);
 
     const slot = ensureSlot(slotId);
     slot.state = "idle";
@@ -362,6 +394,7 @@ export function reset() {
   slots.clear();
   completedTasks.length = 0;
   taskAccumulators.clear();
+  taskLaunchTimes.clear();
   cacheMetrics = null;
   globalAccum.count = 0;
   globalAccum.totalPromptSpeed = 0;

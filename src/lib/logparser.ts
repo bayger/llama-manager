@@ -24,6 +24,23 @@ export interface TaskMetrics {
   profile?: string;
   model?: string;
   version?: string;
+  pendingTokens: number;
+  nCtxSlot: number;
+  cachedPromptTokens: number;
+  promptMsPerToken: number;
+  outputMsPerToken: number;
+  ttsMs: number;
+  draftMeanAcceptLen: number;
+  slotSimilarity: number;
+}
+
+export interface SpeedSample {
+  taskId: number;
+  phase: "prompt" | "generation";
+  position: number;
+  speedTps: number;
+  msPerToken: number;
+  elapsedS: number;
 }
 
 
@@ -46,6 +63,24 @@ const draftAcceptanceRegex =
 const releaseRegex =
   /slot\s+release: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*stop processing: n_tokens\s*=\s*(\d+),\s*truncated\s*=\s*(\d)/;
 
+const newPromptRegex =
+  /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*new prompt,\s*n_ctx_slot\s*=\s*(\d+),\s*n_keep\s*=\s*\d+,\s*task\.n_tokens\s*=\s*(\d+)/;
+
+const cachedTokensRegex =
+  /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*cached n_tokens\s*=\s*(\d+)/;
+
+const initSamplerRegex =
+  /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*init sampler,\s*took\s*[\d.]+\s*ms/;
+
+const firstTokenRegex =
+  /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*n_decoded\s*=\s*1(?!,)/;
+
+const draftAcceptanceExtendedRegex =
+  /slot print_timing: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*draft acceptance\s*=\s*([\d.]+)\s*\(\s*(\d+)\s*accepted\s*\/\s*(\d+)\s*generated.*?mean acceptance length\s*=\s*([\d.]+)/;
+
+const slotSelectionRegex =
+  /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*selected slot by LCP similarity,\s*sim_best\s*=\s*([\d.]+)/;
+
 function parseLine(line: string): Partial<TaskMetrics> | null {
   let match: RegExpMatchArray | null;
 
@@ -55,6 +90,7 @@ function parseLine(line: string): Partial<TaskMetrics> | null {
       taskId: parseInt(match[2]),
       promptTimeMs: parseFloat(match[3]),
       promptTokens: parseInt(match[4]),
+      promptMsPerToken: parseFloat(match[5]),
       promptSpeed: parseFloat(match[6]),
     };
   }
@@ -65,6 +101,7 @@ function parseLine(line: string): Partial<TaskMetrics> | null {
       taskId: parseInt(match[2]),
       evalTimeMs: parseFloat(match[3]),
       outputTokens: parseInt(match[4]),
+      outputMsPerToken: parseFloat(match[5]),
       outputSpeed: parseFloat(match[6]),
     };
   }
@@ -86,6 +123,17 @@ function parseLine(line: string): Partial<TaskMetrics> | null {
     };
   }
 
+  if ((match = line.match(draftAcceptanceExtendedRegex))) {
+    return {
+      slotId: parseInt(match[1]),
+      taskId: parseInt(match[2]),
+      draftAcceptance: parseFloat(match[3]),
+      draftAccepted: parseInt(match[4]),
+      draftGenerated: parseInt(match[5]),
+      draftMeanAcceptLen: parseFloat(match[6]),
+    };
+  }
+
   if ((match = line.match(draftAcceptanceRegex))) {
     return {
       slotId: parseInt(match[1]),
@@ -102,6 +150,45 @@ function parseLine(line: string): Partial<TaskMetrics> | null {
       taskId: parseInt(match[2]),
       contextSize: parseInt(match[3]),
       truncated: match[4] !== "0",
+    };
+  }
+
+  if ((match = line.match(newPromptRegex))) {
+    return {
+      slotId: parseInt(match[1]),
+      taskId: parseInt(match[2]),
+      nCtxSlot: parseInt(match[3]),
+      pendingTokens: parseInt(match[4]),
+    };
+  }
+
+  if ((match = line.match(cachedTokensRegex))) {
+    return {
+      slotId: parseInt(match[1]),
+      taskId: parseInt(match[2]),
+      cachedPromptTokens: parseInt(match[3]),
+    };
+  }
+
+  if ((match = line.match(initSamplerRegex))) {
+    return {
+      slotId: parseInt(match[1]),
+      taskId: parseInt(match[2]),
+    };
+  }
+
+  if ((match = line.match(firstTokenRegex))) {
+    return {
+      slotId: parseInt(match[1]),
+      taskId: parseInt(match[2]),
+    };
+  }
+
+  if ((match = line.match(slotSelectionRegex))) {
+    return {
+      slotId: parseInt(match[1]),
+      taskId: parseInt(match[2]),
+      slotSimilarity: parseFloat(match[3]),
     };
   }
 
@@ -130,6 +217,14 @@ function fillDefaults(partial: Partial<TaskMetrics>): TaskMetrics {
     profile: partial.profile,
     model: partial.model,
     version: partial.version,
+    pendingTokens: partial.pendingTokens ?? 0,
+    nCtxSlot: partial.nCtxSlot ?? 0,
+    cachedPromptTokens: partial.cachedPromptTokens ?? 0,
+    promptMsPerToken: partial.promptMsPerToken ?? 0,
+    outputMsPerToken: partial.outputMsPerToken ?? 0,
+    ttsMs: partial.ttsMs ?? 0,
+    draftMeanAcceptLen: partial.draftMeanAcceptLen ?? 0,
+    slotSimilarity: partial.slotSimilarity ?? 0,
   };
 }
 
@@ -138,9 +233,32 @@ export class LogParser extends EventEmitter {
   private _config: ConfigData | null = null;
   private taskBuffer = new Map<number, Partial<TaskMetrics>>();
   private completedTaskIds = new Set<number>();
+  private initSamplerTimes = new Map<number, number>();
+  private firstTokenTimes = new Map<number, number>();
 
   setConfig(config: ConfigData): void {
     this._config = config;
+  }
+
+  private computeTtsMs(taskId: number): number {
+    const init = this.initSamplerTimes.get(taskId);
+    const first = this.firstTokenTimes.get(taskId);
+    if (init != null && first != null) {
+      return first - init;
+    }
+    return 0;
+  }
+
+  private cleanupTask(key: number): void {
+    this.completedTaskIds.add(key);
+    this.taskBuffer.delete(key);
+    this.initSamplerTimes.delete(key);
+    this.firstTokenTimes.delete(key);
+    const timer = this.tailTimers.get(key);
+    if (timer) {
+      clearTimeout(timer);
+      this.tailTimers.delete(key);
+    }
   }
 
   seedCompleted(ids: number[]) {
@@ -148,6 +266,14 @@ export class LogParser extends EventEmitter {
   }
 
   processLine(line: string): TaskMetrics | null {
+    let tMatch: RegExpMatchArray | null;
+    if ((tMatch = line.match(initSamplerRegex))) {
+      this.initSamplerTimes.set(parseInt(tMatch[2]), Date.now());
+    }
+    if ((tMatch = line.match(firstTokenRegex))) {
+      this.firstTokenTimes.set(parseInt(tMatch[2]), Date.now());
+    }
+
     const metrics = parseLine(line);
     if (!metrics || metrics.taskId === undefined || metrics.taskId < 0) return null;
 
@@ -160,19 +286,14 @@ export class LogParser extends EventEmitter {
 
     if (metrics.contextSize !== undefined) {
       const complete = fillDefaults(merged);
+      complete.ttsMs = this.computeTtsMs(key);
       if (this._config) {
         const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
         complete.profile = this._config.server.activeProfile;
         complete.model = (presets?.model?.model as string | undefined) ?? (presets?.model?.hfRepo as string | undefined) ?? undefined;
         complete.version = this._config.activeVersion ?? undefined;
       }
-      this.completedTaskIds.add(key);
-      this.taskBuffer.delete(key);
-      const timer = this.tailTimers.get(key);
-      if (timer) {
-        clearTimeout(timer);
-        this.tailTimers.delete(key);
-      }
+      this.cleanupTask(key);
       this.emit("task", complete);
       return complete;
     }
@@ -182,15 +303,14 @@ export class LogParser extends EventEmitter {
         const buf = this.taskBuffer.get(key);
         if (buf) {
           const complete = fillDefaults(buf);
+          complete.ttsMs = this.computeTtsMs(key);
           if (this._config) {
             const presets = this._config.server.profiles[this._config.server.activeProfile]?.presets;
             complete.profile = this._config.server.activeProfile;
             complete.model = (presets?.model?.model as string | undefined) ?? (presets?.model?.hfRepo as string | undefined) ?? undefined;
             complete.version = this._config.activeVersion ?? undefined;
           }
-          this.completedTaskIds.add(key);
-          this.taskBuffer.delete(key);
-          this.tailTimers.delete(key);
+          this.cleanupTask(key);
           this.emit("task", complete);
         }
       }, 1000);
@@ -257,6 +377,8 @@ export class LogParser extends EventEmitter {
   clearCompleted(): void {
     this.taskBuffer.clear();
     this.completedTaskIds.clear();
+    this.initSamplerTimes.clear();
+    this.firstTokenTimes.clear();
   }
 
   stop() {
@@ -264,6 +386,8 @@ export class LogParser extends EventEmitter {
     this.tailTimers.clear();
     this.taskBuffer.clear();
     this.completedTaskIds.clear();
+    this.initSamplerTimes.clear();
+    this.firstTokenTimes.clear();
   }
 }
 
