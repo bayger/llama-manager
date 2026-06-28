@@ -164,6 +164,10 @@ export class VersionsControl extends Control {
   onInit(): void {
     if (!this._ctx) return;
     const ctx = this._ctx;
+    const config = ctx.getConfig();
+    if (config?.defaultFork) {
+      this._selectedFork = config.defaultFork;
+    }
 
     this._btnInstall.setAction(() => {
       fireAsync(async () => {
@@ -270,6 +274,16 @@ export class VersionsControl extends Control {
     const nextIdx = (currentIdx + 1) % forks.length;
     this._selectedFork = forks[nextIdx]!.id;
     this._forkButton.label = forks[nextIdx]!.label;
+
+    if (this._ctx) {
+      const config = this._ctx.getConfig();
+      if (config) {
+        config.defaultFork = this._selectedFork;
+        saveConfig(config);
+        this._ctx.setConfig(config);
+      }
+    }
+
     this.markDirty();
     await this.showReleases();
   }
