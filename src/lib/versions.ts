@@ -3,6 +3,13 @@ import path from "path";
 import os from "os";
 import { getVersionsDir } from "./config";
 import { ConfigData } from "./config";
+import {
+  getFork,
+  resolveBinaryName,
+  parseFolderNameV2,
+  detectForkFromFolder,
+  ForkDefinition,
+} from "./forks";
 
 export const BACKEND_LABELS: Record<string, string> = {
   cpu: "CPU",
@@ -14,6 +21,7 @@ export const BACKEND_LABELS: Record<string, string> = {
   openvino: "OpenVINO",
   opencl: "OpenCL",
   hip: "HIP/Radeon",
+  oldpc: "CUDA (old GPU)",
 };
 
 export interface VersionInfo {
@@ -22,6 +30,7 @@ export interface VersionInfo {
   backend: string;
   path: string;
   active: boolean;
+  fork: string;
 }
 
 export interface RemoteVersion {
@@ -38,11 +47,10 @@ export interface AvailableBackend {
   assetName: string;
 }
 
-const GITHUB_REPO = "ggml-org/llama.cpp";
-
-export async function listRecentVersions(limit = 20): Promise<RemoteVersion[]> {
+export async function listRecentVersions(forkId: string, limit = 20): Promise<RemoteVersion[]> {
+  const fork = getFork(forkId);
   const response = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=${limit}`,
+    `https://api.github.com/repos/${fork.githubRepo}/releases?per_page=${limit}`,
     {
       headers: { "User-Agent": "llama-manager" },
     },
@@ -60,14 +68,6 @@ export async function listRecentVersions(limit = 20): Promise<RemoteVersion[]> {
 }
 
 export type InstallProgress = (pct: number, label: string) => void;
-
-function parseFolderName(name: string): { tag: string; backend: string } {
-  const match = name.match(/^(b\d+)(-.+)?$/);
-  if (match) {
-    return { tag: match[1], backend: match[2] ? match[2].slice(1) : "cpu" };
-  }
-  return { tag: name, backend: "cpu" };
-}
 
 function getBackendLabel(backend: string): string {
   if (BACKEND_LABELS[backend]) return BACKEND_LABELS[backend];
@@ -89,15 +89,18 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const versionPath = path.join(dir, entry.name);
-    const binary = path.join(versionPath, "llama-server");
+    const fork = detectForkFromFolder(entry.name);
+    const binaryName = resolveBinaryName(fork);
+    const binary = path.join(versionPath, binaryName);
     if (await fs.pathExists(binary)) {
-      const { tag, backend } = parseFolderName(entry.name);
+      const { tag, backend } = parseFolderNameV2(entry.name);
       versions.push({
         version: entry.name,
         tag,
         backend,
         path: versionPath,
         active: entry.name === config.activeVersion,
+        fork: fork.id,
       });
     }
   }
@@ -112,7 +115,9 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
 export async function switchVersion(config: ConfigData, version: string): Promise<ConfigData> {
   const dir = getVersionsDir(config);
   const versionPath = path.join(dir, version);
-  const binary = path.join(versionPath, "llama-server");
+  const fork = detectForkFromFolder(version);
+  const binaryName = resolveBinaryName(fork);
+  const binary = path.join(versionPath, binaryName);
 
   if (!(await fs.pathExists(binary))) {
     throw new Error(`Version not found: ${version}`);
@@ -132,9 +137,10 @@ export async function uninstallVersion(config: ConfigData, version: string): Pro
   await fs.remove(versionPath);
 }
 
-export async function checkLatestVersion(): Promise<string> {
+export async function checkLatestVersion(forkId: string): Promise<string> {
+  const fork = getFork(forkId);
   const response = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
+    `https://api.github.com/repos/${fork.githubRepo}/releases/latest`,
     {
       headers: { "User-Agent": "llama-manager" },
     },
@@ -155,14 +161,31 @@ export function getPlatformKey(): string {
   throw new Error(`Unsupported platform: ${platform}-${arch}`);
 }
 
-function extractBackendFromAsset(assetName: string, version: string, platform: string): string | null {
+function extractBackendFromAsset(
+  assetName: string,
+  version: string,
+  platform: string,
+  fork: ForkDefinition,
+): string | null {
+  if (fork.id === "koboldcpp") {
+    const ext = assetName.endsWith(".tar.gz") ? ".tar.gz" : assetName.endsWith(".zip") ? ".zip" : null;
+    const base = ext ? assetName.slice(0, assetName.length - ext.length) : assetName;
+    for (const variant of fork.backendVariants) {
+      if (variant.assetMatcher(base, platform)) {
+        return variant.id;
+      }
+    }
+    return null;
+  }
+
   const ext = assetName.endsWith(".tar.gz") ? ".tar.gz" : assetName.endsWith(".zip") ? ".zip" : null;
   if (!ext) return null;
 
   const base = assetName.slice(0, assetName.length - ext.length);
   const osName = platform.split("-")[0];
   const arch = getArch(platform);
-  const prefix = `llama-${version}-bin-${osName}`;
+  const prefixBase = fork.extractDirPrefix || "";
+  const prefix = `${prefixBase}${version}-bin-${osName}`;
   const suffix = `-${arch}`;
 
   if (!base.startsWith(prefix) || !base.endsWith(suffix)) return null;
@@ -172,7 +195,7 @@ function extractBackendFromAsset(assetName: string, version: string, platform: s
 
   const parts = between.slice(1).split("-");
   const key = parts[0].toLowerCase();
-  const known = ["cuda", "vulkan", "rocm", "openvino", "opencl", "hip", "adreno"];
+  const known = ["cuda", "vulkan", "rocm", "openvino", "opencl", "hip", "adreno", "sycl"];
   if (!known.includes(key)) return null;
 
   const versionPart = parts.slice(1).join(".").replace(/[^0-9.]/g, "");
@@ -187,18 +210,27 @@ export function getAvailableBackends(
   version: string,
   platform: string,
   assets: Array<{ name: string }>,
+  forkId: string,
 ): AvailableBackend[] {
+  const fork = getFork(forkId);
   const backends: AvailableBackend[] = [];
   const seen = new Set<string>();
   const osName = platform.split("-")[0].toLowerCase();
   const arch = getArch(platform).toLowerCase();
+  const naming = fork.assetNaming;
 
   for (const asset of assets) {
     const nameLower = asset.name.toLowerCase();
-    if (!nameLower.includes(`bin-${osName}`)) continue;
-    if (!nameLower.endsWith(`${arch}.tar.gz`) && !nameLower.endsWith(`${arch}.zip`)) continue;
 
-    const backend = extractBackendFromAsset(asset.name, version, platform);
+    // Check OS token matches any of the fork's known OS tokens
+    if (!naming.osTokens.some(token => nameLower.includes(token.toLowerCase()))) continue;
+
+    // Check arch + extension for archives
+    if (naming.isArchive) {
+      if (!nameLower.endsWith(`${arch}.tar.gz`) && !nameLower.endsWith(`${arch}.zip`)) continue;
+    }
+
+    const backend = extractBackendFromAsset(asset.name, version, platform, fork);
     if (!backend || seen.has(backend)) continue;
     seen.add(backend);
 
@@ -223,9 +255,10 @@ function resolveAssetName(
   platform: string,
   backend: string,
   assets: Array<{ name: string; browser_download_url?: string }>,
+  fork: ForkDefinition,
 ): { name: string; url: string } | null {
   for (const asset of assets) {
-    const detected = extractBackendFromAsset(asset.name, version, platform);
+    const detected = extractBackendFromAsset(asset.name, version, platform, fork);
     if (detected === backend && asset.browser_download_url) {
       return { name: asset.name, url: asset.browser_download_url };
     }
@@ -233,19 +266,22 @@ function resolveAssetName(
   return null;
 }
 
-function getFolderName(tag: string, backend: string): string {
-  if (backend === "cpu" || backend === "metal") return tag;
-  return `${tag}-${backend}`;
+function getFolderName(tag: string, backend: string, fork: ForkDefinition): string {
+  const prefix = fork.folderPrefix;
+  if (backend === "cpu" || backend === "metal") return `${prefix}${tag}`;
+  return `${prefix}${tag}-${backend}`;
 }
 
 export async function installVersion(
   config: ConfigData,
+  forkId: string,
   version: string,
   backend: string,
   onProgress: InstallProgress,
 ): Promise<string> {
+  const fork = getFork(forkId);
   const dir = getVersionsDir(config);
-  const folderName = getFolderName(version, backend);
+  const folderName = getFolderName(version, backend, fork);
   const versionPath = path.join(dir, folderName);
 
   if (await fs.pathExists(versionPath)) {
@@ -256,7 +292,7 @@ export async function installVersion(
 
   onProgress(0, "Downloading release info...");
   const res = await fetch(
-    `https://api.github.com/repos/${GITHUB_REPO}/releases/tags/${version}`,
+    `https://api.github.com/repos/${fork.githubRepo}/releases/tags/${version}`,
     {
       headers: { "User-Agent": "llama-manager" },
     },
@@ -269,10 +305,10 @@ export async function installVersion(
 
   const releaseData = await res.json();
   const assets = releaseData.assets || [];
-  const assetInfo = resolveAssetName(version, platform, backend, assets);
+  const assetInfo = resolveAssetName(version, platform, backend, assets, fork);
 
   if (!assetInfo) {
-    const available = getAvailableBackends(version, platform, assets.map((a: any) => ({ name: a.name })));
+    const available = getAvailableBackends(version, platform, assets.map((a: any) => ({ name: a.name })), forkId);
     throw new Error(`Backend "${backend}" not available. Available: ${available.map((b) => b.label).join(", ")}`);
   }
 
@@ -307,6 +343,16 @@ export async function installVersion(
     writeStream.on("error", reject);
   });
 
+  if (fork.isRawBinary) {
+    onProgress(92, `Preparing binary...`);
+    const binaryName = resolveBinaryName(fork);
+    const destPath = path.join(versionPath, binaryName);
+    await fs.move(tmpPath, destPath);
+    await fs.chmod(destPath, "755");
+    onProgress(100, `Installed ${folderName}`);
+    return folderName;
+  }
+
   onProgress(92, `Extracting...`);
 
   if (assetName.endsWith(".zip")) {
@@ -332,8 +378,9 @@ export async function installVersion(
 
   await fs.remove(tmpPath);
 
+  const extractPrefix = fork.extractDirPrefix || "llama-";
   const subdirs = await fs.readdir(versionPath, { withFileTypes: true });
-  const topDir = subdirs.find((e) => e.isDirectory() && e.name.startsWith("llama-"));
+  const topDir = subdirs.find((e) => e.isDirectory() && e.name.startsWith(extractPrefix));
   if (topDir && (await fs.readdir(versionPath)).length === 1) {
     const srcPath = path.join(versionPath, topDir.name);
     const entries = await fs.readdir(srcPath, { withFileTypes: true });
@@ -343,7 +390,8 @@ export async function installVersion(
     await fs.remove(srcPath);
   }
 
-  const binary = path.join(versionPath, "llama-server");
+  const binaryName = resolveBinaryName(fork);
+  const binary = path.join(versionPath, binaryName);
   if (await fs.pathExists(binary)) {
     await fs.chmod(binary, "755");
   }

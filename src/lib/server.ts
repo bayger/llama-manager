@@ -7,6 +7,7 @@ import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
 import { processModelLine, resetModelInfo } from "../components/specialized/LoadedModelPanel";
 import { taskStore } from "./tasks";
+import { detectForkFromFolder, resolveBinaryName, isForkCompatibleWithPreset, isFieldCompatibleWithFork } from "./forks";
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -49,7 +50,14 @@ export function listDevices(config: ConfigData): string {
   const versionsDir = getVersionsDir(config);
   const activeVersion = config.activeVersion;
   if (!activeVersion) return "No active version selected";
-  const binary = path.join(versionsDir, activeVersion, "llama-server");
+
+  const fork = detectForkFromFolder(activeVersion);
+  if (!fork.hasListDevices) {
+    return `${fork.label} does not support --list-devices`;
+  }
+
+  const binaryName = resolveBinaryName(fork);
+  const binary = path.join(versionsDir, activeVersion, binaryName);
   const exists = fs.pathExistsSync(binary);
   if (!exists) return `Binary not found: ${binary}`;
   try {
@@ -89,7 +97,9 @@ export function startServer(config: ConfigData): Promise<number> {
         return;
       }
 
-      const binary = path.join(versionsDir, activeVersion, "llama-server");
+      const fork = detectForkFromFolder(activeVersion);
+      const binaryName = resolveBinaryName(fork);
+      const binary = path.join(versionsDir, activeVersion, binaryName);
       const exists = await fs.pathExists(binary);
       if (!exists) {
         reject(new Error(`Binary not found: ${binary}`));
@@ -211,6 +221,8 @@ export function buildArgs(config: ConfigData, logFile: string): string[] {
   const args: string[] = [];
   const p = getActivePresets(config);
 
+  const forkId = config.activeVersion ? detectForkFromFolder(config.activeVersion).id : "llama.cpp";
+
   // Non-schema args
   if (config.hfToken) args.push("--hf-token", config.hfToken);
   args.push("--log-file", logFile);
@@ -218,8 +230,10 @@ export function buildArgs(config: ConfigData, logFile: string): string[] {
 
   // Iterate schema to build args
   for (const cat of PRESET_CATEGORIES) {
+    if (!isForkCompatibleWithPreset(forkId, cat.presetKey)) continue;
     const presetData = p[cat.presetKey];
     for (const field of cat.fields) {
+      if (!isFieldCompatibleWithFork(forkId, field.key, cat.presetKey)) continue;
       const value = presetData[field.key];
 
       // Skip null/undefined/empty

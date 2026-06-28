@@ -11,6 +11,7 @@ import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList"
 import { createDeviceSelectorModal } from "../ui/widgets/DeviceSelectorModal";
 import type { TabContext } from "../../lib/tabcontext";
 import { fireAsync } from "../../lib/utils";
+import { detectForkFromFolder, isForkCompatibleWithPreset, isFieldCompatibleWithFork } from "../../lib/forks";
 
 const KEY_COL_WIDTH = 18;
 
@@ -68,9 +69,14 @@ export class SettingsPanel extends EditableList {
     const presets = this._config.server.profiles[profileName]?.presets;
     if (!presets) return;
 
+    const forkId = this._config.activeVersion ? detectForkFromFolder(this._config.activeVersion).id : "llama.cpp";
+
     for (let catIdx = 0; catIdx < PRESET_CATEGORIES.length; catIdx++) {
       const cat = PRESET_CATEGORIES[catIdx]!;
-      const catHasVisible = cat.fields.some(f => !f.advanced || this._advancedMode);
+      if (!isForkCompatibleWithPreset(forkId, cat.presetKey)) continue;
+      const catHasVisible = cat.fields.some(f =>
+        (!f.advanced || this._advancedMode) && isFieldCompatibleWithFork(forkId, f.key, cat.presetKey),
+      );
       if (!catHasVisible) continue;
 
       this._rows.push({ type: "header", catIdx });
@@ -78,6 +84,7 @@ export class SettingsPanel extends EditableList {
         for (let fIdx = 0; fIdx < cat.fields.length; fIdx++) {
           const field = cat.fields[fIdx]!;
           if (field.advanced && !this._advancedMode) continue;
+          if (!isFieldCompatibleWithFork(forkId, field.key, cat.presetKey)) continue;
           this._rows.push({ type: "field", catIdx, fieldIdx: fIdx, field });
         }
       }

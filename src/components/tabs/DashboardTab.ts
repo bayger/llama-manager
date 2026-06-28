@@ -12,6 +12,7 @@ import { modalManager } from "../ui/ModalManager";
 import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
 import { fireAsync } from "../../lib/utils";
 import { BACKEND_LABELS } from "../../lib/versions";
+import { detectForkFromFolder } from "../../lib/forks";
 import { createStoppingServerModal } from "../ui/widgets/StoppingServerModal";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../ui/types";
@@ -188,9 +189,11 @@ export class DashboardControl extends Control {
 
     if (config && config.activeVersion) {
       const version = config.activeVersion;
+      const fork = detectForkFromFolder(version);
+      const forkSuffix = fork.id !== "llama.cpp" ? ` [${fork.label}]` : "";
       const backend = version.split("-").slice(1).join("-");
       const label = BACKEND_LABELS[backend] || backend || "CPU";
-      this._versionLabel.text = `${version} ${label}`;
+      this._versionLabel.text = `${version} ${label}${forkSuffix}`;
     } else {
       this._versionLabel.text = "";
     }
