@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { Control } from "../ui/Control";
 import { Column, Row } from "../ui/Layout";
 import { Button } from "../ui/widgets/Button";
