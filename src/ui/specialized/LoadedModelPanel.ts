@@ -4,6 +4,16 @@ import { formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import { EventEmitter } from "events";
 import type { RenderContext, Size } from "../../framework/types";
 
+export interface DeviceMemoryUsage {
+  device: string;
+  totalMiB: number;
+  freeMiB: number;
+  modelMiB: number;
+  contextMiB: number;
+  computeMiB: number;
+  unaccountedMiB: number;
+}
+
 export interface ParsedModelInfo {
   name: string;
   filePath: string;
@@ -24,6 +34,7 @@ export interface ParsedModelInfo {
   kvCacheTypeK: string;
   kvCacheTypeV: string;
   kvCacheSize: string;
+  deviceMemory: DeviceMemoryUsage[];
 }
 
 const emitter = new EventEmitter();
@@ -51,10 +62,19 @@ const reGpuOffload = /load_tensors: offloaded (\d+)\/(\d+) layers to GPU/;
 const reGpuVram = /load_tensors:\s+Vulkan\d+\s+model buffer size =\s+([\d.]+)\s+MiB/;
 // Matches Vulkan backend format: "K (f16): 512.00 MiB, V (f16): 512.00 MiB"
 // CPU backend uses different format, falls back to "(unknown)"
-const reKvCache = /llama_kv_cache: size = ([\d.]+)\s+MiB \(\s*\d+ cells, \s*\d+ layers, \s*\d+\/\d+ seqs\), K \((\w+)\): ([\d.]+)\s+MiB, V \((\w+)\):/;
+const reKvCache = /llama_kv_cache: size\s+=\s+([\d.]+)\s+MiB\s+\(\s*\d+\s+cells,\s*\d+\s+layers,\s*\d+\/\d+\s+seqs\),\s*K\s+\((\w+)\):\s+([\d.]+)\s+MiB,\s*V\s+\((\w+)\):/;
 const reModelLoaded = /srv\s+llama_server: model loaded/;
+// Device info: "common_param:   - Vulkan0 : Intel(R) Graphics (LNL) (23321 MiB, 10692 MiB free)"
+const reDeviceInfo = /common_param:\s*-\s+(\S+)\s*:\s*.+\((\d+)\s+MiB,\s*(\d+)\s+MiB\s+free/;
+// Memory breakdown full: "|   - Vulkan0 (...) | 23321 = 10629 + (3928 =  3002 +     814 +     111) +        8762 |"
+// Format from source: device | total = free + (self = model + context + compute) + unaccounted |
+const reMemoryBreakdown = /\|\s*-\s+(\S+).*?\|\s*(\d+)\s*=\s*(\d+)\s*\+\s*\((\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)\)\s*\+\s*(\d+)/;
+// Memory breakdown short (Host / other bufts): "|   - Host | 1323 = 1280 + 0 + 43 |"
+// Format from source: device | self = model + context + compute |  (total/free/unaccounted empty)
+const reMemoryBreakdownShort = /\|\s*-\s+(\S+).*?\|\s*(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)\s*\|/;
 
 const accum: Partial<ParsedModelInfo> = {};
+const deviceMemoryMap = new Map<string, DeviceMemoryUsage>();
 
 function notify() {
   emitter.emit("change");
@@ -147,6 +167,84 @@ export function processModelLine(line: string): void {
     return;
   }
 
+  if ((m = line.match(reDeviceInfo))) {
+    const device = m[1].trim();
+    const totalMiB = parseInt(m[2]);
+    const freeMiB = parseInt(m[3]);
+    if (!deviceMemoryMap.has(device)) {
+      deviceMemoryMap.set(device, {
+        device,
+        totalMiB,
+        freeMiB,
+        modelMiB: 0,
+        contextMiB: 0,
+        computeMiB: 0,
+        unaccountedMiB: 0,
+      });
+    } else {
+      const existing = deviceMemoryMap.get(device)!;
+      existing.totalMiB = totalMiB;
+      existing.freeMiB = freeMiB;
+    }
+    return;
+  }
+
+  if ((m = line.match(reMemoryBreakdown))) {
+    const device = m[1].trim();
+    const totalMiB = parseInt(m[2]);
+    const freeMiB = parseInt(m[3]);
+    // self = m[4], model = m[5], context = m[6], compute = m[7], unaccounted = m[8]
+    const modelMiB = parseInt(m[5]);
+    const contextMiB = parseInt(m[6]);
+    const computeMiB = parseInt(m[7]);
+    const unaccountedMiB = parseInt(m[8]);
+    const existing = deviceMemoryMap.get(device);
+    if (existing) {
+      existing.totalMiB = totalMiB;
+      existing.freeMiB = freeMiB;
+      existing.modelMiB = modelMiB;
+      existing.contextMiB = contextMiB;
+      existing.computeMiB = computeMiB;
+      existing.unaccountedMiB = unaccountedMiB;
+    } else {
+      deviceMemoryMap.set(device, {
+        device,
+        totalMiB,
+        freeMiB,
+        modelMiB,
+        contextMiB,
+        computeMiB,
+        unaccountedMiB,
+      });
+    }
+    return;
+  }
+
+  if ((m = line.match(reMemoryBreakdownShort))) {
+    const device = m[1].trim();
+    const selfMiB = parseInt(m[2]);
+    const modelMiB = parseInt(m[3]);
+    const contextMiB = parseInt(m[4]);
+    const computeMiB = parseInt(m[5]);
+    const existing = deviceMemoryMap.get(device);
+    if (existing) {
+      existing.modelMiB = modelMiB;
+      existing.contextMiB = contextMiB;
+      existing.computeMiB = computeMiB;
+    } else {
+      deviceMemoryMap.set(device, {
+        device,
+        totalMiB: 0,
+        freeMiB: 0,
+        modelMiB,
+        contextMiB,
+        computeMiB,
+        unaccountedMiB: 0,
+      });
+    }
+    return;
+  }
+
   if ((m = line.match(reModelLoaded))) {
     if (accum.name) {
       currentModel = {
@@ -169,6 +267,7 @@ export function processModelLine(line: string): void {
         kvCacheTypeK: accum.kvCacheTypeK || "(unknown)",
         kvCacheTypeV: accum.kvCacheTypeV || "(unknown)",
         kvCacheSize: accum.kvCacheSize || "(unknown)",
+        deviceMemory: Array.from(deviceMemoryMap.values()),
       };
       notify();
     }
@@ -179,6 +278,7 @@ export function resetModelInfo(): void {
   for (const key of Object.keys(accum)) {
     delete accum[key as keyof typeof accum];
   }
+  deviceMemoryMap.clear();
   currentModel = null;
   notify();
 }
@@ -222,9 +322,13 @@ export class LoadedModelPanel extends Control {
     if (!model) {
       return { width: parentSize?.width ?? this.rect.width, height: 1 };
     }
+    let height = 4;
+    if (model.deviceMemory.length > 0) {
+      height += 1 + model.deviceMemory.length;
+    }
     return {
       width: parentSize?.width ?? this.rect.width,
-      height: 4,
+      height,
     };
   }
 
@@ -293,6 +397,35 @@ export class LoadedModelPanel extends Control {
     fg(canvas, "textMuted", `  \u2502  Size `);
     fg(canvas, "info", model.kvCacheSize);
     cy++;
+
+    if (model.deviceMemory.length > 0) {
+      if (cy >= y + this.rect.height) return;
+      canvas.moveTo(x, cy);
+      fg(canvas, "textMuted", "  ");
+      fg(canvas, "textMuted", "Device".padEnd(18));
+      fg(canvas, "textMuted", "Total".padStart(7) + "      ");
+      fg(canvas, "textMuted", "Model".padStart(7) + "      ");
+      fg(canvas, "textMuted", "Context".padStart(7) + "      ");
+      fg(canvas, "textMuted", "Compute".padStart(7) + "      ");
+      fg(canvas, "textMuted", "Free".padStart(7));
+      cy++;
+
+      for (const dm of model.deviceMemory) {
+        if (cy >= y + this.rect.height) return;
+        canvas.moveTo(x, cy);
+        const usedMiB = dm.modelMiB + dm.contextMiB + dm.computeMiB;
+        const usageRatio = dm.totalMiB > 0 ? usedMiB / dm.totalMiB : 0;
+        const deviceColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : "text";
+        fg(canvas, "textMuted", "  ");
+        fg(canvas, deviceColor, dm.device.padEnd(14));
+        fg(canvas, "text", `${String(dm.totalMiB).padStart(7)} MiB  `);
+        fg(canvas, "text", `${String(dm.modelMiB).padStart(7)} MiB  `);
+        fg(canvas, "text", `${String(dm.contextMiB).padStart(7)} MiB  `);
+        fg(canvas, "text", `${String(dm.computeMiB).padStart(7)} MiB  `);
+        fg(canvas, "text", `${String(dm.freeMiB).padStart(7)} MiB`);
+        cy++;
+      }
+    }
   }
 
   onDestroy(): void {
