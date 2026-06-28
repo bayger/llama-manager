@@ -10,6 +10,7 @@ import type { TabContext } from "../lib/tabcontext";
 import type { Modal } from "./ui/widgets/Modal";
 import { createExitDialog } from "./ui/widgets/ExitDialog";
 import { createThemeSelectorModal } from "./ui/widgets/ThemeSelectorModal";
+import { createStoppingServerModal } from "./ui/widgets/StoppingServerModal";
 import { saveConfig } from "../lib/config";
 import { Framebuffer } from "../lib/framebuffer";
 import { FramebufferCanvas } from "../lib/framebuffer-canvas";
@@ -361,7 +362,12 @@ export class App {
       return;
     }
     if (result === "stop_and_exit") {
+      const stoppingModal = createStoppingServerModal();
+      modalManager.open(stoppingModal);
+      if (this._main) this._main.markAllDirty();
       await stopServer();
+      modalManager.close();
+      if (this._main) this._main.markAllDirty();
       this.quit();
     }
   }

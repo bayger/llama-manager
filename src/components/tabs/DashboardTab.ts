@@ -8,9 +8,11 @@ import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
 import { TaskChartsSection } from "../specialized/TaskChartsSection";
 import { fg } from "../../lib/theme";
 import { focusManager } from "../ui/FocusManager";
+import { modalManager } from "../ui/ModalManager";
 import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
 import { fireAsync } from "../../lib/utils";
 import { BACKEND_LABELS } from "../../lib/versions";
+import { createStoppingServerModal } from "../ui/widgets/StoppingServerModal";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../ui/types";
 
@@ -125,7 +127,11 @@ export class DashboardControl extends Control {
 
     buttons[1]?.setAction(() => {
       fireAsync(async () => {
+        const stoppingModal = createStoppingServerModal();
+        modalManager.open(stoppingModal);
         await stopServer();
+        modalManager.close();
+        ctx.forceRender();
       }, ctx);
       this.markDirty();
     });
@@ -134,7 +140,11 @@ export class DashboardControl extends Control {
       fireAsync(async () => {
         const config = ctx.getConfig();
         if (!config) throw new Error("No config loaded");
+        const stoppingModal = createStoppingServerModal();
+        modalManager.open(stoppingModal);
         await stopServer();
+        modalManager.close();
+        ctx.forceRender();
         await startServer(config);
       }, ctx);
       this.markDirty();
