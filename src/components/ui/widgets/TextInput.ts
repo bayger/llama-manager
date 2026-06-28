@@ -124,24 +124,26 @@ export class TextInput extends Control {
       return true;
     }
     if (key === "BACKSPACE" || key === "CTRL_H" || key === "\u007f") {
-      if (this.cursorPos > 0) {
-        this.value = this.value.slice(0, this.cursorPos - 1) + this.value.slice(this.cursorPos);
-        this.cursorPos--;
-        if (this._onChange) this._onChange(this.value);
+      if (this._cursorPos > 0) {
+        this._value = this._value.slice(0, this._cursorPos - 1) + this._value.slice(this._cursorPos);
+        this._cursorPos--;
+        this.updateViewport();
+        if (this._onChange) this._onChange(this._value);
       }
       this.markDirty();
       return true;
     }
     if (key === "DELETE" || key === "CTRL_D") {
-      if (this.cursorPos < this.value.length) {
-        this.value = this.value.slice(0, this.cursorPos) + this.value.slice(this.cursorPos + 1);
-        if (this._onChange) this._onChange(this.value);
+      if (this._cursorPos < this._value.length) {
+        this._value = this._value.slice(0, this._cursorPos) + this._value.slice(this._cursorPos + 1);
+        this.updateViewport();
+        if (this._onChange) this._onChange(this._value);
       }
       this.markDirty();
       return true;
     }
     if (key === "CTRL_E" || key === "END") {
-      this.cursorPos = this.value.length;
+      this.cursorPos = this._value.length;
       this.markDirty();
       return true;
     }
@@ -151,12 +153,13 @@ export class TextInput extends Control {
       return true;
     }
     if (key === "CTRL_W") {
-      const before = this.value.slice(0, this.cursorPos);
+      const before = this._value.slice(0, this._cursorPos);
       const match = before.match(/\S+\s*$/);
-      const newCursor = match ? this.cursorPos - match[0].length : 0;
-      this.value = this.value.slice(0, newCursor) + this.value.slice(this.cursorPos);
-      this.cursorPos = newCursor;
-      if (this._onChange) this._onChange(this.value);
+      const newCursor = match ? this._cursorPos - match[0].length : 0;
+      this._value = this._value.slice(0, newCursor) + this._value.slice(this._cursorPos);
+      this._cursorPos = newCursor;
+      this.updateViewport();
+      if (this._onChange) this._onChange(this._value);
       this.markDirty();
       return true;
     }
@@ -179,9 +182,10 @@ export class TextInput extends Control {
   }
 
   handleChar(char: string): boolean {
-    this.value = this.value.slice(0, this.cursorPos) + char + this.value.slice(this.cursorPos);
-    this.cursorPos++;
-    if (this._onChange) this._onChange(this.value);
+    this._value = this._value.slice(0, this._cursorPos) + char + this._value.slice(this._cursorPos);
+    this._cursorPos++;
+    this.updateViewport();
+    if (this._onChange) this._onChange(this._value);
     this.markDirty();
     return true;
   }
