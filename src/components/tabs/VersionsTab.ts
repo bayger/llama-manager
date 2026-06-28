@@ -126,11 +126,11 @@ export class VersionsControl extends Control {
     this._btnBack.visible = false;
 
     this._buttonRow = new Row();
+    this._buttonRow.add(this._btnBack);
     this._buttonRow.add(this._summary);
     this._dividerButtons = new Spacer();
     this._dividerButtons.flex = 1;
     this._buttonRow.add(this._dividerButtons);
-    this._buttonRow.add(this._btnBack);
     this._buttonRow.add(this._btnInstall);
     this._buttonRow.add(this._btnDelete);
 

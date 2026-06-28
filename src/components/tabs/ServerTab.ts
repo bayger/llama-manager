@@ -51,11 +51,11 @@ export class ServerControl extends Control {
     this._advancedCheckbox.visible = false;
 
     this._buttonRow = new Row();
+    this._buttonRow.add(this._backButton);
     this._buttonRow.add(this._summary);
     const spacer = new Spacer();
     spacer.flex = 1;
     this._buttonRow.add(spacer);
-    this._buttonRow.add(this._backButton);
     for (const btn of this._buttons) {
       this._buttonRow.add(btn);
     }
