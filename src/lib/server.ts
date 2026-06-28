@@ -102,15 +102,10 @@ export function startServer(config: ConfigData): Promise<number> {
       const logStream = await fs.createWriteStream(logFile, { flags: "a" });
 
       const args = buildArgs(config, logFile);
-      const env = { ...process.env };
-      if (activeVersion.startsWith("vulkan") || activeVersion.includes("-vulkan")) {
-        env.RADV_PERFTEST = "nogttspill";
-      }
       serverStartTime = Date.now();
       serverProcess = spawn(binary, args, {
         stdio: ["ignore", "pipe", "pipe"],
         detached: false,
-        env,
       });
 
       serverProcess.stdout?.pipe(logStream);
