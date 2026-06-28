@@ -139,7 +139,6 @@ class TaskDetailsControl extends Section {
 
 
 export class TasksControl extends Control {
-  focusable = true;
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _summary: StyledText;

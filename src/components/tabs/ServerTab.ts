@@ -16,7 +16,6 @@ import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import { createInputDialog } from "../ui/widgets/InputDialog";
 
 export class ServerControl extends Control {
-  focusable = true;
   protected _ctx: TabContext | null = null;
   protected _column: Column;
   protected _buttonRow: Row;
@@ -36,22 +35,31 @@ export class ServerControl extends Control {
     this._summary = new StyledText();
     this._summary.flex = 1;
 
-    this._buttonRow = new Row();
     this._buttons = [
       new Button({ label: "Create" }),
       new Button({ label: "Rename" }),
       new Button({ label: "Delete" }),
     ];
-    for (const btn of this._buttons) {
-      this._buttonRow.add(btn);
-    }
 
     this._backButton = new Button({ label: "Back" });
     this._backButton.visible = false;
     this._backButton.setAction(() => {
       this.showProfileList();
     });
+
+    this._advancedCheckbox = new Checkbox({ label: "Advanced options" });
+    this._advancedCheckbox.visible = false;
+
+    this._buttonRow = new Row();
+    this._buttonRow.add(this._summary);
+    const spacer = new Spacer();
+    spacer.flex = 1;
+    this._buttonRow.add(spacer);
     this._buttonRow.add(this._backButton);
+    for (const btn of this._buttons) {
+      this._buttonRow.add(btn);
+    }
+    this._buttonRow.add(this._advancedCheckbox);
 
     this._settingsPanel = new SettingsPanel();
     this._settingsPanel.flex = 1;
@@ -64,8 +72,6 @@ export class ServerControl extends Control {
       this.showProfileList();
     });
 
-    this._advancedCheckbox = new Checkbox({ label: "Advanced options" });
-    this._advancedCheckbox.visible = false;
     this._advancedCheckbox.setAction((checked: boolean) => {
       this._settingsPanel.setAdvancedMode(checked);
     });
@@ -88,11 +94,6 @@ export class ServerControl extends Control {
     this._column = new Column();
     this._column.add(this._buttonRow);
     this._column.add(this._section);
-    this._buttonRow.add(this._summary);
-    const spacer = new Spacer();
-    spacer.flex = 1;
-    this._buttonRow.add(spacer);
-    this._buttonRow.add(this._advancedCheckbox);
 
     this.add(this._column);
   }
@@ -121,6 +122,14 @@ export class ServerControl extends Control {
 
   onDestroy(): void {
     this._ctx = null;
+  }
+
+  handleKey(key: string): boolean {
+    if (this._showingSettings && key === "ESC") {
+      this.showProfileList();
+      return true;
+    }
+    return super.handleKey(key);
   }
 
   onFocus(): void {

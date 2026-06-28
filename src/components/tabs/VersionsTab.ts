@@ -124,12 +124,15 @@ export class VersionsControl extends Control {
     this._btnDelete = new Button({ label: "Delete" });
     this._btnBack = new Button({ label: "Back" });
     this._btnBack.visible = false;
+
     this._buttonRow = new Row();
+    this._buttonRow.add(this._summary);
+    this._dividerButtons = new Spacer();
+    this._dividerButtons.flex = 1;
+    this._buttonRow.add(this._dividerButtons);
     this._buttonRow.add(this._btnBack);
     this._buttonRow.add(this._btnInstall);
     this._buttonRow.add(this._btnDelete);
-
-    this._dividerButtons = new Spacer();
 
     this._contentRow = new Row();
     this._contentRow.add(this._versionsSection);
@@ -138,7 +141,6 @@ export class VersionsControl extends Control {
     this._changelogSection.flex = 1;
 
     this._column = new Column();
-    this._buttonRow.add(this._summary);
     //this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
     //this._column.add(new Spacer());
@@ -220,6 +222,16 @@ export class VersionsControl extends Control {
 
   onDestroy(): void {
     this._ctx = null;
+  }
+
+  handleKey(key: string): boolean {
+    if (this._mode !== "local" && key === "ESC") {
+      fireAsync(async () => {
+        await this.goBack();
+      }, this._ctx!);
+      return true;
+    }
+    return super.handleKey(key);
   }
 
   onFocus(): void {
