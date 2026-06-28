@@ -443,6 +443,8 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;
     this._hfNextBtn.visible = isResults && (this._searchPage + 1) * this._PAGE_SIZE < this._allRepos.length;
+    this._hfSearchLabel.visible = isSearch;
+    this._hfSearchInput.visible = isSearch;
     this._hfButtonRow.visible = true;
 
     // Header
