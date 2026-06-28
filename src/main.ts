@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import terminalKit from "terminal-kit";
-import { App } from "./components/App";
+import { LlamaManagerApp } from "./LlamaManagerApp";
 
 const term = terminalKit.terminal;
 
@@ -9,7 +9,7 @@ term.fullscreen(true);
 term.grabInput({ mouse: 'drag' });
 term.hideCursor();
 
-const app = new App(term);
+const app = new LlamaManagerApp(term);
 app.start();
 
 process.on('SIGINT', () => {

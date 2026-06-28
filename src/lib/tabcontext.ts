@@ -1,12 +1,13 @@
 import type { ConfigData } from "../lib/config";
-import type { RenderContext } from "../components/ui/types";
-import type { Modal } from "../components/ui/widgets/Modal";
-import { modalManager } from "../components/ui/ModalManager";
+import type { RenderContext } from "../framework/types";
+import type { Modal } from "../framework/widgets/Modal";
+import { modalManager } from "../framework/ModalManager";
 
 export interface TabContext extends RenderContext {
-  setTextInputFocused(focused: boolean): void;
+  getConfig(): ConfigData | null;
   setConfig(config: ConfigData): void;
   forceRender(): void;
+  setTextInputFocused(focused: boolean): void;
   openModal<T = void>(modal: Modal): Promise<T>;
   closeModal<T = void>(result?: T, modal?: Modal): void;
 }
