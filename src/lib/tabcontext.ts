@@ -1,7 +1,7 @@
 import type { ConfigData } from "../lib/config";
-import type { RenderContext } from "../components/ui/types";
-import type { Modal } from "../components/ui/widgets/Modal";
-import { modalManager } from "../components/ui/ModalManager";
+import type { RenderContext } from "../framework/types";
+import type { Modal } from "../framework/widgets/Modal";
+import { modalManager } from "../framework/ModalManager";
 
 export interface TabContext extends RenderContext {
   getConfig(): ConfigData | null;

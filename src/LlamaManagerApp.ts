@@ -4,15 +4,15 @@ import { loadConfig, saveConfig, ConfigData } from "./lib/config";
 import { taskStore } from "./lib/tasks";
 import { stopServer, setMaxLogLines, getStatus } from "./lib/server";
 import type { TabContext } from "./lib/tabcontext";
-import type { Modal } from "./components/ui/widgets/Modal";
-import { createExitDialog } from "./components/ui/widgets/ExitDialog";
-import { createThemeSelectorModal } from "./components/ui/widgets/ThemeSelectorModal";
-import { createStoppingServerModal } from "./components/ui/widgets/StoppingServerModal";
-import { MainControl, TABS } from "./components/MainControl";
-import type { TabId } from "./components/MainControl";
-import { Application } from "./components/ui/Application";
-import { modalManager } from "./components/ui/ModalManager";
-import { focusManager } from "./components/ui/FocusManager";
+import type { Modal } from "./framework/widgets/Modal";
+import { createExitDialog } from "./framework/widgets/ExitDialog";
+import { createThemeSelectorModal } from "./framework/widgets/ThemeSelectorModal";
+import { createStoppingServerModal } from "./framework/widgets/StoppingServerModal";
+import { MainControl, TABS } from "./ui/MainControl";
+import type { TabId } from "./ui/MainControl";
+import { Application } from "./framework/Application";
+import { modalManager } from "./framework/ModalManager";
+import { focusManager } from "./framework/FocusManager";
 import type { FramebufferCanvas } from "./lib/framebuffer-canvas";
 
 export class LlamaManagerApp {

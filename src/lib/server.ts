@@ -5,7 +5,7 @@ import fs from "fs-extra";
 import { ConfigData, PRESET_CATEGORIES, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config";
 import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
-import { processModelLine, resetModelInfo } from "../components/specialized/LoadedModelPanel";
+import { processModelLine, resetModelInfo } from "../ui/specialized/LoadedModelPanel";
 import { taskStore } from "./tasks";
 
 let serverProcess: ChildProcess | null = null;
