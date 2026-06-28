@@ -1,5 +1,4 @@
 import { Control } from "../ui/Control";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 import { Column, Row } from "../ui/Layout";
 import { Table } from "../ui/widgets/Table";
 import { Section } from "../ui/widgets/Section";
@@ -10,7 +9,6 @@ import { fireAsync, formatMs } from "../../lib/utils";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Point, Size, RenderContext } from "../ui/types";
-import type { TableRenderer, ComputedColumn } from "../ui/widgets/Table";
 
 const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
   { field: "timestamp", label: "Time" },
@@ -218,8 +216,7 @@ export class TasksControl extends Control {
       const tasks = taskStore.getRange(start, end - start, undefined, this._sortField, this._sortDir);
       return tasks.map((t) => ({
         id: t.taskId,
-        label: this.formatTime(t.timestamp),
-        sublabel: `#${t.taskId}`,
+        label: "",
         data: t,
       }));
     });
@@ -228,11 +225,6 @@ export class TasksControl extends Control {
       this._table.selectedIndex = 0;
     }
     this.updateColumns();
-
-    const renderTaskRow: TableRenderer<TaskMetrics> = (canvas, item, _index, isHighlighted, _x, _y, _width, columns) => {
-      this.renderTaskRow(canvas, item.data!, isHighlighted, _width, columns);
-    };
-    this._table.setRenderer(renderTaskRow);
 
     const selected = this._table.getSelectedItem();
     this._detailsPanel.update(selected ? selected.data ?? null : null);
@@ -254,65 +246,20 @@ export class TasksControl extends Control {
       .accentColor(`${stats.avgOutputSpeed.toFixed(1)}`);
   }
 
-  formatTime(timestamp: string): string {
-    const time = new Date(timestamp);
-    return `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
-  }
-
   updateColumns(): void {
     const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
 
     this._table.columns = [
-      { label: "Time", width: 10, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined },
-      { label: "ID", width: 6, align: "right" as const, headerSuffix: this._sortField === "taskId" ? sortIndicator : undefined },
-      { label: "Slot", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined },
-      { label: "Profile", width: 8, flex: 1, align: "left" as const },
-      { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined },
-      { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined },
-      { label: "Prompt", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined },
-      { label: "Output", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined },
-      { label: "Duration", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined },
+      { label: "Time", width: 10, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => { const t = new Date(r.timestamp); return `${t.getHours().toString().padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}:${t.getSeconds().toString().padStart(2, "0")}`; } },
+      { label: "ID", width: 6, align: "right" as const, headerSuffix: this._sortField === "taskId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `#${r.taskId}` },
+      { label: "Slot", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `S${r.slotId}` },
+      { label: "Profile", width: 8, flex: 1, align: "left" as const, format: (_c, r: TaskMetrics) => r.profile || "-" },
+      { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `${r.promptSpeed.toFixed(1)} tps` },
+      { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `${r.outputSpeed.toFixed(1)} tps` },
+      { label: "Prompt", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => String(r.promptTokens) },
+      { label: "Output", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => String(r.outputTokens) },
+      { label: "Duration", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => formatMs(r.totalTimeMs) },
     ];
-  }
-
-  renderTaskRow(canvas: FramebufferCanvas, task: TaskMetrics, isHighlighted: boolean, width: number, columns: ComputedColumn[]): void {
-    const time = new Date(task.timestamp);
-    const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
-
-    const profileText = task.profile || "-";
-
-    const valMap: Record<string, string> = {
-      Time: timeStr,
-      ID: `#${task.taskId}`,
-      Slot: `S${task.slotId}`,
-      Profile: profileText.length > 0 ? profileText : "-",
-      PP: `${task.promptSpeed.toFixed(1)} tps`,
-      TG: `${task.outputSpeed.toFixed(1)} tps`,
-      Prompt: `${task.promptTokens}`,
-      Output: `${task.outputTokens}`,
-      Duration: formatMs(task.totalTimeMs),
-    };
-
-    const cols: string[] = [];
-    for (const col of columns) {
-      let val = valMap[col.label] ?? "-";
-      if (val.length > col.width) {
-        val = "…" + val.substring(val.length - (col.width - 1));
-      }
-      cols.push(col.align === "right" ? val.padStart(col.width) : val.padEnd(col.width));
-    }
-
-    const row = cols.join(" ").padEnd(width);
-    const fgColor = isHighlighted ? (this._table.focused ? "canvas" : "text") : "text";
-    const bgColor = this._table.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-
-    if (isHighlighted) {
-      canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, row.substring(0, width));
-      canvas.bold(false);
-    } else {
-      fgBg(canvas, fgColor, bgColor, row.substring(0, width));
-    }
   }
 
  handleKey(key: string): boolean {

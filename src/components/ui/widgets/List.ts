@@ -10,8 +10,6 @@ export interface ListItem<ID = string, D = unknown> {
   data?: D;
 }
 
-export type ItemRenderer<ID, D> = (canvas: FramebufferCanvas, item: ListItem<ID, D>, index: number, isHighlighted: boolean, x: number, y: number, width: number) => void;
-
 export class List<ID = string, D = unknown> extends Control {
   focusable = true;
   protected _items: ListItem<ID, D>[] = [];
@@ -48,7 +46,6 @@ export class List<ID = string, D = unknown> extends Control {
   }
   protected _onSelect: ((item: ListItem<ID, D>) => void) | null = null;
   protected _onHighlight: ((item: ListItem<ID, D> | null) => void) | null = null;
-  protected _customRenderer: ItemRenderer<ID, D> | null = null;
 
   get selectedIndex(): number { return this._selectedIndex; }
   set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
@@ -101,11 +98,6 @@ export class List<ID = string, D = unknown> extends Control {
     }
   }
 
-  setRenderer(renderer: ItemRenderer<ID, D>): void {
-    this._customRenderer = renderer;
-  }
-
-
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, height } = this.rect;
@@ -123,20 +115,16 @@ export class List<ID = string, D = unknown> extends Control {
       const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
       canvas.moveTo(x, y + i);
 
-      if (this._customRenderer) {
-        this._customRenderer(canvas, item, globalIndex, isHighlighted, x, y + i, cw);
-      } else {
-        const label = item.label;
-        const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
+      const label = item.label;
+      const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
-        if (isHighlighted) {
-          canvas.bold(true);
-          fgBg(canvas, fgColor, bgColor, display);
-          fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, cw - display.length)));
-          canvas.bold(false);
-        } else {
-          fgBg(canvas, fgColor, bgColor, display);
-        }
+      if (isHighlighted) {
+        canvas.bold(true);
+        fgBg(canvas, fgColor, bgColor, display);
+        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, cw - display.length)));
+        canvas.bold(false);
+      } else {
+        fgBg(canvas, fgColor, bgColor, display);
       }
     }
 

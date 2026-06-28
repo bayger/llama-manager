@@ -12,29 +12,12 @@ export interface TableColumn {
   format?: (cellData: any, row: any) => string;
 }
 
-export interface ComputedColumn {
-  label: string;
-  width: number;
-  align?: "left" | "right";
-}
-
 export interface TableItem<T = any> {
   id: string | number;
   label: string;
   sublabel?: string;
   data?: T;
 }
-
-export type TableRenderer<T> = (
-  canvas: FramebufferCanvas,
-  item: TableItem<T>,
-  index: number,
-  isHighlighted: boolean,
-  x: number,
-  y: number,
-  width: number,
-  columns: ComputedColumn[]
-) => void;
 
 export type VirtualLoader<T> = (start: number, end: number) => TableItem<T>[];
 
@@ -57,7 +40,6 @@ export class Table<T = any> extends Control {
 
   protected _onSelect: ((item: TableItem<T>) => void) | null = null;
   protected _onHighlight: ((item: TableItem<T> | null) => void) | null = null;
-  protected _customRenderer: TableRenderer<T> | null = null;
   protected _viewportHeight = 0;
   protected _virtualTotal = 0;
   protected _virtualLoader: VirtualLoader<T> | null = null;
@@ -86,10 +68,6 @@ export class Table<T = any> extends Control {
 
   setOnHighlight(callback: (item: TableItem<T> | null) => void): void {
     this._onHighlight = callback;
-  }
-
-  setRenderer(renderer: TableRenderer<T>): void {
-    this._customRenderer = renderer;
   }
 
   setVirtualLoader(total: number, loader: VirtualLoader<T>): void {
@@ -288,16 +266,6 @@ export class Table<T = any> extends Control {
     _visibleCols: VisibleColumn[]
   ): void {
     if (!item) {
-      return;
-    }
-
-    if (this._customRenderer && item.data !== undefined) {
-      const computedCols = _visibleCols.map((vc) => ({
-        label: vc.col.label,
-        width: vc.width,
-        align: vc.col.align,
-      }));
-      this._customRenderer(canvas, item, index, isHighlighted, x, y, width, computedCols);
       return;
     }
 

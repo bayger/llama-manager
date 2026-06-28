@@ -7,7 +7,6 @@ import { Checkbox } from "./Checkbox";
 import { Spacer } from "./Spacer";
 import { modalManager } from "../ModalManager";
 import { getThemeNames, loadThemeWithMode, setActiveTheme, getThemeMode, setThemeMode, themeHasLightVariant } from "../../../lib/theme";
-import { fg, fgBg } from "../../../lib/theme";
 import type { Color, ThemeColors, ThemeMode } from "../../../lib/theme";
 import type { RenderContext, Size } from "../types";
 import type { FramebufferCanvas } from "../../../lib/framebuffer-canvas";
@@ -311,29 +310,7 @@ export class ThemeSelectorModal extends Modal {
       this.updateLightModeCheckbox();
     });
 
-    this._list.setRenderer((canvas, item, index, _isSelected, x, y, width) => {
-      const isHighlighted = index === this._list.selectedIndex;
-      const isSelected = item.id === this._selectedTheme;
-      const marker = isSelected ? "✓ " : "  ";
-
-      canvas.moveTo(x, y);
-
-      const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-      const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-      if (isHighlighted) {
-        canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, marker);
-        fgBg(canvas, fgColor, bgColor, item.label);
-        const filled = marker.length + item.label.length;
-        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - filled)));
-        canvas.bold(false);
-      } else {
-        fgBg(canvas, fgColor, bgColor, marker);
-        fgBg(canvas, fgColor, bgColor, item.label);
-        const filled = marker.length + item.label.length;
-        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - filled)));
-      }
-    });
+    this._list.selectedId = this._selectedTheme;
 
     this._lightModeCb = new Checkbox({ label: "Light mode", checked: getThemeMode() === "light" });
     this._lightModeCb.setAction((checked) => {
@@ -383,14 +360,20 @@ export class ThemeSelectorModal extends Modal {
     this._originalMode = getThemeMode();
     this._previewMode = getThemeMode();
     this._selectedTheme = name;
+    this._updateThemeItems();
     const allNames = getThemeNames();
-    this._list.items = allNames.map((n) => ({ id: n, label: n }));
     const idx = allNames.indexOf(name);
     if (idx >= 0) {
       this._list.selectedIndex = idx;
     }
     this._preview.setTheme(name, this._previewMode);
     this.updateLightModeCheckbox();
+  }
+
+  protected _updateThemeItems(): void {
+    const allNames = getThemeNames();
+    this._list.items = allNames.map((n) => ({ id: n, label: n === this._selectedTheme ? `✓ ${n}` : `  ${n}` }));
+    this._list.selectedId = this._selectedTheme;
   }
 
   measure(parentSize?: Size): Size {
@@ -406,7 +389,7 @@ export class ThemeSelectorModal extends Modal {
     }
     if ((key === "SPACE" || key === " ") && this._list.focused) {
       this._selectedTheme = this.getSelectedTheme();
-      this._list.markDirty();
+      this._updateThemeItems();
       return true;
     }
     if (key === "ESCAPE") {

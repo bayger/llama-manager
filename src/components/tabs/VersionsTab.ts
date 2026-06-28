@@ -1,12 +1,11 @@
 import { Control } from "../ui/Control";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 import { Column, Row } from "../ui/Layout";
 import { Button } from "../ui/widgets/Button";
 import { Spacer } from "../ui/widgets/Spacer";
 import { List, ListItem } from "../ui/widgets/List";
 import { Scrollable } from "../ui/widgets/Scrollable";
 import { Section } from "../ui/widgets/Section";
-import { fg, fgBg } from "../../lib/theme";
+import { fg } from "../../lib/theme";
 import { StyledText } from "../ui/widgets/StyledText";
 import { focusManager } from "../ui/FocusManager";
 import {
@@ -250,7 +249,6 @@ export class VersionsControl extends Control {
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
     this._btnDelete.visible = true;
-    this._list.setRenderer(this._localRenderer.bind(this));
     await this.refreshLocal();
   }
 
@@ -280,7 +278,6 @@ export class VersionsControl extends Control {
         data: r,
       }));
 
-      this._list.setRenderer(this._releaseRenderer.bind(this));
       this._list.setOnHighlight((item) => {
         if (item) {
           this._changelog.update((item.data as RemoteVersion).body || "");
@@ -334,7 +331,6 @@ export class VersionsControl extends Control {
         data: b,
       }));
 
-      this._list.setRenderer(this._backendRenderer.bind(this));
       this._list.items = items;
       this._summary.builder.muted(`Backends for ${release.tag}`);
       focusManager.setFocus(this._list);
@@ -395,12 +391,12 @@ export class VersionsControl extends Control {
 
       const items: ListItem<string, VersionInfo>[] = versions.map(v => ({
         id: v.version,
-        label: v.version,
+        label: v.active ? `✓ ${v.version}` : `  ${v.version}`,
         sublabel: BACKEND_LABELS[v.backend] || v.backend,
         data: v,
       }));
 
-      this._list.setRenderer(this._localRenderer.bind(this));
+      this._list.selectedId = config.activeVersion || null;
       this._list.items = items;
 
       if (config.activeVersion) {
@@ -418,53 +414,6 @@ export class VersionsControl extends Control {
     }
   }
 
-  _localRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
-    const v = item.data as VersionInfo;
-    const isSelected = v.active;
-    const prefix = isSelected ? "✓ " : "  ";
-    const line = (`${prefix}${v.version}  ${BACKEND_LABELS[v.backend] || v.backend}`).padEnd(width);
-    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-
-    if (isHighlighted) {
-      canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-      canvas.bold(false);
-    } else {
-      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-    }
-  }
-
-  _releaseRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
-    const r = item.data as RemoteVersion;
-    const date = r.publishedAt ? r.publishedAt.substring(0, 10) : "";
-    const line = (`${r.tag}  ${date}`).padEnd(width);
-    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : "text";
-    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-
-    if (isHighlighted) {
-      canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-      canvas.bold(false);
-    } else {
-      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-    }
-  }
-
-  _backendRenderer(canvas: FramebufferCanvas, item: ListItem<string, VersionInfo | RemoteVersion | AvailableBackend>, _index: number, isHighlighted: boolean, _x: number, rowY: number, width: number): void {
-    const b = item.data as AvailableBackend;
-    const line = (`${b.label}  ${b.assetName}`).padEnd(width);
-    const fgColor = isHighlighted ? (this._list.focused ? "canvas" : "text") : "text";
-    const bgColor = this._list.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
-
-    if (isHighlighted) {
-      canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-      canvas.bold(false);
-    } else {
-      fgBg(canvas, fgColor, bgColor, line.substring(0, width));
-    }
-  }
 }
 
 function stripMarkdown(md: string): string[] {
