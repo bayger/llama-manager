@@ -9,7 +9,7 @@ export { Spacer } from "./Spacer";
 export { ProgressBar } from "./ProgressBar";
 export { HalfBar } from "./HalfBar";
 export { Table } from "./Table";
-export type { TableColumn, TableItem, TableRenderer, ComputedColumn } from "./Table";
+export type { TableColumn, TableItem } from "./Table";
 export { Section } from "./Section";
 export { Modal } from "./Modal";
 export { ConfirmDialog, createConfirmDialog } from "./ConfirmDialog";

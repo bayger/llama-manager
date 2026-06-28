@@ -14,9 +14,9 @@ import {
   setActiveModel,
   downloadModel,
   LocalModel,
-  formatSize,
   getTotalModelsSize,
 } from "../../lib/models";
+import { formatSize } from "../../lib/utils";
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
 import { saveConfig } from "../../lib/config";
 import { fireAsync, formatDate } from "../../lib/utils";
@@ -28,7 +28,6 @@ import type { Size } from "../ui/types";
 type ViewMode = "local" | "search" | "results" | "files";
 
 export class ModelsControl extends Control {
-  focusable = true;
   protected _ctx: TabContext | null = null;
 
   protected _view: ViewMode = "local";
@@ -82,7 +81,12 @@ export class ModelsControl extends Control {
     // --- Local models view ---
     this._browseBtn = new Button({ label: "Browse HF" });
     this._removeBtn = new Button({ label: "Delete" });
+
     this._buttonRow = new Row();
+    this._buttonRow.add(this._summary);
+    const spacer = new Spacer();
+    spacer.flex = 1;
+    this._buttonRow.add(spacer);
     this._buttonRow.add(this._browseBtn);
     this._buttonRow.add(this._removeBtn);
 
@@ -249,7 +253,6 @@ export class ModelsControl extends Control {
     this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 
-    this._buttonRow.add(this._summary);
     this.add(this._column);
     this.add(this._hfColumn);
   }
@@ -440,6 +443,8 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;
     this._hfNextBtn.visible = isResults && (this._searchPage + 1) * this._PAGE_SIZE < this._allRepos.length;
+    this._hfSearchLabel.visible = isSearch;
+    this._hfSearchInput.visible = isSearch;
     this._hfButtonRow.visible = true;
 
     // Header

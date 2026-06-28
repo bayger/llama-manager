@@ -3,7 +3,7 @@ import { focusManager } from "../ui/FocusManager";
 import { LogsViewer } from "../specialized/LogsViewer";
 import { serverLogLines, onServerLog } from "../../lib/server";
 import type { TabContext } from "../../lib/tabcontext";
-import type { Size, RenderContext } from "../ui/types";
+import type { Size } from "../ui/types";
 
 export class LogsControl extends Control {
   protected _ctx: TabContext | null = null;
@@ -50,17 +50,14 @@ export class LogsControl extends Control {
     this._ctx = null;
   }
 
-  draw(_ctx: RenderContext): void {
-    // nothing extra to do
-  }
-
   onFocus(): void {
     super.onFocus();
     focusManager.setFocus(this._logsControl);
   }
 
   handleKey(key: string): boolean {
-    return this._logsControl.handleKey(key);
+    if (this._logsControl.handleKey(key)) return true;
+    return super.handleKey(key);
   }
 }
 

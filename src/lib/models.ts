@@ -3,6 +3,7 @@ import path from "path";
 import { getModelsDir } from "./config";
 import { ConfigData } from "./config";
 import { getDownloadUrl } from "./hf";
+import { formatSize } from "./utils";
 
 export interface LocalModel {
   repoId: string;
@@ -83,12 +84,6 @@ function getModelKey(parentDir: string, modelPath: string): string {
   const baseName = path.basename(modelPath);
   const rel = path.relative(parentDir.includes("huggingface") ? parentDir.split("huggingface")[1] : parentDir, modelPath);
   return `${rel}/${baseName}`;
-}
-
-export function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 export async function getTotalModelsSize(config: ConfigData): Promise<number> {

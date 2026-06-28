@@ -1,3 +1,4 @@
+import { Control } from "../ui/Control";
 import { Column } from "../ui/Layout";
 import { Section } from "../ui/widgets/Section";
 import { OptionsPanel } from "../specialized/OptionsPanel";
@@ -5,8 +6,9 @@ import { focusManager } from "../ui/FocusManager";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../ui/types";
 
-export class OptionsControl extends Column {
+export class OptionsControl extends Control {
   protected _ctx: TabContext | null = null;
+  protected _column: Column;
   protected _section: Section;
   protected _panel: OptionsPanel;
 
@@ -22,12 +24,15 @@ export class OptionsControl extends Column {
     this._panel.flex = 1;
     this._section.add(this._panel);
 
-    this.add(this._section);
+    this._column = new Column();
+    this._column.add(this._section);
+    this._column.flex = 1;
+
+    this.add(this._column);
   }
 
   measure(parentSize?: Size): Size {
-    const ps = parentSize || { width: 80, height: 24 };
-    return { width: ps.width, height: ps.height };
+    return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
 
   onFocus(): void {
@@ -40,6 +45,6 @@ export class OptionsControl extends Column {
   }
 }
 
-export function createOptionsTab(ctx: TabContext): OptionsControl {
+export function createOptionsTab(ctx: TabContext): Control {
   return new OptionsControl(ctx);
 }
