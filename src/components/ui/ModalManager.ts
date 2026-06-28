@@ -128,7 +128,7 @@ export class ModalManager {
       canvas.setClipRect(null);
       modal.layout({ x: mx, y: modalY, width: mw, height: mh });
       modal.needsRender = true;
-      modal.render({ canvas, scheduleRender: () => {}, showMessage: () => {}, getConfig: () => null, showCursor: () => {} });
+      modal.render({ canvas, scheduleRender: () => {}, showMessage: () => {}, showCursor: () => {} });
       canvas.styleReset();
     }
   }
