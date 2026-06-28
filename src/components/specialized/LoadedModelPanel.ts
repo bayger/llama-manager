@@ -1,6 +1,6 @@
 import { Control } from "../ui/Control";
 import { fg } from "../../lib/theme";
-import { formatNum } from "../../lib/utils";
+import { formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import { EventEmitter } from "events";
 import type { RenderContext, Size } from "../ui/types";
 
@@ -203,12 +203,18 @@ function fmtCtx(n: number): string {
 export class LoadedModelPanel extends Control {
   focusable = false;
   protected _unsub: (() => void) | null = null;
+  protected _spinnerTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     super();
     this._unsub = onModelInfoChange(() => {
       this.markDirty();
     });
+    this._spinnerTimer = setInterval(() => {
+      if (isModelLoading()) {
+        this.markDirty();
+      }
+    }, SPINNER_INTERVAL);
   }
 
   measure(parentSize?: Size): Size {
@@ -234,7 +240,7 @@ export class LoadedModelPanel extends Control {
         if (loadingName) {
           fg(canvas, "textMuted", "Loading model: ");
           fg(canvas, "accent", loadingName);
-          fg(canvas, "textMuted", " ...");
+          fg(canvas, "textMuted", ` ${spinnerChar()}`);
         } else {
           fg(canvas, "textMuted", "No model loaded - start the server");
         }
@@ -293,6 +299,10 @@ export class LoadedModelPanel extends Control {
     if (this._unsub) {
       this._unsub();
       this._unsub = null;
+    }
+    if (this._spinnerTimer) {
+      clearInterval(this._spinnerTimer);
+      this._spinnerTimer = null;
     }
   }
 }
