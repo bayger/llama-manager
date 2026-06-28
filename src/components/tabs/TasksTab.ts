@@ -25,10 +25,6 @@ const SORT_FIELDS: { field: TaskSortField; label: string }[] = [
 
 const DETAILS_WIDTH = 40;
 
-function fmtNum(n: number): string {
-  return n.toLocaleString();
-}
-
 class TaskDetailsControl extends Section {
   protected _task: TaskMetrics | null = null;
   protected _scrollOffset = 0;
@@ -85,19 +81,19 @@ class TaskDetailsControl extends Section {
       { label: "Model", value: task.model || "-" },
       { label: "Version", value: task.version || "-" },
       { label: "", value: "" },
-      { label: "Prompt Tokens", value: fmtNum(task.promptTokens) },
+      { label: "Prompt Tokens", value: task.promptTokens.toLocaleString() },
       { label: "Prompt Time", value: formatMs(task.promptTimeMs) },
       { label: "Prompt Speed", value: `${task.promptSpeed.toFixed(1)} t/s` },
       { label: "", value: "" },
-      { label: "Output Tokens", value: fmtNum(task.outputTokens) },
+      { label: "Output Tokens", value: task.outputTokens.toLocaleString() },
       { label: "Eval Time", value: formatMs(task.evalTimeMs) },
       { label: "Output Speed", value: `${task.outputSpeed.toFixed(1)} t/s` },
       { label: "", value: "" },
-      { label: "Total Tokens", value: fmtNum(task.totalTokens) },
+      { label: "Total Tokens", value: task.totalTokens.toLocaleString() },
       { label: "Total Time", value: formatMs(task.totalTimeMs) },
       { label: "", value: "" },
       { label: "Draft Accept", value: `${(task.draftAcceptance * 100).toFixed(1)}% (${task.draftAccepted}/${task.draftGenerated})` },
-      { label: "Context Size", value: fmtNum(task.contextSize) },
+      { label: "Context Size", value: task.contextSize.toLocaleString() },
       { label: "Truncated", value: task.truncated ? "Yes" : "No" },
     ];
   }

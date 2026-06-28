@@ -14,9 +14,9 @@ import {
   setActiveModel,
   downloadModel,
   LocalModel,
-  formatSize,
   getTotalModelsSize,
 } from "../../lib/models";
+import { formatSize } from "../../lib/utils";
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
 import { saveConfig } from "../../lib/config";
 import { fireAsync, formatDate } from "../../lib/utils";

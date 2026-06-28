@@ -24,7 +24,7 @@ import {
   getPlatformKey,
 } from "../../lib/versions";
 import { saveConfig } from "../../lib/config";
-import { fireAsync } from "../../lib/utils";
+import { fireAsync, formatSize } from "../../lib/utils";
 import { createDownloadDialog } from "../ui/widgets/DownloadDialog";
 import { createConfirmDialog } from "../ui/widgets/ConfirmDialog";
 import type { TabContext } from "../../lib/tabcontext";
@@ -479,12 +479,6 @@ function stripMarkdown(md: string): string[] {
     .replace(/^>\s+/gm, "  ") // blockquotes
     .split("\n")
     .map(l => l.trimEnd());
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
 
 export function createVersionsTab(ctx: TabContext): Control {
