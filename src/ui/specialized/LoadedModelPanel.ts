@@ -328,8 +328,9 @@ export class LoadedModelPanel extends Control {
       return { width: parentSize?.width ?? this.rect.width, height: 1 };
     }
     let height = 4;
-    if (model.deviceMemory.length > 0) {
-      height += 1 + model.deviceMemory.length;
+    const usedDevices = model.deviceMemory.filter(d => d.modelMiB + d.contextMiB + d.computeMiB > 0);
+    if (usedDevices.length > 0) {
+      height += 1 + usedDevices.length;
     }
     return {
       width: parentSize?.width ?? this.rect.width,
@@ -357,6 +358,7 @@ export class LoadedModelPanel extends Control {
       return;
     }
 
+    const usedDevices = model.deviceMemory.filter(d => d.modelMiB + d.contextMiB + d.computeMiB > 0);
     let cy = y;
     if (cy >= y + this.rect.height) return;
 
@@ -403,7 +405,7 @@ export class LoadedModelPanel extends Control {
     fg(canvas, "info", model.kvCacheSize);
     cy++;
 
-    if (model.deviceMemory.length > 0) {
+    if (usedDevices.length > 0) {
       if (cy >= y + this.rect.height) return;
       canvas.moveTo(x, cy);
       fg(canvas, "textMuted", "  ");
@@ -415,7 +417,7 @@ export class LoadedModelPanel extends Control {
       fg(canvas, "textMuted", "Free".padStart(7));
       cy++;
 
-      for (const dm of model.deviceMemory) {
+      for (const dm of usedDevices) {
         if (cy >= y + this.rect.height) return;
         canvas.moveTo(x, cy);
         const usedMiB = dm.modelMiB + dm.contextMiB + dm.computeMiB;
