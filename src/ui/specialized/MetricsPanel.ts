@@ -1,6 +1,6 @@
 import { Scrollable } from "../../framework/widgets/Scrollable";
 import { fg, fgBg } from "../../lib/theme";
-import { getGlobal, getSlots, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker";
+import { getGlobal, getSlots, getDevices, onMetricsChange, type SlotMetrics, type DeviceMetrics } from "../../lib/metricstracker";
 import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
 import type { RenderContext, Size } from "../../framework/types";
@@ -62,12 +62,15 @@ export class MetricsPanel extends Scrollable {
   measure(parentSize?: Size): Size {
     const slots = getSlots();
     const global = getGlobal();
+    const devices = getDevices();
     const numSlots = slots.length;
+    const deviceLines = devices.length > 0 ? devices.length + 1 : 0;
+    const gapAfterDevices = (devices.length > 0 && (global !== null || numSlots > 0)) ? 1 : 0;
     const globalLines = global ? 2 : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
     const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
     const gapBetweenSlots = Math.max(0, numSlots - 1);
-    const totalHeight = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
+    const totalHeight = deviceLines + gapAfterDevices + globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     return {
       width: parentSize?.width ?? this.rect.width,
       height: Math.min(totalHeight, parentSize?.height ?? 999),
@@ -79,21 +82,46 @@ export class MetricsPanel extends Scrollable {
     const { x, y } = this.rect;
     const viewportH = this.rect.height;
     const cw = this.contentWidth;
+    const devices = getDevices();
     const global = getGlobal();
     const slots = getSlots();
     const numSlots = slots.length;
 
+    const deviceLines = devices.length > 0 ? devices.length + 1 : 0;
+    const gapAfterDevices = (devices.length > 0 && (global !== null || numSlots > 0)) ? 1 : 0;
     const globalLines = global ? 2 : 1;
-    const gapAfterGlobal = global && numSlots > 0 ? 1 : 0;
+    const gapAfterGlobal = numSlots > 0 ? 1 : 0;
     const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
     const gapBetweenSlots = Math.max(0, numSlots - 1);
-    const contentH = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
+    const contentH = deviceLines + gapAfterDevices + globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     this.contentHeight = contentH;
 
     const scrollOff = this.scrollOffset;
     const bottom = y + viewportH;
 
     let cy = 0;
+
+    // Device info header
+    if (devices.length > 0 && cy - scrollOff + y < bottom) {
+      canvas.moveTo(x, cy - scrollOff + y);
+      fg(canvas, "textMuted", "Devices");
+      cy++;
+    }
+
+    // Device rows
+    for (let i = 0; i < devices.length; i++) {
+      if (cy - scrollOff + y >= bottom) break;
+      this.renderDevice(canvas, x, cy - scrollOff + y, devices[i]);
+      cy++;
+    }
+
+    // Gap after devices
+    if (gapAfterDevices > 0 && cy - scrollOff + y < bottom) {
+      canvas.moveTo(x, cy - scrollOff + y);
+      fg(canvas, "canvas", " ".repeat(cw));
+      cy++;
+    }
+
     if (global) {
       if (cy - scrollOff + y < bottom) {
         canvas.moveTo(x, cy - scrollOff + y);
@@ -151,6 +179,45 @@ export class MetricsPanel extends Scrollable {
     if (this.needsScrollbar) {
       this.drawScrollbar(canvas, x + cw, y, this._scrollbarWidth, viewportH);
     }
+  }
+
+  renderDevice(
+    canvas: FramebufferCanvas,
+    x: number,
+    y: number,
+    device: DeviceMetrics
+  ): void {
+    const usageRatio = device.totalMiB > 0 ? device.usedMiB / device.totalMiB : 0;
+    const barColor = usageRatio > 0.9 ? "danger" : usageRatio > 0.8 ? "warning" : usageRatio > 0 ? "success" : "textMuted";
+    const isGpu = device.type.toLowerCase().startsWith("vulkan") || device.type.toLowerCase().startsWith("cuda");
+    const typeLabel = isGpu ? "GPU" : "CPU";
+
+    const maxNameLen = 32;
+    const displayName = device.name.length > maxNameLen ? device.name.slice(0, maxNameLen - 3) + "..." : device.name;
+    const namePadded = displayName.padEnd(maxNameLen);
+
+    canvas.moveTo(x, y);
+    fg(canvas, "textMuted", `  ${typeLabel}  `);
+    fg(canvas, "text", namePadded);
+
+    const barWidth = 36;
+    const exactFilled = usageRatio * barWidth;
+    const fullBlocks = Math.min(Math.floor(exactFilled), barWidth);
+    const remainder = Math.round((exactFilled - fullBlocks) * 8);
+    const empty = barWidth - fullBlocks - (remainder > 0 ? 1 : 0);
+
+    const partialBlocks = ["", "\u258F", "\u258E", "\u258D", "\u258C", "\u258B", "\u258A", "\u2589", "\u2588"];
+
+    fgBg(canvas, barColor, barColor, " ".repeat(fullBlocks));
+    if (remainder > 0) {
+      fgBg(canvas, barColor, "border", partialBlocks[remainder]);
+    }
+    fgBg(canvas, "border", "border", " ".repeat(empty));
+
+    const totalStr = (device.totalMiB / 1024).toFixed(1);
+    const usedStr = (device.usedMiB / 1024).toFixed(1);
+    fgBg(canvas, "textMuted", "canvasSubtle", `  `);
+    fg(canvas, "text", `${usedStr}/${totalStr} GiB`);
   }
 
   renderSlot(

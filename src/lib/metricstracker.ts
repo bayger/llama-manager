@@ -53,6 +53,13 @@ export interface CacheMetrics {
   numPrompts: number;
 }
 
+export interface DeviceMetrics {
+  type: string;
+  name: string;
+  totalMiB: number;
+  usedMiB: number;
+}
+
 const emitter = new EventEmitter();
 emitter.setMaxListeners(10);
 
@@ -65,6 +72,7 @@ const slots = new Map<number, SlotMetrics>();
 const completedTasks: CompletedTask[] = [];
 const MAX_COMPLETED_TASKS = 1000;
 let cacheMetrics: CacheMetrics | null = null;
+const devices: DeviceMetrics[] = [];
 
 interface GlobalAccum {
   count: number;
@@ -101,6 +109,8 @@ const cacheStateRegex = /cache state:\s*(\d+)\s+prompts,\s*([\d.]+)\s+MiB\s*\(li
 const checkpointCreateRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*created context checkpoint \d+ of \d+ \(pos_min\s*=\s*(\d+),\s*pos_max\s*=\s*\d+,\s*n_tokens\s*=\s*\d+,\s*size\s*=\s*([\d.]+)\s+MiB/;
 const checkpointErasedRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erased invalidated context checkpoint \(pos_min\s*=\s*(\d+)/;
 const checkpointErasingOldRegex = /slot\s+\S+: id\s+(\d+)\s*\|\s*task\s+(\d+)\s*\|\s*erasing old context checkpoint \(pos_min\s*=\s*(\d+)/;
+const deviceInfoRegex = /\s-\s*(\S+)\s*:\s*(.+?)\s+\(([\d.]+)\s+MiB,\s*([\d.]+)\s+MiB free\)/;
+const modelBufferRegex = /\b(Vulkan\d+(?:_Host)?)\s+model buffer size\s*=\s*([\d.]+)\s*MiB/;
 
 const taskAccumulators = new Map<number, Partial<CompletedTask>>();
 
@@ -132,6 +142,29 @@ function notify() {
 
 export function processLine(line: string) {
   let m: RegExpMatchArray | null;
+
+  if ((m = line.match(deviceInfoRegex))) {
+    devices.push({
+      type: m[1],
+      name: m[2].trim(),
+      totalMiB: parseFloat(m[3]),
+      usedMiB: 0,
+    });
+    return;
+  }
+
+  if ((m = line.match(modelBufferRegex))) {
+    const deviceName = m[1];
+    const bufferMiB = parseFloat(m[2]);
+    if (bufferMiB <= 0) return;
+    const mappedType = deviceName === "Vulkan_Host" ? "CPU" : deviceName;
+    const idx = devices.findIndex(d => d.type === mappedType);
+    if (idx >= 0) {
+      devices[idx].usedMiB = bufferMiB;
+      notify();
+    }
+    return;
+  }
 
   if ((m = line.match(cacheStateRegex))) {
     cacheMetrics = {
@@ -363,6 +396,7 @@ export function reset() {
   completedTasks.length = 0;
   taskAccumulators.clear();
   cacheMetrics = null;
+  devices.length = 0;
   globalAccum.count = 0;
   globalAccum.totalPromptSpeed = 0;
   globalAccum.totalGenSpeed = 0;
@@ -397,4 +431,8 @@ export function getGlobal(): GlobalMetrics | null {
 
 export function getCache(): CacheMetrics | null {
   return cacheMetrics;
+}
+
+export function getDevices(): DeviceMetrics[] {
+  return devices.filter(d => d.usedMiB > 0);
 }
