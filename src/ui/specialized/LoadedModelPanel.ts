@@ -68,7 +68,7 @@ const reModelLoaded = /srv\s+llama_server: model loaded/;
 const reDeviceInfo = /common_param:\s*-\s+(\S+)\s*:\s*.+\((\d+)\s+MiB,\s*(\d+)\s+MiB\s+free/;
 // Memory breakdown full: "|   - Vulkan0 (...) | 23321 = 10629 + (3928 =  3002 +     814 +     111) +        8762 |"
 // Format from source: device | total = free + (self = model + context + compute) + unaccounted |
-const reMemoryBreakdown = /\|\s*-\s+(\S+).*?\|\s*(\d+)\s*=\s*(\d+)\s*\+\s*\((\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)\)\s*\+\s*(\d+)/;
+const reMemoryBreakdown = /\|\s*-\s+(\S+).*?\|\s*(\d+)\s*=\s*(\d+)\s*\+\s*\((\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)\)\s*\+\s*(-?\d+)/;
 // Memory breakdown short (Host / other bufts): "|   - Host | 1323 = 1280 + 0 + 43 |"
 // Format from source: device | self = model + context + compute |  (total/free/unaccounted empty)
 const reMemoryBreakdownShort = /\|\s*-\s+(\S+).*?\|\s*(\d+)\s*=\s*(\d+)\s*\+\s*(\d+)\s*\+\s*(\d+)\s*\|/;
@@ -231,11 +231,16 @@ export function processModelLine(line: string): void {
       existing.modelMiB = modelMiB;
       existing.contextMiB = contextMiB;
       existing.computeMiB = computeMiB;
+      if (existing.totalMiB === 0) {
+        existing.totalMiB = selfMiB;
+        existing.freeMiB = Math.max(0, selfMiB - modelMiB - contextMiB - computeMiB);
+      }
     } else {
+      const totalMiB = selfMiB;
       deviceMemoryMap.set(device, {
         device,
-        totalMiB: 0,
-        freeMiB: 0,
+        totalMiB,
+        freeMiB: Math.max(0, totalMiB - modelMiB - contextMiB - computeMiB),
         modelMiB,
         contextMiB,
         computeMiB,
