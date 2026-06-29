@@ -160,10 +160,16 @@ export function processModelLine(line: string): void {
     return;
   }
 
-  if ((m = line.match(reKvCache)) && !accum.kvCacheSize) {
-    accum.kvCacheTypeK = m[2];
-    accum.kvCacheTypeV = m[4];
-    accum.kvCacheSize = `${m[1]} MiB`;
+  if ((m = line.match(reKvCache))) {
+    const sizeMiB = parseFloat(m[1]);
+    if (!accum.kvCacheSize) {
+      accum.kvCacheTypeK = m[2];
+      accum.kvCacheTypeV = m[4];
+      accum.kvCacheSize = `${sizeMiB} MiB`;
+    } else {
+      const currentTotal = parseFloat(String(accum.kvCacheSize));
+      accum.kvCacheSize = `${currentTotal + sizeMiB} MiB`;
+    }
     return;
   }
 
