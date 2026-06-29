@@ -160,7 +160,7 @@ export function processModelLine(line: string): void {
     return;
   }
 
-  if ((m = line.match(reKvCache))) {
+  if ((m = line.match(reKvCache)) && !accum.kvCacheSize) {
     accum.kvCacheTypeK = m[2];
     accum.kvCacheTypeV = m[4];
     accum.kvCacheSize = `${m[1]} MiB`;
