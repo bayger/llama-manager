@@ -21,6 +21,7 @@ import {
   BACKEND_LABELS,
   getAvailableBackends,
   getPlatformKey,
+  getArchKey,
 } from "../../lib/versions";
 import { saveConfig } from "../../lib/config";
 import { fireAsync, formatSize } from "../../lib/utils";
@@ -327,11 +328,11 @@ export class VersionsControl extends Control {
 
     try {
       const platform = getPlatformKey();
-      const backends = getAvailableBackends(release.tag, platform, release.assets);
+      const backends = getAvailableBackends(release.tag, release.assets);
       this._availableBackends = backends;
 
       if (backends.length === 0) {
-        ctx.showMessage(`No compatible builds for ${platform}`);
+        ctx.showMessage(`No compatible builds for ${getPlatformKey()}-${getArchKey()} found for ${release.tag}`);
         await this.showReleases();
         return;
       }
