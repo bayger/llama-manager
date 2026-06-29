@@ -102,7 +102,6 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
       { key: "kvUnified", flag: "--kv-unified", type: "boolean", default: true, description: "Unified KV buffer", advanced: true, negate: true },
       { key: "cacheIdleSlots", flag: "--cache-idle-slots", type: "boolean", default: true, description: "Save/clear idle slots", advanced: true, negate: true },
       { key: "ctxCheckpoints", flag: "--ctx-checkpoints", type: "number", default: 32, description: "Context checkpoints per slot", advanced: true },
-      { key: "checkpointEveryN", flag: "--checkpoint-every-n-tokens", type: "number", default: 8192, description: "Checkpoint interval", advanced: true },
       { key: "contextShift", flag: "--context-shift", type: "boolean", default: false, description: "Context shift for infinite gen", advanced: true },
       { key: "warmup", flag: "--warmup", type: "boolean", default: true, description: "Warmup with empty run", advanced: true, negate: true },
       { key: "special", flag: "--special", type: "boolean", default: false, description: "Output special tokens", advanced: true },
@@ -131,8 +130,8 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
     fields: [
       { key: "model", flag: "--model", type: "string", default: null, description: "GGUF model path" },
       { key: "lora", flag: "--lora", type: "string", default: null, description: "LoRA adapter path" },
-   { key: "hfRepo", flag: "--hf-repo", type: "string", default: null, description: "HF repo (user/model[:quant])", advanced: true },
-        { key: "chatTemplate", flag: "--chat-template", type: "string", default: null, description: "Chat template name" },
+      { key: "hfRepo", flag: "--hf-repo", type: "string", default: null, description: "HF repo (user/model[:quant])", advanced: true },
+      { key: "chatTemplate", flag: "--chat-template", type: "string", default: null, description: "Chat template name" },
       { key: "jinja", flag: "--jinja", type: "boolean", default: true, description: "Jinja template engine", negate: true },
       { key: "mmproj", flag: "--mmproj", type: "string", default: null, description: "Multimodal projector path" },
       { key: "mmprojAuto", flag: "--mmproj-auto", type: "boolean", default: true, description: "Auto-download mmproj", advanced: true, negate: true },

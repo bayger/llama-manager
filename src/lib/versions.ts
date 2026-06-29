@@ -89,8 +89,9 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const versionPath = path.join(dir, entry.name);
-    const binary = path.join(versionPath, "llama-server");
-    if (await fs.pathExists(binary)) {
+    const unixBin = path.join(versionPath, "llama-server");
+    const winBin = path.join(versionPath, "llama-server.exe");
+    if ((await fs.pathExists(unixBin)) || (await fs.pathExists(winBin))) {
       const { tag, backend } = parseFolderName(entry.name);
       versions.push({
         version: entry.name,
@@ -112,9 +113,10 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
 export async function switchVersion(config: ConfigData, version: string): Promise<ConfigData> {
   const dir = getVersionsDir(config);
   const versionPath = path.join(dir, version);
-  const binary = path.join(versionPath, "llama-server");
+  const unixBin = path.join(versionPath, "llama-server");
+  const winBin = path.join(versionPath, "llama-server.exe");
 
-  if (!(await fs.pathExists(binary))) {
+  if (!(await fs.pathExists(unixBin)) && !(await fs.pathExists(winBin))) {
     throw new Error(`Version not found: ${version}`);
   }
 
@@ -310,17 +312,17 @@ export async function installVersion(
   onProgress(92, `Extracting...`);
 
   if (assetName.endsWith(".zip")) {
-    const { execSync } = await import("child_process");
+    const extractZip = await import("extract-zip");
     try {
-      execSync(`unzip -o -q "${tmpPath}" -d "${versionPath}"`, { stdio: "pipe" });
+      await extractZip.default(tmpPath, { dir: versionPath });
     } catch (err: any) {
       await fs.remove(tmpPath);
       throw new Error(`Extraction failed: ${err.message}`);
     }
   } else if (assetName.endsWith(".tar.gz") || assetName.endsWith(".tgz")) {
-    const { execSync } = await import("child_process");
+    const tar = await import("tar");
     try {
-      execSync(`tar xzf "${tmpPath}" -C "${versionPath}"`, { stdio: "pipe" });
+      await tar.extract({ file: tmpPath, cwd: versionPath });
     } catch (err: any) {
       await fs.remove(tmpPath);
       throw new Error(`Extraction failed: ${err.message}`);
@@ -343,9 +345,9 @@ export async function installVersion(
     await fs.remove(srcPath);
   }
 
-  const binary = path.join(versionPath, "llama-server");
-  if (await fs.pathExists(binary)) {
-    await fs.chmod(binary, "755");
+  const unixBin = path.join(versionPath, "llama-server");
+  if (await fs.pathExists(unixBin)) {
+    await fs.chmod(unixBin, "755");
   }
 
   onProgress(100, `Installed ${folderName}`);
