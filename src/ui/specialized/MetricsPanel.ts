@@ -84,7 +84,7 @@ export class MetricsPanel extends Scrollable {
     const numSlots = slots.length;
 
     const globalLines = global ? 2 : 1;
-    const gapAfterGlobal = global && numSlots > 0 ? 1 : 0;
+    const gapAfterGlobal = numSlots > 0 ? 1 : 0;
     const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
     const gapBetweenSlots = Math.max(0, numSlots - 1);
     const contentH = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
