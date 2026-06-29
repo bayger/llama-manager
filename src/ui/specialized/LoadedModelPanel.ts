@@ -198,12 +198,14 @@ export function processModelLine(line: string): void {
   if ((m = line.match(reMemoryBreakdown))) {
     const device = m[1].trim();
     const totalMiB = parseInt(m[2]);
-    const freeMiB = parseInt(m[3]);
+    // free = m[3] (Vulkan pool accounting, not real free)
     // self = m[4], model = m[5], context = m[6], compute = m[7], unaccounted = m[8]
+    const selfMiB = parseInt(m[4]);
     const modelMiB = parseInt(m[5]);
     const contextMiB = parseInt(m[6]);
     const computeMiB = parseInt(m[7]);
     const unaccountedMiB = parseInt(m[8]);
+    const freeMiB = totalMiB - selfMiB;
     const existing = deviceMemoryMap.get(device);
     if (existing) {
       existing.totalMiB = totalMiB;
