@@ -217,6 +217,18 @@ export function processModelLine(line: string): void {
         unaccountedMiB,
       });
     }
+    if (currentModel) {
+      const dm = currentModel.deviceMemory.find(d => d.device === device);
+      if (dm) {
+        dm.totalMiB = totalMiB;
+        dm.freeMiB = freeMiB;
+        dm.modelMiB = modelMiB;
+        dm.contextMiB = contextMiB;
+        dm.computeMiB = computeMiB;
+        dm.unaccountedMiB = unaccountedMiB;
+        notify();
+      }
+    }
     return;
   }
 
@@ -246,6 +258,15 @@ export function processModelLine(line: string): void {
         computeMiB,
         unaccountedMiB: 0,
       });
+    }
+    if (currentModel) {
+      const dm = currentModel.deviceMemory.find(d => d.device === device);
+      if (dm) {
+        dm.modelMiB = modelMiB;
+        dm.contextMiB = contextMiB;
+        dm.computeMiB = computeMiB;
+        notify();
+      }
     }
     return;
   }
