@@ -89,8 +89,9 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const versionPath = path.join(dir, entry.name);
-    const binary = path.join(versionPath, "llama-server");
-    if (await fs.pathExists(binary)) {
+    const unixBin = path.join(versionPath, "llama-server");
+    const winBin = path.join(versionPath, "llama-server.exe");
+    if ((await fs.pathExists(unixBin)) || (await fs.pathExists(winBin))) {
       const { tag, backend } = parseFolderName(entry.name);
       versions.push({
         version: entry.name,
@@ -112,9 +113,10 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
 export async function switchVersion(config: ConfigData, version: string): Promise<ConfigData> {
   const dir = getVersionsDir(config);
   const versionPath = path.join(dir, version);
-  const binary = path.join(versionPath, "llama-server");
+  const unixBin = path.join(versionPath, "llama-server");
+  const winBin = path.join(versionPath, "llama-server.exe");
 
-  if (!(await fs.pathExists(binary))) {
+  if (!(await fs.pathExists(unixBin)) && !(await fs.pathExists(winBin))) {
     throw new Error(`Version not found: ${version}`);
   }
 
@@ -147,22 +149,28 @@ export async function checkLatestVersion(): Promise<string> {
 
 export function getPlatformKey(): string {
   const platform = os.platform();
-  const arch = os.arch();
-  if (platform === "linux" && arch === "x64") return "ubuntu-x64";
-  if (platform === "linux" && arch === "arm64") return "ubuntu-arm64";
-  if (platform === "darwin" && arch === "x64") return "macos-x64";
-  if (platform === "darwin" && arch === "arm64") return "macos-arm64";
-  throw new Error(`Unsupported platform: ${platform}-${arch}`);
+  if (platform === "linux") return "ubuntu";
+  if (platform === "darwin") return "macos";
+  if (platform === "win32") return "win";
+  throw new Error(`Unsupported platform: ${platform}`);
 }
 
-function extractBackendFromAsset(assetName: string, version: string, platform: string): string | null {
+export function getArchKey(): string {
+  const arch = os.arch();
+  if (arch === "x64") return "x64";
+  if (arch === "arm64") return "arm64";
+  throw new Error(`Unsupported architecture: ${arch}`);
+}
+
+
+function extractBackendFromAsset(assetName: string, version: string): string | null {
   const ext = assetName.endsWith(".tar.gz") ? ".tar.gz" : assetName.endsWith(".zip") ? ".zip" : null;
   if (!ext) return null;
 
   const base = assetName.slice(0, assetName.length - ext.length);
-  const osName = platform.split("-")[0];
-  const arch = getArch(platform);
-  const prefix = `llama-${version}-bin-${osName}`;
+  const platform = getPlatformKey();
+  const arch = getArchKey();
+  const prefix = `llama-${version}-bin-${platform}`;
   const suffix = `-${arch}`;
 
   if (!base.startsWith(prefix) || !base.endsWith(suffix)) return null;
@@ -171,34 +179,29 @@ function extractBackendFromAsset(assetName: string, version: string, platform: s
   if (!between || between === "") return "cpu";
 
   const parts = between.slice(1).split("-");
-  const key = parts[0].toLowerCase();
-  const known = ["cuda", "vulkan", "rocm", "openvino", "opencl", "hip", "adreno"];
-  if (!known.includes(key)) return null;
+  const runtime = parts[0].toLowerCase();
+  const knownRuntimes = ["cuda", "vulkan", "rocm", "openvino", "opencl", "hip", "adreno"];
+  if (!knownRuntimes.includes(runtime)) return null;
 
   const versionPart = parts.slice(1).join(".").replace(/[^0-9.]/g, "");
-  return versionPart ? `${key}${versionPart}` : key;
-}
-
-function getArch(platform: string): string {
-  return platform.split("-").pop() || "x64";
+  return versionPart ? `${runtime}${versionPart}` : runtime;
 }
 
 export function getAvailableBackends(
   version: string,
-  platform: string,
   assets: Array<{ name: string }>,
 ): AvailableBackend[] {
   const backends: AvailableBackend[] = [];
   const seen = new Set<string>();
-  const osName = platform.split("-")[0].toLowerCase();
-  const arch = getArch(platform).toLowerCase();
+  const platform = getPlatformKey();
+  const arch = getArchKey();
 
   for (const asset of assets) {
     const nameLower = asset.name.toLowerCase();
-    if (!nameLower.includes(`bin-${osName}`)) continue;
+    if (!nameLower.includes(`bin-${platform}`)) continue;
     if (!nameLower.endsWith(`${arch}.tar.gz`) && !nameLower.endsWith(`${arch}.zip`)) continue;
 
-    const backend = extractBackendFromAsset(asset.name, version, platform);
+    const backend = extractBackendFromAsset(asset.name, version);
     if (!backend || seen.has(backend)) continue;
     seen.add(backend);
 
@@ -220,12 +223,11 @@ export function getAvailableBackends(
 
 function resolveAssetName(
   version: string,
-  platform: string,
   backend: string,
   assets: Array<{ name: string; browser_download_url?: string }>,
 ): { name: string; url: string } | null {
   for (const asset of assets) {
-    const detected = extractBackendFromAsset(asset.name, version, platform);
+    const detected = extractBackendFromAsset(asset.name, version);
     if (detected === backend && asset.browser_download_url) {
       return { name: asset.name, url: asset.browser_download_url };
     }
@@ -269,10 +271,10 @@ export async function installVersion(
 
   const releaseData = await res.json();
   const assets = releaseData.assets || [];
-  const assetInfo = resolveAssetName(version, platform, backend, assets);
+  const assetInfo = resolveAssetName(version, backend, assets);
 
   if (!assetInfo) {
-    const available = getAvailableBackends(version, platform, assets.map((a: any) => ({ name: a.name })));
+    const available = getAvailableBackends(version, assets.map((a: any) => ({ name: a.name })));
     throw new Error(`Backend "${backend}" not available. Available: ${available.map((b) => b.label).join(", ")}`);
   }
 
@@ -310,17 +312,17 @@ export async function installVersion(
   onProgress(92, `Extracting...`);
 
   if (assetName.endsWith(".zip")) {
-    const { execSync } = await import("child_process");
+    const extractZip = await import("extract-zip");
     try {
-      execSync(`unzip -o -q "${tmpPath}" -d "${versionPath}"`, { stdio: "pipe" });
+      await extractZip.default(tmpPath, { dir: versionPath });
     } catch (err: any) {
       await fs.remove(tmpPath);
       throw new Error(`Extraction failed: ${err.message}`);
     }
   } else if (assetName.endsWith(".tar.gz") || assetName.endsWith(".tgz")) {
-    const { execSync } = await import("child_process");
+    const tar = await import("tar");
     try {
-      execSync(`tar xzf "${tmpPath}" -C "${versionPath}"`, { stdio: "pipe" });
+      await tar.extract({ file: tmpPath, cwd: versionPath });
     } catch (err: any) {
       await fs.remove(tmpPath);
       throw new Error(`Extraction failed: ${err.message}`);
@@ -343,9 +345,9 @@ export async function installVersion(
     await fs.remove(srcPath);
   }
 
-  const binary = path.join(versionPath, "llama-server");
-  if (await fs.pathExists(binary)) {
-    await fs.chmod(binary, "755");
+  const unixBin = path.join(versionPath, "llama-server");
+  if (await fs.pathExists(unixBin)) {
+    await fs.chmod(unixBin, "755");
   }
 
   onProgress(100, `Installed ${folderName}`);

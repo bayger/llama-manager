@@ -1,12 +1,22 @@
 import { spawn, ChildProcess, spawnSync } from "child_process";
 import { EventEmitter } from "events";
 import path from "path";
+import os from "os";
 import fs from "fs-extra";
 import { ConfigData, PRESET_CATEGORIES, getVersionsDir, getLogFile, getActivePresets, getActiveFreeFormArgs } from "./config";
 import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
 import { processModelLine, resetModelInfo } from "../ui/specialized/LoadedModelPanel";
 import { taskStore } from "./tasks";
+
+function resolveServerBinary(versionPath: string): string | null {
+  if (os.platform() === "win32") {
+    const winBin = path.join(versionPath, "llama-server.exe");
+    return fs.pathExistsSync(winBin) ? winBin : null;
+  }
+  const unixBin = path.join(versionPath, "llama-server");
+  return fs.pathExistsSync(unixBin) ? unixBin : null;
+}
 
 let serverProcess: ChildProcess | null = null;
 let serverStartTime: number | null = null;
@@ -49,9 +59,9 @@ export function listDevices(config: ConfigData): string {
   const versionsDir = getVersionsDir(config);
   const activeVersion = config.activeVersion;
   if (!activeVersion) return "No active version selected";
-  const binary = path.join(versionsDir, activeVersion, "llama-server");
-  const exists = fs.pathExistsSync(binary);
-  if (!exists) return `Binary not found: ${binary}`;
+  const versionPath = path.join(versionsDir, activeVersion);
+  const binary = resolveServerBinary(versionPath);
+  if (!binary) return `Binary not found in ${versionPath}`;
   try {
     const result = spawnSync(binary, ["--list-devices"], {
       encoding: "utf-8",
@@ -89,10 +99,10 @@ export function startServer(config: ConfigData): Promise<number> {
         return;
       }
 
-      const binary = path.join(versionsDir, activeVersion, "llama-server");
-      const exists = await fs.pathExists(binary);
-      if (!exists) {
-        reject(new Error(`Binary not found: ${binary}`));
+      const versionPath = path.join(versionsDir, activeVersion);
+      const binary = resolveServerBinary(versionPath);
+      if (!binary) {
+        reject(new Error(`Binary not found in ${versionPath}`));
         return;
       }
 
@@ -106,6 +116,7 @@ export function startServer(config: ConfigData): Promise<number> {
       serverProcess = spawn(binary, args, {
         stdio: ["ignore", "pipe", "pipe"],
         detached: false,
+        windowsHide: true,
       });
 
       serverProcess.stdout?.pipe(logStream);
