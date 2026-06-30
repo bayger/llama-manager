@@ -1,8 +1,8 @@
-import { Modal } from "./Modal";
-import { Control } from "../Control";
+import { Modal } from "../../framework/widgets/Modal";
+import { Control } from "../../framework/Control";
 import { fg } from "../../lib/theme";
 import { spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
-import type { RenderContext, Size } from "../types";
+import type { RenderContext, Size } from "../../framework/types";
 
 class StoppingContent extends Control {
   focusable = false;

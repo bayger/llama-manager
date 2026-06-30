@@ -1,14 +1,14 @@
-import { Modal } from "./Modal";
-import { Control } from "../Control";
-import { List } from "./List";
-import { Column, Row } from "../Layout";
-import { Button } from "./Button";
-import { Checkbox } from "./Checkbox";
-import { Spacer } from "./Spacer";
-import { modalManager } from "../ModalManager";
+import { Modal } from "../../framework/widgets/Modal";
+import { Control } from "../../framework/Control";
+import { List } from "../../framework/widgets/List";
+import { Column, Row } from "../../framework/Layout";
+import { Button } from "../../framework/widgets/Button";
+import { Checkbox } from "../../framework/widgets/Checkbox";
+import { Spacer } from "../../framework/widgets/Spacer";
+import { modalManager } from "../../framework/ModalManager";
 import { getThemeNames, loadThemeWithMode, setActiveTheme, getThemeMode, setThemeMode, themeHasLightVariant } from "../../lib/theme";
 import type { Color, ThemeColors, ThemeMode } from "../../lib/theme";
-import type { RenderContext, Size } from "../types";
+import type { RenderContext, Size } from "../../framework/types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 const tc = (c: string): Color => c as Color;

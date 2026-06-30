@@ -12,7 +12,7 @@ import { modalManager } from "../../framework/ModalManager";
 import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
 import { fireAsync } from "../../lib/utils";
 import { BACKEND_LABELS, listVersions, switchVersion } from "../../lib/versions";
-import { createStoppingServerModal } from "../../framework/widgets/StoppingServerModal";
+import { createStoppingServerModal } from "../specialized/StoppingServerModal";
 import { createSelectorModal } from "../../framework/widgets/SelectorModal";
 import type { SelectorItem } from "../../framework/widgets/SelectorModal";
 import { saveConfig } from "../../lib/config";
