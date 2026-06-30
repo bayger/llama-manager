@@ -16,3 +16,7 @@ export { ConfirmDialog, createConfirmDialog } from "./ConfirmDialog";
 export { DownloadDialog, createDownloadDialog } from "./DownloadDialog";
 export { ExitDialog, createExitDialog } from "./ExitDialog";
 export { DeviceSelectorModal, createDeviceSelectorModal } from "./DeviceSelectorModal";
+export { SelectorModal, createSelectorModal } from "./SelectorModal";
+export type { SelectorItem } from "./SelectorModal";
+export { SelectorLabel } from "./SelectorLabel";
+export type { SelectorLabelConfig } from "./SelectorLabel";

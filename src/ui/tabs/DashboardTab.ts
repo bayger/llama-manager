@@ -3,16 +3,19 @@ import { Column, Row } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Label } from "../../framework/widgets/Label";
 import { Section } from "../../framework/widgets/Section";
+import { SelectorLabel } from "../../framework/widgets/SelectorLabel";
 import { MetricsPanel } from "../specialized/MetricsPanel";
 import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
 import { TaskChartsSection } from "../specialized/TaskChartsSection";
-import { fg } from "../../lib/theme";
 import { focusManager } from "../../framework/FocusManager";
 import { modalManager } from "../../framework/ModalManager";
 import { getStatus, startServer, stopServer, onServerStatusChange } from "../../lib/server";
 import { fireAsync } from "../../lib/utils";
-import { BACKEND_LABELS } from "../../lib/versions";
+import { BACKEND_LABELS, listVersions, switchVersion } from "../../lib/versions";
 import { createStoppingServerModal } from "../../framework/widgets/StoppingServerModal";
+import { createSelectorModal } from "../../framework/widgets/SelectorModal";
+import type { SelectorItem } from "../../framework/widgets/SelectorModal";
+import { saveConfig } from "../../lib/config";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../../framework/types";
 
@@ -21,8 +24,9 @@ export class DashboardControl extends Control {
   protected _column: Column;
   protected _buttonRow: Row;
   protected _buttons: Button[];
-  protected _profileLabel: Label;
-  protected _versionLabel: Label;
+  protected _profileSelector: SelectorLabel;
+  protected _versionSelector: SelectorLabel;
+  protected _hintLabel: Label;
   protected _modelSection: Section;
   protected _metricsSection: Section;
   protected _chartsSection: TaskChartsSection;
@@ -50,19 +54,12 @@ export class DashboardControl extends Control {
     sep1.focusable = false;
     this._buttonRow.add(sep1);
 
-    this._profileLabel = new Label();
-    this._profileLabel.text = "";
-    this._profileLabel.color = "textMuted";
-    this._profileLabel.focusable = false;
-    const profileLbl = this._profileLabel;
-    this._profileLabel.measure = () => ({ width: "Profile: ".length + profileLbl.text.length, height: 1 });
-    profileLbl.draw = (ctx: RenderContext) => {
-      const canvas = ctx.canvas;
-      canvas.moveTo(profileLbl.rect.x, profileLbl.rect.y);
-      fg(canvas, "textMuted", "Profile ");
-      fg(canvas, "accentColor", profileLbl.text);
-    };
-    this._buttonRow.add(this._profileLabel);
+    this._profileSelector = new SelectorLabel({
+      prefix: "Profile",
+      valueColor: "accentColor",
+      onActivate: () => this.openProfileSelector(),
+    });
+    this._buttonRow.add(this._profileSelector);
 
     const sep2 = new Label();
     sep2.text = "│";
@@ -70,19 +67,20 @@ export class DashboardControl extends Control {
     sep2.focusable = false;
     this._buttonRow.add(sep2);
 
-    this._versionLabel = new Label();
-    this._versionLabel.text = "";
-    this._versionLabel.color = "textMuted";
-    this._versionLabel.focusable = false;
-    const versionLbl = this._versionLabel;
-    this._versionLabel.measure = () => ({ width: Math.max("Version: ".length + versionLbl.text.length, 1), height: 1 });
-    versionLbl.draw = (ctx: RenderContext) => {
-      const canvas = ctx.canvas;
-      canvas.moveTo(versionLbl.rect.x, versionLbl.rect.y);
-      fg(canvas, "textMuted", "Version ");
-      fg(canvas, "text", versionLbl.text);
-    };
-    this._buttonRow.add(this._versionLabel);
+    this._versionSelector = new SelectorLabel({
+      prefix: "Version",
+      valueColor: "text",
+      onActivate: () => this.openVersionSelector(),
+    });
+    this._buttonRow.add(this._versionSelector);
+
+    this._hintLabel = new Label();
+    this._hintLabel.text = "";
+    this._hintLabel.color = "warning";
+    this._hintLabel.focusable = false;
+    const hintLbl = this._hintLabel;
+    this._hintLabel.measure = () => ({ width: hintLbl.text.length, height: 1 });
+    this._buttonRow.add(this._hintLabel);
 
     this._modelPanel = new LoadedModelPanel();
     this._metricsPanel = new MetricsPanel();
@@ -121,6 +119,7 @@ export class DashboardControl extends Control {
         const config = ctx.getConfig();
         if (!config) throw new Error("No config loaded");
         await startServer(config);
+        focusManager.setFocus(buttons[1]!);
       }, ctx);
       this.markDirty();
     });
@@ -150,7 +149,7 @@ export class DashboardControl extends Control {
       this.markDirty();
     });
 
-    this.updateProfileLabel();
+    this.updateSelectors();
 
     this._statusUnsub = onServerStatusChange(() => {
       this.markDirty();
@@ -169,7 +168,7 @@ export class DashboardControl extends Control {
   }
 
   draw(ctx: RenderContext): void {
-    this.updateProfileLabel();
+    this.updateSelectors();
     this.updateButtons();
   }
 
@@ -182,17 +181,21 @@ export class DashboardControl extends Control {
     }
   }
 
-  updateProfileLabel(): void {
+  updateSelectors(): void {
     const config = this._ctx?.getConfig();
-    this._profileLabel.text = config ? config.server.activeProfile : "";
+    this._profileSelector.value = config ? config.server.activeProfile : "";
 
     if (config && config.activeVersion) {
       const version = config.activeVersion;
       const backend = version.split("-").slice(1).join("-");
       const label = BACKEND_LABELS[backend] || backend || "CPU";
-      this._versionLabel.text = `${version} ${label}`;
+      this._versionSelector.value = `${version} ${label}`;
     } else {
-      this._versionLabel.text = "";
+      this._versionSelector.value = "";
+    }
+
+    if (!getStatus().running) {
+      this._hintLabel.text = "";
     }
   }
 
@@ -201,6 +204,70 @@ export class DashboardControl extends Control {
     this._buttons[0].disabled = status.running;
     this._buttons[1].disabled = !status.running;
     this._buttons[2].disabled = !status.running;
+  }
+
+  markHint(): void {
+    if (getStatus().running) {
+      this._hintLabel.text = " Restart to apply";
+    }
+    this.markDirty();
+  }
+
+  protected async openSelector(
+    title: string,
+    selectedId: string | null,
+    buildItems: (config: NonNullable<ReturnType<TabContext['getConfig']>>) => Promise<SelectorItem[]>,
+    apply: (config: NonNullable<ReturnType<TabContext['getConfig']>>, id: string) => Promise<void>,
+  ): Promise<string | null> {
+    const config = this._ctx?.getConfig();
+    if (!config) return null;
+
+    const items = await buildItems(config);
+    const result = await createSelectorModal(title, items, selectedId);
+    if (result) {
+      const cfg = this._ctx!.getConfig();
+      if (!cfg) return null;
+      await apply(cfg, result);
+      await saveConfig(cfg);
+      this._ctx!.setConfig(cfg);
+      this.markHint();
+    }
+    return result;
+  }
+
+  async openProfileSelector(): Promise<string | null> {
+    const config = this._ctx?.getConfig();
+    if (!config) return null;
+    return this.openSelector(
+      "Select Profile",
+      config.server.activeProfile,
+      async (cfg) => Object.keys(cfg.server.profiles).map((name) => ({
+        id: name,
+        label: name === cfg.server.activeProfile ? `✓ ${name}` : name,
+      })),
+      async (cfg, id) => { cfg.server.activeProfile = id; },
+    );
+  }
+
+  async openVersionSelector(): Promise<string | null> {
+    const config = this._ctx?.getConfig();
+    if (!config) return null;
+    return this.openSelector(
+      "Select Version",
+      config.activeVersion || null,
+      async (cfg) => {
+        const versions = await listVersions(cfg);
+        return versions.map((v) => ({
+          id: v.version,
+          label: v.active ? `✓ ${v.version}` : v.version,
+          sublabel: BACKEND_LABELS[v.backend] || v.backend,
+        }));
+      },
+      async (cfg, id) => {
+        await switchVersion(cfg, id);
+        cfg.activeVersion = id;
+      },
+    );
   }
 }
 

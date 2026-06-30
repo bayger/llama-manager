@@ -527,6 +527,43 @@ Simple blocking modal with animated spinner showing "Stopping server". Factory o
 
 Factory: `createStoppingServerModal()` → `Modal`
 
+### `SelectorLabel`
+
+Focusable, clickable label that opens a selector modal on activation. Combines a prefix label with a value, with focus highlighting and keyboard/mouse navigation.
+
+| Property | Type | Default |
+|---|---|---|
+| `value` | `string` | `""` |
+| `prefix` | `string` | `""` |
+
+Constructor accepts `SelectorLabelConfig`: `{ prefix, value?, valueColor?, onActivate }`.
+
+`onActivate` is `() => Promise<string \| null>` — called on `Enter`, `Return`, `Space`, or mouse click. The resolved value is automatically set as the widget's `value`.
+
+Navigation: `Left`/`Right`/`Up`/`Down` (plus `h`/`j`/`k`/`l`) move focus via `FocusManager`.
+
+Styling: muted prefix with colored value normally, bold inverted colors when focused.
+
+### `SelectorModal`
+
+Generic list picker modal. Extends `Modal`. Shows a scrollable list of items with OK/Cancel buttons.
+
+| Property | Type |
+|---|---|
+| `items` | `SelectorItem[]` |
+| `selectedId` | `string \| null` |
+
+`SelectorItem`: `{ id: string, label: string, sublabel?: string }`
+
+**Methods:**
+- `setItems(items, selectedId)` — populate list, set selection
+- `setResolve(fn)` — set promise resolve callback
+- `closeWithResult(string \| null)` — resolve and close modal
+
+Factory: `createSelectorModal(title, items, selectedId)` → `Promise<string \| null>`
+
+Resolves with the selected item's `id`, or `null` on cancel. Enter confirms, Escape cancels.
+
 ---
 
 ## Types
