@@ -251,7 +251,13 @@ export async function installVersion(
   const versionPath = path.join(dir, folderName);
 
   if (await fs.pathExists(versionPath)) {
-    throw new Error(`Version already installed: ${folderName}`);
+    const unixBin = path.join(versionPath, "llama-server");
+    const winBin = path.join(versionPath, "llama-server.exe");
+    if (!(await fs.pathExists(unixBin)) && !(await fs.pathExists(winBin))) {
+      await fs.remove(versionPath);
+    } else {
+      throw new Error(`Version already installed: ${folderName}`);
+    }
   }
 
   const platform = getPlatformKey();
