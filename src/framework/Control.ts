@@ -61,7 +61,8 @@ export class Control {
   emit(event: string, ...args: any[]): void {
     const list = this._listeners.get(event);
     if (!list) return;
-    for (const handler of list) {
+    const snapshot = [...list];
+    for (const handler of snapshot) {
       handler(...args);
     }
   }

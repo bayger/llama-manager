@@ -23,7 +23,8 @@ export class ModalManager {
 
   close(): void {
     if (this._stack.length === 0) return;
-    this._stack.pop();
+    const modal = this._stack.pop()!;
+    modal.destroy();
     this._needsRender = true;
     if (this._onDirty) this._onDirty();
     if (this._stack.length === 0) {
@@ -98,7 +99,7 @@ export class ModalManager {
       }
     }
     if (top.handleKey(key)) return true;
-    return true;
+    return false;
   }
 
   render(canvas: FramebufferCanvas): void {

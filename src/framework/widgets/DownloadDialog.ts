@@ -130,6 +130,14 @@ export class DownloadDialog extends Modal {
     };
   }
 
+  onDestroy(): void {
+    if (this._spinnerTimer) {
+      clearTimeout(this._spinnerTimer);
+      this._spinnerTimer = null;
+    }
+    super.onDestroy();
+  }
+
   public closeWithResult(cancelled: boolean): void {
     if (this._spinnerTimer) clearTimeout(this._spinnerTimer);
     this._spinnerTimer = null;

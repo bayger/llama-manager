@@ -58,7 +58,13 @@ export class Application {
     focusManager.setRoot(this._root);
     this.setupKeyHandler();
     this.setupResizeHandler();
-    this._renderInterval = setInterval(() => this.render(), 1);
+    this._renderInterval = setInterval(() => {
+      try {
+        this.render();
+      } catch (e) {
+        console.error("[Application] Render error:", e);
+      }
+    }, 1);
   }
 
   public getCanvas(): FramebufferCanvas {
@@ -193,6 +199,6 @@ export class Application {
       this._resizeTimer = null;
     }
     focusManager.clear();
-    this._root.onDestroy();
+    this._root.destroy();
   }
 }

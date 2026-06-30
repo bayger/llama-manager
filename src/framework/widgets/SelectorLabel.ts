@@ -79,9 +79,13 @@ export class SelectorLabel extends Control {
 
   protected _activate(): void {
     (async () => {
-      const result = await this._onActivate();
-      if (result !== null) {
-        this.value = result;
+      try {
+        const result = await this._onActivate();
+        if (result !== null) {
+          this.value = result;
+        }
+      } catch (e) {
+        console.error("[SelectorLabel] Activation error:", e);
       }
     })();
   }
