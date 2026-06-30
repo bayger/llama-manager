@@ -59,6 +59,8 @@ export class SelectorModal extends Modal {
 
     const column = new Column();
     column.add(this._list);
+    const bottomSpacer = new Spacer();
+    column.add(bottomSpacer);
     column.add(this._buttonRow);
     column.flex = 1;
     this.add(column);
