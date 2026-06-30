@@ -1,14 +1,14 @@
-import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
-import { Button } from "./Button";
-import { Spacer } from "./Spacer";
-import { List } from "./List";
-import { StyledText } from "./StyledText";
-import { modalManager } from "../ModalManager";
+import { Modal } from "../../framework/widgets/Modal";
+import { Column, Row } from "../../framework/Layout";
+import { Button } from "../../framework/widgets/Button";
+import { Spacer } from "../../framework/widgets/Spacer";
+import { List } from "../../framework/widgets/List";
+import { StyledText } from "../../framework/widgets/StyledText";
+import { modalManager } from "../../framework/ModalManager";
 import { listDevices } from "../../lib/server";
 import { spinnerChar } from "../../lib/utils";
 import type { ConfigData } from "../../lib/config";
-import type { Size } from "../types";
+import type { Size } from "../../framework/types";
 
 const SPINNER_INTERVAL = 100;
 

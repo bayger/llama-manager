@@ -8,7 +8,7 @@ import {
 } from "../../lib/config";
 import type { RenderContext } from "../../framework/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
-import { createDeviceSelectorModal } from "../../framework/widgets/DeviceSelectorModal";
+import { createDeviceSelectorModal } from "./DeviceSelectorModal";
 import type { TabContext } from "../../lib/tabcontext";
 import { fireAsync } from "../../lib/utils";
 

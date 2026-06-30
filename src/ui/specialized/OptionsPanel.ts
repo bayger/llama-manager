@@ -4,7 +4,7 @@ import { ConfigData, saveConfig } from "../../lib/config";
 import type { TabContext } from "../../lib/tabcontext";
 import type { RenderContext } from "../../framework/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
-import { createThemeSelectorModal } from "../../framework/widgets/ThemeSelectorModal";
+import { createThemeSelectorModal } from "./ThemeSelectorModal";
 
 const KEY_COL_WIDTH = 22;
 

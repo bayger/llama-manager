@@ -44,8 +44,11 @@ export class SelectorLabel extends Control {
       canvas.bold();
       fgBg(canvas, "canvas", "accent", ` ${this._prefix} ${this._value} `);
     } else {
+      const text = ` ${this._prefix} ${this._value} `;
+      canvas.setBackgroundColor("canvasSubtle");
       fg(canvas, "textMuted", ` ${this._prefix} `);
-      fg(canvas, this._valueColor, this._value);
+      fg(canvas, this._valueColor, this._value + ' ');
+      canvas.setBackgroundColor("canvas");
     }
   }
 
