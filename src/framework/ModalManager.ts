@@ -98,7 +98,7 @@ export class ModalManager {
       }
     }
     if (top.handleKey(key)) return true;
-    return true;
+    return false;
   }
 
   render(canvas: FramebufferCanvas): void {
