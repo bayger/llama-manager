@@ -1,21 +1,39 @@
 {
   "name": "llama-manager",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "description": "Terminal UI for managing llama.cpp",
   "main": "dist/main.js",
   "bin": {
     "llama-manager": "./dist/main.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "prepare": "npm run build",
     "dev": "tsx src/main.ts",
     "start": "node dist/main.js",
     "lint": "tsc --noEmit"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "llama-cpp",
+    "llama.cpp",
+    "llama-server",
+    "tui",
+    "terminal-ui",
+    "cli",
+    "gguf",
+    "llm",
+    "local-llm",
+    "inference",
+    "huggingface",
+    "model-management"
+  ],
+  "author": "llama-manager team",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bayger/llama-manager.git"
+  },
+  "homepage": "https://github.com/bayger/llama-manager#readme",
   "type": "module",
   "dependencies": {
     "better-sqlite3": "^12.10.1",
@@ -31,6 +49,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.15.32",
     "@types/terminal-kit": "^2.5.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
