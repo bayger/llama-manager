@@ -1,0 +1,35 @@
+import { defineConfig } from "tsup";
+
+export default defineConfig({
+  entry: ["src/main.ts"],
+  format: ["esm"],
+  target: "node18",
+  outDir: "dist",
+  clean: true,
+  sourcemap: true,
+  dts: false,
+  external: [
+    "better-sqlite3",
+    "terminal-kit",
+    "node:fs",
+    "node:path",
+    "node:os",
+    "node:child_process",
+    "node:util",
+    "node:readline",
+    "node:stream",
+    "node:events",
+    "node:crypto",
+    "node:zlib",
+    "node:https",
+    "node:http",
+    "node:url",
+    "node:net",
+    "node:dns",
+    "node:tls",
+    "node:buffer",
+    "node:string_decoder",
+  ],
+  noExternal: [],
+
+});

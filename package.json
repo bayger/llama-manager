@@ -7,7 +7,7 @@
     "llama-manager": "./dist/main.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "prepare": "npm run build",
     "dev": "tsx src/main.ts",
     "start": "node dist/main.js",
@@ -49,6 +49,7 @@
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^22.15.32",
     "@types/terminal-kit": "^2.5.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
