@@ -13,9 +13,30 @@
     "start": "node dist/main.js",
     "lint": "tsc --noEmit"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "llama-cpp",
+    "llama.cpp",
+    "llama-server",
+    "tui",
+    "terminal-ui",
+    "cli",
+    "gguf",
+    "llm",
+    "local-llm",
+    "inference",
+    "huggingface",
+    "model-management"
+  ],
+  "author": "llama-manager team",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bayger/llama-manager.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bayger/llama-manager/issues"
+  },
+  "homepage": "https://github.com/bayger/llama-manager#readme",
   "type": "module",
   "dependencies": {
     "better-sqlite3": "^12.10.1",
