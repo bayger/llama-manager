@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>llama-manager - Terminal UI for llama.cpp</title>
+  <meta name="description" content="A terminal UI for managing llama.cpp servers, versions, models, and task history.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬡</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Iosevka:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg0: #111c18;
+      --bg1: #1a2520;
+      --bg2: #23372B;
+      --bg3: #3d4a44;
+      --fg0: #C1C497;
+      --fg1: #9aa88a;
+      --gray: #53685B;
+      --cyan: #2DD5B7;
+      --cyan-bright: #8CD3CB;
+      --green: #549e6a;
+      --green-bright: #63b07a;
+      --white: #F6F5DD;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Iosevka', monospace;
+      font-stretch: 110%;
+      background: var(--bg0);
+      color: var(--fg0);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--cyan); text-decoration: none; }
+    a:hover { color: var(--cyan-bright); }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 100px 0 60px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: var(--white);
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
+
+    .hero h1 span { color: var(--cyan); }
+
+    .hero p {
+      font-size: 1.1rem;
+      color: var(--fg1);
+      max-width: 540px;
+      margin: 0 auto 32px;
+    }
+
+    .install {
+      display: inline-block;
+      background: var(--bg2);
+      border: 1px solid var(--bg3);
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 1rem;
+      color: var(--green-bright);
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .install:hover { border-color: var(--cyan); }
+
+    .install .cmd { color: var(--white); font-weight: 600; }
+
+    /* ── Demo ── */
+    .demo {
+      padding: 40px 0 60px;
+      text-align: center;
+    }
+
+    .demo img {
+      width: 100%;
+      max-width: 760px;
+      border-radius: 8px;
+      border: 1px solid var(--bg3);
+    }
+
+    /* ── Features ── */
+    .features {
+      padding: 40px 0 60px;
+    }
+
+    .features h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--cyan);
+      margin-bottom: 24px;
+    }
+
+    .features ul {
+      list-style: none;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .features li {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .features li::before {
+      content: '▸';
+      color: var(--green);
+      flex-shrink: 0;
+    }
+
+    .features li strong {
+      color: var(--white);
+      font-weight: 600;
+    }
+
+    /* ── Links ── */
+    .links {
+      padding: 40px 0 80px;
+      text-align: center;
+      border-top: 1px solid var(--bg2);
+    }
+
+    .links a {
+      display: inline-block;
+      margin: 0 12px;
+      padding: 10px 20px;
+      border: 1px solid var(--bg3);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+    }
+
+    .links a:hover { border-color: var(--cyan); }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      padding: 24px 0 40px;
+      font-size: 0.8rem;
+      color: var(--gray);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+
+    <section class="hero">
+      <h1>llama-<span>manager</span></h1>
+      <p>A terminal UI for managing llama.cpp servers, versions, models, and task history.</p>
+      <div class="install" id="install-btn">
+        <span class="cmd">npm install -g llama-manager</span>
+      </div>
+    </section>
+
+    <section class="demo">
+      <img src="../demo.gif" alt="llama-manager demo">
+    </section>
+
+    <section class="features">
+      <h2>Features</h2>
+      <ul>
+        <li><strong>Dashboard</strong> - real-time per-slot metrics, server controls, live log viewer</li>
+        <li><strong>Logs</strong> - dedicated server log viewer with structured severity coloring</li>
+        <li><strong>Tasks</strong> - parsed task history with token counts, speeds, draft acceptance, SQLite persistence</li>
+        <li><strong>Profiles</strong> - named server configurations with type-aware preset editors</li>
+        <li><strong>Versions</strong> - install, switch, and uninstall llama.cpp builds from GitHub releases</li>
+        <li><strong>Models</strong> - search Hugging Face, download GGUF models with progress tracking</li>
+        <li><strong>Options</strong> - global settings: paths, poll interval, themes, HF token</li>
+      </ul>
+    </section>
+
+    <section class="links">
+      <a href="https://github.com/bayger/llama-manager" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.npmjs.com/package/llama-manager" target="_blank" rel="noopener">npm</a>
+    </section>
+
+    <footer class="footer">
+      Apache License 2.0
+    </footer>
+
+  </div>
+
+  <script>
+    document.getElementById('install-btn').addEventListener('click', function() {
+      navigator.clipboard.writeText('npm install -g llama-manager');
+      this.innerHTML = '<span class="cmd">Copied!</span>';
+      var self = this;
+      setTimeout(function() {
+        self.innerHTML = '<span class="cmd">npm install -g llama-manager</span>';
+      }, 1500);
+    });
+  </script>
+
+</body>
+</html>
