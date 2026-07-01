@@ -45,6 +45,14 @@ export class UpdateInfoModal extends Modal {
     urlLabel.builder.accent(RELEASES_URL);
     contentColumn.add(urlLabel);
 
+    const spacer3 = new Spacer();
+    spacer3.flex = 1;
+    contentColumn.add(spacer3);
+
+    const updateLabel = new StyledText();
+    updateLabel.builder.muted(`npm update -g llama-manager`);
+    contentColumn.add(updateLabel);
+
     const spacer2 = new Spacer();
     spacer2.flex = 1;
     contentColumn.add(spacer2);
