@@ -77,6 +77,11 @@ export interface ConfigData {
     maxStored: number;
     autoParse: boolean;
   };
+  updates: {
+    checkOnStartup: boolean;
+    lastCheckedAt: number | null;
+    latestVersion: string | null;
+  };
 }
 
 export const PRESET_CATEGORIES: PresetCategory[] = [
@@ -435,6 +440,11 @@ const DEFAULT_CONFIG: ConfigData = {
     maxStored: 10000,
     autoParse: true,
   },
+  updates: {
+    checkOnStartup: true,
+    lastCheckedAt: null,
+    latestVersion: null,
+  },
 };
 
 export function getConfigPath(): string {
@@ -556,6 +566,10 @@ export async function loadConfig(): Promise<ConfigData> {
       tasks: {
         ...DEFAULT_CONFIG.tasks,
         ...(migrated.tasks || {}),
+      },
+      updates: {
+        ...DEFAULT_CONFIG.updates,
+        ...(migrated.updates || {}),
       },
     };
     return merged;

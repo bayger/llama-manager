@@ -684,6 +684,11 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
   "tasks": {
     "maxStored": 10000,
     "autoParse": true
+  },
+  "updates": {
+    "checkOnStartup": true,
+    "lastCheckedAt": null,
+    "latestVersion": null
   }
 }
 ```

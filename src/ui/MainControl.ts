@@ -7,6 +7,8 @@ import type { TabContext } from "../lib/tabcontext";
 import pkg from "../../package.json";
 import { getStatus, onServerStatusChange } from "../lib/server";
 import { formatUptime } from "../lib/utils";
+import { checkForUpdate } from "../lib/updates";
+import { createUpdateInfoModal } from "./specialized/UpdateInfoModal";
 
 import { createServerTab } from "./tabs/ServerTab";
 import { createTasksTab } from "./tabs/TasksTab";
@@ -32,6 +34,7 @@ export class MainControl extends Column {
   protected _activeTab: TabId = "Dashboard";
   protected _message: string | null = null;
   protected _messageTimer: ReturnType<typeof setTimeout> | null = null;
+  protected _updateCheckInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     protected _ctx: TabContext,
@@ -67,6 +70,7 @@ export class MainControl extends Column {
   onInit(): void {
     super.onInit();
     this.markDirty();
+    this.startUpdateChecks();
   }
 
   onDestroy(): void {
@@ -75,6 +79,38 @@ export class MainControl extends Column {
       clearTimeout(this._messageTimer);
       this._messageTimer = null;
     }
+    if (this._updateCheckInterval) {
+      clearInterval(this._updateCheckInterval);
+      this._updateCheckInterval = null;
+    }
+  }
+
+  protected startUpdateChecks(): void {
+    const config = this._ctx.getConfig();
+    if (!config) return;
+
+    const runCheck = async () => {
+      const cfg = this._ctx.getConfig();
+      if (!cfg) return;
+      const result = await checkForUpdate(cfg, APP_VERSION);
+      if (result) {
+        this._statusBar.setUpdateAvailable(result.isAvailable, result.latestVersion);
+        this.markAllDirty();
+      }
+    };
+
+    if (config.updates.checkOnStartup) {
+      runCheck();
+    }
+
+    this._updateCheckInterval = setInterval(() => {
+      runCheck();
+    }, 6 * 60 * 60 * 1000);
+  }
+
+  setUpdateAvailable(available: boolean, version: string | null): void {
+    this._statusBar.setUpdateAvailable(available, version);
+    this.markAllDirty();
   }
 
   setActiveTab(tab: TabId): void {
@@ -331,6 +367,9 @@ class StatusBar extends Control {
   protected _serverUptime = 0;
   protected _statusUnsubscribe: (() => void) | null = null;
   protected _uptimeInterval: ReturnType<typeof setInterval> | null = null;
+  protected _updateAvailable = false;
+  protected _latestVersion: string | null = null;
+  protected _versionRect: { x: number; y: number; len: number } | null = null;
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 80, height: 1 };
@@ -381,10 +420,41 @@ class StatusBar extends Control {
     this.markDirty();
   }
 
+  setUpdateAvailable(available: boolean, version: string | null): void {
+    this._updateAvailable = available;
+    this._latestVersion = version;
+    this.markDirty();
+  }
+
+  onMouseUp(point: Point): boolean {
+    if (!this._versionRect) return false;
+    const { x, y, len } = this._versionRect;
+    if (point.y === y && point.x >= x && point.x < x + len && this._updateAvailable) {
+      this.openUpdateModal();
+      return true;
+    }
+    return false;
+  }
+
+  protected openUpdateModal(): void {
+    if (!this._latestVersion) return;
+    const main = this._parent as MainControl | null;
+    if (!main) return;
+    const ctx = (main as any)._ctx;
+    if (!ctx) return;
+    ctx.openModal(createUpdateInfoModal(APP_VERSION, this._latestVersion, ctx));
+    main.markAllDirty();
+  }
+
   draw(ctx: RenderContext): void {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
-    const versionStr = `v${APP_VERSION} `;
+    let versionStr: string;
+    if (this._updateAvailable && this._latestVersion) {
+      versionStr = `v${APP_VERSION} (v${this._latestVersion} available) `;
+    } else {
+      versionStr = `v${APP_VERSION} `;
+    }
 
     canvas.moveTo(x, y);
     fg(canvas, "text", " ");
@@ -421,6 +491,14 @@ class StatusBar extends Control {
     if (padLen > 0) {
       fg(canvas, "borderMuted", " ".repeat(padLen));
     }
-    fg(canvas, "textMuted", versionStr);
+
+    const versionX = x + leftLen + (padLen > 0 ? padLen : 0);
+    this._versionRect = { x: versionX, y, len: versionStr.length };
+
+    if (this._updateAvailable) {
+      fg(canvas, "warning", versionStr);
+    } else {
+      fg(canvas, "textMuted", versionStr);
+    }
   }
 }

@@ -123,6 +123,20 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
       }
     },
   },
+  {
+    name: "Updates",
+    fields: [
+      { key: "checkOnStartup", type: "boolean", default: true, description: "Check for updates on startup" },
+    ],
+    getter: (config) => ({
+      checkOnStartup: config.updates.checkOnStartup,
+    }),
+    setter: (config, values) => {
+      if (values.checkOnStartup !== undefined) {
+        config.updates.checkOnStartup = values.checkOnStartup as boolean;
+      }
+    },
+  },
 ];
 
 export class OptionsPanel extends EditableList {
