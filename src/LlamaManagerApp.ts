@@ -3,8 +3,11 @@ import { setActiveTheme, setThemeMode, fg, getThemeMode } from "./lib/theme";
 import { loadConfig, saveConfig, ConfigData } from "./lib/config";
 import { taskStore } from "./lib/tasks";
 import { stopServer, setMaxLogLines, getStatus } from "./lib/server";
+import { checkForUpdate } from "./lib/updates";
+import { createUpdateInfoModal } from "./ui/specialized/UpdateInfoModal";
 import type { TabContext } from "./lib/tabcontext";
 import type { Modal } from "./framework/widgets/Modal";
+import pkg from "../package.json";
 import { createExitDialog } from "./framework/widgets/ExitDialog";
 import { createThemeSelectorModal } from "./ui/specialized/ThemeSelectorModal";
 import { createStoppingServerModal } from "./ui/specialized/StoppingServerModal";
@@ -141,6 +144,21 @@ export class LlamaManagerApp {
       return true;
     }
 
+    if (key === "CTRL_U" && !textActive && !modalManager.isOpen()) {
+      if (!this._config) return false;
+      this.showMessage("Checking for updates...");
+      checkForUpdate(this._config, pkg.version, true).then((result) => {
+        if (result?.isAvailable) {
+          this._main!.setUpdateAvailable(true, result.latestVersion);
+          this._ctx!.openModal(createUpdateInfoModal(pkg.version, result.latestVersion));
+        } else {
+          this.showMessage(`You are up to date (v${pkg.version})`);
+        }
+        this.forceRender();
+      });
+      return true;
+    }
+
     if (key === "?" && !textActive) {
       this._helpOverlayVisible = !this._helpOverlayVisible;
       this.forceRender();
@@ -192,6 +210,7 @@ export class LlamaManagerApp {
           ["?", "Toggle help"],
           ["Ctrl+T", "Open theme selector"],
           ["Ctrl+D", "Toggle dark/light mode"],
+          ["Ctrl+U", "Check for updates"],
           ["q", "Quit application"],
         ],
       },
