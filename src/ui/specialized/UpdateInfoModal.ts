@@ -49,8 +49,16 @@ export class UpdateInfoModal extends Modal {
     spacer3.flex = 1;
     contentColumn.add(spacer3);
 
+    const instructionLabel = new StyledText();
+    instructionLabel.builder.text("To update, run:");
+    contentColumn.add(instructionLabel);
+
+    const spacer4 = new Spacer();
+    spacer4.flex = 1;
+    contentColumn.add(spacer4);
+
     const updateLabel = new StyledText();
-    updateLabel.builder.muted(`npm update -g llama-manager`);
+    updateLabel.builder.accent(`npm update -g llama-manager`);
     contentColumn.add(updateLabel);
 
     const spacer2 = new Spacer();
