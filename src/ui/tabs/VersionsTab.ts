@@ -393,7 +393,7 @@ export class VersionsControl extends Control {
       const config = ctx.getConfig();
       if (!config) return;
 
-      const versions = await listVersions(config);
+      const versions = (await listVersions(config)).sort((a, b) => b.version.localeCompare(a.version));
       const totalSize = await getTotalVersionsSize(config);
 
       this._summary.builder

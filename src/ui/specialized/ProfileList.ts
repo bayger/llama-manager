@@ -47,7 +47,7 @@ export class ProfileList extends Control {
 
   setConfig(config: ConfigData, preserveIndex?: boolean): void {
     this._config = config;
-    const names = Object.keys(config.server.profiles);
+    const names = Object.keys(config.server.profiles).sort();
     const items: ListItem<string, string>[] = names.map(name => ({
       id: name,
       label: name === config.server.activeProfile ? `✓ ${name}` : `  ${name}`,
