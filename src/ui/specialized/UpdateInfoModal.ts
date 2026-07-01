@@ -23,7 +23,7 @@ export class UpdateInfoModal extends Modal {
     this._currentVersion = currentVersion;
     this._latestVersion = latestVersion;
     this.title = "Update Available";
-    this.setMinSize(50, 10);
+    this.setMinSize(50, 14);
     this.setMaxSize(70, 15);
 
     const contentColumn = new Column();
@@ -86,7 +86,7 @@ export class UpdateInfoModal extends Modal {
   }
 
   measure(parentSize?: Size): Size {
-    return this._clampSize({ width: 55, height: 10 });
+    return this._clampSize({ width: 55, height: 14 });
   }
 
   protected openReleasesPage(): void {
