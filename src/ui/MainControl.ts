@@ -442,7 +442,7 @@ class StatusBar extends Control {
     if (!main) return;
     const ctx = (main as any)._ctx;
     if (!ctx) return;
-    ctx.openModal(createUpdateInfoModal(APP_VERSION, this._latestVersion));
+    ctx.openModal(createUpdateInfoModal(APP_VERSION, this._latestVersion, ctx));
     main.markAllDirty();
   }
 

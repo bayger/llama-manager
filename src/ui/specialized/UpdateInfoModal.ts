@@ -8,14 +8,20 @@ import { modalManager } from "../../framework/ModalManager";
 import type { Size } from "../../framework/types";
 import { spawn } from "child_process";
 import os from "os";
+import type { TabContext } from "../../lib/tabcontext";
 
 export class UpdateInfoModal extends Modal {
   protected _resolve: ((value: boolean) => void) | null = null;
   protected _latestVersion: string;
   protected _currentVersion: string;
+  protected _ctx: TabContext | null = null;
 
   setResolve(resolve: (value: boolean) => void): void {
     this._resolve = resolve;
+  }
+
+  setContext(ctx: TabContext | null): void {
+    this._ctx = ctx;
   }
 
   constructor(currentVersion: string, latestVersion: string) {
@@ -66,15 +72,18 @@ export class UpdateInfoModal extends Modal {
     contentColumn.add(spacer2);
 
     const buttonRow = new Row();
+    const copyBtn = new Button({ label: "Copy" });
     const openBtn = new Button({ label: "Open Releases" });
     const dismissBtn = new Button({ label: "Dismiss" });
 
+    copyBtn.setAction(() => this.copyCommand());
     openBtn.setAction(() => {
       this.openReleasesPage();
       this.closeWithResult(true);
     });
     dismissBtn.setAction(() => this.closeWithResult(false));
 
+    buttonRow.add(copyBtn);
     const btnSpacer = new Spacer();
     btnSpacer.flex = 1;
     buttonRow.add(btnSpacer);
@@ -87,6 +96,29 @@ export class UpdateInfoModal extends Modal {
 
   measure(parentSize?: Size): Size {
     return this._clampSize({ width: 55, height: 14 });
+  }
+
+  protected copyCommand(): void {
+    const cmd = "npm update -g llama-manager";
+    const platform = os.platform();
+    let copyCmd: string, copyArgs: string[];
+    if (platform === "darwin") {
+      copyCmd = "pbcopy";
+      copyArgs = [];
+    } else if (platform === "win32") {
+      copyCmd = "clip";
+      copyArgs = [];
+    } else {
+      copyCmd = "xclip";
+      copyArgs = ["-selection", "clipboard"];
+    }
+    const child = spawn(copyCmd, copyArgs);
+    child.stdin.write(cmd);
+    child.stdin.end();
+    child.on("error", () => {
+      this._ctx?.showMessage("Could not copy to clipboard");
+    });
+    this._ctx?.showMessage("Update command copied to clipboard");
   }
 
   protected openReleasesPage(): void {
@@ -116,6 +148,8 @@ export class UpdateInfoModal extends Modal {
   }
 }
 
-export function createUpdateInfoModal(currentVersion: string, latestVersion: string): UpdateInfoModal {
-  return new UpdateInfoModal(currentVersion, latestVersion);
+export function createUpdateInfoModal(currentVersion: string, latestVersion: string, ctx: TabContext | null): UpdateInfoModal {
+  const modal = new UpdateInfoModal(currentVersion, latestVersion);
+  modal.setContext(ctx);
+  return modal;
 }

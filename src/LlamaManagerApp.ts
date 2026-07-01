@@ -150,7 +150,7 @@ export class LlamaManagerApp {
       checkForUpdate(this._config, pkg.version, true).then((result) => {
         if (result?.isAvailable) {
           this._main!.setUpdateAvailable(true, result.latestVersion);
-          this._ctx!.openModal(createUpdateInfoModal(pkg.version, result.latestVersion));
+          this._ctx!.openModal(createUpdateInfoModal(pkg.version, result.latestVersion, this._ctx));
         } else {
           this.showMessage(`You are up to date (v${pkg.version})`);
         }
