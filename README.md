@@ -1,6 +1,17 @@
 # llama-manager
 
-Terminal UI for managing llama.cpp — start and control the server, manage versions, download GGUF models from HuggingFace, and monitor inference performance.
+A terminal UI for managing [llama.cpp](https://github.com/ggml-org/llama.cpp) — start and control the server, manage versions, download GGUF models from Hugging Face, and monitor inference performance in real time.
+
+![llama-manager demo](./demo.gif)
+
+## Install
+
+```bash
+npm install -g llama-manager
+llama-manager
+```
+
+Requires Node.js 18+ and a llama.cpp binary (managed via the Versions tab or installed manually).
 
 ## Features
 
@@ -9,29 +20,8 @@ Terminal UI for managing llama.cpp — start and control the server, manage vers
 - **Tasks** — parsed task history with token counts, speeds, draft acceptance, filtering, and SQLite persistence
 - **Profiles** — named server configurations with type-aware preset editors and free-form arguments
 - **Versions** — install, switch, and uninstall llama.cpp builds from GitHub releases
-- **Models** — search HuggingFace, download GGUF models with progress tracking, set active model
+- **Models** — search Hugging Face, download GGUF models with progress tracking, set active model
 - **Options** — global settings: paths, poll interval, task limits, appearance, theme, HF token
-
-## Requirements
-
-- Node.js 18+
-- llama.cpp binaries (managed via the Versions tab or installed manually)
-
-## Usage
-
-```bash
-npm install
-npm run dev    # development (tsx, hot-reload)
-npm run build  # production build
-npm start      # run production build
-```
-
-Or as a CLI binary:
-
-```bash
-npm install -g .
-llama-manager
-```
 
 ## Navigation
 
@@ -72,16 +62,12 @@ Follows XDG Base Directory spec. All paths configurable in Options.
 
 ## Themes
 
-33 bundled themes including Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, and more. Selectable from the Options tab.
-
-These themes was copied from **opencode** project. Thanks! You can use any theme that is compatible with the opencode theme format.
+33 bundled themes including Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, and more. Selectable from the Options tab. Compatible with opencode theme format.
 
 ## Tech Stack
 
-TypeScript, terminal-kit (input only), undici, better-sqlite3, custom Control-based UI framework with double-buffered framebuffer rendering (no React, no Ink). 
+TypeScript, terminal-kit (input only), undici, better-sqlite3, custom Control-based UI framework with double-buffered framebuffer rendering (no React, no Ink).
 
 ## License
 
 Apache License 2.0
-
-This project was written with the help of Qwen 3.6 27B.
