@@ -1,7 +1,6 @@
 # llama-manager
 
 ![latest release](https://img.shields.io/github/v/release/bayger/llama-manager?style=flat-square&label=latest&color=549e6a)
-![npm downloads](https://img.shields.io/npm/dm/llama-manager?style=flat-square&label=downloads&color=549e6a)
 ![license](https://img.shields.io/badge/license-Apache%202.0-549e6a?style=flat-square)
 
 A terminal UI for managing [llama.cpp](https://github.com/ggml-org/llama.cpp) — start and control the server, manage versions, download GGUF models from Hugging Face, and monitor inference performance in real time.
