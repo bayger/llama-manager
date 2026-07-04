@@ -312,6 +312,65 @@ const FORK_REGISTRY: Record<string, ForkDefinition> = {
     fieldMappings: [],
     specificFields: [],
   },
+  llamacpp_rocm: {
+    id: "llamacpp_rocm",
+    label: "llamacpp-rocm",
+    githubRepo: "lemonade-sdk/llamacpp-rocm",
+    binaryNames: { linux: "llama-server", macos: "llama-server", win: "llama-server.exe" },
+    assetNamePattern: /^llama-b\d+-\w+-rocm-gfx/,
+    extractDirPrefix: "llama-",
+    folderPrefix: "llamacpp_rocm-",
+    isRawBinary: false,
+    hasListDevices: true,
+    backendVariants: [
+      {
+        id: "rocm-gfx120X",
+        label: "ROCm gfx120X",
+        assetMatcher: (name) => name.includes("-rocm-gfx120X-"),
+      },
+      {
+        id: "rocm-gfx1151",
+        label: "ROCm gfx1151",
+        assetMatcher: (name) => name.includes("-rocm-gfx1151-"),
+      },
+      {
+        id: "rocm-gfx1150",
+        label: "ROCm gfx1150",
+        assetMatcher: (name) => name.includes("-rocm-gfx1150-"),
+      },
+      {
+        id: "rocm-gfx110X",
+        label: "ROCm gfx110X",
+        assetMatcher: (name) => name.includes("-rocm-gfx110X-"),
+      },
+      {
+        id: "rocm-gfx103X",
+        label: "ROCm gfx103X",
+        assetMatcher: (name) => name.includes("-rocm-gfx103X-"),
+      },
+      {
+        id: "rocm-gfx90a",
+        label: "ROCm gfx90a",
+        assetMatcher: (name) => name.includes("-rocm-gfx90a-"),
+      },
+      {
+        id: "rocm-gfx908",
+        label: "ROCm gfx908",
+        assetMatcher: (name) => name.includes("-rocm-gfx908-"),
+      },
+    ],
+    presetCategoryOverrides: null,
+    assetNaming: {
+      pattern: "llama-{tag}-{os}-rocm-{gfx}-{arch}.zip",
+      osTokens: ["ubuntu", "win"],
+      archTokens: ["x64"],
+      extension: ".zip",
+      isArchive: true,
+      backendSuffixes: ["rocm-gfx120X", "rocm-gfx1151", "rocm-gfx1150", "rocm-gfx110X", "rocm-gfx103X", "rocm-gfx90a", "rocm-gfx908"],
+    },
+    fieldMappings: [],
+    specificFields: [],
+  },
   ik_llama: {
     id: "ik_llama",
     label: "ik_llama.cpp",
@@ -356,6 +415,7 @@ export function getInstallableForks(): ForkDefinition[] {
 export function detectForkFromFolder(folderName: string): ForkDefinition {
   if (folderName.startsWith("koboldcpp-")) return getFork("koboldcpp");
   if (folderName.startsWith("beellama-")) return getFork("beellama");
+  if (folderName.startsWith("llamacpp_rocm-")) return getFork("llamacpp_rocm");
   if (folderName.startsWith("ik_llama-")) return getFork("ik_llama");
   return getFork("llama.cpp");
 }
@@ -382,6 +442,13 @@ export function parseFolderNameV2(name: string): { fork: string; tag: string; ba
     const tag = parts[0] || rest;
     const backend = parts.slice(1).join("-") || "cpu";
     return { fork: "beellama", tag, backend };
+  }
+  if (name.startsWith("llamacpp_rocm-")) {
+    const rest = name.slice("llamacpp_rocm-".length);
+    const parts = rest.split("-");
+    const tag = parts[0] || rest;
+    const backend = parts.slice(1).join("-") || "rocm";
+    return { fork: "llamacpp_rocm", tag, backend };
   }
   if (name.startsWith("ik_llama-")) {
     const rest = name.slice("ik_llama-".length);

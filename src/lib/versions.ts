@@ -18,6 +18,13 @@ export const BACKEND_LABELS: Record<string, string> = {
   cuda13: "CUDA 13",
   vulkan: "Vulkan",
   rocm: "ROCm",
+  "rocm-gfx120X": "ROCm gfx120X",
+  "rocm-gfx1151": "ROCm gfx1151",
+  "rocm-gfx1150": "ROCm gfx1150",
+  "rocm-gfx110X": "ROCm gfx110X",
+  "rocm-gfx103X": "ROCm gfx103X",
+  "rocm-gfx90a": "ROCm gfx90a",
+  "rocm-gfx908": "ROCm gfx908",
   openvino: "OpenVINO",
   opencl: "OpenCL",
   hip: "HIP/Radeon",
@@ -174,6 +181,16 @@ function extractBackendFromAsset(
 ): string | null {
   if (fork.id === "koboldcpp") {
     const ext = assetName.endsWith(".tar.gz") ? ".tar.gz" : assetName.endsWith(".zip") ? ".zip" : null;
+    const base = ext ? assetName.slice(0, assetName.length - ext.length) : assetName;
+    for (const variant of fork.backendVariants) {
+      if (variant.assetMatcher(base, platform)) {
+        return variant.id;
+      }
+    }
+    return null;
+  }
+  if (fork.id === "llamacpp_rocm") {
+    const ext = assetName.endsWith(".zip") ? ".zip" : null;
     const base = ext ? assetName.slice(0, assetName.length - ext.length) : assetName;
     for (const variant of fork.backendVariants) {
       if (variant.assetMatcher(base, platform)) {
