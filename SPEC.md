@@ -62,7 +62,7 @@ MainControl
 │  ├─ Label (app title)
 │  └─ Label (version)
 ├─ Row (tab bar)
-│  └─ TabBar (F1-F6 tabs with active indicator)
+│  └─ TabBar (F1-F7 tabs with active indicator)
 ├─ Group (tab content)
 │  └─ TabContent (active tab control, swapped on navigation)
 ├─ Row (status bar)
@@ -123,7 +123,7 @@ Shared context object passed to controls, providing access to the `FramebufferCa
 
 ## UI Structure
 
-Tab-based navigation with 6 persistent tabs across the top:
+Tab-based navigation with 7 persistent tabs across the top:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -133,7 +133,7 @@ Tab-based navigation with 6 persistent tabs across the top:
 ├─────────────────────────────────────────────────────────┤
 │  <Active tab content fills remaining terminal height>   │
 ├─────────────────────────────────────────────────────────┤
-│  Dashboard                      F1-F6 navigate | q quit │
+│  Dashboard                      F1-F7 navigate | q quit │
 │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -142,7 +142,7 @@ Tab-based navigation with 6 persistent tabs across the top:
 
 | Input | Action |
 |---|---|
-| `F1`-`F6` | Switch tabs |
+| `F1`-`F7` | Switch tabs |
 | `Tab` / `Shift+Tab` | Move focus between controls |
 | `Enter` | Confirm / select |
 | `Esc` | Cancel / go back |
@@ -169,7 +169,7 @@ Manages server profiles - named collections of preset arguments and free-form ar
 
 #### Settings Panel
 
-Inline editor for all preset categories. Fields are type-aware with inline editing:
+Inline editor for preset categories. Fields are type-aware with inline editing. When the active version belongs to a fork, categories and fields are filtered for fork compatibility — incompatible fields are hidden (e.g., koboldcpp hides `sampling`/`reasoning` categories since it handles sampling via API, not startup flags). Fork-specific fields are injected where applicable (e.g., koboldcpp's `--usecuda`, `--autofit`, `--multiuser`).
 
 - String fields: free text, Enter to save
 - Number fields: numeric input with validation
@@ -393,6 +393,9 @@ The final command line is assembled as:
 #### Process Management
 
 - Server process is spawned via `child_process.spawn`
+- Binary name resolved from fork registry (`resolveBinaryName`) — e.g., `llama-server` for upstream, `koboldcpp-linux-x64` for koboldcpp
+- `--list-devices` call skipped for forks that don't support it (e.g., koboldcpp)
+- CLI args built per-fork: preset fields are remapped via `FieldMapping` (flag overrides, boolean inversion, value transforms). Incompatible fields are filtered out.
 - PID is tracked and stored in memory
 - On dashboard quit, server is **not** killed by default (configurable via `dashboard.killServerOnExit`)
 - Config is persisted to `$XDG_CONFIG_HOME/llama-manager/config.json` after every change
@@ -476,41 +479,132 @@ The `TaskStore` class provides prepared-statement insert, query with filtering/s
 
 ---
 
+## Feature 8: Fork Support
+
+The dashboard supports multiple llama.cpp forks, each with its own GitHub repository, binary naming conventions, CLI flags, and preset compatibility. Fork awareness permeates version management, server configuration, and settings editing.
+
+### Fork Registry
+
+Defined in `lib/forks.ts` as `FORK_REGISTRY`. Each fork is a `ForkDefinition`:
+
+| Fork | ID | GitHub Repo | Binary | Folder Prefix | Description |
+|---|---|---|---|---|---|
+| llama.cpp | `llama.cpp` | `ggml-org/llama.cpp` | `llama-server` | (none) | Upstream reference implementation |
+| koboldcpp | `koboldcpp` | `LostRuins/koboldcpp` | `koboldcpp-linux-x64` | `koboldcpp-` | KoboldAI-focused fork with custom UI/API |
+| beellama.cpp | `beellama` | `Anbeeld/beellama.cpp` | `llama-server` | `beellama-` | Community fork with extended backends |
+| llamacpp-rocm | `llamacpp_rocm` | `lemonade-sdk/llamacpp-rocm` | `llama-server` | `llamacpp_rocm-` | ROCm-optimized builds per GPU target |
+| ik_llama.cpp | `ik_llama` | `ik517/ik_llama.cpp` | `llama-server` | `ik_llama-` | Community fork (reference-only, not installable) |
+
+### Fork Detection
+
+`detectForkFromFolder()` inspects the installed version folder name prefix to determine which fork it belongs to. This drives all fork-aware behavior:
+
+- Binary resolution (`resolveBinaryName`)
+- Preset category filtering (`isForkCompatibleWithPreset`)
+- Field visibility (`isFieldCompatibleWithFork`)
+- CLI flag remapping (`getFieldFlag`)
+- Boolean inversion (`isNegateInverted`)
+- Value transforms (`getFieldTransform`)
+
+### Field Mapping System
+
+Forks with custom CLI flags (e.g., koboldcpp) define `FieldMapping[]` entries that override upstream llama.cpp flags:
+
+- **`flag`** - override the CLI flag string (`null` = incompatible/hidden)
+- **`negateInvert`** - invert boolean sense (e.g., `--context-shift` becomes `--noshift`)
+- **`valueTransform`** - custom value conversion (e.g., `--parallel` bool becomes `--parallelrequests` number)
+
+Forks may also define `specificFields` - fields not present in upstream (e.g., koboldcpp's `--usecuda`, `--autofit`, `--multiuser`).
+
+### koboldcpp Preset Compatibility
+
+koboldcpp only supports a subset of preset categories: `server`, `model`, `compute`, `gpu`, `speculative`. The `sampling` and `reasoning` categories are hidden because koboldcpp handles sampling via its API, not startup flags.
+
+koboldcpp-specific fields are injected into the SettingsPanel under their respective categories (e.g., `useCuda`, `autofit` under GPU; `defaultGenAmt`, `multiuser` under Server).
+
+### Default Fork
+
+Configurable via `config.defaultFork` (default: `llama.cpp`). Controls which fork's releases are fetched during version install. Cycleable via Enter in both the Options tab and Versions tab.
+
+`getInstallableForks()` returns all forks except `ik_llama` (reference-only, no installable releases).
+
+---
+
 ## Feature 3: Version Management
 
 ### Tab: `F4 Versions`
 
-Lists installed llama.cpp versions and provides install/switch/uninstall actions.
+Lists installed versions across all supported forks and provides fork-aware install/switch/uninstall actions.
 
 #### Display
 
+Local versions list shows fork labels for each installed version:
+
 ```
 Installed versions:
-  ✓ b7405  (active)  ~/.local/share/llama-manager/versions/b7405/
-    b7389              ~/.local/share/llama-manager/versions/b7389/
-    b7201              ~/.local/share/llama-manager/versions/b7201/
+  ✓ b7405-cuda12          [llama.cpp]       CUDA 12            450 MB   ● active
+    koboldcpp-v1.116      [koboldcpp]       CUDA               610 MB
+    beellama-v0.3.1       [beellama]        CUDA 12.4          720 MB
+    llamacpp_rocm-b1294   [llamacpp-rocm]   ROCm gfx1151       376 MB
 
-Storage: 245 MB used in ~/.local/share/llama-manager/versions/
+Storage: 2.1 GB used in ~/.local/share/llama-manager/versions/
 ```
+
+#### Fork Selector
+
+When browsing remote releases, a fork selector button allows switching between installable forks:
+
+```
+[llama.cpp ▼]  [Install]  [Back]
+```
+
+Options: `llama.cpp`, `koboldcpp`, `beellama.cpp`, `llamacpp-rocm`. The selected fork persists and is synced to `config.defaultFork`. `ik_llama.cpp` is excluded (manual install only — user builds from source and places in `versions/ik_llama-<tag>-<backend>/`).
 
 #### Actions
 
-- **Install** - download prebuilt binary from GitHub releases (`ggml-org/llama.cpp`)
-  - Select backend: `cpu`, `metal`, `cuda12`, `cuda13`, `vulkan`, `rocm`, `sycl_blas`, `sycl_metal`
+- **Install** - download prebuilt binary from fork's GitHub releases
+  - Fork-specific backend/variant selection:
+    - **llama.cpp / beellama**: `cpu`, `metal`, `cuda12`, `cuda13`, `vulkan`, `rocm`, `openvino`, `opencl`, `hip`
+    - **koboldcpp**: `cuda`, `cpu` (nocuda), `oldpc` (old GPU), `metal`
+    - **llamacpp-rocm**: per-GPU-target variants (`gfx120X`, `gfx1151`, `gfx1150`, `gfx110X`, `gfx103X`, `gfx90a`, `gfx908`)
   - Detect OS + architecture (Linux x86_64, Linux ARM64, macOS x86_64, macOS ARM64)
-  - Download ZIP, extract to `$XDG_DATA_HOME/llama-manager/versions/<version>/`
+  - **Archive extraction** (llama.cpp, beellama, llamacpp-rocm): download archive, extract, flatten fork-specific subdirectory prefix
+  - **Raw binary** (koboldcpp): download binary directly, no extraction
   - Show download progress bar
   - Persist installed versions in `versions.json` in data directory
 - **Switch** - mark a version as active (updates config, restarts server if running)
 - **Uninstall** - remove version directory and metadata (blocked if version is active)
-- **Check Updates** - fetch latest release tag from GitHub API
+- **Check Updates** - fetch latest release tag from fork's GitHub API
 
 #### Prebuilt Binary Resolution
 
-For each version and backend, look for the appropriate build artifact in the GitHub release assets. Fallback chain:
-1. Official prebuilt release asset matching OS/arch/backend
+Per-fork asset naming conventions (`AssetNamingConvention` in `forks.ts`):
+
+| Fork | Pattern | Extension | Is Archive |
+|---|---|---|---|
+| llama.cpp | `llama-{tag}-bin-{os}-{backend}-{arch}` | `.tar.gz` | Yes |
+| koboldcpp | `koboldcpp-{os}-{arch}[-variant]` | (none — raw binary) | No |
+| beellama | `beellama-{tag}-bin-{os}-{backend}-{arch}` | `.tar.gz` | Yes |
+| llamacpp-rocm | `llama-{tag}-{os}-rocm-{gfx}-{arch}` | `.zip` | Yes |
+
+Fallback chain:
+1. Fork-specific prebuilt release asset matching OS/arch/backend
 2. Community build if official unavailable
 3. If no prebuilt found, show error with link to manual build instructions
+
+#### Folder Naming Convention
+
+Installed version folders encode fork identity via prefix:
+
+| Fork | Folder Pattern | Example |
+|---|---|---|
+| llama.cpp | `<tag>[-<backend>]` | `b7405-cuda12` |
+| koboldcpp | `koboldcpp-<tag>[-<variant>]` | `koboldcpp-v1.116` |
+| beellama | `beellama-<tag>[-<backend>]` | `beellama-v0.3.1-cuda12` |
+| llamacpp-rocm | `llamacpp_rocm-<tag>-rocm-<gfx>` | `llamacpp_rocm-b1294-rocm-gfx1151` |
+| ik_llama | `ik_llama-<tag>[-<backend>]` | `ik_llama-t0002-cuda12` |
+
+`detectForkFromFolder()` inspects the folder prefix to determine the fork at runtime. `parseFolderNameV2()` extracts fork, tag, and backend from the folder name.
 
 #### Storage Path
 
@@ -652,12 +746,14 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
 ```json
 {
   "themeName": "opencode",
+  "themeMode": "dark",
   "versionsDir": null,
   "modelsDir": null,
   "tasksFile": null,
   "activeVersion": "b7405",
   "activeModel": "TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf",
   "hfToken": null,
+  "defaultFork": "llama.cpp",
   "server": {
     "logFile": null,
     "profiles": {
@@ -684,6 +780,9 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
   "tasks": {
     "maxStored": 10000,
     "autoParse": true
+  },
+  "logs": {
+    "maxLogLines": 10000
   },
   "updates": {
     "checkOnStartup": true,
@@ -733,16 +832,20 @@ llama-manager/
 │   │   │   ├── ProfileList.ts          # Clickable profile list with CRUD actions
 │   │   │   ├── LogsViewer.ts           # Structured log coloring, scrollable
 │   │   │   ├── MetricsPanel.ts         # Per-slot metrics: state dots, speed bars, checkpoints
-│   │   │   └── OptionsPanel.ts         # Global app settings editor
+│   │   │   ├── OptionsPanel.ts         # Global app settings editor
+│   │   │   ├── EditableList.ts         # Inline editable field list
+│   │   │   └── LoadedModelPanel.ts     # Loaded model info display
 │   │   └── tabs/
 │   │       ├── DashboardTab.ts         # F1: Metrics, server controls, live log viewer
-│   │       ├── TasksTab.ts             # F2: Parsed task history with columns
-│   │       ├── ServerTab.ts            # F3: Profile management, preset editing
-│   │       ├── VersionsTab.ts          # F4: Local versions, GitHub install/uninstall
-│   │       ├── ModelsTab.ts            # F5: Local GGUFs, HF browse, download
-│   │       └── OptionsTab.ts           # F6: Global app settings
+│   │       ├── LogsTab.ts              # F2: Dedicated server log viewer
+│   │       ├── TasksTab.ts             # F3: Parsed task history with columns
+│   │       ├── ServerTab.ts            # F4: Profile management, preset editing
+│   │       ├── VersionsTab.ts          # F5: Local versions, fork selector, GitHub install/uninstall
+│   │       ├── ModelsTab.ts            # F6: Local GGUFs, HF browse, download
+│   │       └── OptionsTab.ts           # F7: Global app settings
 │   └── lib/
 │       ├── config.ts                   # Config I/O, XDG paths, profiles, presets, migration
+│       ├── forks.ts                    # Fork registry, field mappings, binary resolution, fork detection
 │       ├── server.ts                   # Server process management, log tailing
 │       ├── logparser.ts                # Parse server logs, emit task events
 │       ├── logcolors.ts                # Log line colorization by severity
@@ -830,6 +933,9 @@ Global application settings. Managed by `OptionsPanel` specialized component. Al
 **HuggingFace**
 - `hfToken` - access token for gated models
 
+**Forks**
+- `defaultFork` - default fork for version installs (default: `llama.cpp`). Cycleable via Enter. Options: `llama.cpp`, `koboldcpp`, `beellama`, `llamacpp_rocm`. Synced with Versions tab fork selector.
+
 ---
 
 ## Feature 7: Theme System
@@ -860,3 +966,6 @@ Each theme JSON defines base colors (`base`, `mantle`, `crust`, `red`, `orange`,
 - Historical charts (sparklines for token/s over time)
 - Custom theme editor
 - Model quantization/dequantization tools
+- Additional fork support (community forks with custom CLI surfaces)
+- beellama.cpp DFlash/TurboQuant extended preset fields
+- koboldcpp KoboldAI preset category (`--api-user`, `--api-pass`, `--notebook-on`, etc.)
