@@ -217,7 +217,6 @@ Commonly-used arguments exposed as typed UI controls, organized by category. New
 | `--kv-unified` | boolean | `true` | Unified KV buffer |
 | `--cache-idle-slots` | boolean | `true` | Save/clear idle slots |
 | `--ctx-checkpoints` | number | `32` | Context checkpoints per slot |
-| `--checkpoint-every-n-tokens` | number | `8192` | Checkpoint interval |
 | `--context-shift` | boolean | `false` | Context shift for infinite gen |
 | `--warmup` | boolean | `true` | Warmup with empty run |
 | `--special` | boolean | `false` | Output special tokens |
@@ -685,6 +684,11 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
   "tasks": {
     "maxStored": 10000,
     "autoParse": true
+  },
+  "updates": {
+    "checkOnStartup": true,
+    "lastCheckedAt": null,
+    "latestVersion": null
   }
 }
 ```

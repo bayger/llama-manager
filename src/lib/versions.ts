@@ -153,12 +153,17 @@ export async function checkLatestVersion(forkId: string): Promise<string> {
 
 export function getPlatformKey(): string {
   const platform = os.platform();
+  if (platform === "linux") return "ubuntu";
+  if (platform === "darwin") return "macos";
+  if (platform === "win32") return "win";
+  throw new Error(`Unsupported platform: ${platform}`);
+}
+
+export function getArchKey(): string {
   const arch = os.arch();
-  if (platform === "linux" && arch === "x64") return "ubuntu-x64";
-  if (platform === "linux" && arch === "arm64") return "ubuntu-arm64";
-  if (platform === "darwin" && arch === "x64") return "macos-x64";
-  if (platform === "darwin" && arch === "arm64") return "macos-arm64";
-  throw new Error(`Unsupported platform: ${platform}-${arch}`);
+  if (arch === "x64") return "x64";
+  if (arch === "arm64") return "arm64";
+  throw new Error(`Unsupported architecture: ${arch}`);
 }
 
 function extractBackendFromAsset(
@@ -177,13 +182,12 @@ function extractBackendFromAsset(
     }
     return null;
   }
-
   const ext = assetName.endsWith(".tar.gz") ? ".tar.gz" : assetName.endsWith(".zip") ? ".zip" : null;
   if (!ext) return null;
 
   const base = assetName.slice(0, assetName.length - ext.length);
   const osName = platform.split("-")[0];
-  const arch = getArch(platform);
+  const arch = getArchKey();
   const prefixBase = fork.extractDirPrefix || "";
   const prefix = `${prefixBase}${version}-bin-${osName}`;
   const suffix = `-${arch}`;
@@ -194,16 +198,12 @@ function extractBackendFromAsset(
   if (!between || between === "") return "cpu";
 
   const parts = between.slice(1).split("-");
-  const key = parts[0].toLowerCase();
+  const runtime = parts[0].toLowerCase();
   const known = ["cuda", "vulkan", "rocm", "openvino", "opencl", "hip", "adreno", "sycl"];
-  if (!known.includes(key)) return null;
+  if (!known.includes(runtime)) return null;
 
   const versionPart = parts.slice(1).join(".").replace(/[^0-9.]/g, "");
-  return versionPart ? `${key}${versionPart}` : key;
-}
-
-function getArch(platform: string): string {
-  return platform.split("-").pop() || "x64";
+  return versionPart ? `${runtime}${versionPart}` : runtime;
 }
 
 export function getAvailableBackends(
@@ -216,7 +216,7 @@ export function getAvailableBackends(
   const backends: AvailableBackend[] = [];
   const seen = new Set<string>();
   const osName = platform.split("-")[0].toLowerCase();
-  const arch = getArch(platform).toLowerCase();
+  const arch = getArchKey().toLowerCase();
   const naming = fork.assetNaming;
 
   for (const asset of assets) {
@@ -285,7 +285,13 @@ export async function installVersion(
   const versionPath = path.join(dir, folderName);
 
   if (await fs.pathExists(versionPath)) {
-    throw new Error(`Version already installed: ${folderName}`);
+    const unixBin = path.join(versionPath, "llama-server");
+    const winBin = path.join(versionPath, "llama-server.exe");
+    if (!(await fs.pathExists(unixBin)) && !(await fs.pathExists(winBin))) {
+      await fs.remove(versionPath);
+    } else {
+      throw new Error(`Version already installed: ${folderName}`);
+    }
   }
 
   const platform = getPlatformKey();
@@ -356,17 +362,17 @@ export async function installVersion(
   onProgress(92, `Extracting...`);
 
   if (assetName.endsWith(".zip")) {
-    const { execSync } = await import("child_process");
+    const extractZip = await import("extract-zip");
     try {
-      execSync(`unzip -o -q "${tmpPath}" -d "${versionPath}"`, { stdio: "pipe" });
+      await extractZip.default(tmpPath, { dir: versionPath });
     } catch (err: any) {
       await fs.remove(tmpPath);
       throw new Error(`Extraction failed: ${err.message}`);
     }
   } else if (assetName.endsWith(".tar.gz") || assetName.endsWith(".tgz")) {
-    const { execSync } = await import("child_process");
+    const tar = await import("tar");
     try {
-      execSync(`tar xzf "${tmpPath}" -C "${versionPath}"`, { stdio: "pipe" });
+      await tar.extract({ file: tmpPath, cwd: versionPath });
     } catch (err: any) {
       await fs.remove(tmpPath);
       throw new Error(`Extraction failed: ${err.message}`);

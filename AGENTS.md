@@ -5,7 +5,7 @@
 ```
 npm install
 npm run dev       # Run with tsx (hot-reload dev loop)
-npm run build     # tsc → dist/
+npm run build     # tsup → dist/main.js (single bundled ESM output)
 npm run start     # node dist/main.js
 npm run lint      # tsc --noEmit (only type check, no ESLint)
 ```
@@ -18,6 +18,7 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 - **No ESLint, no Prettier.** `npm run lint` only runs `tsc --noEmit`. That is the sole verification gate.
 - **`dist/` is gitignored.** Must run `npm run build` before `npm run start`.
 - **`npm run dev`** uses `tsx` which handles TS directly - no build step needed for development.
+- **Build uses tsup** (esbuild wrapper) — single bundled ESM output. No `.js` extensions needed in imports.
 
 ## Architecture
 
@@ -52,7 +53,7 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 
 ## Dependencies
 
-Uses terminal-kit 3 (input only), better-sqlite3, undici 7, TypeScript 5, fs-extra 11, chalk 4. No React, no Ink. APIs may differ from tutorials referencing older stacks - check current documentation on the web before following stale examples.
+Uses terminal-kit 3 (input only), better-sqlite3, undici 7, TypeScript 5, fs-extra 11, chalk 4, tsup (bundler). No React, no Ink. APIs may differ from tutorials referencing older stacks - check current documentation on the web before following stale examples.
 
 ## Conventions
 
