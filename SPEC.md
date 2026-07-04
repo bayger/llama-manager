@@ -4,7 +4,7 @@
 
 A terminal UI application built with TypeScript that provides a unified interface for managing llama.cpp installations, controlling the llama-server process, downloading HuggingFace GGUF models, monitoring server performance in real time, and reviewing historical task statistics.
 
-Uses a custom Control-based UI framework with composable widgets, flex-based layouts, a double-buffered framebuffer with diff-based rendering, and a singleton focus manager - no React or Ink dependency. terminal-kit is used only for input handling and ANSI escape sequences.
+Uses a custom Control-based UI framework with composable widgets, flex-based layouts, a double-buffered framebuffer with diff-based rendering, a singleton focus manager, and modal stacking - no React or Ink dependency. terminal-kit is used only for input handling and ANSI escape sequences.
 
 ---
 
@@ -15,7 +15,7 @@ Uses a custom Control-based UI framework with composable widgets, flex-based lay
 | Language | TypeScript |
 | TUI Framework | terminal-kit (input handling only) |
 | Rendering | Double-buffered framebuffer with diff-based terminal output |
-| UI Architecture | Custom Control tree with Column/Row layouts, MainControl root |
+| UI Architecture | Custom Control tree with Column/Row layouts, ModalManager, MainControl root |
 | HTTP Client | undici |
 | Process Management | child_process (spawn) |
 | State Management | Control-owned presentation state + TabContext services |
@@ -34,7 +34,8 @@ All paths follow XDG Base Directory spec and respect environment variable overri
 | Versions (builds) | `$XDG_DATA_HOME/llama-manager/versions/` | - |
 | Models (GGUF) | `$HF_HOME/llama-manager/` | `HF_HOME` |
 | Tasks database | `$XDG_DATA_HOME/llama-manager/tasks.db` | - |
-| Server log | `$XDG_STATE_HOME/llama-manager/server.log` | - |
+| Tasks JSONL | `$XDG_DATA_HOME/llama-manager/tasks.jsonl` | - |
+| Server logs | `$XDG_STATE_HOME/llama-manager/logs/server.{timestamp}.log` | - |
 
 **Resolved defaults** (when env vars are unset):
 
@@ -43,10 +44,11 @@ All paths follow XDG Base Directory spec and respect environment variable overri
 | Config | `~/.config/llama-manager/config.json` |
 | Versions | `~/.local/share/llama-manager/versions/` |
 | Models | `~/.cache/huggingface/llama-manager/` |
-| Tasks | `~/.local/share/llama-manager/tasks.db` |
-| Server log | `~/.local/state/llama-manager/server.log` |
+| Tasks DB | `~/.local/share/llama-manager/tasks.db` |
+| Tasks JSONL | `~/.local/share/llama-manager/tasks.jsonl` |
+| Server logs | `~/.local/state/llama-manager/logs/` |
 
-Models live under `HF_HOME` so users who already set `HF_HOME` to a large disk get the benefit automatically. All paths are configurable in `config.json`.
+Models live under `HF_HOME` so users who already set `HF_HOME` to a large disk get the benefit automatically. Server logs use timestamped filenames (e.g. `server.2025-01-15T10-30-00.log`). All paths are configurable in `config.json`.
 
 ---
 
@@ -54,23 +56,19 @@ Models live under `HF_HOME` so users who already set `HF_HOME` to a large disk g
 
 ### Control Tree
 
-The UI is built from a hierarchy of `Control` instances. Each control manages its own presentation state (selected index, scroll offset, edit value) and renders itself to a `FramebufferCanvas`. The `MainControl` serves as the root, managing the top bar, tab bar, content area, status bar, and bottom half-block divider.
+The UI is built from a hierarchy of `Control` instances. Each control manages its own presentation state (selected index, scroll offset, edit value) and renders itself to a `FramebufferCanvas`. The `MainControl` serves as the root, managing the top half-bar, tab bar, content area, status bar, and bottom half-block dividers.
 
 ```
 MainControl
-├─ Row (top bar)
-│  ├─ Label (app title)
-│  └─ Label (version)
-├─ Row (tab bar)
-│  └─ TabBar (F1-F6 tabs with active indicator)
-├─ Group (tab content)
-│  └─ TabContent (active tab control, swapped on navigation)
-├─ Row (status bar)
-│  ├─ Label (active tab name)
-│  ├─ Spacer
-│  └─ Label (shortcut hints)
-├─ HalfBar (decorative divider)
-└─ FocusManager (singleton, tracks single focus point)
+├─ HalfBar (top decorative divider)
+├─ TabBar (F1-F7 tabs with active indicator)
+├─ TabContent (active tab control, swapped on navigation)
+├─ HalfBar (separator above status bar)
+├─ StatusBar (server status, messages, version, update indicator)
+└─ HalfBar (bottom decorative divider)
+
+ModalManager (singleton, overlays dimmed modals on top)
+FocusManager (singleton, tracks single focus point)
 ```
 
 ### Layout System
@@ -86,6 +84,10 @@ Two-pass layout with flex-based space distribution:
 
 `FocusManager` singleton tracks a single focus point. Tab/Shift+Tab navigates through focusable controls in tree order. Key events are delivered to the focused control. Mouse events (click, scroll) are supported for tab switching, list selection, and scrollable regions. When a control has no focusable children, the manager falls back to the root for key delivery.
 
+### Modal System
+
+`ModalManager` singleton provides modal stacking with dim/shadow rendering. Modals are pushed onto a stack, each saving the previous focus root. The manager dims the background, renders modals centered with a 2px offset shadow, and handles keyboard/mouse routing to the top modal. Used for theme selection, exit confirmation, update info, device selection, and other dialogs.
+
 ### Rendering
 
 Double-buffered framebuffer with diff-based terminal output:
@@ -98,7 +100,11 @@ Dirty flags (`needsRender`) on controls determine which subtrees need re-renderi
 
 ### RenderContext
 
-Shared context object passed to controls, providing access to the `FramebufferCanvas`, app services (config, server, tasks, versions, models, api, hf), and `ctx.showMessage` for transient status notifications.
+Shared context object passed to controls, providing access to the `FramebufferCanvas`, `scheduleRender()`, `showMessage()`, and `showCursor()`.
+
+### TabContext
+
+Extends `RenderContext` with additional services: `getConfig()`, `setConfig()`, `forceRender()`, `setTextInputFocused()`, `openModal()`, `closeModal()`. Passed to all tab controls.
 
 ### Widgets
 
@@ -106,34 +112,40 @@ Shared context object passed to controls, providing access to the `FramebufferCa
 |---|---|
 | `Label` | Static text display |
 | `Button` | Clickable/focusable action button |
-| `ButtonBar` | Horizontal row of buttons |
+| `Checkbox` | Toggle checkbox |
 | `TextInput` | Single-line text input with cursor |
 | `List` | Scrollable selectable list |
 | `Table` | Virtual-scrolling table with columns, sorting, custom renderers |
 | `Scrollable` | Scrollable content container |
-| `Box` | Bordered container (Unicode box-drawing) |
-| `StyledText` | Multi-color text segments with builder pattern |
 | `Section` | Titled section with left border and background |
 | `HalfBar` | Half-block decorative divider |
 | `Spacer` | Flexible space filler |
 | `ProgressBar` | Download/operation progress |
-| `HelpBar` | Bottom status bar with key hints |
+| `StyledText` | Multi-color text segments with builder pattern |
+| `BarChart` | Bar chart visualization |
+| `Modal` | Base modal dialog |
+| `ConfirmDialog` | Yes/No confirmation dialog |
+| `InputDialog` | Single-value input dialog |
+| `SelectorLabel` | Clickable label that opens a selector modal |
+| `SelectorModal` | Generic selector modal (themes, forks, etc.) |
+| `ExitDialog` | Quit confirmation with Cancel/Exit Now/Stop & Exit |
+| `DownloadDialog` | Download progress dialog |
 
 ---
 
 ## UI Structure
 
-Tab-based navigation with 6 persistent tabs across the top:
+Tab-based navigation with 7 persistent tabs across the top:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Llama Dashboard                     b7405              │
-│  F1 Dashboard  F2 Tasks  F3 Profiles  F4 Versions  ...  │
+│  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
+│  Llama Manager  │  F1 Dashboard  │  F2 Logs  │  F3 Tasks  │
 │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
 ├─────────────────────────────────────────────────────────┤
 │  <Active tab content fills remaining terminal height>   │
 ├─────────────────────────────────────────────────────────┤
-│  Dashboard                      F1-F6 navigate | q quit │
+│  Server: Running (PID 12345, 2h 15m)  │  F1-F7 navigate │
 │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -142,20 +154,27 @@ Tab-based navigation with 6 persistent tabs across the top:
 
 | Input | Action |
 |---|---|
-| `F1`-`F6` | Switch tabs |
+| `F1`-`F7` | Switch tabs |
 | `Tab` / `Shift+Tab` | Move focus between controls |
 | `Enter` | Confirm / select |
 | `Esc` | Cancel / go back |
-| `q` | Quit application |
-| `?` | Show help overlay |
+| `?` | Toggle help overlay |
+| `Ctrl+T` | Open theme selector |
+| `Ctrl+D` | Toggle dark/light mode |
+| `Ctrl+U` | Check for updates |
+| `q` / `Ctrl+C` | Quit application |
 | Mouse click | Select tabs, list items, buttons |
 | Mouse scroll | Scroll in log viewer, tables, lists |
+
+### Help Overlay
+
+The `?` key toggles a full-width overlay at the bottom of the screen showing keyboard shortcuts organized by Navigation, Actions, and Tab Shortcuts sections.
 
 ---
 
 ## Feature 1: Server Profiles
 
-### Tab: `F3 Profiles`
+### Tab: `F4 Profiles`
 
 Manages server profiles - named collections of preset arguments and free-form arguments. Each profile can be activated independently, allowing quick switching between different server configurations (e.g., one for chat, one for embeddings, one for experimentation).
 
@@ -169,12 +188,13 @@ Manages server profiles - named collections of preset arguments and free-form ar
 
 #### Settings Panel
 
-Inline editor for all preset categories. Fields are type-aware with inline editing:
+Inline editor for preset categories. Fields are type-aware with inline editing. When the active version belongs to a fork, categories and fields are filtered for fork compatibility — incompatible fields are hidden (e.g., koboldcpp hides `sampling`/`reasoning` categories since it handles sampling via API, not startup flags). Fork-specific fields are injected where applicable (e.g., koboldcpp's `--usecuda`, `--autofit`, `--multiuser`).
 
 - String fields: free text, Enter to save
 - Number fields: numeric input with validation
 - Boolean fields: toggle true/false
 - Enum fields: cycle through options
+- Modal fields: pressing Enter opens a modal (e.g., device selector)
 
 Categories: Server, Model, Compute, GPU, Sampling, Speculative, Reasoning, Logging.
 
@@ -184,7 +204,7 @@ Multi-line text input per profile for arbitrary `--flag value` pairs not covered
 
 #### Devices Button
 
-Probes `llama-server --list-devices` to show available GPU/CPU devices for the active version.
+Opens `DeviceSelectorModal` which probes `llama-server --list-devices` to show available GPU/CPU devices for the active version. (Skipped for forks that don't support it, e.g., koboldcpp.)
 
 The final command line is assembled as:
 ```
@@ -393,15 +413,18 @@ The final command line is assembled as:
 #### Process Management
 
 - Server process is spawned via `child_process.spawn`
+- Binary name resolved from fork registry (`resolveBinaryName`) — e.g., `llama-server` for upstream, `koboldcpp-linux-x64` for koboldcpp
+- `--list-devices` call skipped for forks that don't support it (e.g., koboldcpp)
+- CLI args built per-fork: preset fields are remapped via `FieldMapping` (flag overrides, boolean inversion, value transforms). Incompatible fields are filtered out.
 - PID is tracked and stored in memory
-- On dashboard quit, server is **not** killed by default (configurable via `dashboard.killServerOnExit`)
+- On dashboard quit, shows `ExitDialog` with Cancel/Exit Now/Stop & Exit options. `StoppingServerModal` shown during server shutdown.
 - Config is persisted to `$XDG_CONFIG_HOME/llama-manager/config.json` after every change
 
 ---
 
 ## Feature 2: Task History
 
-### Tab: `F2 Tasks`
+### Tab: `F3 Tasks`
 
 Displays a scrollable table of completed inference tasks with statistics parsed from server logs.
 
@@ -448,7 +471,7 @@ Recent tasks (24):
 
 #### Filtering & Sorting
 
-- **Sort by**: task ID, timestamp, output speed (asc/desc), total time, output tokens
+- **Sort by**: task ID, timestamp, slot ID, prompt speed, output speed, total time, prompt tokens, output tokens
 - **Filter by**: slot ID, date range, min/max output tokens, min/max speed
 - **Search**: by task ID
 
@@ -476,41 +499,132 @@ The `TaskStore` class provides prepared-statement insert, query with filtering/s
 
 ---
 
-## Feature 3: Version Management
+## Feature 3: Fork Support
 
-### Tab: `F4 Versions`
+The dashboard supports multiple llama.cpp forks, each with its own GitHub repository, binary naming conventions, CLI flags, and preset compatibility. Fork awareness permeates version management, server configuration, and settings editing.
 
-Lists installed llama.cpp versions and provides install/switch/uninstall actions.
+### Fork Registry
+
+Defined in `lib/forks.ts` as `FORK_REGISTRY`. Each fork is a `ForkDefinition`:
+
+| Fork | ID | GitHub Repo | Binary | Folder Prefix | Description |
+|---|---|---|---|---|---|
+| llama.cpp | `llama.cpp` | `ggml-org/llama.cpp` | `llama-server` | (none) | Upstream reference implementation |
+| koboldcpp | `koboldcpp` | `LostRuins/koboldcpp` | `koboldcpp-linux-x64` | `koboldcpp-` | KoboldAI-focused fork with custom UI/API |
+| beellama.cpp | `beellama` | `Anbeeld/beellama.cpp` | `llama-server` | `beellama-` | Community fork with extended backends |
+| llamacpp-rocm | `llamacpp_rocm` | `lemonade-sdk/llamacpp-rocm` | `llama-server` | `llamacpp_rocm-` | ROCm-optimized builds per GPU target |
+| ik_llama.cpp | `ik_llama` | `ik517/ik_llama.cpp` | `llama-server` | `ik_llama-` | Community fork (reference-only, not installable) |
+
+### Fork Detection
+
+`detectForkFromFolder()` inspects the installed version folder name prefix to determine which fork it belongs to. This drives all fork-aware behavior:
+
+- Binary resolution (`resolveBinaryName`)
+- Preset category filtering (`isForkCompatibleWithPreset`)
+- Field visibility (`isFieldCompatibleWithFork`)
+- CLI flag remapping (`getFieldFlag`)
+- Boolean inversion (`isNegateInverted`)
+- Value transforms (`getFieldTransform`)
+
+### Field Mapping System
+
+Forks with custom CLI flags (e.g., koboldcpp) define `FieldMapping[]` entries that override upstream llama.cpp flags:
+
+- **`flag`** - override the CLI flag string (`null` = incompatible/hidden)
+- **`negateInvert`** - invert boolean sense (e.g., `--context-shift` becomes `--noshift`)
+- **`valueTransform`** - custom value conversion (e.g., `--parallel` bool becomes `--parallelrequests` number)
+
+Forks may also define `specificFields` - fields not present in upstream (e.g., koboldcpp's `--usecuda`, `--autofit`, `--multiuser`).
+
+### koboldcpp Preset Compatibility
+
+koboldcpp only supports a subset of preset categories: `server`, `model`, `compute`, `gpu`, `speculative`. The `sampling` and `reasoning` categories are hidden because koboldcpp handles sampling via its API, not startup flags.
+
+koboldcpp-specific fields are injected into the SettingsPanel under their respective categories (e.g., `useCuda`, `autofit` under GPU; `defaultGenAmt`, `multiuser` under Server). A separate `getKoboldAiPresetCategory()` function provides KoboldAI-specific fields (`--api-user`, `--api-pass`, `--notebook-on`, etc.).
+
+### Default Fork
+
+Configurable via `config.defaultFork` (default: `llama.cpp`). Controls which fork's releases are fetched during version install. Cycleable via Enter in both the Options tab and Versions tab.
+
+`getInstallableForks()` returns all forks except `ik_llama` (reference-only, no installable releases).
+
+---
+
+## Feature 4: Version Management
+
+### Tab: `F5 Versions`
+
+Lists installed versions across all supported forks and provides fork-aware install/switch/uninstall actions.
 
 #### Display
 
+Local versions list shows fork labels for each installed version:
+
 ```
 Installed versions:
-  ✓ b7405  (active)  ~/.local/share/llama-manager/versions/b7405/
-    b7389              ~/.local/share/llama-manager/versions/b7389/
-    b7201              ~/.local/share/llama-manager/versions/b7201/
+  b7405-cuda12          [llama.cpp]       CUDA 12            450 MB   active
+  koboldcpp-v1.116      [koboldcpp]       CUDA               610 MB
+  beellama-v0.3.1       [beellama]        CUDA 12.4          720 MB
+  llamacpp_rocm-b1294   [llamacpp-rocm]   ROCm gfx1151       376 MB
 
-Storage: 245 MB used in ~/.local/share/llama-manager/versions/
+Storage: 2.1 GB used in ~/.local/share/llama-manager/versions/
 ```
+
+#### Fork Selector
+
+When browsing remote releases, a fork selector button allows switching between installable forks:
+
+```
+[llama.cpp ]  [Install]  [Back]
+```
+
+Options: `llama.cpp`, `koboldcpp`, `beellama.cpp`, `llamacpp-rocm`. The selected fork persists and is synced to `config.defaultFork`. `ik_llama.cpp` is excluded (manual install only — user builds from source and places in `versions/ik_llama-<tag>-<backend>/`).
 
 #### Actions
 
-- **Install** - download prebuilt binary from GitHub releases (`ggml-org/llama.cpp`)
-  - Select backend: `cpu`, `metal`, `cuda12`, `cuda13`, `vulkan`, `rocm`, `sycl_blas`, `sycl_metal`
+- **Install** - download prebuilt binary from fork's GitHub releases
+  - Fork-specific backend/variant selection:
+    - **llama.cpp / beellama**: `cpu`, `metal`, `cuda12`, `cuda13`, `vulkan`, `rocm`, `openvino`, `opencl`, `hip`
+    - **koboldcpp**: `cuda`, `cpu` (nocuda), `oldpc` (old GPU), `metal`
+    - **llamacpp-rocm**: per-GPU-target variants (`gfx120X`, `gfx1151`, `gfx1150`, `gfx110X`, `gfx103X`, `gfx90a`, `gfx908`)
   - Detect OS + architecture (Linux x86_64, Linux ARM64, macOS x86_64, macOS ARM64)
-  - Download ZIP, extract to `$XDG_DATA_HOME/llama-manager/versions/<version>/`
+  - **Archive extraction** (llama.cpp, beellama, llamacpp-rocm): download archive, extract, flatten fork-specific subdirectory prefix
+  - **Raw binary** (koboldcpp): download binary directly, no extraction
   - Show download progress bar
   - Persist installed versions in `versions.json` in data directory
 - **Switch** - mark a version as active (updates config, restarts server if running)
 - **Uninstall** - remove version directory and metadata (blocked if version is active)
-- **Check Updates** - fetch latest release tag from GitHub API
+- **Check Updates** - fetch latest release tag from fork's GitHub API
 
 #### Prebuilt Binary Resolution
 
-For each version and backend, look for the appropriate build artifact in the GitHub release assets. Fallback chain:
-1. Official prebuilt release asset matching OS/arch/backend
+Per-fork asset naming conventions (`AssetNamingConvention` in `forks.ts`):
+
+| Fork | Pattern | Extension | Is Archive |
+|---|---|---|---|
+| llama.cpp | `llama-{tag}-bin-{os}-{backend}-{arch}` | `.tar.gz` | Yes |
+| koboldcpp | `koboldcpp-{os}-{arch}[-variant]` | (none — raw binary) | No |
+| beellama | `beellama-{tag}-bin-{os}-{backend}-{arch}` | `.tar.gz` | Yes |
+| llamacpp-rocm | `llama-{tag}-{os}-rocm-{gfx}-{arch}` | `.zip` | Yes |
+
+Fallback chain:
+1. Fork-specific prebuilt release asset matching OS/arch/backend
 2. Community build if official unavailable
 3. If no prebuilt found, show error with link to manual build instructions
+
+#### Folder Naming Convention
+
+Installed version folders encode fork identity via prefix:
+
+| Fork | Folder Pattern | Example |
+|---|---|---|
+| llama.cpp | `<tag>[-<backend>]` | `b7405-cuda12` |
+| koboldcpp | `koboldcpp-<tag>[-<variant>]` | `koboldcpp-v1.116` |
+| beellama | `beellama-<tag>[-<backend>]` | `beellama-v0.3.1-cuda12` |
+| llamacpp-rocm | `llamacpp_rocm-<tag>-rocm-<gfx>` | `llamacpp_rocm-b1294-rocm-gfx1151` |
+| ik_llama | `ik_llama-<tag>[-<backend>]` | `ik_llama-t0002-cuda12` |
+
+`detectForkFromFolder()` inspects the folder prefix to determine the fork at runtime. `parseFolderNameV2()` extracts fork, tag, and backend from the folder name.
 
 #### Storage Path
 
@@ -519,9 +633,9 @@ Configurable via settings.
 
 ---
 
-## Feature 4: Model Management
+## Feature 5: Model Management
 
-### Tab: `F5 Models`
+### Tab: `F6 Models`
 
 Manages GGUF model downloads from HuggingFace Hub.
 
@@ -529,9 +643,9 @@ Manages GGUF model downloads from HuggingFace Hub.
 
 ```
 Local models (3):
-  ✓ TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf  (5.04 GB)  [active]
-    bartowski/Mistral-7B-Instruct-v0.3-GGUF/mistral-7b-instruct-v0.3.Q5_K_M.gguf  (5.33 GB)
-     Qwen/Qwen2.5-7B-Instruct-GGUF/qwen2.5-7b-instruct-q4_k_m.gguf  (4.92 GB)
+  TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf  (5.04 GB)  [active]
+  bartowski/Mistral-7B-Instruct-v0.3-GGUF/mistral-7b-instruct-v0.3.Q5_K_M.gguf  (5.33 GB)
+  Qwen/Qwen2.5-7B-Instruct-GGUF/qwen2.5-7b-instruct-q4_k_m.gguf  (4.92 GB)
 
 Storage: 15.29 GB used in ~/.cache/huggingface/llama-manager/
 ```
@@ -584,7 +698,7 @@ Search HuggingFace:
 
 ---
 
-## Feature 5: Dashboard
+## Feature 6: Dashboard
 
 ### Tab: `F1 Dashboard`
 
@@ -596,9 +710,9 @@ Combined monitoring and server control panel. Includes metrics, server status, s
 ┌──────────────────────────────────────────────────────────┐
 │  [Start]  [Stop]  [Restart]        Profile: Default      │
 │  ───────────────────────────────────────────────────────  │
-│  Slot 0:  ● decode  42.3 t/s  ██████████░░  ctx: 8192    │
-│  Slot 1:  ● prompt  518.6 t/s  ████████████  ctx: 4096   │
-│  Slot 2:  ○ idle                                      │
+│  Slot 0:  decode  42.3 t/s  █████████░░  ctx: 8192    │
+│  Slot 1:  prompt  518.6 t/s  ██████████  ctx: 4096   │
+│  Slot 2:  idle                                      │
 │  ───────────────────────────────────────────────────────  │
 │  Running  PID: 12345  Uptime: 2h 15m                     │
 │  ───────────────────────────────────────────────────────  │
@@ -645,6 +759,80 @@ Bottom panel shows live server stdout/stderr with structured coloring:
 
 ---
 
+## Feature 7: Logs
+
+### Tab: `F2 Logs`
+
+Dedicated server log viewer using the `LogsViewer` specialized component. Shows timestamped log files from `$XDG_STATE_HOME/llama-manager/logs/` with structured coloring by severity. Scrollable, follows latest output.
+
+---
+
+## Feature 8: Options
+
+### Tab: `F7 Options`
+
+Global application settings. Managed by `OptionsPanel` specialized component. All fields are inline-editable with save on Enter.
+
+#### Settings Categories
+
+**Paths**
+- `versionsDir` - custom directory for llama.cpp builds
+- `modelsDir` - custom directory for GGUF models
+- `tasksFile` - custom path for tasks database
+
+**Dashboard**
+- `pollIntervalMs` - metrics polling interval (default: 2000ms)
+- `killServerOnExit` - whether to kill server on app quit (default: false)
+
+**Tasks**
+- `maxStored` - maximum tasks in history (default: 10000)
+- `autoParse` - automatic log parsing (default: true)
+
+**Logs**
+- `maxLogLines` - maximum log lines to keep in memory (default: 2000)
+
+**Appearance**
+- `themeName` - active theme name (default: `opencode`)
+- `themeMode` - dark or light mode (default: `dark`)
+
+**HuggingFace**
+- `hfToken` - access token for gated models
+
+**Forks**
+- `defaultFork` - default fork for version installs (default: `llama.cpp`). Cycleable via Enter. Options: `llama.cpp`, `koboldcpp`, `beellama`, `llamacpp_rocm`. Synced with Versions tab fork selector.
+
+**Updates**
+- `checkOnStartup` - check for app updates on startup (default: true)
+
+---
+
+## Feature 9: Theme System
+
+Themes provide color palettes loaded from JSON files under `themes/`. The `theme.ts` module resolves theme names, maps theme color definitions to 20+ semantic roles (title, tabActive, tabInactive, statusBar, halfBar, error, warning, info, success, button, buttonActive, etc.), and exposes `fg()`, `bg()`, `fgBg()` helpers for ANSI color codes.
+
+**Resolution order:**
+1. `opencode` - built-in, uses opencode's own theme config if available
+2. `themes/<name>.json` - bundled theme file
+3. Fallback to default GitHub Dark palette
+
+**Available themes (32):** aura, ayu, carbonfox, catppuccin (frappe, macchiato, mocha), cobalt2, cursor, dracula, everforest, flexoki, github, gruvbox, kanagawa, lucent-orng, material, matrix, mercury, monokai, nightowl, nord, one-dark, opencode, orng, osaka-jade, palenight, rosepine, solarized, synthwave84, tokyonight, vercel, zenburn.
+
+Each theme JSON defines base colors (`base`, `mantle`, `crust`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `surface0`-`surface2`, `overlay0`-`overlay2`, `text`) which the engine maps to semantic roles.
+
+**Theme selector** (`Ctrl+T`): Opens `ThemeSelectorModal` with a previewable list of all available themes.
+
+**Dark/light toggle** (`Ctrl+D`): Switches `themeMode` between `dark` and `light`, persisting to config.
+
+---
+
+## Feature 10: Update Checks
+
+The app checks for dashboard updates from GitHub (`bayger/llama-manager`). Checks run on startup (if `updates.checkOnStartup` is true) and every 6 hours. Results are cached in `config.updates.latestVersion`.
+
+When an update is available, the `StatusBar` shows a warning-colored version string. Clicking it opens `UpdateInfoModal` with the latest version and a link to the GitHub release. Manual check via `Ctrl+U`.
+
+---
+
 ## Configuration File
 
 Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama-manager/config.json`)
@@ -652,12 +840,14 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
 ```json
 {
   "themeName": "opencode",
+  "themeMode": "dark",
   "versionsDir": null,
   "modelsDir": null,
   "tasksFile": null,
-  "activeVersion": "b7405",
-  "activeModel": "TheBloke/Llama-2-7B-Chat-GGUF/llama-2-7b-chat.Q4_K_M.gguf",
+  "activeVersion": null,
+  "activeModel": null,
   "hfToken": null,
+  "defaultFork": "llama.cpp",
   "server": {
     "logFile": null,
     "profiles": {
@@ -670,7 +860,7 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
           "sampling": { "seed": -1, "temperature": 0.8, "topK": 40, "topP": 0.95, "minP": 0.05, "repeatLastN": 64, "repeatPenalty": 1.0, "presencePenalty": 0.0, "frequencyPenalty": 0.0, "grammar": null, "jsonSchema": null, "ignoreEos": false, "typicalP": 1.0, "topNSigma": -1.0, "xtcProbability": 0.0, "xtcThreshold": 0.1, "dryMultiplier": 0.0, "dryBase": 1.75, "dynatempRange": 0.0, "dynatempExp": 1.0, "mirostat": 0, "mirostatEnt": 5.0, "mirostatLr": 0.1, "logitBias": null, "grammarFile": null, "jsonSchemaFile": null, "backendSampling": false, "adaptiveTarget": -1.0, "adaptiveDecay": 0.90, "samplingSeq": null },
           "speculative": { "draftModel": null, "specType": "none", "draftNMax": 3, "draftThreads": null, "draftGpuLayers": "auto", "draftNMin": 0, "draftPSplit": 0.10, "draftPMin": 0.75, "draftHfRepo": null, "draftCacheTypeK": "f16", "draftCacheTypeV": "f16" },
           "reasoning": { "reasoning": "auto", "reasoningBudget": -1, "reasoningFormat": "auto", "reasoningBudgetMessage": null },
-          "logging": { "logColors": "auto", "logTimestamps": true, "logPrefix": false }
+          "logging": { "logFile": null, "logColors": "auto", "logTimestamps": true, "logPrefix": false }
         },
         "freeFormArgs": []
       }
@@ -680,6 +870,9 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
   "dashboard": {
     "pollIntervalMs": 2000,
     "killServerOnExit": false
+  },
+  "logs": {
+    "maxLogLines": 2000
   },
   "tasks": {
     "maxStored": 10000,
@@ -703,77 +896,85 @@ Path: `$XDG_CONFIG_HOME/llama-manager/config.json` (resolves to `~/.config/llama
 
 ```
 llama-manager/
-├── src/
-│   ├── main.ts                         # Entry point (shebang: #!/usr/bin/env node)
-│   ├── components/
-│   │   ├── MainControl.ts              # Root control: top bar, tab bar, content, status bar
-│   │   ├── ui/
-│   │   │   ├── Control.ts              # Base control: lifecycle, children, dirty flags, events
-│   │   │   ├── Layout.ts               # Column (vertical flex), Row (horizontal flex), Group
-│   │   │   ├── FocusManager.ts         # Singleton focus tracker, Tab navigation
-│   │   │   ├── types.ts                # Rect, Size, RenderContext interfaces
-│   │   │   ├── widgets/
-│   │   │   │   ├── Label.ts
-│   │   │   │   ├── Button.ts
-│   │   │   │   ├── ButtonBar.ts
-│   │   │   │   ├── TextInput.ts
-│   │   │   │   ├── List.ts
-│   │   │   │   ├── Table.ts            # Virtual-scrolling table with columns, sorting
-│   │   │   │   ├── Scrollable.ts
-│   │   │   │   ├── Box.ts
-│   │   │   │   ├── StyledText.ts       # Multi-color text segments, builder pattern
-│   │   │   │   ├── Section.ts          # Titled section with left border, background
-│   │   │   │   ├── HalfBar.ts          # Half-block decorative divider
-│   │   │   │   ├── Spacer.ts
-│   │   │   │   ├── ProgressBar.ts
-│   │   │   │   └── HelpBar.ts
-│   │   │   └── index.ts                # Re-exports
-│   │   ├── specialized/
-│   │   │   ├── SettingsPanel.ts        # Profile settings editor (type-aware fields)
-│   │   │   ├── ProfileList.ts          # Clickable profile list with CRUD actions
-│   │   │   ├── LogsViewer.ts           # Structured log coloring, scrollable
-│   │   │   ├── MetricsPanel.ts         # Per-slot metrics: state dots, speed bars, checkpoints
-│   │   │   └── OptionsPanel.ts         # Global app settings editor
-│   │   └── tabs/
-│   │       ├── DashboardTab.ts         # F1: Metrics, server controls, live log viewer
-│   │       ├── TasksTab.ts             # F2: Parsed task history with columns
-│   │       ├── ServerTab.ts            # F3: Profile management, preset editing
-│   │       ├── VersionsTab.ts          # F4: Local versions, GitHub install/uninstall
-│   │       ├── ModelsTab.ts            # F5: Local GGUFs, HF browse, download
-│   │       └── OptionsTab.ts           # F6: Global app settings
-│   └── lib/
-│       ├── config.ts                   # Config I/O, XDG paths, profiles, presets, migration
-│       ├── server.ts                   # Server process management, log tailing
-│       ├── logparser.ts                # Parse server logs, emit task events
-│       ├── logcolors.ts                # Log line colorization by severity
-│       ├── metricstracker.ts           # Real-time slot metrics (state, speed, checkpoints)
-│       ├── tasks.ts                    # SQLite TaskStore (better-sqlite3), filtering, migration
-│       ├── versions.ts                 # Install/switch/uninstall versions, GitHub releases
-│       ├── models.ts                   # HF search, download, local mgmt
-│       ├── api.ts                      # HTTP client for llama-server API (/metrics)
-│       ├── hf.ts                       # HuggingFace Hub API client
-│       ├── theme.ts                    # Theme resolution (JSON themes, semantic roles)
-│       ├── framebuffer.ts              # Double-buffered cell grid
-│       ├── framebuffer-canvas.ts       # Drawing API: cursor, clipping, color, text
-│       ├── framebuffer-diff.ts         # Row-level diff, run-length encoded ANSI output
-│       ├── utils.ts                    # Formatting: fireAsync, formatMs, formatDuration, etc.
-│       └── tabcontext.ts               # Shared context: services + RenderContext + showMessage
-├── themes/                             # JSON theme files (33 themes)
-│   ├── opencode.json
-│   ├── dracula.json
-│   ├── nord.json
-│   ├── gruvbox_dark.json
-│   ├── catppuccin_latte.json
-│   ├── catppuccin_frappe.json
-│   ├── catppuccin_macchiato.json
-│   ├── catppuccin_mocha.json
-│   ├── flexoki_light.json
-│   ├── flexoki_dark.json
-│   └── ...                             # additional themes
-├── package.json
-├── tsconfig.json
-├── SPEC.md
-└── AGENTS.md
+src/main.ts                         # Entry point (shebang: #!/usr/bin/env node)
+src/LlamaManagerApp.ts              # Main app class: config, theme, global keys, quit flow
+src/framework/                      # Custom UI framework
+src/framework/Application.ts        # App runner: framebuffer, render loop, input/mouse/resize
+src/framework/Control.ts            # Base control: lifecycle, children, dirty flags, events
+src/framework/FocusManager.ts       # Singleton focus tracker, Tab navigation
+src/framework/Layout.ts             # Column (vertical flex), Row (horizontal flex), Group
+src/framework/ModalManager.ts       # Modal stack: open/close, saved focus roots, overlay rendering
+src/framework/types.ts              # Rect, Size, Point, RenderContext, ControlCallback, EventEmitter
+src/framework/index.ts              # Re-exports
+src/framework/README.md             # Framework documentation
+src/framework/widgets/              # Widget library (21 widgets)
+src/framework/widgets/BarChart.ts
+src/framework/widgets/Button.ts
+src/framework/widgets/Checkbox.ts
+src/framework/widgets/ConfirmDialog.ts
+src/framework/widgets/DownloadDialog.ts
+src/framework/widgets/ExitDialog.ts
+src/framework/widgets/HalfBar.ts
+src/framework/widgets/InputDialog.ts
+src/framework/widgets/Label.ts
+src/framework/widgets/List.ts
+src/framework/widgets/Modal.ts
+src/framework/widgets/ProgressBar.ts
+src/framework/widgets/Scrollable.ts
+src/framework/widgets/Section.ts
+src/framework/widgets/SelectorLabel.ts
+src/framework/widgets/SelectorModal.ts
+src/framework/widgets/Spacer.ts
+src/framework/widgets/StyledText.ts
+src/framework/widgets/Table.ts
+src/framework/widgets/TextInput.ts
+src/ui/                             # UI controls
+src/ui/MainControl.ts               # Root control: top bar, tab bar, content, status bar
+src/ui/tabs/                        # Tab controls (7 tabs)
+src/ui/tabs/DashboardTab.ts         # F1: Metrics, server controls, live log viewer
+src/ui/tabs/LogsTab.ts              # F2: Dedicated server log viewer
+src/ui/tabs/TasksTab.ts             # F3: Parsed task history with columns
+src/ui/tabs/ServerTab.ts            # F4: Profile management, preset editing
+src/ui/tabs/VersionsTab.ts          # F5: Local versions, fork selector, GitHub install/uninstall
+src/ui/tabs/ModelsTab.ts            # F6: Local GGUFs, HF browse, download
+src/ui/tabs/OptionsTab.ts           # F7: Global app settings
+src/ui/specialized/                 # Specialized components (12 components)
+src/ui/specialized/DeviceSelectorModal.ts
+src/ui/specialized/EditableList.ts
+src/ui/specialized/LoadedModelPanel.ts
+src/ui/specialized/LogsViewer.ts
+src/ui/specialized/MetricsPanel.ts
+src/ui/specialized/OptionsPanel.ts
+src/ui/specialized/ProfileList.ts
+src/ui/specialized/SettingsPanel.ts
+src/ui/specialized/StoppingServerModal.ts
+src/ui/specialized/TaskChartsSection.ts
+src/ui/specialized/ThemeSelectorModal.ts
+src/ui/specialized/UpdateInfoModal.ts
+src/lib/                            # Business logic (17 modules)
+src/lib/config.ts                   # Config I/O, XDG paths, profiles, presets, migration
+src/lib/forks.ts                    # Fork registry, field mappings, binary resolution, fork detection
+src/lib/server.ts                   # Server process management, log tailing
+src/lib/logparser.ts                # Parse server logs, emit task events
+src/lib/logcolors.ts                # Log line colorization by severity
+src/lib/metricstracker.ts           # Real-time slot metrics (state, speed, checkpoints)
+src/lib/tasks.ts                    # SQLite TaskStore (better-sqlite3), filtering, migration
+src/lib/versions.ts                 # Install/switch/uninstall versions, GitHub releases
+src/lib/models.ts                   # HF search, download, local mgmt
+src/lib/api.ts                      # HTTP client for llama-server API (/metrics)
+src/lib/hf.ts                       # HuggingFace Hub API client
+src/lib/theme.ts                    # Theme resolution (JSON themes, semantic roles)
+src/lib/updates.ts                  # App update checks (GitHub releases)
+src/lib/framebuffer.ts              # Double-buffered cell grid
+src/lib/framebuffer-canvas.ts       # Drawing API: cursor, clipping, color, text
+src/lib/framebuffer-diff.ts         # Row-level diff, run-length encoded ANSI output
+src/lib/utils.ts                    # Formatting: fireAsync, formatMs, formatDuration, etc.
+src/lib/tabcontext.ts               # Shared context: services + RenderContext + modals
+themes/                             # JSON theme files (32 themes)
+package.json
+tsconfig.json
+SPEC.md
+AGENTS.md
 ```
 
 ---
@@ -787,6 +988,8 @@ llama-manager/
 | `undici` | HTTP requests (llama-server API, GitHub, HuggingFace) |
 | `fs-extra` | File operations with promises |
 | `chalk` | Terminal colors (legacy, partial) |
+| `extract-zip` | ZIP archive extraction (llamacpp-rocm builds) |
+| `tar` | Tar archive extraction (llama.cpp, beellama builds) |
 
 ---
 
@@ -797,53 +1000,6 @@ llama-manager/
 - Disk space: check before downloads, warn if less than 2x model size available
 - Permission errors: clear messages for version/model directories
 - Version mismatch: if server binary fails, offer to switch version
-
----
-
-## Feature 6: Options
-
-### Tab: `F6 Options`
-
-Global application settings. Managed by `OptionsPanel` specialized component. All fields are inline-editable with save on Enter.
-
-#### Settings Categories
-
-**Paths**
-- `versionsDir` - custom directory for llama.cpp builds
-- `modelsDir` - custom directory for GGUF models
-- `tasksFile` - custom path for tasks database
-- `logFile` - custom path for server log
-
-**Dashboard**
-- `pollIntervalMs` - metrics polling interval (default: 2000ms)
-- `killServerOnExit` - whether to kill server on app quit (default: false)
-
-**Tasks**
-- `maxStored` - maximum tasks in history (default: 10000)
-- `autoParse` - automatic log parsing (default: true)
-
-**Appearance**
-- `themeName` - active theme name (default: `opencode`)
-- `compactTasks` - compact task list layout
-- `showDraftRate` - display draft acceptance rate in tasks
-
-**HuggingFace**
-- `hfToken` - access token for gated models
-
----
-
-## Feature 7: Theme System
-
-Themes provide color palettes loaded from JSON files under `themes/`. The `theme.ts` module resolves theme names, maps theme color definitions to 20+ semantic roles (title, tabActive, tabInactive, statusBar, halfBar, error, warning, info, success, button, buttonActive, etc.), and exposes `fg()`, `bg()`, `fgBg()` helpers for ANSI color codes.
-
-**Resolution order:**
-1. `opencode` - built-in, uses opencode's own theme config if available
-2. `themes/<name>.json` - bundled theme file
-3. Fallback to default GitHub Dark palette
-
-**Available themes (33):** flexoki (light/dark), dracula, nord, gruvbox (light/dark), catppuccin (latte, frappe, macchiato, mocha), and many more.
-
-Each theme JSON defines base colors (`base`, `mantle`, `crust`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `surface0`-`surface2`, `overlay0`-`overlay2`, `text`) which the engine maps to semantic roles.
 
 ---
 
@@ -860,3 +1016,6 @@ Each theme JSON defines base colors (`base`, `mantle`, `crust`, `red`, `orange`,
 - Historical charts (sparklines for token/s over time)
 - Custom theme editor
 - Model quantization/dequantization tools
+- Additional fork support (community forks with custom CLI surfaces)
+- beellama.cpp DFlash/TurboQuant extended preset fields
+- koboldcpp KoboldAI preset category (`--api-user`, `--api-pass`, `--notebook-on`, etc.)
