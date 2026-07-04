@@ -2,7 +2,7 @@
 
 ## Goal
 
-Enable installing, managing, and running koboldcpp, ik_llama.cpp, and beellama.cpp alongside upstream llama.cpp through the existing Versions tab and server management flow.
+Enable installing, managing, and running koboldcpp, ik_llama.cpp, beellama.cpp, and llamacpp-rocm alongside upstream llama.cpp through the existing Versions tab and server management flow.
 
 ## Scope
 
@@ -17,13 +17,13 @@ Enable installing, managing, and running koboldcpp, ik_llama.cpp, and beellama.c
 
 ```typescript
 interface ForkDefinition {
-  id: string;                    // "llama.cpp" | "koboldcpp" | "beellama"
-  label: string;                 // "llama.cpp", "koboldcpp", "beellama.cpp"
-  githubRepo: string;            // "ggml-org/llama.cpp", "LostRuins/koboldcpp", "Anbeeld/beellama.cpp"
+  id: string;                    // "llama.cpp" | "koboldcpp" | "beellama" | "llamacpp_rocm"
+  label: string;                 // "llama.cpp", "koboldcpp", "beellama.cpp", "llamacpp-rocm"
+  githubRepo: string;            // "ggml-org/llama.cpp", "LostRuins/koboldcpp", "Anbeeld/beellama.cpp", "lemonade-sdk/llamacpp-rocm"
   binaryNames: Record<string, string>;  // platform → binary name
   assetNamePattern: RegExp;      // pattern to match release assets
-  extractDirPrefix: string | null; // "llama-" for upstream/beellama "beellama-", null for raw binary
-  folderPrefix: string;          // "" | "koboldcpp-" | "beellama-"
+  extractDirPrefix: string | null; // "llama-" for upstream/beellama/llamacpp_rocm, "beellama-", null for raw binary
+  folderPrefix: string;          // "" | "koboldcpp-" | "beellama-" | "llamacpp_rocm-"
   isRawBinary: boolean;          // true for koboldcpp (no archive extraction)
   backendVariants: BackendVariant[];
   hasListDevices: boolean;       // false for koboldcpp
@@ -39,17 +39,17 @@ interface BackendVariant {
 
 ### Registry entries
 
-| Field | llama.cpp | koboldcpp | beellama |
-|-------|-----------|-----------|----------|
-| `id` | `"llama.cpp"` | `"koboldcpp"` | `"beellama"` |
-| `label` | `"llama.cpp"` | `"koboldcpp"` | `"beellama.cpp"` |
-| `githubRepo` | `"ggml-org/llama.cpp"` | `"LostRuins/koboldcpp"` | `"Anbeeld/beellama.cpp"` |
-| `binaryNames` | `{ linux: "llama-server", macos: "llama-server", win: "llama-server.exe" }` | `{ linux: "koboldcpp-linux-x64", macos: "koboldcpp-mac-arm64", win: "koboldcpp.exe" }` | `{ linux: "llama-server", macos: "llama-server", win: "llama-server.exe" }` |
-| `assetNamePattern` | `/^llama-.+-bin-/` | `/^koboldcpp-/` | `/^beellama-.+-bin-/` |
-| `extractDirPrefix` | `"llama-"` | `null` | `"beellama-"` |
-| `folderPrefix` | `""` | `"koboldcpp-"` | `"beellama-"` |
-| `isRawBinary` | `false` | `true` | `false` |
-| `hasListDevices` | `true` | `false` | `true` |
+| Field | llama.cpp | koboldcpp | beellama | llamacpp_rocm |
+|-------|-----------|-----------|----------|---------------|
+| `id` | `"llama.cpp"` | `"koboldcpp"` | `"beellama"` | `"llamacpp_rocm"` |
+| `label` | `"llama.cpp"` | `"koboldcpp"` | `"beellama.cpp"` | `"llamacpp-rocm"` |
+| `githubRepo` | `"ggml-org/llama.cpp"` | `"LostRuins/koboldcpp"` | `"Anbeeld/beellama.cpp"` | `"lemonade-sdk/llamacpp-rocm"` |
+| `binaryNames` | `{ linux: "llama-server", macos: "llama-server", win: "llama-server.exe" }` | `{ linux: "koboldcpp-linux-x64", macos: "koboldcpp-mac-arm64", win: "koboldcpp.exe" }` | `{ linux: "llama-server", macos: "llama-server", win: "llama-server.exe" }` | `{ linux: "llama-server", macos: "llama-server", win: "llama-server.exe" }` |
+| `assetNamePattern` | `/^llama-.+-bin-/` | `/^koboldcpp-/` | `/^beellama-.+-bin-/` | `/^llama-b\d+-\w+-rocm-gfx/` |
+| `extractDirPrefix` | `"llama-"` | `null` | `"beellama-"` | `"llama-"` |
+| `folderPrefix` | `""` | `"koboldcpp-"` | `"beellama-"` | `"llamacpp_rocm-"` |
+| `isRawBinary` | `false` | `true` | `false` | `false` |
+| `hasListDevices` | `true` | `false` | `true` | `true` |
 
 ### Backend variants
 
@@ -67,6 +67,22 @@ interface BackendVariant {
 **beellama** — similar to upstream, with `beellama-` prefix:
 - `cpu`, `cuda12`, `cuda13`, `rocm`, `vulkan`, `sycl`, `hip`
 - Asset pattern: `beellama-{tag}-bin-{os}-{backend}-{arch}.{ext}`
+
+**llamacpp_rocm** — gfx target variants (ROCm only, one binary per GPU target):
+
+| Variant ID | Label | Asset Matcher |
+|-----------|-------|---------------|
+| `rocm-gfx120X` | "ROCm gfx120X" | `llama-{tag}-{os}-rocm-gfx120X-x64.zip` |
+| `rocm-gfx1151` | "ROCm gfx1151" | `llama-{tag}-{os}-rocm-gfx1151-x64.zip` |
+| `rocm-gfx1150` | "ROCm gfx1150" | `llama-{tag}-{os}-rocm-gfx1150-x64.zip` |
+| `rocm-gfx110X` | "ROCm gfx110X" | `llama-{tag}-{os}-rocm-gfx110X-x64.zip` |
+| `rocm-gfx103X` | "ROCm gfx103X" | `llama-{tag}-{os}-rocm-gfx103X-x64.zip` |
+| `rocm-gfx90a` | "ROCm gfx90a" | `llama-{tag}-{os}-rocm-gfx90a-x64.zip` |
+| `rocm-gfx908` | "ROCm gfx908" | `llama-{tag}-{os}-rocm-gfx908-x64.zip` |
+
+- Asset pattern: `llama-{tag}-{os}-rocm-{gfx}-{arch}.zip` (no `-bin-` segment)
+- Platforms: `ubuntu`, `windows` (no macOS)
+- Installed folders: `llamacpp_rocm-b1294-rocm-gfx1151`, etc.
 
 ### Exported functions
 
@@ -107,6 +123,15 @@ function parseFolderName(name: string): { fork: string; tag: string; backend: st
       fork: "beellama",
       tag: match ? rest.split("-")[0] : rest,
       backend: match && match[1] ? match[1].slice(1) : "cpu",
+    };
+  }
+  if (name.startsWith("llamacpp_rocm-")) {
+    const rest = name.slice("llamacpp_rocm-".length);
+    const parts = rest.split("-");
+    return {
+      fork: "llamacpp_rocm",
+      tag: parts[0] || rest,
+      backend: parts.slice(1).join("-") || "rocm",
     };
   }
   // Existing upstream logic
@@ -150,6 +175,7 @@ function extractBackendFromAsset(
 
 - **llama.cpp / beellama**: existing prefix-based parsing, with `beellama-` prefix support
 - **koboldcpp**: variant matching against `backendVariants[].assetMatcher`
+- **llamacpp_rocm**: variant matching against `backendVariants[].assetMatcher` (gfx target matching)
 
 ### 2.6 `getAvailableBackends` — fork parameter
 
@@ -261,7 +287,7 @@ Add a fork selector control at the top of the releases view:
 [llama.cpp ▼]  [Install]  [Back]
 ```
 
-Options: `llama.cpp`, `koboldcpp`, `beellama.cpp`
+Options: `llama.cpp`, `koboldcpp`, `beellama.cpp`, `llamacpp-rocm`
 
 The selector persists across mode changes. Default: `llama.cpp`.
 
@@ -305,9 +331,10 @@ async install(backendId: string): Promise<void> {
 In the local versions list, display the fork label alongside each version:
 
 ```
-b7405-cuda12        [llama.cpp]   CUDA 12      450 MB   ● active
-koboldcpp-v1.116    [koboldcpp]   CUDA         610 MB
-beellama-v0.3.1     [beellama]    CUDA 12.4    720 MB
+b7405-cuda12              [llama.cpp]       CUDA 12            450 MB   ● active
+koboldcpp-v1.116          [koboldcpp]       CUDA               610 MB
+beellama-v0.3.1           [beellama]        CUDA 12.4          720 MB
+llamacpp_rocm-b1294       [llamacpp-rocm]   ROCm gfx1151       376 MB
 ```
 
 ### 5.6 State additions
