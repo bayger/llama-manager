@@ -1,6 +1,7 @@
 import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant, getThemeMode } from "../../lib/theme";
 import { focusManager } from "../../framework/FocusManager";
 import { ConfigData, saveConfig } from "../../lib/config";
+import { getInstallableForks } from "../../lib/forks";
 import type { TabContext } from "../../lib/tabcontext";
 import type { RenderContext } from "../../framework/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
@@ -94,6 +95,20 @@ export const OPTION_CATEGORIES: OptionCategory[] = [
     setter: (config, values) => {
       if (values.maxStored !== undefined) config.tasks.maxStored = values.maxStored as number;
       if (values.autoParse !== undefined) config.tasks.autoParse = values.autoParse as boolean;
+    },
+  },
+  {
+    name: "Forks",
+    fields: [
+      { key: "defaultFork", type: "string", default: "llama.cpp", description: "Default fork for installs (Enter to cycle)" },
+    ],
+    getter: (config) => ({
+      defaultFork: config.defaultFork,
+    }),
+    setter: (config, values) => {
+      if (values.defaultFork !== undefined) {
+        config.defaultFork = values.defaultFork as string;
+      }
     },
   },
   {
@@ -276,6 +291,10 @@ export class OptionsPanel extends EditableList {
         this.openThemeSelector();
         return true;
       }
+      if (row?.type === "field" && row.field?.key === "defaultFork") {
+        this.cycleDefaultFork(row);
+        return true;
+      }
     }
 
     // SPACE cycles enum fields
@@ -309,5 +328,18 @@ export class OptionsPanel extends EditableList {
         this.markDirty();
       }
     });
+  }
+
+  cycleDefaultFork(row: EditableRowInfo): void {
+    if (!this._ctx) return;
+    const config = this._ctx.getConfig();
+    if (!config) return;
+    const forks = getInstallableForks();
+    const currentIdx = forks.findIndex(f => f.id === config.defaultFork);
+    const nextIdx = (currentIdx + 1) % forks.length;
+    config.defaultFork = forks[nextIdx]!.id;
+    this.saveAndMessage();
+    this._ctx?.forceRender();
+    this.markDirty();
   }
 }

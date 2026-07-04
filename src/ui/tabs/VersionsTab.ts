@@ -27,6 +27,7 @@ import { saveConfig } from "../../lib/config";
 import { fireAsync, formatSize } from "../../lib/utils";
 import { createDownloadDialog } from "../../framework/widgets/DownloadDialog";
 import { createConfirmDialog } from "../../framework/widgets/ConfirmDialog";
+import { getInstallableForks, getFork } from "../../lib/forks";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size, RenderContext } from "../../framework/types";
 
@@ -98,6 +99,8 @@ export class VersionsControl extends Control {
   protected _mode: ViewMode = "local";
   protected _selectedRelease: RemoteVersion | null = null;
   protected _availableBackends: AvailableBackend[] = [];
+  protected _selectedFork: string = "llama.cpp";
+  protected _forkButton: Button;
 
   constructor(ctx: TabContext) {
     super();
@@ -126,8 +129,12 @@ export class VersionsControl extends Control {
     this._btnBack = new Button({ label: "Back" });
     this._btnBack.visible = false;
 
+    this._forkButton = new Button({ label: "llama.cpp" });
+    this._forkButton.visible = false;
+
     this._buttonRow = new Row();
     this._buttonRow.add(this._btnBack);
+    this._buttonRow.add(this._forkButton);
     this._buttonRow.add(this._summary);
     this._dividerButtons = new Spacer();
     this._dividerButtons.flex = 1;
@@ -158,10 +165,20 @@ export class VersionsControl extends Control {
   onInit(): void {
     if (!this._ctx) return;
     const ctx = this._ctx;
+    const config = ctx.getConfig();
+    if (config?.defaultFork) {
+      this._selectedFork = config.defaultFork;
+    }
 
     this._btnInstall.setAction(() => {
       fireAsync(async () => {
         await this.showReleases();
+      }, ctx);
+    });
+
+    this._forkButton.setAction(() => {
+      fireAsync(async () => {
+        await this.cycleFork();
       }, ctx);
     });
 
@@ -252,6 +269,26 @@ export class VersionsControl extends Control {
     }
   }
 
+  async cycleFork(): Promise<void> {
+    const forks = getInstallableForks();
+    const currentIdx = forks.findIndex(f => f.id === this._selectedFork);
+    const nextIdx = (currentIdx + 1) % forks.length;
+    this._selectedFork = forks[nextIdx]!.id;
+    this._forkButton.label = forks[nextIdx]!.label;
+
+    if (this._ctx) {
+      const config = this._ctx.getConfig();
+      if (config) {
+        config.defaultFork = this._selectedFork;
+        saveConfig(config);
+        this._ctx.setConfig(config);
+      }
+    }
+
+    this.markDirty();
+    await this.showReleases();
+  }
+
   async showLocal(): Promise<void> {
     this._mode = "local";
     this._dividerButtons.visible = true;
@@ -259,6 +296,7 @@ export class VersionsControl extends Control {
     this._versionsSection.title = "Installed Versions";
     this._changelogSection.visible = false;
     this._btnBack.visible = false;
+    this._forkButton.visible = false;
     this._btnInstall.visible = true;
     this._btnInstall.label = "Install";
     this._btnDelete.visible = true;
@@ -277,13 +315,15 @@ export class VersionsControl extends Control {
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
     this._changelogSection.visible = true;
+    this._forkButton.visible = true;
+    this._forkButton.label = getFork(this._selectedFork).label;
     this._list.selectedIndex = -1;
     this._list.items = [];
     this._summary.builder.muted("GitHub Releases");
     this.markDirty();
 
     try {
-      const releases = await listRecentVersions(30);
+      const releases = await listRecentVersions(this._selectedFork, 30);
       const items: ListItem<string, RemoteVersion>[] = releases.map(r => ({
         id: r.tag,
         label: r.tag,
@@ -328,7 +368,7 @@ export class VersionsControl extends Control {
 
     try {
       const platform = getPlatformKey();
-      const backends = getAvailableBackends(release.tag, release.assets);
+      const backends = getAvailableBackends(release.tag, platform, release.assets, this._selectedFork);
       this._availableBackends = backends;
 
       if (backends.length === 0) {
@@ -368,9 +408,10 @@ export class VersionsControl extends Control {
     try {
       const installed = await installVersion(
         config,
+        this._selectedFork,
         this._selectedRelease.tag,
         backendId,
-        (pct, label) => {
+        (pct: number, label: string) => {
           handle.update(pct, label);
         },
       );
@@ -402,12 +443,15 @@ export class VersionsControl extends Control {
         .muted("  Size ")
         .text(formatSize(totalSize));
 
-      const items: ListItem<string, VersionInfo>[] = versions.map(v => ({
-        id: v.version,
-        label: v.active ? `✓ ${v.version}` : `  ${v.version}`,
-        sublabel: BACKEND_LABELS[v.backend] || v.backend,
-        data: v,
-      }));
+      const items: ListItem<string, VersionInfo>[] = versions.map(v => {
+        const forkLabel = v.fork && v.fork !== "llama.cpp" ? ` [${getFork(v.fork).label}]` : "";
+        return {
+          id: v.version,
+          label: v.active ? `✓ ${v.version}` : `  ${v.version}`,
+          sublabel: `${BACKEND_LABELS[v.backend] || v.backend}${forkLabel}`,
+          data: v,
+        };
+      });
 
       this._list.selectedId = config.activeVersion || null;
       this._list.items = items;

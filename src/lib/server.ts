@@ -8,6 +8,7 @@ import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
 import { processModelLine, resetModelInfo } from "../ui/specialized/LoadedModelPanel";
 import { taskStore } from "./tasks";
+import { detectForkFromFolder, resolveBinaryName, isForkCompatibleWithPreset, isFieldCompatibleWithFork } from "./forks";
 
 function resolveServerBinary(versionPath: string): string | null {
   if (os.platform() === "win32") {
@@ -59,9 +60,14 @@ export function listDevices(config: ConfigData): string {
   const versionsDir = getVersionsDir(config);
   const activeVersion = config.activeVersion;
   if (!activeVersion) return "No active version selected";
-  const versionPath = path.join(versionsDir, activeVersion);
-  const binary = resolveServerBinary(versionPath);
-  if (!binary) return `Binary not found in ${versionPath}`;
+  const fork = detectForkFromFolder(activeVersion);
+  if (!fork.hasListDevices) {
+    return `${fork.label} does not support --list-devices`;
+  }
+
+  const binaryName = resolveBinaryName(fork);
+  const binary = path.join(versionsDir, activeVersion, binaryName);
+  if (!fs.pathExistsSync(binary)) return `Binary not found: ${binary}`;
   try {
     const result = spawnSync(binary, ["--list-devices"], {
       encoding: "utf-8",
@@ -99,10 +105,11 @@ export function startServer(config: ConfigData): Promise<number> {
         return;
       }
 
-      const versionPath = path.join(versionsDir, activeVersion);
-      const binary = resolveServerBinary(versionPath);
-      if (!binary) {
-        reject(new Error(`Binary not found in ${versionPath}`));
+      const fork = detectForkFromFolder(activeVersion);
+      const binaryName = resolveBinaryName(fork);
+      const binary = path.join(versionsDir, activeVersion, binaryName);
+      if (!(await fs.pathExists(binary))) {
+        reject(new Error(`Binary not found: ${binary}`));
         return;
       }
 
@@ -222,6 +229,8 @@ export function buildArgs(config: ConfigData, logFile: string): string[] {
   const args: string[] = [];
   const p = getActivePresets(config);
 
+  const forkId = config.activeVersion ? detectForkFromFolder(config.activeVersion).id : "llama.cpp";
+
   // Non-schema args
   if (config.hfToken) args.push("--hf-token", config.hfToken);
   args.push("--log-file", logFile);
@@ -229,8 +238,10 @@ export function buildArgs(config: ConfigData, logFile: string): string[] {
 
   // Iterate schema to build args
   for (const cat of PRESET_CATEGORIES) {
+    if (!isForkCompatibleWithPreset(forkId, cat.presetKey)) continue;
     const presetData = p[cat.presetKey];
     for (const field of cat.fields) {
+      if (!isFieldCompatibleWithFork(forkId, field.key, cat.presetKey)) continue;
       const value = presetData[field.key];
 
       // Skip null/undefined/empty

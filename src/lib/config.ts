@@ -61,6 +61,7 @@ export interface ConfigData {
   activeVersion: string | null;
   activeModel: string | null;
   hfToken: string | null;
+  defaultFork: string;
   server: {
     logFile: string | null;
     profiles: Record<string, ServerProfile>;
@@ -419,6 +420,7 @@ const DEFAULT_CONFIG: ConfigData = {
   activeVersion: null,
   activeModel: null,
   hfToken: null,
+  defaultFork: "llama.cpp",
   server: {
     logFile: null,
     profiles: {
