@@ -289,26 +289,6 @@
   }
   .theme-swatch:hover .tooltip { opacity: 1; }
 
-  /* ── TECH ── */
-  .tech h2 { margin-bottom: 40px; }
-  .tech-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 16px;
-  }
-  .tech-card {
-    background: var(--bg-raised); border: 1px solid var(--border);
-    border-radius: 6px; padding: 20px;
-    font-size: 14px;
-    transition: border-color 0.2s;
-  }
-  .tech-card:hover { border-color: var(--cyan); }
-  .tech-card .label {
-    color: var(--text-muted); font-size: 12px;
-    margin-bottom: 6px;
-  }
-  .tech-card .value { color: var(--text); font-weight: 600; }
-
   /* ── REQUIREMENTS ── */
   .requirements h2 { margin-bottom: 24px; }
   .req-list {
@@ -372,7 +352,6 @@
     .hero { padding: 120px 0 60px; }
     .section-pad { padding: 60px 0; }
     .features-grid { grid-template-columns: 1fr; }
-    .tech-grid { grid-template-columns: 1fr 1fr; }
     footer .container { flex-direction: column; text-align: center; }
   }
 </style>
@@ -507,22 +486,6 @@
     <h2>33 themes, zero config</h2>
     <p class="desc">Select a theme from the Options tab or press Ctrl+T. Compatible with the catppuccin, dracula, nord, gruvbox ecosystem.</p>
     <div class="theme-strip" id="theme-strip"></div>
-  </div>
-</section>
-
-<!-- TECH STACK -->
-<section class="tech section-pad" id="tech">
-  <div class="container reveal">
-    <div class="section-label">// stack</div>
-    <h2>Built with</h2>
-    <div class="tech-grid">
-      <div class="tech-card"><div class="label">Language</div><div class="value">TypeScript</div></div>
-      <div class="tech-card"><div class="label">Rendering</div><div class="value">Double-buffered framebuffer</div></div>
-      <div class="tech-card"><div class="label">Input</div><div class="value">terminal-kit</div></div>
-      <div class="tech-card"><div class="label">HTTP</div><div class="value">undici</div></div>
-      <div class="tech-card"><div class="label">Storage</div><div class="value">better-sqlite3</div></div>
-      <div class="tech-card"><div class="label">Bundler</div><div class="value">tsup (esbuild)</div></div>
-    </div>
   </div>
 </section>
 
