@@ -72,6 +72,7 @@ export interface ConfigData {
     killServerOnExit: boolean;
     modelDetailLevel: "basic" | "middle" | "detailed";
     metricsDetailLevel: "basic" | "middle" | "detailed";
+    chartMode: "speed" | "tokens" | "dense";
   };
   logs: {
     maxLogLines: number;
@@ -438,6 +439,7 @@ const DEFAULT_CONFIG: ConfigData = {
     killServerOnExit: false,
     modelDetailLevel: "detailed",
     metricsDetailLevel: "detailed",
+    chartMode: "speed",
   },
   logs: {
     maxLogLines: 2000,

@@ -177,6 +177,7 @@ export class DashboardControl extends Control {
     this.updateButtons();
     this.updateModelDetailLevel();
     this.updateMetricsDetailLevel();
+    this.updateChartMode();
   }
 
   onFocus(): void {
@@ -206,6 +207,18 @@ export class DashboardControl extends Control {
       const config = this._ctx?.getConfig();
       if (config) {
         config.dashboard.metricsDetailLevel = this._metricsPanel.detailLevel;
+        fireAsync(async () => {
+          const cfg = this._ctx!.getConfig();
+          if (cfg) await saveConfig(cfg);
+        }, this._ctx!);
+      }
+      return true;
+    }
+    if (key === "t" && !focusManager.isTextInputActive() && !modalManager.isOpen()) {
+      this._chartsSection.cycleChartMode();
+      const config = this._ctx?.getConfig();
+      if (config) {
+        config.dashboard.chartMode = this._chartsSection.chartMode;
         fireAsync(async () => {
           const cfg = this._ctx!.getConfig();
           if (cfg) await saveConfig(cfg);
@@ -261,6 +274,14 @@ export class DashboardControl extends Control {
     const config = this._ctx?.getConfig();
     if (config && config.dashboard.metricsDetailLevel !== this._metricsPanel.detailLevel) {
       this._metricsPanel.detailLevel = config.dashboard.metricsDetailLevel;
+    }
+  }
+
+  updateChartMode(): void {
+    const config = this._ctx?.getConfig();
+    if (config && config.dashboard.chartMode !== this._chartsSection.chartMode) {
+      this._chartsSection.chartMode = config.dashboard.chartMode;
+      this._chartsSection.updateCharts();
     }
   }
 
