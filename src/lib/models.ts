@@ -58,7 +58,8 @@ export async function listLocalModels(config: ConfigData): Promise<LocalModel[]>
   return models.sort((a, b) => {
     if (a.active && !b.active) return -1;
     if (!a.active && b.active) return 1;
-    return b.downloadedAt.localeCompare(a.downloadedAt);
+    if (a.isMmproj !== b.isMmproj) return a.isMmproj ? 1 : -1;
+    return a.filename.localeCompare(b.filename);
   });
 }
 
