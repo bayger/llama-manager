@@ -71,6 +71,7 @@ export interface ConfigData {
     pollIntervalMs: number;
     killServerOnExit: boolean;
     modelDetailLevel: "basic" | "middle" | "detailed";
+    metricsDetailLevel: "basic" | "middle" | "detailed";
   };
   logs: {
     maxLogLines: number;
@@ -436,6 +437,7 @@ const DEFAULT_CONFIG: ConfigData = {
     pollIntervalMs: 2000,
     killServerOnExit: false,
     modelDetailLevel: "detailed",
+    metricsDetailLevel: "detailed",
   },
   logs: {
     maxLogLines: 2000,

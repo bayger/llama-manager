@@ -7,6 +7,7 @@ import { SelectorLabel } from "../../framework/widgets/SelectorLabel";
 import { MetricsPanel } from "../specialized/MetricsPanel";
 import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
 import type { ModelDetailLevel } from "../specialized/LoadedModelPanel";
+import type { MetricsDetailLevel } from "../specialized/MetricsPanel";
 import { TaskChartsSection } from "../specialized/TaskChartsSection";
 import { focusManager } from "../../framework/FocusManager";
 import { modalManager } from "../../framework/ModalManager";
@@ -89,11 +90,12 @@ export class DashboardControl extends Control {
 
     this._modelSection = new Section();
     this._modelSection.title = "Loaded Model";
-        this._modelSection.hint = "m cycle";
+        this._modelSection.hint = "m";
     this._modelSection.add(this._modelPanel);
 
     this._metricsSection = new Section();
     this._metricsSection.title = "Session Metrics";
+    this._metricsSection.hint = "s";
     this._metricsSection.add(this._metricsPanel);
     this._metricsSection.flex = 1;
 
@@ -174,6 +176,7 @@ export class DashboardControl extends Control {
     this.updateSelectors();
     this.updateButtons();
     this.updateModelDetailLevel();
+    this.updateMetricsDetailLevel();
   }
 
   onFocus(): void {
@@ -191,6 +194,18 @@ export class DashboardControl extends Control {
       const config = this._ctx?.getConfig();
       if (config) {
         config.dashboard.modelDetailLevel = this._modelPanel.detailLevel;
+        fireAsync(async () => {
+          const cfg = this._ctx!.getConfig();
+          if (cfg) await saveConfig(cfg);
+        }, this._ctx!);
+      }
+      return true;
+    }
+    if (key === "s" && !focusManager.isTextInputActive() && !modalManager.isOpen()) {
+      this._metricsPanel.cycleDetailLevel();
+      const config = this._ctx?.getConfig();
+      if (config) {
+        config.dashboard.metricsDetailLevel = this._metricsPanel.detailLevel;
         fireAsync(async () => {
           const cfg = this._ctx!.getConfig();
           if (cfg) await saveConfig(cfg);
@@ -239,6 +254,13 @@ export class DashboardControl extends Control {
     const config = this._ctx?.getConfig();
     if (config && config.dashboard.modelDetailLevel !== this._modelPanel.detailLevel) {
       this._modelPanel.detailLevel = config.dashboard.modelDetailLevel;
+    }
+  }
+
+  updateMetricsDetailLevel(): void {
+    const config = this._ctx?.getConfig();
+    if (config && config.dashboard.metricsDetailLevel !== this._metricsPanel.detailLevel) {
+      this._metricsPanel.detailLevel = config.dashboard.metricsDetailLevel;
     }
   }
 

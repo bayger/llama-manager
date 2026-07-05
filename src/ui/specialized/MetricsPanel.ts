@@ -6,6 +6,8 @@ import type { Color } from "../../lib/theme";
 import type { RenderContext, Size } from "../../framework/types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
+export type MetricsDetailLevel = "basic" | "middle" | "detailed";
+
 const STATE_COLOR: Record<string, Color> = {
   idle: "textMuted",
   prompting: "warning",
@@ -14,11 +16,11 @@ const STATE_COLOR: Record<string, Color> = {
 
 const THINKING_ICON = "\u221e";
 const CONTEXT_BAR_WIDTH = 33;
+const DETAIL_LEVELS: MetricsDetailLevel[] = ["basic", "middle", "detailed"];
 
 function formatCtxNum(n: number): string {
   return n.toLocaleString("en-US");
 }
-
 
 function hasCtxData(s: SlotMetrics): boolean {
   return s.nCtxSlot !== null || s.contextSize > 0;
@@ -31,7 +33,12 @@ function hasSpeedData(s: SlotMetrics): boolean {
   return false;
 }
 
-function slotHeight(s: SlotMetrics): number {
+function slotHeight(s: SlotMetrics, level: MetricsDetailLevel): number {
+  if (level === "basic") return 1;
+  if (level === "middle") {
+    return 3; // header + ctx bar + speeds always
+  }
+  // detailed
   let h = 1;
   if (hasCtxData(s)) h++;
   if (hasSpeedData(s)) h++;
@@ -45,6 +52,7 @@ export class MetricsPanel extends Scrollable {
   protected _unsub: (() => void) | null = null;
   protected _renderTimer: ReturnType<typeof setTimeout> | null = null;
   protected _spinnerTimer: ReturnType<typeof setInterval> | null = null;
+  protected _detailLevel: MetricsDetailLevel = "detailed";
 
   constructor() {
     super();
@@ -59,13 +67,33 @@ export class MetricsPanel extends Scrollable {
     }, SPINNER_INTERVAL);
   }
 
+  get detailLevel(): MetricsDetailLevel {
+    return this._detailLevel;
+  }
+
+  set detailLevel(level: MetricsDetailLevel) {
+    this._detailLevel = level;
+    this.markDirty();
+  }
+
+  setDetailLevel(level: MetricsDetailLevel): void {
+    this._detailLevel = level;
+    this.markDirty();
+  }
+
+  cycleDetailLevel(): void {
+    const idx = DETAIL_LEVELS.indexOf(this._detailLevel);
+    this._detailLevel = DETAIL_LEVELS[(idx + 1) % DETAIL_LEVELS.length];
+    this.markDirty();
+  }
+
   measure(parentSize?: Size): Size {
     const slots = getSlots();
     const global = getGlobal();
     const numSlots = slots.length;
-    const globalLines = global ? 2 : 1;
+    const globalLines = global ? (this._detailLevel === "basic" ? 1 : 2) : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
-    const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
+    const slotLines = slots.reduce((sum, s) => sum + slotHeight(s, this._detailLevel), 0);
     const gapBetweenSlots = Math.max(0, numSlots - 1);
     const totalHeight = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     return {
@@ -83,9 +111,9 @@ export class MetricsPanel extends Scrollable {
     const slots = getSlots();
     const numSlots = slots.length;
 
-    const globalLines = global ? 2 : 1;
+    const globalLines = global ? (this._detailLevel === "basic" ? 1 : 2) : 1;
     const gapAfterGlobal = numSlots > 0 ? 1 : 0;
-    const slotLines = slots.reduce((sum, s) => sum + slotHeight(s), 0);
+    const slotLines = slots.reduce((sum, s) => sum + slotHeight(s, this._detailLevel), 0);
     const gapBetweenSlots = Math.max(0, numSlots - 1);
     const contentH = globalLines + gapAfterGlobal + slotLines + gapBetweenSlots;
     this.contentHeight = contentH;
@@ -95,6 +123,7 @@ export class MetricsPanel extends Scrollable {
 
     let cy = 0;
     if (global) {
+      // Global line 1: tasks, PP, TG (+ tokens in non-basic)
       if (cy - scrollOff + y < bottom) {
         canvas.moveTo(x, cy - scrollOff + y);
         fg(canvas, "textMuted", "Tasks ");
@@ -103,27 +132,33 @@ export class MetricsPanel extends Scrollable {
         fg(canvas, "info", `${global.avgPromptSpeed.toFixed(1)} t/s`);
         fg(canvas, "textMuted", `  |  TG `);
         fg(canvas, "success", `${global.avgGenSpeed.toFixed(1)} t/s`);
-        fg(canvas, "textMuted", `  |  Tokens `);
-        fg(canvas, "info", `${formatNum(global.totalPromptTokens)}p`);
-        fg(canvas, "textMuted", " / ");
-        fg(canvas, "success", `${formatNum(global.totalOutputTokens)}o`);
-      }
-      cy++;
-
-      if (cy - scrollOff + y < bottom) {
-        canvas.moveTo(x, cy - scrollOff + y);
-        fg(canvas, "textMuted", "  Draft ");
-        fg(canvas, "accentColor", formatDraftRate(global.avgDraftAcceptance));
-        if (global.activeSlots > 0) {
-          fg(canvas, "textMuted", `  |  Active `);
-          fg(canvas, "warning", String(global.activeSlots));
+        if (this._detailLevel !== "basic") {
+          fg(canvas, "textMuted", `  |  Tokens `);
+          fg(canvas, "info", `${formatNum(global.totalPromptTokens)}`);
+          fg(canvas, "textMuted", " / ");
+          fg(canvas, "success", `${formatNum(global.totalOutputTokens)}`);
         }
       }
       cy++;
+
+      if (this._detailLevel !== "basic") {
+        // Global line 2: draft, active
+        if (cy - scrollOff + y < bottom) {
+          canvas.moveTo(x, cy - scrollOff + y);
+          fg(canvas, "textMuted", "  Draft ");
+          fg(canvas, "accentColor", formatDraftRate(global.avgDraftAcceptance));
+          if (global.activeSlots > 0) {
+            fg(canvas, "textMuted", `  |  Active `);
+            fg(canvas, "warning", String(global.activeSlots));
+          }
+        }
+        cy++;
+      }
     } else {
       if (cy - scrollOff + y < bottom) {
         canvas.moveTo(x, cy - scrollOff + y);
-        fg(canvas, "textMuted", "No finished tasks yet - start server and send a request");
+        fg(canvas, "textMuted", "No session metrics yet");
+        cy++;
       }
       cy++;
     }
@@ -143,7 +178,7 @@ export class MetricsPanel extends Scrollable {
 
       if (cy - scrollOff + y >= bottom) break;
 
-      const slotH = slotHeight(slot);
+      const slotH = slotHeight(slot, this._detailLevel);
       this.renderSlot(canvas, x, cy - scrollOff + y, cw, slot);
       cy += slotH;
     }
@@ -160,13 +195,51 @@ export class MetricsPanel extends Scrollable {
     width: number,
     slot: SlotMetrics
   ): void {
-    let cy = startY;
     const stateColor = STATE_COLOR[slot.state] || "textMuted";
     const dot = slot.state === "idle" ? "\u25cb" : spinnerChar();
     const isActive = slot.state !== "idle";
     const rightCol = 42;
 
-    // 1. Header
+    if (this._detailLevel === "basic") {
+      // Single row: state + ctx numbers | PP | TG
+      canvas.moveTo(x, startY);
+      fg(canvas, "textMuted", `Slot ${slot.slotId}  `);
+      fg(canvas, stateColor, `${dot} ${slot.state}`);
+      if (slot.taskId !== null) {
+        fg(canvas, "textMuted", `  Task #`);
+        fg(canvas, "text", String(slot.taskId));
+      }
+      if (slot.thinking) {
+        fg(canvas, "accentColor", `  ${THINKING_ICON}`);
+      }
+
+      // Ctx numbers (no bar)
+      if (hasCtxData(slot)) {
+        const limit = slot.nCtxSlot;
+        if (limit !== null && limit > 0) {
+          const used = slot.cachedTokens ?? slot.contextSize;
+          fg(canvas, "textMuted", `  \u2502  Ctx `);
+          fg(canvas, "text", `${formatCtxNum(used)} / ${formatCtxNum(limit)}`);
+        } else if (slot.contextSize > 0) {
+          fg(canvas, "textMuted", `  \u2502  Ctx `);
+          fg(canvas, "text", `${formatCtxNum(slot.contextSize)}`);
+        }
+      }
+
+      // Speeds inline
+      const lt = slot.lastTask;
+      const ppSpeed = slot.state === "prompting" ? slot.promptSpeed : lt?.promptSpeed ?? null;
+      const tgSpeed = slot.state === "generating" ? slot.generationSpeed : lt?.outputSpeed ?? null;
+
+      fg(canvas, "textMuted", `  \u2502  PP `);
+      fg(canvas, "info", ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s` : "-");
+      fg(canvas, "textMuted", `  \u2502  TG `);
+      fg(canvas, "success", tgSpeed !== null ? `${tgSpeed.toFixed(1)} t/s` : "-");
+      return;
+    }
+
+    // Middle and detailed: header row
+    let cy = startY;
     canvas.moveTo(x, cy);
     fg(canvas, "textMuted", `Slot ${slot.slotId}  `);
     fg(canvas, stateColor, `${dot} ${slot.state}`);
@@ -179,11 +252,10 @@ export class MetricsPanel extends Scrollable {
     }
     cy++;
 
-    // 2. Ctx bar
+    // Ctx bar (middle + detailed)
+    canvas.moveTo(x, cy);
+    fg(canvas, "textMuted", "  Ctx  ");
     if (hasCtxData(slot)) {
-      canvas.moveTo(x, cy);
-      fg(canvas, "textMuted", "  Ctx  ");
-
       const limit = slot.nCtxSlot;
       if (limit !== null && limit > 0) {
         const used = slot.cachedTokens ?? slot.contextSize;
@@ -208,48 +280,51 @@ export class MetricsPanel extends Scrollable {
       } else if (slot.contextSize > 0) {
         fg(canvas, "text", `${formatCtxNum(slot.contextSize)} tok`);
       }
-      cy++;
+    } else {
+      fg(canvas, "textMuted", "-");
+    }
+    cy++;
+
+    // Speeds (middle + detailed)
+    canvas.moveTo(x, cy);
+    const lt = slot.lastTask;
+
+    const ppSpeed = slot.state === "prompting" ? slot.promptSpeed : lt?.promptSpeed ?? null;
+    const tgSpeed = slot.state === "generating" ? slot.generationSpeed : lt?.outputSpeed ?? null;
+
+    fg(canvas, "textMuted", "  PP   ");
+    if (ppSpeed !== null) {
+      const ppText = slot.state === "prompting" && slot.promptProgress !== null
+        ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`
+        : `${ppSpeed.toFixed(1)} t/s`;
+      fg(canvas, "info", ppText);
+    } else {
+      fg(canvas, "textMuted", "-");
     }
 
-    // 3. Speeds
-    if (hasSpeedData(slot)) {
-      canvas.moveTo(x, cy);
-      const lt = slot.lastTask;
+    const leftLen = 7 + (ppSpeed !== null
+      ? (slot.state === "prompting" && slot.promptProgress !== null
+        ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`.length
+        : `${ppSpeed.toFixed(1)} t/s`.length)
+      : 1);
+    const rightPad = Math.max(2, rightCol - leftLen);
 
-      const ppSpeed = slot.state === "prompting" ? slot.promptSpeed : lt?.promptSpeed ?? null;
-      const tgSpeed = slot.state === "generating" ? slot.generationSpeed : lt?.outputSpeed ?? null;
-
-      fg(canvas, "textMuted", "  PP   ");
-      if (ppSpeed !== null) {
-        const ppText = slot.state === "prompting" && slot.promptProgress !== null
-          ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`
-          : `${ppSpeed.toFixed(1)} t/s`;
-        fg(canvas, "info", ppText);
-      } else {
-        fg(canvas, "textMuted", "-");
+    fg(canvas, "canvas", " ".repeat(rightPad));
+    fg(canvas, "textMuted", "TG   ");
+    if (tgSpeed !== null) {
+      fg(canvas, "success", `${tgSpeed.toFixed(1)} t/s`);
+      if (slot.state === "generating" && slot.decodedTokens !== null) {
+        fg(canvas, "textMuted", ` (${slot.decodedTokens} tok)`);
       }
-
-      const leftLen = 7 + (ppSpeed !== null
-        ? (slot.state === "prompting" && slot.promptProgress !== null
-          ? `${ppSpeed.toFixed(1)} t/s (${(slot.promptProgress * 100).toFixed(0)}%)`.length
-          : `${ppSpeed.toFixed(1)} t/s`.length)
-        : 1);
-      const rightPad = Math.max(2, rightCol - leftLen);
-
-      fg(canvas, "canvas", " ".repeat(rightPad));
-      fg(canvas, "textMuted", "TG   ");
-      if (tgSpeed !== null) {
-        fg(canvas, "success", `${tgSpeed.toFixed(1)} t/s`);
-        if (slot.state === "generating" && slot.decodedTokens !== null) {
-          fg(canvas, "textMuted", ` (${slot.decodedTokens} tok)`);
-        }
-      } else {
-        fg(canvas, "textMuted", "-");
-      }
-      cy++;
+    } else {
+      fg(canvas, "textMuted", "-");
     }
+    cy++;
 
-    // 4. Last task
+    // Middle mode stops here
+    if (this._detailLevel === "middle") return;
+
+    // Detailed: last task
     if (slot.lastTask) {
       canvas.moveTo(x, cy);
       const lt = slot.lastTask;
@@ -272,7 +347,7 @@ export class MetricsPanel extends Scrollable {
       cy++;
     }
 
-    // 5. Checkpoints
+    // Detailed: checkpoints
     if (slot.checkpoints.length > 0) {
       canvas.moveTo(x, cy);
       const totalChkMiB = slot.checkpoints.reduce((s, cp) => s + cp.sizeMiB, 0);
