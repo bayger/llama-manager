@@ -8,7 +8,7 @@ import { logParser } from "./logparser";
 import { processLine as processMetricLine, reset as resetMetrics } from "./metricstracker";
 import { processModelLine, resetModelInfo } from "../ui/specialized/LoadedModelPanel";
 import { taskStore } from "./tasks";
-import { detectForkFromFolder, resolveBinaryName, isForkCompatibleWithPreset, isFieldCompatibleWithFork } from "./forks";
+import { detectForkFromFolder, resolveBinaryName, isForkCompatibleWithPreset, isFieldCompatibleWithFork, getFieldFlag, isNegateInverted, getFieldTransform } from "./forks";
 
 function resolveServerBinary(versionPath: string): string | null {
   if (os.platform() === "win32") {
@@ -251,16 +251,30 @@ export function buildArgs(config: ConfigData, logFile: string): string[] {
       // Skip sentinel values
       if (field.skipValue !== undefined && value === field.skipValue) continue;
 
-      if (typeof value === "boolean") {
-        if (field.negate) {
+      // Resolve fork-specific flag
+      const flag = getFieldFlag(forkId, field.key, cat.presetKey, field.flag);
+      if (!flag) continue;
+
+      // Apply value transform if fork defines one
+      let processedValue: unknown = value;
+      const transform = getFieldTransform(forkId, field.key, cat.presetKey);
+      if (transform) {
+        processedValue = transform(value);
+      }
+
+      const negateInverted = isNegateInverted(forkId, field.key, cat.presetKey);
+      const effectiveNegate = field.negate ? !negateInverted : negateInverted;
+
+      if (typeof processedValue === "boolean") {
+        if (effectiveNegate) {
           // default=true: push --no-X when false
-          if (!value) args.push(`--no-${field.flag.substring(2)}`);
+          if (!processedValue) args.push(`--no-${flag.substring(2)}`);
         } else {
           // default=false: push --X when true
-          if (value) args.push(field.flag);
+          if (processedValue) args.push(flag);
         }
       } else {
-        args.push(field.flag, String(value));
+        args.push(flag, String(processedValue));
       }
     }
   }

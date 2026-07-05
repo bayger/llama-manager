@@ -9,6 +9,7 @@ import {
 import type { RenderContext } from "../../framework/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
 import { createDeviceSelectorModal } from "./DeviceSelectorModal";
+import { createMmprojSelectorModal } from "./MmprojSelectorModal";
 import type { TabContext } from "../../lib/tabcontext";
 import { fireAsync } from "../../lib/utils";
 import { detectForkFromFolder, isForkCompatibleWithPreset, isFieldCompatibleWithFork } from "../../lib/forks";
@@ -194,8 +195,12 @@ export class SettingsPanel extends EditableList {
 
     if (key === "RETURN" || key === "ENTER") {
       const row = this._rows[this._selectedIndex];
-      if (row && row.type === "field" && (row.field as ModalFieldDef)?.modal) {
-        this.openDeviceSelector(row);
+      if (row && row.type === "field" && row.field && (row.field as ModalFieldDef)?.modal) {
+        if (row.field.key === "mmproj") {
+          this.openMmprojSelector(row);
+        } else {
+          this.openDeviceSelector(row);
+        }
         return true;
       }
     }
@@ -236,6 +241,39 @@ export class SettingsPanel extends EditableList {
         const profileName = this._editingProfile || config.server.activeProfile;
         const presets = config.server.profiles[profileName]?.presets;
         const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
+        if (presetData) {
+          presetData[field.key] = result;
+          try {
+            saveConfig(config);
+            this._onMessage?.(`Set ${field.key} to: ${result}`);
+          } catch (e) {
+            this._onMessage?.(`Error saving: ${e}`);
+          }
+        }
+      }
+    }, ctx);
+  }
+
+  protected openMmprojSelector(row: import("./EditableList").EditableRowInfo): void {
+    const config = this._config;
+    const ctx = this._ctx;
+    if (!config || !ctx) return;
+    const field = row.field!;
+
+    fireAsync(async () => {
+      const modal = createMmprojSelectorModal(config);
+      const items = await modal.scanMmprojs();
+      const profileName = this._editingProfile || config.server.activeProfile;
+      const presets = config.server.profiles[profileName]?.presets;
+      const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
+      const currentMmproj = presetData?.mmproj as string | null;
+      modal.setItems(items, currentMmproj);
+      modal.title = "Select mmproj file";
+      modal.setMinSize(40, 8);
+      modal.setMaxSize(80, 22);
+
+      const result = await ctx.openModal<string | null>(modal);
+      if (result !== null) {
         if (presetData) {
           presetData[field.key] = result;
           try {

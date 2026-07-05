@@ -200,5 +200,6 @@ export class Application {
     }
     focusManager.clear();
     this._root.destroy();
+    this._term(CURSOR_SHOW);
   }
 }

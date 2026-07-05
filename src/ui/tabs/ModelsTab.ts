@@ -1,3 +1,4 @@
+import path from "path";
 import { Control } from "../../framework/Control";
 import { Column, Row } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
@@ -15,10 +16,11 @@ import {
   downloadModel,
   LocalModel,
   getTotalModelsSize,
+  findAssociatedMmprojs,
 } from "../../lib/models";
 import { formatSize } from "../../lib/utils";
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
-import { saveConfig } from "../../lib/config";
+import { saveConfig, getModelsDir, ConfigData } from "../../lib/config";
 import { fireAsync, formatDate } from "../../lib/utils";
 import { createDownloadDialog } from "../../framework/widgets/DownloadDialog";
 import { createConfirmDialog } from "../../framework/widgets/ConfirmDialog";
@@ -60,6 +62,7 @@ export class ModelsControl extends Control {
   protected _hfPrevBtn: Button;
   protected _hfNextBtn: Button;
   protected _hfCancelBtn: Button;
+  protected _hfMmprojBtn: Button;
 
   // HF Browser state
   protected _searchQuery = "";
@@ -100,7 +103,9 @@ export class ModelsControl extends Control {
         align: "left",
         format: (v, row: LocalModel) => {
           const m = row;
-          return m.active ? `✓ ${m.repoId}/${m.filename}` : `  ${m.repoId}/${m.filename}`;
+          const activePrefix = m.active ? "✓ " : "  ";
+          const typePrefix = m.isMmproj ? "[mm] " : "     ";
+          return `${activePrefix}${typePrefix}${m.repoId}/${m.filename}`;
         },
       },
       {
@@ -195,7 +200,10 @@ export class ModelsControl extends Control {
         width: 30,
         flex: 1,
         align: "left",
-        format: (v, row: HFFileInfo) => row.path,
+        format: (v, row: HFFileInfo) => {
+          const prefix = row.isMmproj ? "[mm] " : "     ";
+          return `${prefix}${row.path}`;
+        },
       },
       {
         label: "Size",
@@ -233,16 +241,19 @@ export class ModelsControl extends Control {
     this._hfPrevBtn = new Button({ label: "Prev Page" });
     this._hfNextBtn = new Button({ label: "Next Page" });
     this._hfCancelBtn = new Button({ label: "Cancel" });
+    this._hfMmprojBtn = new Button({ label: "As mmproj" });
     this._hfBackBtn.visible = false;
     this._hfPrevBtn.visible = false;
     this._hfNextBtn.visible = false;
     this._hfCancelBtn.visible = false;
+    this._hfMmprojBtn.visible = false;
     this._hfButtonRow = new Row();
     this._hfButtonRow.add(this._hfBackBtn);
     this._hfButtonRow.add(this._hfBrowseBtn);
     this._hfButtonRow.add(this._hfPrevBtn);
     this._hfButtonRow.add(this._hfNextBtn);
     this._hfButtonRow.add(this._hfCancelBtn);
+    this._hfButtonRow.add(this._hfMmprojBtn);
     this._hfButtonRow.add(this._hfSearchLabel);
     this._hfButtonRow.add(this._hfSearchInput);
     this._hfButtonRow.add(this._hfSearchBtn);
@@ -323,9 +334,16 @@ this._hfBackBtn.setAction(() => {
       }
     });
 
-   this._hfCancelBtn.setAction(() => {
-     this.cancelDownload();
-   });
+    this._hfCancelBtn.setAction(() => {
+      this.cancelDownload();
+    });
+
+    this._hfMmprojBtn.setAction(() => {
+      const selected = this._hfFilesList.getSelectedItem();
+      if (selected) {
+        this.downloadSelectedFileAsMmproj(selected.data!);
+      }
+    });
 
   this._hfSearchInput.setOnSubmit((value) => {
       this._searchQuery = value;
@@ -443,6 +461,7 @@ this._hfResultsList.handleKey = (key: string) => {
     this._hfBrowseBtn.visible = isSearch;
     this._hfPrevBtn.visible = isResults && this._searchPage > 0;
     this._hfNextBtn.visible = isResults && (this._searchPage + 1) * this._PAGE_SIZE < this._allRepos.length;
+    this._hfMmprojBtn.visible = isFiles;
     this._hfSearchLabel.visible = isSearch;
     this._hfSearchInput.visible = isSearch;
     this._hfButtonRow.visible = true;
@@ -592,6 +611,61 @@ this._hfResultsList.handleKey = (key: string) => {
     }
   }
 
+  // --- Download as mmproj ---
+  downloadSelectedFileAsMmproj(file: HFFileInfo): void {
+    const config = this._ctx?.getConfig();
+    if (!config || !this._selectedRepo || !this._ctx) return;
+
+    this._downloadAbortController = new AbortController();
+    const dialog = createDownloadDialog(file.path, "Preparing...");
+    const handle = dialog.getHandle();
+
+    const token = config.hfToken ?? undefined;
+
+    fireAsync(async () => {
+      try {
+        await downloadModel(
+          config,
+          this._selectedRepo!.id,
+          file.path,
+          file.size,
+          (pct, label) => {
+            handle.update(pct, label);
+          },
+          token,
+          this._downloadAbortController?.signal,
+        );
+
+        // Set as mmproj in the active profile
+        const profile = config.server.profiles[config.server.activeProfile];
+        if (profile && profile.presets.model) {
+          const mmprojPath = path.join(getModelsDir(config), this._selectedRepo!.id, file.path);
+          profile.presets.model.mmproj = mmprojPath;
+          await saveConfig(config);
+          this._ctx?.setConfig(config);
+        }
+
+        this._downloadAbortController = null;
+        handle.update(100, "Downloaded & set as mmproj!");
+        setTimeout(() => handle.close(), 500);
+        await handle.promise;
+        this._ctx?.showMessage(`Set mmproj: ${file.path}`);
+        this._view = "local";
+        this.updateView();
+        this.refreshModels();
+      } catch (err: any) {
+        this._downloadAbortController = null;
+        if (err.message === "Download cancelled") {
+          return;
+        }
+        handle.close();
+        throw err;
+      }
+    }, this._ctx);
+
+    this._ctx.openModal(dialog);
+  }
+
   // --- Local models ---
   refreshModels(): void {
     const config = this._ctx?.getConfig();
@@ -624,11 +698,30 @@ this._hfResultsList.handleKey = (key: string) => {
     if (!config) return;
 
     (async () => {
-      const updated = await setActiveModel(config, model.repoId, model.filename);
-      const profile = updated.server.profiles[updated.server.activeProfile];
-      if (profile && profile.presets.model) {
-        profile.presets.model.model = model.path;
+      let updated: ConfigData;
+      const profile = config.server.profiles[config.server.activeProfile];
+
+      if (model.isMmproj) {
+        // Only update mmproj, don't touch main model
+        updated = { ...config };
+        if (profile && profile.presets.model) {
+          profile.presets.model.mmproj = model.path;
+        }
+      } else {
+        updated = await setActiveModel(config, model.repoId, model.filename);
+        if (profile && profile.presets.model) {
+          profile.presets.model.model = model.path;
+
+          // Auto-associate mmproj if available in same directory
+          if (!profile.presets.model.mmproj) {
+            const mmprojs = await findAssociatedMmprojs(model.path);
+            if (mmprojs.length > 0) {
+              profile.presets.model.mmproj = mmprojs[0]!.path;
+            }
+          }
+        }
       }
+
       await saveConfig(updated);
       this._ctx?.setConfig(updated);
       this._ctx?.showMessage(`Selected ${model.filename}`);

@@ -1,29 +1,27 @@
 import type { Terminal } from "terminal-kit";
-import { setActiveTheme, setThemeMode, fg, getThemeMode } from "./lib/theme";
+import { setActiveTheme, setThemeMode, getThemeMode } from "./lib/theme";
 import { loadConfig, saveConfig, ConfigData } from "./lib/config";
 import { taskStore } from "./lib/tasks";
 import { stopServer, setMaxLogLines, getStatus } from "./lib/server";
 import { checkForUpdate } from "./lib/updates";
 import { createUpdateInfoModal } from "./ui/specialized/UpdateInfoModal";
+import { createHelpModal } from "./ui/specialized/HelpModal";
 import type { TabContext } from "./lib/tabcontext";
 import type { Modal } from "./framework/widgets/Modal";
 import pkg from "../package.json";
 import { createExitDialog } from "./framework/widgets/ExitDialog";
 import { createThemeSelectorModal } from "./ui/specialized/ThemeSelectorModal";
 import { createStoppingServerModal } from "./ui/specialized/StoppingServerModal";
-import { MainControl, TABS } from "./ui/MainControl";
-import type { TabId } from "./ui/MainControl";
+import { MainControl } from "./ui/MainControl";
 import { Application } from "./framework/Application";
 import { modalManager } from "./framework/ModalManager";
 import { focusManager } from "./framework/FocusManager";
-import type { FramebufferCanvas } from "./lib/framebuffer-canvas";
 
 export class LlamaManagerApp {
   protected _app: Application | null = null;
   protected _main: MainControl | null = null;
   protected _ctx: TabContext | null = null;
   protected _config: ConfigData | null = null;
-  protected _helpOverlayVisible = false;
 
   constructor(public term: Terminal) {}
 
@@ -102,9 +100,7 @@ export class LlamaManagerApp {
       term: this.term,
       root: this._main,
       handleAppKey: (key: string) => this.handleAppKey(key),
-      renderOverlay: (canvas: FramebufferCanvas, width: number, height: number) => {
-        return this._helpOverlayVisible ? this.renderHelpOverlay(canvas, width, height) : false;
-      },
+      renderOverlay: () => false,
       onQuit: () => this.handleQuit(),
     });
 
@@ -159,15 +155,8 @@ export class LlamaManagerApp {
       return true;
     }
 
-    if (key === "?" && !textActive) {
-      this._helpOverlayVisible = !this._helpOverlayVisible;
-      this.forceRender();
-      return true;
-    }
-
-    if (this._helpOverlayVisible && (key === "?" || key === "Escape")) {
-      this._helpOverlayVisible = false;
-      this.forceRender();
+    if (key === "?" && !textActive && !modalManager.isOpen()) {
+      this._ctx!.openModal(createHelpModal());
       return true;
     }
 
@@ -190,82 +179,7 @@ export class LlamaManagerApp {
     }
   }
 
-  protected renderHelpOverlay(canvas: FramebufferCanvas, width: number, height: number): boolean {
-    const overlayY = 3;
-    const overlayHeight = height - 4;
 
-    const helpSections = [
-      {
-        title: "Navigation",
-        keys: [
-          ["F1-F7", "Switch tabs"],
-          ["Tab / Shift+Tab", "Move focus"],
-          ["Enter", "Confirm / select"],
-          ["Esc", "Cancel / go back"],
-        ],
-      },
-      {
-        title: "Actions",
-        keys: [
-          ["?", "Toggle help"],
-          ["Ctrl+T", "Open theme selector"],
-          ["Ctrl+D", "Toggle dark/light mode"],
-          ["Ctrl+U", "Check for updates"],
-          ["q", "Quit application"],
-        ],
-      },
-      {
-        title: "Tab Shortcuts",
-        keys: [
-          ["F1", "Dashboard - metrics and server control"],
-          ["F2", "Logs - live server log viewer"],
-          ["F3", "Tasks - inference task history"],
-          ["F4", "Profiles - preset editing and management"],
-          ["F5", "Versions - install and switch llama.cpp builds"],
-          ["F6", "Models - browse, download, and manage GGUF models"],
-          ["F7", "Options - global application settings"],
-        ],
-      },
-    ];
-
-    const contentLines: { text: string; key: string; desc: string; isTitle: boolean; isHeader: boolean }[] = [];
-    contentLines.push({ text: "  KEYBOARD SHORTCUTS", key: "", desc: "", isTitle: true, isHeader: false });
-    contentLines.push({ text: "", key: "", desc: "", isTitle: false, isHeader: false });
-
-    for (const section of helpSections) {
-      contentLines.push({ text: `  ${section.title}`, key: "", desc: "", isTitle: false, isHeader: true });
-      for (const [key, desc] of section.keys) {
-        contentLines.push({ text: `    ${key.padEnd(22)}     ${desc}`, key, desc, isTitle: false, isHeader: false });
-      }
-      contentLines.push({ text: "", key: "", desc: "", isTitle: false, isHeader: false });
-    }
-
-    const contentHeight = contentLines.length;
-    const startY = overlayY + Math.max(1, Math.floor((overlayHeight - contentHeight) / 2));
-
-    canvas.setForegroundColor("canvas");
-    canvas.setBackgroundColor("canvasSubtle");
-    canvas.clearRect(1, overlayY, width, height - overlayY);
-
-    for (let i = 0; i < overlayHeight && i < contentLines.length; i++) {
-      const line = contentLines[i]!;
-      const y = startY + i;
-      canvas.moveTo(1, y);
-
-      if (line.isTitle) {
-        fg(canvas, "accent", line.text);
-      } else if (line.isHeader) {
-        fg(canvas, "accentColor", line.text);
-      } else if (line.key) {
-        fg(canvas, "accent", `    ${line.key}`);
-        fg(canvas, "text", `     ${line.desc}`);
-      } else {
-        fg(canvas, "canvasSubtle", line.text);
-      }
-    }
-
-    return true;
-  }
 
   protected async handleQuit(): Promise<void> {
     if (!getStatus().running) {
