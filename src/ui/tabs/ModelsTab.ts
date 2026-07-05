@@ -20,7 +20,7 @@ import {
 } from "../../lib/models";
 import { formatSize } from "../../lib/utils";
 import { browseModels, listFiles, HFRepoInfo, HFFileInfo } from "../../lib/hf";
-import { saveConfig, getModelsDir } from "../../lib/config";
+import { saveConfig, getModelsDir, ConfigData } from "../../lib/config";
 import { fireAsync, formatDate } from "../../lib/utils";
 import { createDownloadDialog } from "../../framework/widgets/DownloadDialog";
 import { createConfirmDialog } from "../../framework/widgets/ConfirmDialog";
@@ -698,19 +698,30 @@ this._hfResultsList.handleKey = (key: string) => {
     if (!config) return;
 
     (async () => {
-      const updated = await setActiveModel(config, model.repoId, model.filename);
-      const profile = updated.server.profiles[updated.server.activeProfile];
-      if (profile && profile.presets.model) {
-        profile.presets.model.model = model.path;
+      let updated: ConfigData;
+      const profile = config.server.profiles[config.server.activeProfile];
 
-        // Auto-associate mmproj if available in same directory
-        if (!profile.presets.model.mmproj) {
-          const mmprojs = await findAssociatedMmprojs(model.path);
-          if (mmprojs.length > 0) {
-            profile.presets.model.mmproj = mmprojs[0]!.path;
+      if (model.isMmproj) {
+        // Only update mmproj, don't touch main model
+        updated = { ...config };
+        if (profile && profile.presets.model) {
+          profile.presets.model.mmproj = model.path;
+        }
+      } else {
+        updated = await setActiveModel(config, model.repoId, model.filename);
+        if (profile && profile.presets.model) {
+          profile.presets.model.model = model.path;
+
+          // Auto-associate mmproj if available in same directory
+          if (!profile.presets.model.mmproj) {
+            const mmprojs = await findAssociatedMmprojs(model.path);
+            if (mmprojs.length > 0) {
+              profile.presets.model.mmproj = mmprojs[0]!.path;
+            }
           }
         }
       }
+
       await saveConfig(updated);
       this._ctx?.setConfig(updated);
       this._ctx?.showMessage(`Selected ${model.filename}`);
