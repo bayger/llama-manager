@@ -17,6 +17,16 @@ export interface HFFileInfo {
   rfpath: string;
   size: number;
   type: string;
+  isMmproj: boolean;
+}
+
+/** Detects whether a file is a multimodal projector by filename patterns. */
+function isMmprojFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.includes("mmproj") ||
+    lower.includes("projector") ||
+    lower.includes("-clip.") ||
+    lower.includes("-vision.");
 }
 
 export async function searchRepos(
@@ -62,7 +72,7 @@ if (!res.ok) {
   }
   const data = await res.json();
   return data
-    .map((entry: any) => ({ path: entry.path, rfpath: entry.path, size: entry.size, type: entry.type }))
+    .map((entry: any) => ({ path: entry.path, rfpath: entry.path, size: entry.size, type: entry.type, isMmproj: isMmprojFile(entry.path) }))
     .filter((f: HFFileInfo) => f.rfpath.endsWith(".gguf"));
 }
 

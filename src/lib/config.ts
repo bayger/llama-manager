@@ -139,7 +139,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
       { key: "hfRepo", flag: "--hf-repo", type: "string", default: null, description: "HF repo (user/model[:quant])", advanced: true },
       { key: "chatTemplate", flag: "--chat-template", type: "string", default: null, description: "Chat template name" },
       { key: "jinja", flag: "--jinja", type: "boolean", default: true, description: "Jinja template engine", negate: true },
-      { key: "mmproj", flag: "--mmproj", type: "string", default: null, description: "Multimodal projector path" },
+      { key: "mmproj", flag: "--mmproj", type: "string", default: null, description: "Multimodal projector path", modal: true },
       { key: "mmprojAuto", flag: "--mmproj-auto", type: "boolean", default: true, description: "Auto-download mmproj", advanced: true, negate: true },
       { key: "mmprojOffload", flag: "--mmproj-offload", type: "boolean", default: true, description: "GPU offload mmproj", advanced: true, negate: true },
       { key: "chatTemplateFile", flag: "--chat-template-file", type: "string", default: null, description: "Chat template file", advanced: true },

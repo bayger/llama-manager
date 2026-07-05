@@ -12,6 +12,41 @@ export interface LocalModel {
   sizeBytes: number;
   downloadedAt: string;
   active: boolean;
+  isMmproj: boolean;
+}
+
+/** Detects whether a .gguf file is a multimodal projector by filename patterns. */
+export function isMmprojFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  return lower.includes("mmproj") ||
+    lower.includes("projector") ||
+    lower.includes("-clip.") ||
+    lower.includes("-vision.");
+}
+
+/** Finds mmproj files that could pair with a given model in the same directory. */
+export async function findAssociatedMmprojs(modelPath: string): Promise<LocalModel[]> {
+  const dir = path.dirname(modelPath);
+  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+  const mmprojs: LocalModel[] = [];
+  for (const entry of entries) {
+    if (entry.isFile() && entry.name.endsWith(".gguf") && isMmprojFile(entry.name)) {
+      const fullPath = path.join(dir, entry.name);
+      const stat = await fs.stat(fullPath).catch(() => null);
+      if (stat) {
+        mmprojs.push({
+          repoId: "",
+          filename: entry.name,
+          path: fullPath,
+          sizeBytes: stat.size,
+          downloadedAt: stat.mtime.toISOString(),
+          active: false,
+          isMmproj: true,
+        });
+      }
+    }
+  }
+  return mmprojs;
 }
 
 export async function listLocalModels(config: ConfigData): Promise<LocalModel[]> {
@@ -44,6 +79,7 @@ async function scanDir(
     } else if (entry.name.endsWith(".gguf")) {
       const repoId = repoParts.join("/");
       const stat = await fs.stat(fullPath);
+      const mmproj = isMmprojFile(entry.name);
       results.push({
         repoId,
         filename: entry.name,
@@ -53,6 +89,7 @@ async function scanDir(
         active:
           activeModel === `${repoId}/${entry.name}` ||
           activeModel === fullPath,
+        isMmproj: mmproj,
       });
     }
   }

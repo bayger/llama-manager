@@ -35,6 +35,8 @@ export interface ParsedModelInfo {
   kvCacheTypeV: string;
   kvCacheSize: string;
   deviceMemory: DeviceMemoryUsage[];
+  mmprojPath: string | null;
+  mmprojName: string | null;
 }
 
 const emitter = new EventEmitter();
@@ -48,6 +50,10 @@ export function onModelInfoChange(listener: () => void): () => void {
 let currentModel: ParsedModelInfo | null = null;
 
 const reLoadModel = /srv\s+load_model: loading model '([^']+)'/;
+// mmproj can be loaded via various patterns:
+// "llama_model_loader: loading model part 'mmproj.gguf'"
+// "llava: loading llava model from 'path'"
+const reLoadMmproj = /loading model part '([^']+)'/;
 const reArch = /print_info: arch\s+= (\S+)/;
 const reParams = /print_info: model params\s+= ([\d.]+\s+\w+)/;
 const reQuant = /print_info: file type\s+= (\S+)/;
@@ -96,6 +102,20 @@ export function processModelLine(line: string): void {
     accum.name = name;
     notify();
     return;
+  }
+
+  // Detect mmproj loading (happens after main model)
+  if (accum.name && !accum.mmprojPath && (m = line.match(reLoadMmproj))) {
+    const mmprojPath = m[1];
+    const mmprojFile = mmprojPath.split("/").pop() || mmprojPath;
+    // Only treat as mmproj if the filename matches mmproj patterns
+    const lower = mmprojFile.toLowerCase();
+    if (lower.includes("mmproj") || lower.includes("projector") || lower.includes("-clip.") || lower.includes("-vision.")) {
+      accum.mmprojPath = mmprojPath;
+      accum.mmprojName = mmprojFile;
+      notify();
+      return;
+    }
   }
 
   if ((m = line.match(reArch))) {
@@ -302,6 +322,8 @@ export function processModelLine(line: string): void {
         kvCacheTypeV: accum.kvCacheTypeV || "(unknown)",
         kvCacheSize: accum.kvCacheSize || "(unknown)",
         deviceMemory: Array.from(deviceMemoryMap.values()),
+        mmprojPath: accum.mmprojPath || null,
+        mmprojName: accum.mmprojName || null,
       };
       notify();
     }
@@ -357,6 +379,7 @@ export class LoadedModelPanel extends Control {
       return { width: parentSize?.width ?? this.rect.width, height: 1 };
     }
     let height = 4;
+    if (model.mmprojName) height += 1;
     const usedDevices = model.deviceMemory.filter(d => d.modelMiB + d.contextMiB + d.computeMiB > 0);
     if (usedDevices.length > 0) {
       height += 1 + usedDevices.length;
@@ -399,6 +422,16 @@ export class LoadedModelPanel extends Control {
     fg(canvas, "text", `${fmtCtx(model.contextRuntime)}`);
     fg(canvas, "textMuted", ` / ${fmtCtx(model.contextTrain)}`);
     cy++;
+
+    // mmproj info
+    if (model.mmprojName) {
+      if (cy >= y + this.rect.height) return;
+      canvas.moveTo(x, cy);
+      fg(canvas, "textMuted", "  ");
+      fg(canvas, "textMuted", "mmproj ");
+      fg(canvas, "warning", model.mmprojName);
+      cy++;
+    }
 
     if (cy >= y + this.rect.height) return;
     canvas.moveTo(x, cy);
