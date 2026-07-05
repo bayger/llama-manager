@@ -243,7 +243,10 @@ export class OptionsPanel extends EditableList {
       fgBg(canvas, "warning", "canvasSubtle", keyStr);
       fgBg(canvas, "selected", "canvas", value);
     } else {
-      const value = formatFieldValue(field, data?.[field.key]);
+      let value = formatFieldValue(field, data?.[field.key]);
+      if (field.key === "hfToken" && value !== "(null)") {
+        value = "•".repeat(Math.min(value.length, 16));
+      }
 
       let extra = "";
       if (isHighlighted && (field.type === "boolean" || field.type === "enum")) {
