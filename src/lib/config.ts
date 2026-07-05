@@ -70,6 +70,9 @@ export interface ConfigData {
   dashboard: {
     pollIntervalMs: number;
     killServerOnExit: boolean;
+    modelDetailLevel: "basic" | "middle" | "detailed";
+    metricsDetailLevel: "basic" | "middle" | "detailed";
+    chartMode: "speed" | "tokens" | "dense";
   };
   logs: {
     maxLogLines: number;
@@ -434,6 +437,9 @@ const DEFAULT_CONFIG: ConfigData = {
   dashboard: {
     pollIntervalMs: 2000,
     killServerOnExit: false,
+    modelDetailLevel: "detailed",
+    metricsDetailLevel: "detailed",
+    chartMode: "speed",
   },
   logs: {
     maxLogLines: 2000,
