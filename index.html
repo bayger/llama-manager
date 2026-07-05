@@ -145,7 +145,9 @@
     margin-top: 24px; display: flex; justify-content: center;
     gap: 24px; font-size: 13px; color: var(--text-muted);
   }
-  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+   .hero-meta span { display: flex; align-items: center; gap: 6px; }
+   .hero-meta a { display: flex; align-items: center; }
+   .hero-meta img { height: 20px; }
 
   /* ── SECTIONS ── */
   section { border-bottom: 1px solid var(--border); }
@@ -406,7 +408,9 @@
       <button class="copy-btn" onclick="copyInstall()" aria-label="Copy install command to clipboard">copy</button>
     </div>
     <div class="hero-meta">
-      <span>v1.7.0</span>
+      <a href="https://github.com/bayger/llama-manager/releases" target="_blank" rel="noopener">
+        <img src="https://img.shields.io/github/v/release/bayger/llama-manager?style=flat-square&label=version&color=549e6a" alt="Latest version" />
+      </a>
       <span>Apache 2.0</span>
       <span>Node 18+</span>
     </div>
