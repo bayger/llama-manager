@@ -6,6 +6,7 @@ import { Section } from "../../framework/widgets/Section";
 import { SelectorLabel } from "../../framework/widgets/SelectorLabel";
 import { MetricsPanel } from "../specialized/MetricsPanel";
 import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
+import type { ModelDetailLevel } from "../specialized/LoadedModelPanel";
 import { TaskChartsSection } from "../specialized/TaskChartsSection";
 import { focusManager } from "../../framework/FocusManager";
 import { modalManager } from "../../framework/ModalManager";
@@ -88,10 +89,11 @@ export class DashboardControl extends Control {
 
     this._modelSection = new Section();
     this._modelSection.title = "Loaded Model";
+        this._modelSection.hint = "m cycle";
     this._modelSection.add(this._modelPanel);
 
     this._metricsSection = new Section();
-    this._metricsSection.title = "Realtime Metrics";
+    this._metricsSection.title = "Session Metrics";
     this._metricsSection.add(this._metricsPanel);
     this._metricsSection.flex = 1;
 
@@ -171,6 +173,7 @@ export class DashboardControl extends Control {
   draw(ctx: RenderContext): void {
     this.updateSelectors();
     this.updateButtons();
+    this.updateModelDetailLevel();
   }
 
   onFocus(): void {
@@ -180,6 +183,22 @@ export class DashboardControl extends Control {
     if (firstEnabled) {
       focusManager.setFocus(firstEnabled);
     }
+  }
+
+  handleKey(key: string): boolean {
+    if (key === "m" && !focusManager.isTextInputActive() && !modalManager.isOpen()) {
+      this._modelPanel.cycleDetailLevel();
+      const config = this._ctx?.getConfig();
+      if (config) {
+        config.dashboard.modelDetailLevel = this._modelPanel.detailLevel;
+        fireAsync(async () => {
+          const cfg = this._ctx!.getConfig();
+          if (cfg) await saveConfig(cfg);
+        }, this._ctx!);
+      }
+      return true;
+    }
+    return super.handleKey(key);
   }
 
   updateSelectors(): void {
@@ -214,6 +233,13 @@ export class DashboardControl extends Control {
       this._hintLabel.text = " Restart to apply";
     }
     this.markDirty();
+  }
+
+  updateModelDetailLevel(): void {
+    const config = this._ctx?.getConfig();
+    if (config && config.dashboard.modelDetailLevel !== this._modelPanel.detailLevel) {
+      this._modelPanel.detailLevel = config.dashboard.modelDetailLevel;
+    }
   }
 
   protected async openSelector(

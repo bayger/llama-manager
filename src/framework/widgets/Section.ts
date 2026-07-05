@@ -9,6 +9,7 @@ export class Section extends Control {
   focusable = false;
   backgroundColor = "canvasSubtle" as Color;
   public title = "";
+  public hint = "";
 
   measure(parentSize?: Size): Size {
     const p = parentSize || { width: this.rect.width || 80, height: this.rect.height || 4 };
@@ -88,6 +89,19 @@ export class Section extends Control {
     fgBg(canvas, "accentSubtle", "canvasSubtle", V);
     fgBg(canvas, "accentSubtle", "canvasSubtle", ` ${this.title}`);
     canvas.bold(false);
+    if (this.hint) {
+      const titleLen = 2 + this.title.length;
+      const hintWithPad = ` ${this.hint}`;
+      const startCol = width - 1 - hintWithPad.length;
+      if (startCol > titleLen) {
+        canvas.moveTo(x + titleLen, y + 1);
+        for (let col = titleLen; col < startCol; col++) {
+          fgBg(canvas, "accentSubtle", "canvasSubtle", " ");
+        }
+        canvas.moveTo(x + startCol, y + 1);
+        fgBg(canvas, "textMuted", "canvasSubtle", hintWithPad);
+      }
+    }
 
     // Left border
     for (let row = 2; row < height - 1; row++) {

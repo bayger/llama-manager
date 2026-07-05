@@ -351,6 +351,8 @@ export function getLoadingModelName(): string | null {
   return isModelLoading() ? accum.name || null : null;
 }
 
+export type ModelDetailLevel = "basic" | "middle" | "detailed";
+
 function fmtCtx(n: number): string {
   if (n >= 1024) return `${(n / 1024).toFixed(n % 1024 === 0 ? 0 : 1)}K`;
   return String(n);
@@ -360,6 +362,23 @@ export class LoadedModelPanel extends Control {
   focusable = false;
   protected _unsub: (() => void) | null = null;
   protected _spinnerTimer: ReturnType<typeof setInterval> | null = null;
+  protected _detailLevel: ModelDetailLevel = "detailed";
+
+  get detailLevel(): ModelDetailLevel {
+    return this._detailLevel;
+  }
+
+  set detailLevel(v: ModelDetailLevel) {
+    this._detailLevel = v;
+    this.markDirty();
+  }
+
+  cycleDetailLevel(): void {
+    const levels: ModelDetailLevel[] = ["basic", "middle", "detailed"];
+    const idx = levels.indexOf(this._detailLevel);
+    this._detailLevel = levels[(idx + 1) % levels.length]!;
+    this.markDirty();
+  }
 
   constructor() {
     super();
@@ -378,11 +397,18 @@ export class LoadedModelPanel extends Control {
     if (!model) {
       return { width: parentSize?.width ?? this.rect.width, height: 1 };
     }
-    let height = 4;
-    if (model.mmprojName) height += 1;
-    const usedDevices = model.deviceMemory.filter(d => d.modelMiB + d.contextMiB + d.computeMiB > 0);
-    if (usedDevices.length > 0) {
-      height += 1 + usedDevices.length;
+    let height = 0;
+    if (this._detailLevel === "basic") {
+      height = 1;
+    } else if (this._detailLevel === "middle") {
+      height = model.mmprojName ? 3 : 2;
+    } else {
+      height = 4;
+      if (model.mmprojName) height += 1;
+      const usedDevices = model.deviceMemory.filter(d => d.modelMiB + d.contextMiB + d.computeMiB > 0);
+      if (usedDevices.length > 0) {
+        height += 1 + usedDevices.length;
+      }
     }
     return {
       width: parentSize?.width ?? this.rect.width,
@@ -411,9 +437,14 @@ export class LoadedModelPanel extends Control {
     }
 
     const usedDevices = model.deviceMemory.filter(d => d.modelMiB + d.contextMiB + d.computeMiB > 0);
+    const gpuDevices = usedDevices.filter(d => d.device !== "Host");
+    const hostDevices = usedDevices.filter(d => d.device === "Host");
+    const totalVramUsed = gpuDevices.reduce((sum, d) => sum + d.modelMiB + d.contextMiB + d.computeMiB, 0);
+    const totalRamUsed = hostDevices.reduce((sum, d) => sum + d.modelMiB + d.contextMiB + d.computeMiB, 0);
     let cy = y;
-    if (cy >= y + this.rect.height) return;
 
+    // Row 1: model name, quant, size, ctx (all modes)
+    if (cy >= y + this.rect.height) return;
     canvas.moveTo(x, cy);
     fg(canvas, "accent", model.name);
     fg(canvas, "textMuted", `  \u2502  ${model.quantization}`);
@@ -423,7 +454,9 @@ export class LoadedModelPanel extends Control {
     fg(canvas, "textMuted", ` / ${fmtCtx(model.contextTrain)}`);
     cy++;
 
-    // mmproj info
+    if (this._detailLevel === "basic") return;
+
+    // mmproj info (middle + detailed)
     if (model.mmprojName) {
       if (cy >= y + this.rect.height) return;
       canvas.moveTo(x, cy);
@@ -433,6 +466,26 @@ export class LoadedModelPanel extends Control {
       cy++;
     }
 
+    // Row 2 for middle: GPU layers, KV cache, VRAM, RAM
+    if (this._detailLevel === "middle") {
+      if (cy >= y + this.rect.height) return;
+      canvas.moveTo(x, cy);
+      fg(canvas, "textMuted", "  ");
+      fg(canvas, "textMuted", "GPU ");
+      fg(canvas, "success", model.gpuOffloaded);
+      fg(canvas, "textMuted", `  \u2502  KV Cache `);
+      fg(canvas, "text", `${model.kvCacheTypeK} / ${model.kvCacheTypeV}`);
+      fg(canvas, "textMuted", `  \u2502  VRAM `);
+      fg(canvas, "info", `${totalVramUsed} MiB`);
+      if (totalRamUsed > 0) {
+        fg(canvas, "textMuted", `  \u2502  RAM `);
+        fg(canvas, "info", `${totalRamUsed} MiB`);
+      }
+      cy++;
+      return;
+    }
+
+    // Detailed mode: everything
     if (cy >= y + this.rect.height) return;
     canvas.moveTo(x, cy);
     fg(canvas, "textMuted", "  ");
