@@ -1,392 +1,650 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>llama-manager - Terminal UI for llama.cpp</title>
-  <meta name="description" content="A terminal UI for managing llama.cpp servers, versions, models, and task history.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Iosevka:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>llama-manager — Terminal UI for managing llama.cpp</title>
+<meta name="description" content="Start and control the server, manage versions, download GGUF models from Hugging Face, and monitor inference performance in real time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Iosevka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-    :root {
-      --bg0: #111c18;
-      --bg1: #1a2520;
-      --bg2: #23372B;
-      --bg3: #3d4a44;
-      --fg0: #C1C497;
-      --fg1: #9aa88a;
-      --gray: #53685B;
-      --cyan: #2DD5B7;
-      --cyan-bright: #8CD3CB;
-      --green: #549e6a;
-      --green-bright: #63b07a;
-      --white: #F6F5DD;
+  :root {
+    /* Osaka Jade dark palette — lifted from themes/osaka-jade.json */
+    --bg:          #111c18;
+    --bg-raised:   #1a2520;
+    --bg-card:     #23372B;
+    --border:      #3d4a44;
+    --cyan:        #2DD5B7;
+    --cyan-bright: #8CD3CB;
+    --green:       #549e6a;
+    --green-bright:#63b07a;
+    --magenta:     #D2689C;
+    --red:         #FF5345;
+    --yellow:      #E5C736;
+    --text:        #C1C497;
+    --text-dim:    #9aa88a;
+    --text-muted:  #53685B;
+    --mono:        'Iosevka', monospace;
+    --max-w:       1100px;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  a { color: var(--cyan); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--cyan-bright); }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+  }
+
+  .container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(17,28,24,0.88);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .container {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+  }
+  nav .logo {
+    font-weight: 700; font-size: 15px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+  nav .logo .prompt { color: var(--cyan); }
+  nav ul { list-style: none; display: flex; gap: 24px; }
+  nav ul a {
+    font-size: 14px; color: var(--text-dim);
+    transition: color 0.2s; position: relative;
+  }
+  nav ul a:hover,
+  nav ul a.active { color: var(--text); }
+  nav ul a.active::after {
+    content: '';
+    position: absolute; bottom: -4px; left: 0; right: 0;
+    height: 2px; background: var(--cyan); border-radius: 1px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 160px 0 80px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Subtle grid background */
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(45,213,183,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(45,213,183,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    mask-image: radial-gradient(ellipse 60% 50% at 50% 40%, black 20%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 40%, black 20%, transparent 70%);
+  }
+  /* Radial glow behind headline */
+  .hero::after {
+    content: '';
+    position: absolute;
+    top: 60px; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 400px;
+    background: radial-gradient(ellipse, rgba(45,213,183,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero > .container { position: relative; z-index: 1; }
+  .hero h1 {
+    font-size: clamp(32px, 5vw, 56px);
+    font-weight: 700; letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .hero h1 .accent { color: var(--cyan); }
+  .hero .subtitle {
+    font-size: 17px; color: var(--text-dim); max-width: 600px;
+    margin: 0 auto 40px; line-height: 1.7;
+  }
+  .install-box {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 20px;
+    font-size: 15px;
+    transition: border-color 0.2s;
+  }
+  .install-box:hover { border-color: var(--cyan); }
+  .install-box .prompt { color: var(--cyan); user-select: none; }
+  .install-box code { color: var(--text); }
+  .copy-btn {
+    background: var(--cyan); color: var(--bg); border: none;
+    border-radius: 6px; padding: 6px 14px; font-size: 13px;
+    font-family: var(--mono); font-weight: 600; cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .copy-btn:hover { background: var(--cyan-bright); }
+  .copy-btn:active { transform: scale(0.96); }
+  .copy-btn.copied { background: var(--green); }
+
+  .hero-meta {
+    margin-top: 24px; display: flex; justify-content: center;
+    gap: 24px; font-size: 13px; color: var(--text-muted);
+  }
+  .hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+  /* ── SECTIONS ── */
+  section { border-bottom: 1px solid var(--border); }
+  .section-pad { padding: 80px 0; }
+  .section-label {
+    font-size: 13px; color: var(--cyan);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+  h2 {
+    font-size: clamp(24px, 3vw, 36px);
+    font-weight: 700; margin-bottom: 40px;
+  }
+
+  /* Scroll reveal */
+  .reveal {
+    opacity: 0; transform: translateY(24px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  .reveal.visible {
+    opacity: 1; transform: translateY(0);
+  }
+
+  /* ── DEMO ── */
+  .terminal {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow:
+      0 8px 32px rgba(0,0,0,0.4),
+      0 0 80px rgba(45,213,183,0.04);
+  }
+  .terminal-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 12px 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .terminal-dot.red    { background: var(--red); }
+  .terminal-dot.yellow { background: var(--yellow); }
+  .terminal-dot.green  { background: var(--green); }
+  .terminal-title {
+    flex: 1; text-align: center;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .terminal-body { padding: 0; }
+  .terminal-body img { width: 100%; display: block; }
+  .demo-placeholder {
+    background: repeating-linear-gradient(
+      45deg, var(--bg-raised), var(--bg-raised) 10px, var(--bg-card) 10px, var(--bg-card) 20px
+    );
+    min-height: 420px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: var(--text-muted);
+  }
+
+  /* ── FEATURES ── */
+  .features h2 { margin-bottom: 48px; }
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .feature-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--cyan);
+    border-radius: 6px;
+    padding: 24px;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  }
+  .feature-card:hover {
+    border-color: var(--cyan);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(45,213,183,0.06);
+  }
+  .feature-card .key {
+    font-size: 12px; color: var(--cyan);
+    margin-bottom: 8px;
+  }
+  .feature-card h3 {
+    font-size: 16px; font-weight: 600;
+    margin-bottom: 8px; color: var(--text);
+  }
+  .feature-card p {
+    font-size: 14px; color: var(--text-dim); line-height: 1.6;
+  }
+
+  /* ── FORKS ── */
+  .forks h2 { margin-bottom: 16px; }
+  .forks .desc {
+    font-size: 16px; color: var(--text-dim); max-width: 640px;
+    margin-bottom: 40px; line-height: 1.7;
+  }
+  .fork-list {
+    display: flex; flex-wrap: wrap; gap: 12px;
+  }
+  .fork-badge {
+    font-size: 14px;
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 18px;
+    display: flex; align-items: center; gap: 8px;
+    transition: border-color 0.2s;
+  }
+  .fork-badge:hover { border-color: var(--cyan); }
+  .fork-badge .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--cyan);
+  }
+
+  /* ── THEMES ── */
+  .themes h2 { margin-bottom: 16px; }
+  .themes .desc {
+    font-size: 16px; color: var(--text-dim); margin-bottom: 40px;
+  }
+  .theme-strip {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .theme-swatch {
+    width: 48px; height: 32px; border-radius: 4px;
+    border: 1px solid var(--border);
+    position: relative;
+    transition: transform 0.2s;
+    cursor: default;
+  }
+  .theme-swatch:hover { transform: scale(1.2); z-index: 2; }
+  .theme-swatch .tooltip {
+    position: absolute; bottom: calc(100% + 6px); left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 4px; padding: 4px 8px;
+    font-size: 11px; color: var(--text-dim);
+    white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .theme-swatch:hover .tooltip { opacity: 1; }
+
+  /* ── TECH ── */
+  .tech h2 { margin-bottom: 40px; }
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .tech-card {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: 6px; padding: 20px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+  }
+  .tech-card:hover { border-color: var(--cyan); }
+  .tech-card .label {
+    color: var(--text-muted); font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .tech-card .value { color: var(--text); font-weight: 600; }
+
+  /* ── REQUIREMENTS ── */
+  .requirements h2 { margin-bottom: 24px; }
+  .req-list {
+    list-style: none; display: flex; flex-direction: column; gap: 12px;
+    max-width: 500px;
+  }
+  .req-list li {
+    font-size: 14px;
+    display: flex; align-items: center; gap: 10px;
+    color: var(--text-dim);
+  }
+  .req-list li .check { color: var(--green); }
+
+  /* ── CTA ── */
+  .cta {
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Subtle glow behind CTA */
+  .cta::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(45,213,183,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cta > .container { position: relative; z-index: 1; }
+  .cta h2 { margin-bottom: 16px; }
+  .cta p {
+    font-size: 16px; color: var(--text-dim); margin-bottom: 32px;
+  }
+  .cta .install-box { margin-bottom: 24px; }
+
+  /* ── FOOTER ── */
+  footer {
+    padding: 40px 0;
+    font-size: 13px; color: var(--text-muted);
+  }
+  footer .container {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 16px;
+  }
+  footer a { color: var(--text-dim); }
+  footer a:hover { color: var(--cyan); }
+
+  /* ── REDUCED MOTION ── */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
     }
+    .reveal { opacity: 1; transform: none; }
+    html { scroll-behavior: auto; }
+  }
 
-    html { scroll-behavior: smooth; }
-
-    body {
-      font-family: 'Iosevka', monospace;
-      background: var(--bg0);
-      color: var(--fg0);
-      line-height: 1.7;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a { color: var(--cyan); text-decoration: none; }
-    a:hover { color: var(--cyan-bright); }
-
-    /* ── Header ── */
-    .cyber-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 40px;
-      border-bottom: 1px solid var(--bg2);
-    }
-
-    .logo {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--white);
-    }
-
-    .logo-accent { color: var(--cyan); }
-
-    .header-links a {
-      display: inline-block;
-      margin-left: 16px;
-      padding: 6px 14px;
-      border: 1px solid var(--bg3);
-      border-radius: 4px;
-      font-size: 0.85rem;
-      color: var(--fg1);
-      transition: border-color 0.2s, color 0.2s;
-    }
-
-    .header-links a:hover {
-      border-color: var(--cyan);
-      color: var(--cyan);
-    }
-
-    /* ── Container ── */
-    .cyber-container {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 0 40px;
-    }
-
-    /* ── Top section ── */
-    .top-section {
-      display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 32px;
-      padding: 48px 0;
-    }
-
-    .intro-box h1 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: var(--white);
-      margin-bottom: 16px;
-    }
-
-    .intro-box p {
-      color: var(--fg1);
-      margin-bottom: 16px;
-      font-size: 0.95rem;
-    }
-
-    .sub-section {
-      margin-top: 24px;
-      padding-top: 20px;
-      border-top: 1px solid var(--bg2);
-    }
-
-    .sub-section h3 {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--cyan);
-      margin-bottom: 8px;
-    }
-
-    .sub-section p {
-      font-size: 0.9rem;
-      color: var(--fg1);
-    }
-
-    .install-box {
-      margin-top: 24px;
-      background: var(--bg1);
-      border: 1px solid var(--bg3);
-      border-radius: 6px;
-      padding: 16px 20px;
-    }
-
-    .install-box code {
-      font-size: 0.95rem;
-      color: var(--green-bright);
-      cursor: pointer;
-    }
-
-    .install-box code:hover { color: var(--white); }
-
-    .install-box .copy-hint {
-      display: block;
-      margin-top: 6px;
-      font-size: 0.75rem;
-      color: var(--gray);
-    }
-
-    /* ── About card ── */
-    .about-card {
-      background: var(--bg1);
-      border: 1px solid var(--bg2);
-      border-radius: 6px;
-      padding: 24px;
-      align-self: start;
-    }
-
-    .about-card h3 {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--cyan);
-      margin-bottom: 12px;
-    }
-
-    .about-card p {
-      font-size: 0.85rem;
-      color: var(--fg1);
-      margin-bottom: 12px;
-    }
-
-    .about-card .strong-link {
-      color: var(--white);
-      font-weight: 600;
-    }
-
-    .about-links {
-      margin-top: 16px;
-    }
-
-    .btn-link {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 0;
-      font-size: 0.85rem;
-      color: var(--fg1);
-      transition: color 0.2s;
-    }
-
-    .btn-link:hover { color: var(--cyan); }
-
-    .btn-link svg { flex-shrink: 0; }
-
-    /* ── Demo ── */
-    .demo-section {
-      padding: 24px 0 48px;
-      text-align: center;
-    }
-
-    .demo-section img {
-      width: 100%;
-      max-width: 900px;
-      border-radius: 6px;
-      border: 1px solid var(--bg3);
-    }
-
-    /* ── Features ── */
-    .features-section {
-      padding: 24px 0 48px;
-    }
-
-    .features-section h2 {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: var(--cyan);
-      margin-bottom: 20px;
-    }
-
-    .feature-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    .feature-card {
-      background: var(--bg1);
-      border: 1px solid var(--bg2);
-      border-radius: 6px;
-      padding: 20px;
-      transition: border-color 0.2s;
-    }
-
-    .feature-card:hover { border-color: var(--bg3); }
-
-    .feature-card h3 {
-      font-size: 0.9rem;
-      font-weight: 600;
-      color: var(--white);
-      margin-bottom: 6px;
-    }
-
-    .feature-card p {
-      font-size: 0.85rem;
-      color: var(--fg1);
-    }
-
-    /* ── Footer ── */
-    .footer {
-      text-align: center;
-      padding: 32px 0 48px;
-      font-size: 0.8rem;
-      color: var(--gray);
-      border-top: 1px solid var(--bg2);
-    }
-
-    /* ── Responsive ── */
-    @media (max-width: 768px) {
-      .top-section {
-        grid-template-columns: 1fr;
-      }
-      .feature-grid {
-        grid-template-columns: 1fr;
-      }
-      .cyber-container {
-        padding: 0 20px;
-      }
-      .cyber-header {
-        padding: 16px 20px;
-      }
-    }
-  </style>
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    nav ul { display: none; }
+    .hero { padding: 120px 0 60px; }
+    .section-pad { padding: 60px 0; }
+    .features-grid { grid-template-columns: 1fr; }
+    .tech-grid { grid-template-columns: 1fr 1fr; }
+    footer .container { flex-direction: column; text-align: center; }
+  }
+</style>
 </head>
 <body>
 
-  <header class="cyber-header">
-    <div class="logo">
-      <span class="logo-accent">//</span> llama-manager
-      <img src="https://img.shields.io/github/v/release/bayger/llama-manager?style=flat-square&label=latest&color=549e6a&logo=github&logoColor=ffffff" alt="latest release" style="vertical-align: middle; margin-left: 8px;">
+<!-- NAV -->
+<nav>
+  <div class="container">
+    <div class="logo"><span class="prompt">$</span> llama-manager</div>
+    <ul>
+      <li><a href="#demo">Demo</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#forks">Forks</a></li>
+      <li><a href="#themes">Themes</a></li>
+      <li><a href="https://github.com/bayger/llama-manager" target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <h1><span class="accent">$</span> llama-manager</h1>
+    <p class="subtitle">
+      A terminal UI for managing llama.cpp — start and control the server,
+      manage versions, download GGUF models from Hugging Face, and monitor
+      inference performance in real time.
+    </p>
+    <div class="install-box">
+      <span class="prompt">$</span>
+      <code id="install-cmd">npm install -g llama-manager</code>
+      <button class="copy-btn" onclick="copyInstall()" aria-label="Copy install command to clipboard">copy</button>
     </div>
-    <nav class="header-links">
+    <div class="hero-meta">
+      <span>v1.7.0</span>
+      <span>Apache 2.0</span>
+      <span>Node 18+</span>
+    </div>
+  </div>
+</section>
+
+<!-- DEMO -->
+<section class="demo section-pad" id="demo">
+  <div class="container reveal">
+    <div class="section-label">// demo</div>
+    <h2>See it in action</h2>
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="terminal-dot red"></div>
+        <div class="terminal-dot yellow"></div>
+        <div class="terminal-dot green"></div>
+        <div class="terminal-title">llama-manager</div>
+      </div>
+      <div class="terminal-body">
+        <img src="demo.gif" alt="llama-manager demo" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features section-pad" id="features">
+  <div class="container reveal">
+    <div class="section-label">// features</div>
+    <h2>Everything in your terminal</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="key">F1</div>
+        <h3>Dashboard</h3>
+        <p>Real-time per-slot metrics, server controls (start/stop/restart), and a live log viewer.</p>
+      </div>
+      <div class="feature-card">
+        <div class="key">F2</div>
+        <h3>Logs</h3>
+        <p>Dedicated server log viewer with structured severity coloring.</p>
+      </div>
+      <div class="feature-card">
+        <div class="key">F3</div>
+        <h3>Tasks</h3>
+        <p>Parsed task history with token counts, speeds, draft acceptance, filtering, and SQLite persistence.</p>
+      </div>
+      <div class="feature-card">
+        <div class="key">F4</div>
+        <h3>Profiles</h3>
+        <p>Named server configurations with type-aware preset editors and free-form arguments.</p>
+      </div>
+      <div class="feature-card">
+        <div class="key">F5</div>
+        <h3>Versions</h3>
+        <p>Install, switch, and uninstall llama.cpp builds from GitHub releases.</p>
+      </div>
+      <div class="feature-card">
+        <div class="key">F6</div>
+        <h3>Models</h3>
+        <p>Search Hugging Face, download GGUF models with progress tracking, set active model.</p>
+      </div>
+      <div class="feature-card">
+        <div class="key">F7</div>
+        <h3>Options</h3>
+        <p>Global settings: paths, poll interval, task limits, appearance, theme, HF token.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FORKS -->
+<section class="forks section-pad" id="forks">
+  <div class="container reveal">
+    <div class="section-label">// fork support</div>
+    <h2>Multiple forks, one manager</h2>
+    <p class="desc">
+      Install, configure, and switch between llama.cpp forks seamlessly. Each fork's unique CLI flags,
+      preset categories, and backend variants are handled automatically.
+    </p>
+    <div class="fork-list">
+      <div class="fork-badge"><span class="dot"></span>llama.cpp</div>
+      <div class="fork-badge"><span class="dot"></span>koboldcpp</div>
+      <div class="fork-badge"><span class="dot"></span>beellama.cpp</div>
+      <div class="fork-badge"><span class="dot"></span>llamacpp-rocm</div>
+      <div class="fork-badge"><span class="dot"></span>ik_llama.cpp</div>
+    </div>
+  </div>
+</section>
+
+<!-- THEMES -->
+<section class="themes section-pad" id="themes">
+  <div class="container reveal">
+    <div class="section-label">// themes</div>
+    <h2>33 themes, zero config</h2>
+    <p class="desc">Select a theme from the Options tab or press Ctrl+T. Compatible with the catppuccin, dracula, nord, gruvbox ecosystem.</p>
+    <div class="theme-strip" id="theme-strip"></div>
+  </div>
+</section>
+
+<!-- TECH STACK -->
+<section class="tech section-pad" id="tech">
+  <div class="container reveal">
+    <div class="section-label">// stack</div>
+    <h2>Built with</h2>
+    <div class="tech-grid">
+      <div class="tech-card"><div class="label">Language</div><div class="value">TypeScript</div></div>
+      <div class="tech-card"><div class="label">Rendering</div><div class="value">Double-buffered framebuffer</div></div>
+      <div class="tech-card"><div class="label">Input</div><div class="value">terminal-kit</div></div>
+      <div class="tech-card"><div class="label">HTTP</div><div class="value">undici</div></div>
+      <div class="tech-card"><div class="label">Storage</div><div class="value">better-sqlite3</div></div>
+      <div class="tech-card"><div class="label">Bundler</div><div class="value">tsup (esbuild)</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- REQUIREMENTS -->
+<section class="requirements section-pad" id="requirements">
+  <div class="container reveal">
+    <div class="section-label">// requirements</div>
+    <h2>What you need</h2>
+    <ul class="req-list">
+      <li><span class="check">✓</span> Node.js 18 or later</li>
+      <li><span class="check">✓</span> A llama.cpp binary (managed via the Versions tab or installed manually)</li>
+      <li><span class="check">✓</span> npm (for global install)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta section-pad">
+  <div class="container reveal">
+    <h2>Ready to manage your local LLMs?</h2>
+    <p>One command. Zero configuration. Full control.</p>
+    <div class="install-box">
+      <span class="prompt">$</span>
+      <code>npm install -g llama-manager</code>
+      <button class="copy-btn" onclick="copyInstall()" aria-label="Copy install command to clipboard">copy</button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <span>llama-manager.dev</span>
+    <span>
       <a href="https://github.com/bayger/llama-manager" target="_blank" rel="noopener">GitHub</a>
-      <a href="https://www.npmjs.com/package/llama-manager" target="_blank" rel="noopener">npm</a>
-    </nav>
-  </header>
+      &nbsp;·&nbsp; Apache 2.0
+    </span>
+  </div>
+</footer>
 
-  <main class="cyber-container">
-
-    <div class="top-section">
-      <div class="intro-box">
-        <h1>The Project</h1>
-        <p>
-          A terminal UI for managing <a href="https://github.com/ggml-org/llama.cpp" target="_blank" class="strong-link">llama.cpp</a> servers and forks (koboldcpp, beellama, llamacpp-rocm).
-          Start, stop, and monitor the server, manage versions, download GGUF models from Hugging Face,
-          and track inference performance in real time.
-        </p>
-        <p>
-          Built for people who already live in the terminal. Tested in Linux, should work in MacOS or Windows.
-        </p>
-
-        <div class="install-box">
-          <code id="install-code">npm install -g llama-manager</code>
-          <span class="copy-hint" id="copy-hint">click to copy</span>
-        </div>
-      </div>
-
-      <div class="about-card">
-        <h3>// ABOUT</h3>
-        <p>
-          A hobby project for managing local LLM inference. Created by <a href="https://github.com/bayger" target="_blank" class="logo-accent">Patryk Bajer</a> (bayger) and contributors.
-        </p>
-        <p>
-          Apache License 2.0
-        </p>
-        <div class="about-links">
-          <a href="https://github.com/bayger/llama-manager/discussions" target="_blank" class="btn-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.89.52 3.69 1.44 5.29L1 22l4.71-1.44A9.96 9.96 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.66 0-3.23-.51-4.55-1.39l-.33-.2-2.85.87.87-2.85-.21-.33A7.96 7.96 0 014 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8z"/></svg>
-            Discussions
-          </a>
-          <a href="https://github.com/bayger/llama-manager/graphs/contributors" target="_blank" class="btn-link">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-            Contributors
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <section class="demo-section">
-      <h2 style="font-size: 0.85rem; font-weight: 600; color: var(--cyan); margin-bottom: 20px; text-align: left;">// IN ACTION</h2>
-      <img src="./demo.gif" alt="llama-manager demo">
-    </section>
-
-    <section class="features-section">
-      <h2>// FEATURES</h2>
-      <div class="feature-grid">
-        <div class="feature-card">
-          <h3>Dashboard</h3>
-          <p>Real-time per-slot metrics, server controls, live log viewer.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Logs</h3>
-          <p>Dedicated server log viewer with structured severity coloring.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Tasks</h3>
-          <p>Parsed task history with token counts, speeds, draft acceptance, SQLite persistence.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Profiles</h3>
-          <p>Named server configurations with fork-aware, type-aware preset editors.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Versions</h3>
-          <p>Install, switch, and uninstall builds from multiple forks: llama.cpp, koboldcpp, beellama.cpp, llamacpp-rocm.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Models</h3>
-          <p>Search Hugging Face, download GGUF models with progress tracking.</p>
-        </div>
-        <div class="feature-card">
-          <h3>Options</h3>
-          <p>Global settings: paths, poll interval, task limits, appearance, theme, HF token.</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="features-section">
-      <h2>// DISCLAIMER</h2>
-      <div class="about-card" style="max-width: 100%;">
-        <p>
-          This project is developed in free time. New versions will be released "when they're ready".
-          If you have an idea or something isn't working right — drop a message on the
-          <a href="https://github.com/bayger/llama-manager/discussions" target="_blank">GitHub Discussions</a> page.
-          External PRs are closed.
-        </p>
-      </div>
-    </section>
-
-    <footer class="footer">
-      Apache License 2.0
-    </footer>
-
-  </main>
-
-  <script>
-    document.getElementById('install-code').addEventListener('click', function() {
-      navigator.clipboard.writeText('npm install -g llama-manager');
-      var hint = document.getElementById('copy-hint');
-      hint.textContent = 'copied!';
-      var self = this;
-      setTimeout(function() {
-        hint.textContent = 'click to copy';
-      }, 1500);
+<script>
+  // Copy install command
+  function copyInstall() {
+    navigator.clipboard.writeText('npm install -g llama-manager').then(() => {
+      document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.textContent = 'copied';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = 'copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
     });
-  </script>
+  }
+
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  reveals.forEach(el => observer.observe(el));
+
+  // Active nav tracking
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('nav ul a[href^="#"]');
+  const navObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navLinks.forEach(link => link.classList.remove('active'));
+        const activeLink = document.querySelector(`nav ul a[href="#${entry.target.id}"]`);
+        if (activeLink) activeLink.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-40% 0px -55% 0px' });
+  sections.forEach(s => navObserver.observe(s));
+
+  // Theme swatches
+  const themes = [
+    { name: 'aura',             bg: '#1A1B26', accent: '#7AA2F7' },
+    { name: 'ayu',              bg: '#0F1419', accent: '#F29E74' },
+    { name: 'carbonfox',        bg: '#161616', accent: '#FF6E6E' },
+    { name: 'catppuccin',       bg: '#1E1E2E', accent: '#89B4FA' },
+    { name: 'catppuccin-frappe',bg: '#303446', accent: '#8CAAEE' },
+    { name: 'catppuccin-macchiato', bg: '#24273A', accent: '#8AADF4' },
+    { name: 'cobalt2',          bg: '#193549', accent: '#FFC600' },
+    { name: 'cursor',           bg: '#1B1B1B', accent: '#3794FF' },
+    { name: 'dracula',          bg: '#282A36', accent: '#FF79C6' },
+    { name: 'everforest',       bg: '#2D353B', accent: '#A7C080' },
+    { name: 'flexoki',          bg: '#100F0E', accent: '#7E9CD4' },
+    { name: 'github',           bg: '#0D1117', accent: '#58A6FF' },
+    { name: 'gruvbox',          bg: '#282828', accent: '#FB4934' },
+    { name: 'kanagawa',         bg: '#1F1F28', accent: '#7AA2F7' },
+    { name: 'lucent-orng',      bg: '#1C1814', accent: '#FF8C42' },
+    { name: 'material',         bg: '#263238', accent: '#82AAAA' },
+    { name: 'matrix',           bg: '#0D0208', accent: '#00FF41' },
+    { name: 'mercury',          bg: '#1C1C1C', accent: '#9FA0AD' },
+    { name: 'monokai',          bg: '#272822', accent: '#F92672' },
+    { name: 'nightowl',         bg: '#011627', accent: '#C792EA' },
+    { name: 'nord',             bg: '#2E3440', accent: '#88C0D0' },
+    { name: 'one-dark',         bg: '#282C34', accent: '#61AFEF' },
+    { name: 'opencode',         bg: '#1E1E2E', accent: '#A6E3A1' },
+    { name: 'orng',             bg: '#191714', accent: '#FF8C42' },
+    { name: 'osaka-jade',       bg: '#111c18', accent: '#2DD5B7' },
+    { name: 'palenight',        bg: '#292D3E', accent: '#FAB795' },
+    { name: 'rosepine',         bg: '#191724', accent: '#C4A7E7' },
+    { name: 'solarized',        bg: '#002B36', accent: '#B58900' },
+    { name: 'synthwave84',      bg: '#262335', accent: '#FE44A0' },
+    { name: 'tokyonight',       bg: '#1A1B26', accent: '#7AA2F7' },
+    { name: 'vercel',           bg: '#000000', accent: '#FFFFFF' },
+    { name: 'zenburn',          bg: '#3F3F3F', accent: '#F0DFAF' },
+  ];
+
+  const strip = document.getElementById('theme-strip');
+  themes.forEach(t => {
+    const swatch = document.createElement('div');
+    swatch.className = 'theme-swatch';
+    swatch.style.background = `linear-gradient(135deg, ${t.bg} 50%, ${t.accent} 50%)`;
+    swatch.innerHTML = `<span class="tooltip">${t.name}</span>`;
+    strip.appendChild(swatch);
+  });
+</script>
 
 </body>
 </html>
