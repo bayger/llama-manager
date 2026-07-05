@@ -56,8 +56,6 @@ export async function listLocalModels(config: ConfigData): Promise<LocalModel[]>
   const models: LocalModel[] = [];
   await scanDir(dir, dir, [], models, config.activeModel);
   return models.sort((a, b) => {
-    if (a.active && !b.active) return -1;
-    if (!a.active && b.active) return 1;
     if (a.isMmproj !== b.isMmproj) return a.isMmproj ? 1 : -1;
     return a.filename.localeCompare(b.filename);
   });
