@@ -297,39 +297,22 @@ export class Table<T = any> extends Control {
         return { text, color };
       });
 
-      if (isHighlighted) {
-        canvas.bold(true);
-        let cx = x;
-        for (let i = 0; i < parts.length; i++) {
-          const p = parts[i]!;
-          const cellColor = p.color || fgColor;
-          fgBg(canvas, cellColor, bgColor, p.text);
-          canvas.moveTo(cx + p.text.length, y);
-          cx += p.text.length;
-          if (i < parts.length - 1) {
-            fgBg(canvas, fgColor, bgColor, " ");
-            canvas.moveTo(cx + 1, y);
-            cx += 1;
-          }
+      if (isHighlighted) canvas.bold(true);
+      let cx = x;
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i]!;
+        const cellColor = isHighlighted ? fgColor : (p.color || fgColor);
+        fgBg(canvas, cellColor, bgColor, p.text);
+        canvas.moveTo(cx + p.text.length, y);
+        cx += p.text.length;
+        if (i < parts.length - 1) {
+          fgBg(canvas, fgColor, bgColor, " ");
+          canvas.moveTo(cx + 1, y);
+          cx += 1;
         }
-        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - (cx - x))));
-        canvas.bold(false);
-      } else {
-        let cx = x;
-        for (let i = 0; i < parts.length; i++) {
-          const p = parts[i]!;
-          const cellColor = p.color || fgColor;
-          fgBg(canvas, cellColor, bgColor, p.text);
-          canvas.moveTo(cx + p.text.length, y);
-          cx += p.text.length;
-          if (i < parts.length - 1) {
-            fgBg(canvas, fgColor, bgColor, " ");
-            canvas.moveTo(cx + 1, y);
-            cx += 1;
-          }
-        }
-        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - (cx - x))));
       }
+      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - (cx - x))));
+      if (isHighlighted) canvas.bold(false);
       return;
     } else {
       display = `${item.label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
