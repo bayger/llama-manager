@@ -133,19 +133,8 @@ export class Table<T = any> extends Control {
     this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxScroll));
   }
 
-  protected ensureSelectedVisible(): void {
-    if (this.selectedIndex < this.scrollOffset) {
-      this.scrollOffset = this.selectedIndex;
-    }
-    if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
-      this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
-    }
-    this.clampScrollBounds();
-  }
-
   protected clampScroll(): void {
     this.clampScrollBounds();
-    this.ensureSelectedVisible();
   }
 
   protected computeVisibleColumns(availableWidth: number): VisibleColumn[] {
@@ -338,6 +327,8 @@ export class Table<T = any> extends Control {
         this.selectedIndex--;
         if (this.selectedIndex < this.scrollOffset) {
           this.scrollOffset = this.selectedIndex;
+        } else if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
+          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
         }
         this._fireHighlight();
         this.markDirty();
@@ -349,8 +340,9 @@ export class Table<T = any> extends Control {
     if (key === "DOWN" || key === "j") {
       if (this.selectedIndex < total - 1) {
         this.selectedIndex++;
-        const viewportBottom = this.scrollOffset + this._viewportHeight;
-        if (this.selectedIndex >= viewportBottom) {
+        if (this.selectedIndex < this.scrollOffset) {
+          this.scrollOffset = this.selectedIndex;
+        } else if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
           this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
         }
         this._fireHighlight();
