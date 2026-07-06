@@ -1,5 +1,6 @@
 import { Control } from "../Control";
 import { fg, fgBg } from "../../lib/theme";
+import type { Color } from "../../lib/theme";
 import type { Point, Size, RenderContext } from "../types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
@@ -10,6 +11,7 @@ export interface TableColumn {
   align?: "left" | "right";
   headerSuffix?: string;
   format?: (cellData: any, row: any) => string;
+  color?: Color | ((cellData: any, row: any) => Color);
 }
 
 export interface TableItem<T = any> {
@@ -276,7 +278,7 @@ export class Table<T = any> extends Control {
     let display: string;
 
     if (_visibleCols.length > 0 && typeof item.data === "object" && item.data !== null && !Array.isArray(item.data)) {
-      const parts = _visibleCols.map((vc) => {
+      const parts: { text: string; color?: Color }[] = _visibleCols.map((vc) => {
         let cellValue = (item.data as Record<string, any>)[vc.col.label];
         let text: string;
         if (vc.col.format) {
@@ -287,9 +289,48 @@ export class Table<T = any> extends Control {
         if (text.length > vc.width) {
           text = "…" + text.substring(text.length - (vc.width - 1));
         }
-        return vc.col.align === "right" ? text.padStart(vc.width) : text.padEnd(vc.width);
+        text = vc.col.align === "right" ? text.padStart(vc.width) : text.padEnd(vc.width);
+        let color: Color | undefined;
+        if (vc.col.color) {
+          color = (typeof vc.col.color === "function" ? vc.col.color(cellValue, item.data) : vc.col.color) as Color;
+        }
+        return { text, color };
       });
-      display = parts.join(" ");
+
+      if (isHighlighted) {
+        canvas.bold(true);
+        let cx = x;
+        for (let i = 0; i < parts.length; i++) {
+          const p = parts[i]!;
+          const cellColor = p.color || fgColor;
+          fgBg(canvas, cellColor, bgColor, p.text);
+          canvas.moveTo(cx + p.text.length, y);
+          cx += p.text.length;
+          if (i < parts.length - 1) {
+            fgBg(canvas, fgColor, bgColor, " ");
+            canvas.moveTo(cx + 1, y);
+            cx += 1;
+          }
+        }
+        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - (cx - x))));
+        canvas.bold(false);
+      } else {
+        let cx = x;
+        for (let i = 0; i < parts.length; i++) {
+          const p = parts[i]!;
+          const cellColor = p.color || fgColor;
+          fgBg(canvas, cellColor, bgColor, p.text);
+          canvas.moveTo(cx + p.text.length, y);
+          cx += p.text.length;
+          if (i < parts.length - 1) {
+            fgBg(canvas, fgColor, bgColor, " ");
+            canvas.moveTo(cx + 1, y);
+            cx += 1;
+          }
+        }
+        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - (cx - x))));
+      }
+      return;
     } else {
       display = `${item.label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
     }
