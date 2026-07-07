@@ -126,6 +126,10 @@ class ThemePreviewControl extends Control {
     row++;
     if (row >= availableRows) return;
 
+    // Spacer
+    row++;
+    if (row >= availableRows) return;
+
     // Progress bar
     canvas.moveTo(x, y + row);
     canvas.write(" ");
@@ -199,18 +203,18 @@ class ThemePreviewControl extends Control {
     canvas.moveTo(x, y + row);
     canvas.write(" ");
     canvas.setForegroundColor(tc(t.warning));
-    canvas.write("WARN");
+    canvas.write("WARN ");
     canvas.setForegroundColor(tc(t.textMuted));
-    canvas.write("  High memory usage  ");
+    canvas.write(" High memory usage");
     row++;
     if (row >= availableRows) return;
 
     canvas.moveTo(x, y + row);
     canvas.write(" ");
     canvas.setForegroundColor(tc(t.success));
-    canvas.write("INFO");
+    canvas.write("INFO ");
     canvas.setForegroundColor(tc(t.textMuted));
-    canvas.write("    Server started on :8080");
+    canvas.write(" Server started on :8080");
   }
 }
 
