@@ -6,7 +6,7 @@ import { Button } from "../../framework/widgets/Button";
 import { Checkbox } from "../../framework/widgets/Checkbox";
 import { Spacer } from "../../framework/widgets/Spacer";
 import { modalManager } from "../../framework/ModalManager";
-import { getThemeNames, loadThemeWithMode, setActiveTheme, getThemeMode, setThemeMode, themeHasLightVariant } from "../../lib/theme";
+import { getThemeNames, loadThemeWithMode, setActiveTheme, getThemeMode, setThemeMode, themeHasLightVariant, themeColors } from "../../lib/theme";
 import type { Color, ThemeColors, ThemeMode } from "../../lib/theme";
 import type { RenderContext, Size } from "../../framework/types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
@@ -63,51 +63,10 @@ class ThemePreviewControl extends Control {
       canvas.write(H);
     }
     canvas.bold(false);
-    row++;
+     row++;
     if (row >= availableRows) return;
 
-    // Color palette (multi-row)
-    const palette: Array<[string, keyof ThemeColors]> = [
-      ["bg", "canvas"],
-      ["sur", "surface"],
-      ["txt", "text"],
-      ["txt-", "textMuted"],
-      ["acc", "accent"],
-      ["sec", "secondary"],
-      ["acc!", "accentColor"],
-      ["suc", "success"],
-      ["sucB", "successBg"],
-      ["wrn", "warning"],
-      ["err", "danger"],
-      ["errB", "dangerBg"],
-      ["inf", "info"],
-      ["brd", "border"],
-      ["brd-", "borderMuted"],
-      ["brd!", "borderActive"],
-      ["selB", "selectionBg"],
-      ["selT", "selectionText"],
-    ];
-    const perRow = Math.floor((width - 1) / 4);
-    for (let pi = 0; pi < palette.length; pi += perRow) {
-      canvas.moveTo(x, y + row);
-      canvas.write(" ");
-      const chunk = palette.slice(pi, pi + perRow);
-      for (const [label, role] of chunk) {
-        canvas.setForegroundColor(tc(t.canvas));
-        canvas.setBackgroundColor(tc(t[role]));
-        canvas.write(FULL_BLOCK);
-        canvas.setForegroundColor(tc(t[role]));
-        canvas.setBackgroundColor(tc(t.canvas));
-        canvas.write(label);
-      }
-      row++;
-      if (row >= availableRows) return;
-    }
-
-    // Separator
-    canvas.moveTo(x, y + row);
-    canvas.setForegroundColor(tc(t.borderMuted));
-    for (let col = 0; col < width; col++) canvas.write(H);
+    // Spacer
     row++;
     if (row >= availableRows) return;
 
@@ -133,6 +92,10 @@ class ThemePreviewControl extends Control {
     row++;
     if (row >= availableRows) return;
 
+    // Spacer
+    row++;
+    if (row >= availableRows) return;
+
     // Labels
     canvas.moveTo(x, y + row);
     canvas.write(" ");
@@ -145,6 +108,10 @@ class ThemePreviewControl extends Control {
     canvas.write("Model:");
     canvas.setForegroundColor(tc(t.text));
     canvas.write(" llama-3.1-8b");
+    row++;
+    if (row >= availableRows) return;
+
+    // Spacer
     row++;
     if (row >= availableRows) return;
 
@@ -179,10 +146,7 @@ class ThemePreviewControl extends Control {
     row++;
     if (row >= availableRows) return;
 
-    // Separator
-    canvas.moveTo(x, y + row);
-    canvas.setForegroundColor(tc(t.borderMuted));
-    for (let col = 0; col < width; col++) canvas.write(H);
+    // Spacer
     row++;
     if (row >= availableRows) return;
 
@@ -218,10 +182,7 @@ class ThemePreviewControl extends Control {
     row++;
     if (row >= availableRows) return;
 
-    // Separator
-    canvas.moveTo(x, y + row);
-    canvas.setForegroundColor(tc(t.borderMuted));
-    for (let col = 0; col < width; col++) canvas.write(H);
+    // Spacer
     row++;
     if (row >= availableRows) return;
 
@@ -268,6 +229,7 @@ export class ThemeSelectorModal extends Modal {
   protected _originalMode: ThemeMode = "dark";
   protected _previewMode: ThemeMode = "dark";
   protected _selectedTheme = "";
+  protected _previewTheme: ThemeColors | null = null;
 
   protected getSelectedTheme(): string {
     const item = this._list.getSelectedItem();
@@ -300,6 +262,7 @@ export class ThemeSelectorModal extends Modal {
     this._list.setOnHighlight((item) => {
       if (item) {
         this._preview.setTheme(item.id, this._previewMode);
+        this._previewTheme = loadThemeWithMode(item.id, this._previewMode);
       }
       this.updateLightModeCheckbox();
     });
@@ -310,7 +273,9 @@ export class ThemeSelectorModal extends Modal {
     this._lightModeCb.setAction((checked) => {
       this._previewMode = checked ? "light" : "dark";
       const item = this._list.getSelectedItem();
-      this._preview.setTheme(item ? item.id : this._selectedTheme, this._previewMode);
+      const name = item ? item.id : this._selectedTheme;
+      this._preview.setTheme(name, this._previewMode);
+      this._previewTheme = loadThemeWithMode(name, this._previewMode);
     });
 
     this._cancelBtn.setAction(() => this.cancel());
@@ -361,6 +326,7 @@ export class ThemeSelectorModal extends Modal {
       this._list.selectedIndex = idx;
     }
     this._preview.setTheme(name, this._previewMode);
+    this._previewTheme = loadThemeWithMode(name, this._previewMode);
     this.updateLightModeCheckbox();
   }
 
@@ -373,6 +339,17 @@ export class ThemeSelectorModal extends Modal {
   measure(parentSize?: Size): Size {
     const base = super.measure(parentSize);
     return this._clampSize({ width: Math.max(base.width, 80), height: Math.max(base.height, 24) });
+  }
+
+  render(ctx: RenderContext): void {
+    if (this._previewTheme) {
+      const saved = { ...themeColors };
+      Object.assign(themeColors, this._previewTheme);
+      super.render(ctx);
+      Object.assign(themeColors, saved);
+    } else {
+      super.render(ctx);
+    }
   }
 
   handleKey(key: string): boolean {
