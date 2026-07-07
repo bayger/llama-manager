@@ -204,7 +204,7 @@ export class Table<T = any> extends Control {
 
     if (hasHeader) {
       canvas.moveTo(x, y);
-      canvas.setBackgroundColor("canvasSubtle");
+      canvas.setBackgroundColor("surface");
       this.renderHeader(canvas, x, y, width, visibleCols);
       // Separator line below header
       canvas.moveTo(x, y + 1);
@@ -262,7 +262,7 @@ export class Table<T = any> extends Control {
 
     const isSelected = item.id === this._selectedId;
     const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-    const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+    const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
 
     let display: string;
 

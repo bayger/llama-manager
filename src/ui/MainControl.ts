@@ -204,7 +204,7 @@ export class MainControl extends Column {
 
 class TabBar extends Control {
   focusable = false;
-  backgroundColor: Color = "canvasSubtle";
+  backgroundColor: Color = "surface";
   protected _selectedIndex = 0;
   protected _tabRects: { start: number; end: number }[] = [];
   protected _onTabClick: ((index: number) => void) | null = null;
@@ -360,7 +360,7 @@ const APP_VERSION = pkg.version;
 
 class StatusBar extends Control {
   focusable = false;
-  backgroundColor: Color = "canvasSubtle";
+  backgroundColor: Color = "surface";
   protected _message: string | null = null;
   protected _serverRunning = false;
   protected _serverPid: number | null = null;

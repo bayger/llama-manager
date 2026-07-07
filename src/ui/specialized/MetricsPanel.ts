@@ -275,7 +275,7 @@ export class MetricsPanel extends Scrollable {
         }
         fgBg(canvas, "border", "border", " ".repeat(empty));
 
-        fgBg(canvas, "textMuted", "canvasSubtle", `  Used `);
+        fgBg(canvas, "textMuted", "surface", `  Used `);
         fg(canvas, "text", `${formatCtxNum(used)} / ${formatCtxNum(limit)}`);
       } else if (slot.contextSize > 0) {
         fg(canvas, "text", `${formatCtxNum(slot.contextSize)} tok`);

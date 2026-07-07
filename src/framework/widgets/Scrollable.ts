@@ -67,7 +67,7 @@ export class Scrollable extends Control {
       if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
         fgBg(canvas, "textMuted", "border", " ".repeat(sw));
       } else {
-        fgBg(canvas, "canvasSubtle", "borderMuted", " ".repeat(sw));
+        fgBg(canvas, "surface", "borderMuted", " ".repeat(sw));
       }
     }
   }

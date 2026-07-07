@@ -45,7 +45,7 @@ export class SelectorLabel extends Control {
       fgBg(canvas, "canvas", "accent", ` ${this._prefix} ${this._value} `);
     } else {
       const text = ` ${this._prefix} ${this._value} `;
-      canvas.setBackgroundColor("canvasSubtle");
+      canvas.setBackgroundColor("surface");
       fg(canvas, "textMuted", ` ${this._prefix} `);
       fg(canvas, this._valueColor, this._value + ' ');
       canvas.setBackgroundColor("canvas");

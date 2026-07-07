@@ -29,7 +29,7 @@ npm run lint      # tsc --noEmit (only type check, no ESLint)
 - Widget library in `src/components/ui/widgets/`: Label, Button, Checkbox, TextInput, List, Table, Scrollable, Box, StyledText, Section, HalfBar, Spacer, ProgressBar, HelpBar.
 - Specialized components in `src/components/specialized/`: SettingsPanel (profile preset editor), ProfileList (CRUD), LogsViewer (structured log coloring), MetricsPanel (per-slot metrics), OptionsPanel (global settings), EditableList (inline editable field list), LoadedModelPanel (loaded model info display).
 - Business logic in `src/lib/`: `config.ts`, `server.ts`, `logparser.ts`, `logcolors.ts`, `metricstracker.ts`, `tasks.ts`, `versions.ts`, `models.ts`, `api.ts`, `hf.ts`, `theme.ts`, `framebuffer.ts`, `framebuffer-canvas.ts`, `framebuffer-diff.ts`, `utils.ts`, `tabcontext.ts`.
-- `theme.ts` provides theme resolution from JSON files (33 themes under `themes/`) with semantic color roles - colors are hex strings, not chalk methods.
+- `theme.ts` loads flat theme JSONs (32 themes under `themes/`) — each file is `{ dark: ThemeColors, light?: ThemeColors }` with resolved hex strings, not chalk methods.
 - `logcolors.ts` provides severity-based log line colorization (error/warning/info).
 - `utils.ts` provides formatting helpers: `fireAsync`, `pad`, `formatMs`, `formatDuration`, `formatUptime`, `formatNum`, `formatDraftRate`, `formatDate`, `formatTime`.
 - `tabcontext.ts` provides shared context (`TabContext`) extending `RenderContext` with `setTextInputFocused`, `setConfig`, and `forceRender`.

@@ -113,7 +113,7 @@ class TaskDetailsControl extends Section {
 
     // blank separator row
     canvas.moveTo(x + 2, y + 2);
-    fgBg(canvas, "canvasSubtle", "canvasSubtle", " ".repeat(innerW));
+    fgBg(canvas, "surface", "surface", " ".repeat(innerW));
 
     for (let i = 0; i < height - 4; i++) {
       const lineIdx = i + this._scrollOffset;

@@ -119,7 +119,7 @@ export class SettingsPanel extends EditableList {
     const arrow = this._collapsed.has(row.catIdx) ? "\u25b6" : "\u25bc";
     const headerText = ` ${arrow} ${cat.name}`;
     const fgColor = isHighlighted ? (this.focused ? "canvas" : "accent") : "accent";
-    const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+    const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
 
     const padded = headerText.padEnd(width);
     if (isHighlighted) {
@@ -141,8 +141,8 @@ export class SettingsPanel extends EditableList {
 
     if (isEditing && this._edit) {
       const value = this._edit.text;
-      fgBg(canvas, "warning", "canvasSubtle", keyStr);
-      fgBg(canvas, "selected", "canvas", value);
+      fgBg(canvas, "warning", "surface", keyStr);
+      fgBg(canvas, "accent", "canvas", value);
     } else {
       const value = formatFieldValue(field, presetData?.[field.key]);
 
@@ -158,7 +158,7 @@ export class SettingsPanel extends EditableList {
 
       const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : "text";
       const fgMutedColor = isHighlighted ? "canvas" : "textMuted";
-      const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+      const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
       const content = keyStr + value + extra + (desc ? "  " + desc : "");
 
       if (isHighlighted) {

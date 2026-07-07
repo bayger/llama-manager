@@ -7,7 +7,7 @@ const HALF_BLOCK = "\u2584";
 
 export class Section extends Control {
   focusable = false;
-  backgroundColor = "canvasSubtle" as Color;
+  backgroundColor = "surface" as Color;
   public title = "";
   public hint = "";
 
@@ -77,17 +77,17 @@ export class Section extends Control {
     // Half bar row
     canvas.moveTo(x, y);
     //fg(canvas, "accent", V);
-    canvas.setForegroundColor("canvasSubtle");
+    canvas.setForegroundColor("surface");
     canvas.setBackgroundColor("canvas");
     for (let col = 0; col < width; col++) {
-      fgBg(canvas, "canvasSubtle", "canvas", HALF_BLOCK);
+      fgBg(canvas, "surface", "canvas", HALF_BLOCK);
     }
 
     // Caption row
     canvas.moveTo(x, y + 1);
     canvas.bold();
-    fgBg(canvas, "accentSubtle", "canvasSubtle", V);
-    fgBg(canvas, "accentSubtle", "canvasSubtle", ` ${this.title}`);
+    fgBg(canvas, "secondary", "surface", V);
+    fgBg(canvas, "secondary", "surface", ` ${this.title}`);
     canvas.bold(false);
     if (this.hint) {
       const titleLen = 2 + this.title.length;
@@ -96,10 +96,10 @@ export class Section extends Control {
       if (startCol > titleLen) {
         canvas.moveTo(x + titleLen, y + 1);
         for (let col = titleLen; col < startCol; col++) {
-          fgBg(canvas, "accentSubtle", "canvasSubtle", " ");
+          fgBg(canvas, "secondary", "surface", " ");
         }
         canvas.moveTo(x + startCol, y + 1);
-        fgBg(canvas, "textMuted", "canvasSubtle", hintWithPad);
+        fgBg(canvas, "textMuted", "surface", hintWithPad);
       }
     }
 

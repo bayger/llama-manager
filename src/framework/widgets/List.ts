@@ -111,7 +111,7 @@ export class List<ID = string, D = unknown> extends Control {
       const isHighlighted = globalIndex === this.selectedIndex;
       const isSelected = item.id === this._selectedId;
       const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-      const bgColor = this.focused ? (isHighlighted ? "selectedBg" : "canvasSubtle") : "canvasSubtle";
+      const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
       canvas.moveTo(x, y + i);
 
       const label = item.label;
@@ -150,7 +150,7 @@ export class List<ID = string, D = unknown> extends Control {
       if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
         fgBg(canvas, "textMuted", "border", " ".repeat(sw));
       } else {
-        fgBg(canvas, "canvasSubtle", "borderMuted", " ".repeat(sw));
+        fgBg(canvas, "surface", "borderMuted", " ".repeat(sw));
       }
     }
   }
