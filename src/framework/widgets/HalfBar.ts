@@ -14,8 +14,8 @@ export class HalfBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    const topColor = this.mode === 'top' ? "canvasSubtle" : "canvas";
-    const bottomColor = this.mode === 'top' ? "canvas" : "canvasSubtle";
+    const topColor = this.mode === 'top' ? "surface" : "canvas";
+    const bottomColor = this.mode === 'top' ? "canvas" : "surface";
 
     canvas.setForegroundColor(topColor);
     canvas.setBackgroundColor(bottomColor);

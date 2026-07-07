@@ -67,12 +67,12 @@ export class Button extends Control {
     const padded = ` ${this.label} `;
 
     if (this.disabled) {
-      fgBg(canvas, "borderMuted", "canvas", padded);
+      fgBg(canvas, "borderMuted", "surface", padded);
     } else if (this.focused) {
       canvas.bold();
       fgBg(canvas, "canvas", "accent", padded);
     } else {
-      fgBg(canvas, "textMuted", "canvasSubtle", padded);
+      fgBg(canvas, "textMuted", "surface", padded);
     }
   }
 

@@ -75,7 +75,7 @@ export class TextInput extends Control {
     const { canvas } = ctx;
     const { x, y } = this.rect;
 
-    const bg = this.focused ? "canvasSubtle" : "canvas";
+    const bg = this.focused ? "surface" : "canvas";
     const borderColor = this.focused ? "borderActive" : "borderMuted";
 
     canvas.moveTo(x, y);

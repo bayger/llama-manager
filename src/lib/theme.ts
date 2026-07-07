@@ -15,29 +15,23 @@ const THEMES_DIR = path.join(__dirname, "..", "..", "themes");
 
 export interface ThemeColors {
   canvas: string;
-  canvasSubtle: string;
-  sidebar: string;
+  surface: string;
   border: string;
   borderMuted: string;
   borderActive: string;
   text: string;
   textMuted: string;
-  textLink: string;
   accent: string;
-  accentSubtle: string;
+  secondary: string;
   accentColor: string;
   success: string;
-  successText: string;
   successBg: string;
   danger: string;
-  dangerText: string;
   dangerBg: string;
   warning: string;
-  warningText: string;
   info: string;
-  selected: string;
-  selectedBg: string;
-  selectedText: string;
+  selectionBg: string;
+  selectionText: string;
 }
 
 export type Color = keyof ThemeColors | `#${string}` | "None";
@@ -79,29 +73,23 @@ function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
 
   return {
     canvas: c("background"),
-    canvasSubtle: c("backgroundPanel"),
-    sidebar: c("backgroundElement"),
+    surface: c("backgroundPanel"),
     border: c("border"),
     borderMuted: c("borderSubtle"),
     borderActive: c("borderActive"),
     text: c("text"),
     textMuted: c("textMuted"),
-    textLink: c("primary"),
     accent: c("primary"),
-    accentSubtle: c("secondary"),
+    secondary: c("secondary"),
     accentColor: c("accent"),
     success: c("success"),
-    successText: c("success"),
     successBg: c("diffAddedBg"),
     danger: c("error"),
-    dangerText: c("error"),
     dangerBg: c("diffRemovedBg"),
     warning: c("warning"),
-    warningText: c("warning"),
     info: c("info"),
-    selected: c("primary"),
-    selectedBg: c("primary"),
-    selectedText: c("backgroundPanel"),
+    selectionBg: c("primary"),
+    selectionText: c("backgroundPanel"),
   };
 }
 
@@ -112,29 +100,23 @@ function resolveThemeToColorsWithMode(raw: OpencodeThemeRaw, mode: ThemeMode): T
 
   return {
     canvas: c("background"),
-    canvasSubtle: c("backgroundPanel"),
-    sidebar: c("backgroundElement"),
+    surface: c("backgroundPanel"),
     border: c("border"),
     borderMuted: c("borderSubtle"),
     borderActive: c("borderActive"),
     text: c("text"),
     textMuted: c("textMuted"),
-    textLink: c("primary"),
     accent: c("primary"),
-    accentSubtle: c("secondary"),
+    secondary: c("secondary"),
     accentColor: c("accent"),
     success: c("success"),
-    successText: c("success"),
     successBg: c("diffAddedBg"),
     danger: c("error"),
-    dangerText: c("error"),
     dangerBg: c("diffRemovedBg"),
     warning: c("warning"),
-    warningText: c("warning"),
     info: c("info"),
-    selected: c("primary"),
-    selectedBg: c("primary"),
-    selectedText: c("backgroundPanel"),
+    selectionBg: c("primary"),
+    selectionText: c("backgroundPanel"),
   };
 }
 
@@ -142,29 +124,23 @@ function resolveThemeToColorsWithMode(raw: OpencodeThemeRaw, mode: ThemeMode): T
 
 export const themeColors: ThemeColors = {
   canvas: "#0d1117",
-  canvasSubtle: "#161b22",
-  sidebar: "#1e1e1e",
+  surface: "#161b22",
   border: "#30363d",
   borderMuted: "#21262d",
   borderActive: "#58a6ff",
   text: "#c9d1d9",
   textMuted: "#8b949e",
-  textLink: "#58a6ff",
   accent: "#58a6ff",
-  accentSubtle: "#1f6feb",
+  secondary: "#1f6feb",
   accentColor: "#39c5cf",
   success: "#3fb950",
-  successText: "#3fb950",
   successBg: "#033a16",
   danger: "#f85149",
-  dangerText: "#f85149",
   dangerBg: "#67060c",
   warning: "#d29922",
-  warningText: "#d29922",
   info: "#d29922",
-  selected: "#ffffff",
-  selectedBg: "#58a6ff",
-  selectedText: "#161b22",
+  selectionBg: "#58a6ff",
+  selectionText: "#161b22",
 };
 
 export function getThemeNames(): string[] {

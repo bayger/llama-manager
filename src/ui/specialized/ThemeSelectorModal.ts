@@ -69,29 +69,23 @@ class ThemePreviewControl extends Control {
     // Color palette (multi-row)
     const palette: Array<[string, keyof ThemeColors]> = [
       ["bg", "canvas"],
-      ["bg-", "canvasSubtle"],
-      ["side", "sidebar"],
+      ["sur", "surface"],
       ["txt", "text"],
       ["txt-", "textMuted"],
-      ["lnk", "textLink"],
       ["acc", "accent"],
-      ["acc-", "accentSubtle"],
+      ["sec", "secondary"],
       ["acc!", "accentColor"],
       ["suc", "success"],
-      ["sucT", "successText"],
       ["sucB", "successBg"],
       ["wrn", "warning"],
-      ["wrnT", "warningText"],
       ["err", "danger"],
-      ["errT", "dangerText"],
       ["errB", "dangerBg"],
       ["inf", "info"],
       ["brd", "border"],
       ["brd-", "borderMuted"],
       ["brd!", "borderActive"],
-      ["sel", "selected"],
-      ["selB", "selectedBg"],
-      ["selT", "selectedText"],
+      ["selB", "selectionBg"],
+      ["selT", "selectionText"],
     ];
     const perRow = Math.floor((width - 1) / 4);
     for (let pi = 0; pi < palette.length; pi += perRow) {
@@ -128,12 +122,12 @@ class ThemePreviewControl extends Control {
     canvas.setBackgroundColor(tc(t.canvas));
     canvas.write(" ");
     canvas.setForegroundColor(tc(t.textMuted));
-    canvas.setBackgroundColor(tc(t.canvasSubtle));
+    canvas.setBackgroundColor(tc(t.surface));
     canvas.write(" Stop ");
     canvas.setBackgroundColor(tc(t.canvas));
     canvas.write(" ");
     canvas.setForegroundColor(tc(t.textMuted));
-    canvas.setBackgroundColor(tc(t.canvasSubtle));
+    canvas.setBackgroundColor(tc(t.surface));
     canvas.write(" Kill ");
     canvas.setBackgroundColor(tc(t.canvas));
     row++;
@@ -206,8 +200,8 @@ class ThemePreviewControl extends Control {
 
     // Table row (selected)
     canvas.moveTo(x, y + row);
-    canvas.setBackgroundColor(tc(t.selectedBg));
-    canvas.setForegroundColor(tc(t.selectedText));
+    canvas.setBackgroundColor(tc(t.selectionBg));
+    canvas.setForegroundColor(tc(t.selectionText));
     const selRow = ` 0     generating  1024    256     45.2t/s 12s `.substring(0, width);
     canvas.write(selRow);
     for (let col = selRow.length; col < width; col++) canvas.write(" ");

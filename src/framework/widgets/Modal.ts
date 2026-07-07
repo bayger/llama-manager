@@ -78,7 +78,7 @@ export class Modal extends Control {
     const { x, y, width, height } = this.rect;
     const { canvas } = ctx;
 
-    canvas.setBackgroundColor("canvasSubtle");
+    canvas.setBackgroundColor("surface");
     canvas.setForegroundColor("text");
     canvas.clearRect(x, y, width, height);
 
@@ -103,21 +103,21 @@ export class Modal extends Control {
 
     // Row 0: Half-block top bar
     canvas.moveTo(x, y);
-    canvas.setForegroundColor("canvasSubtle");
+    canvas.setForegroundColor("surface");
     canvas.setBackgroundColor("canvas");
     for (let col = 0; col < width; col++) {
-      fgBg(canvas, "canvasSubtle", "canvas", HALF_BLOCK);
+      fgBg(canvas, "surface", "canvas", HALF_BLOCK);
     }
 
     // Row 1: Title bar
     canvas.moveTo(x, y + 1);
     canvas.bold();
-    fgBg(canvas, "accent", "canvasSubtle", V);
-    fgBg(canvas, "accent", "canvasSubtle", ` ${this._title}`);
+    fgBg(canvas, "accent", "surface", V);
+    fgBg(canvas, "accent", "surface", ` ${this._title}`);
     canvas.bold(false);
     const titleLen = 1 + 1 + this._title.length;
     for (let col = titleLen; col < width; col++) {
-      fgBg(canvas, "text", "canvasSubtle", " ");
+      fgBg(canvas, "text", "surface", " ");
     }
 
     // Row 2: Spacing row (left border)
@@ -139,7 +139,7 @@ export class Modal extends Control {
 
     // Row height-1: Bottom border (left border)
     canvas.moveTo(x, y + height - 1);
-    fgBg(canvas, "borderMuted", "canvasSubtle", V);
+    fgBg(canvas, "borderMuted", "surface", V);
 
     canvas.styleReset();
   }
