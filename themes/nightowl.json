@@ -1,80 +1,42 @@
 {
-  "defs": {
-    "nightOwlBg": "#011627",
-    "nightOwlFg": "#d6deeb",
-    "nightOwlBlue": "#82AAFF",
-    "nightOwlCyan": "#7fdbca",
-    "nightOwlGreen": "#c5e478",
-    "nightOwlYellow": "#ecc48d",
-    "nightOwlRed": "#EF5350",
-    "nightOwlPurple": "#c792ea",
-    "nightOwlMuted": "#5f7e97",
-    "nightOwlPanel": "#0b253a"
+  "dark": {
+    "canvas": "#011627",
+    "surface": "#0b253a",
+    "border": "#5f7e97",
+    "borderMuted": "#5f7e97",
+    "borderActive": "#82AAFF",
+    "text": "#d6deeb",
+    "textMuted": "#5f7e97",
+    "accent": "#82AAFF",
+    "secondary": "#7fdbca",
+    "accentColor": "#c792ea",
+    "success": "#c5e478",
+    "successBg": "#0a2e1a",
+    "danger": "#EF5350",
+    "dangerBg": "#2d1b1b",
+    "warning": "#ecc48d",
+    "info": "#82AAFF",
+    "selectionBg": "#82AAFF",
+    "selectionText": "#0b253a"
   },
-  "theme": {
-    "primary": {
-      "dark": "nightOwlBlue",
-      "light": "nightOwlBlue"
-    },
-    "secondary": {
-      "dark": "nightOwlCyan",
-      "light": "nightOwlCyan"
-    },
-    "accent": {
-      "dark": "nightOwlPurple",
-      "light": "nightOwlPurple"
-    },
-    "error": {
-      "dark": "nightOwlRed",
-      "light": "nightOwlRed"
-    },
-    "warning": {
-      "dark": "nightOwlYellow",
-      "light": "nightOwlYellow"
-    },
-    "success": {
-      "dark": "nightOwlGreen",
-      "light": "nightOwlGreen"
-    },
-    "info": {
-      "dark": "nightOwlBlue",
-      "light": "nightOwlBlue"
-    },
-    "text": {
-      "dark": "nightOwlFg",
-      "light": "nightOwlFg"
-    },
-    "textMuted": {
-      "dark": "nightOwlMuted",
-      "light": "nightOwlMuted"
-    },
-    "background": {
-      "dark": "nightOwlBg",
-      "light": "nightOwlBg"
-    },
-    "backgroundPanel": {
-      "dark": "nightOwlPanel",
-      "light": "nightOwlPanel"
-    },
-    "border": {
-      "dark": "nightOwlMuted",
-      "light": "nightOwlMuted"
-    },
-    "borderActive": {
-      "dark": "nightOwlBlue",
-      "light": "nightOwlBlue"
-    },
-    "borderSubtle": {
-      "dark": "nightOwlMuted",
-      "light": "nightOwlMuted"
-    },
-    "diffAddedBg": {
-      "dark": "#0a2e1a",
-      "light": "#0a2e1a"
-    },
-    "diffRemovedBg": {
-      "dark": "#2d1b1b",
-      "light": "#2d1b1b"
-    }
+  "light": {
+    "canvas": "#fafafa",
+    "surface": "#f0f0f0",
+    "border": "#d4d4d4",
+    "borderMuted": "#e0e0e0",
+    "borderActive": "#556fa6",
+    "text": "#2c2c2c",
+    "textMuted": "#7a7a7a",
+    "accent": "#5b77b3",
+    "secondary": "#59998d",
+    "accentColor": "#8b66a4",
+    "success": "#80944e",
+    "successBg": "#e8ecdf",
+    "danger": "#a73a38",
+    "dangerBg": "#efdcdb",
+    "warning": "#a58963",
+    "info": "#5b77b3",
+    "selectionBg": "#5b77b3",
+    "selectionText": "#f0f0f0"
   }
 }

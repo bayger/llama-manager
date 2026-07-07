@@ -1,98 +1,42 @@
 {
-  "defs": {
-    "darkStep1": "#0a0a0a",
-    "darkStep2": "#141414",
-    "darkStep6": "#3c3c3c",
-    "darkStep7": "#484848",
-    "darkStep8": "#606060",
-    "darkStep9": "#fab283",
-    "darkStep11": "#808080",
-    "darkStep12": "#eeeeee",
-    "darkSecondary": "#5c9cf5",
-    "darkAccent": "#9d7cd8",
-    "darkRed": "#e06c75",
-    "darkOrange": "#f5a742",
-    "darkGreen": "#7fd88f",
-    "darkCyan": "#56b6c2",
-    "lightStep1": "#ffffff",
-    "lightStep2": "#fafafa",
-    "lightStep6": "#d4d4d4",
-    "lightStep7": "#b8b8b8",
-    "lightStep8": "#a0a0a0",
-    "lightStep9": "#3b7dd8",
-    "lightStep11": "#8a8a8a",
-    "lightStep12": "#1a1a1a",
-    "lightSecondary": "#7b5bb6",
-    "lightAccent": "#d68c27",
-    "lightRed": "#d1383d",
-    "lightOrange": "#d68c27",
-    "lightGreen": "#3d9a57",
-    "lightCyan": "#318795"
+  "dark": {
+    "canvas": "#0a0a0a",
+    "surface": "#141414",
+    "border": "#484848",
+    "borderMuted": "#3c3c3c",
+    "borderActive": "#606060",
+    "text": "#eeeeee",
+    "textMuted": "#808080",
+    "accent": "#fab283",
+    "secondary": "#5c9cf5",
+    "accentColor": "#9d7cd8",
+    "success": "#7fd88f",
+    "successBg": "#20303b",
+    "danger": "#e06c75",
+    "dangerBg": "#37222c",
+    "warning": "#f5a742",
+    "info": "#56b6c2",
+    "selectionBg": "#fab283",
+    "selectionText": "#141414"
   },
-  "theme": {
-    "primary": {
-      "dark": "darkStep9",
-      "light": "lightStep9"
-    },
-    "secondary": {
-      "dark": "darkSecondary",
-      "light": "lightSecondary"
-    },
-    "accent": {
-      "dark": "darkAccent",
-      "light": "lightAccent"
-    },
-    "error": {
-      "dark": "darkRed",
-      "light": "lightRed"
-    },
-    "warning": {
-      "dark": "darkOrange",
-      "light": "lightOrange"
-    },
-    "success": {
-      "dark": "darkGreen",
-      "light": "lightGreen"
-    },
-    "info": {
-      "dark": "darkCyan",
-      "light": "lightCyan"
-    },
-    "text": {
-      "dark": "darkStep12",
-      "light": "lightStep12"
-    },
-    "textMuted": {
-      "dark": "darkStep11",
-      "light": "lightStep11"
-    },
-    "background": {
-      "dark": "darkStep1",
-      "light": "lightStep1"
-    },
-    "backgroundPanel": {
-      "dark": "darkStep2",
-      "light": "lightStep2"
-    },
-    "border": {
-      "dark": "darkStep7",
-      "light": "lightStep7"
-    },
-    "borderActive": {
-      "dark": "darkStep8",
-      "light": "lightStep8"
-    },
-    "borderSubtle": {
-      "dark": "darkStep6",
-      "light": "lightStep6"
-    },
-    "diffAddedBg": {
-      "dark": "#20303b",
-      "light": "#d5e5d5"
-    },
-    "diffRemovedBg": {
-      "dark": "#37222c",
-      "light": "#f7d8db"
-    }
+  "light": {
+    "canvas": "#ffffff",
+    "surface": "#fafafa",
+    "border": "#b8b8b8",
+    "borderMuted": "#d4d4d4",
+    "borderActive": "#a0a0a0",
+    "text": "#1a1a1a",
+    "textMuted": "#8a8a8a",
+    "accent": "#3b7dd8",
+    "secondary": "#7b5bb6",
+    "accentColor": "#d68c27",
+    "success": "#3d9a57",
+    "successBg": "#d5e5d5",
+    "danger": "#d1383d",
+    "dangerBg": "#f7d8db",
+    "warning": "#d68c27",
+    "info": "#318795",
+    "selectionBg": "#3b7dd8",
+    "selectionText": "#fafafa"
   }
 }

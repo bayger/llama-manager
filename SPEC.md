@@ -808,16 +808,13 @@ Global application settings. Managed by `OptionsPanel` specialized component. Al
 
 ## Feature 9: Theme System
 
-Themes provide color palettes loaded from JSON files under `themes/`. The `theme.ts` module resolves theme names, maps theme color definitions to 20+ semantic roles (title, tabActive, tabInactive, statusBar, halfBar, error, warning, info, success, button, buttonActive, etc.), and exposes `fg()`, `bg()`, `fgBg()` helpers for ANSI color codes.
+Themes provide color palettes loaded from JSON files under `themes/`. Each theme file contains a flat `{ dark: ThemeColors, light?: ThemeColors }` object with resolved hex colors mapped to 18 semantic roles (`canvas`, `surface`, `border`, `borderMuted`, `borderActive`, `text`, `textMuted`, `accent`, `secondary`, `accentColor`, `success`, `successBg`, `danger`, `dangerBg`, `warning`, `info`, `selectionBg`, `selectionText`). The `theme.ts` module exposes `fg()`, `bg()`, `fgBg()` helpers for ANSI color codes.
 
 **Resolution order:**
-1. `opencode` - built-in, uses opencode's own theme config if available
-2. `themes/<name>.json` - bundled theme file
-3. Fallback to default GitHub Dark palette
+1. `themes/<name>.json` - bundled theme file
+2. Fallback to default GitHub Dark palette
 
 **Available themes (32):** aura, ayu, carbonfox, catppuccin (frappe, macchiato, mocha), cobalt2, cursor, dracula, everforest, flexoki, github, gruvbox, kanagawa, lucent-orng, material, matrix, mercury, monokai, nightowl, nord, one-dark, opencode, orng, osaka-jade, palenight, rosepine, solarized, synthwave84, tokyonight, vercel, zenburn.
-
-Each theme JSON defines base colors (`base`, `mantle`, `crust`, `red`, `orange`, `yellow`, `green`, `cyan`, `blue`, `purple`, `pink`, `surface0`-`surface2`, `overlay0`-`overlay2`, `text`) which the engine maps to semantic roles.
 
 **Theme selector** (`Ctrl+T`): Opens `ThemeSelectorModal` with a previewable list of all available themes.
 

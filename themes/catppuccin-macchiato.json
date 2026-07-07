@@ -1,84 +1,42 @@
 {
-  "defs": {
-    "macPink": "#f5bde6",
-    "macMauve": "#c6a0f6",
-    "macRed": "#ed8796",
-    "macYellow": "#eed49f",
-    "macGreen": "#a6da95",
-    "macTeal": "#8bd5ca",
-    "macBlue": "#8aadf4",
-    "macText": "#cad3f5",
-    "macOverlay2": "#939ab7",
-    "macSurface2": "#5b6078",
-    "macSurface1": "#494d64",
-    "macSurface0": "#363a4f",
-    "macBase": "#24273a",
-    "macMantle": "#1e2030"
+  "dark": {
+    "canvas": "#24273a",
+    "surface": "#1e2030",
+    "border": "#363a4f",
+    "borderMuted": "#5b6078",
+    "borderActive": "#494d64",
+    "text": "#cad3f5",
+    "textMuted": "#939ab7",
+    "accent": "#8aadf4",
+    "secondary": "#c6a0f6",
+    "accentColor": "#f5bde6",
+    "success": "#a6da95",
+    "successBg": "#29342b",
+    "danger": "#ed8796",
+    "dangerBg": "#3a2a31",
+    "warning": "#eed49f",
+    "info": "#8bd5ca",
+    "selectionBg": "#8aadf4",
+    "selectionText": "#1e2030"
   },
-  "theme": {
-    "primary": {
-      "dark": "macBlue",
-      "light": "macBlue"
-    },
-    "secondary": {
-      "dark": "macMauve",
-      "light": "macMauve"
-    },
-    "accent": {
-      "dark": "macPink",
-      "light": "macPink"
-    },
-    "error": {
-      "dark": "macRed",
-      "light": "macRed"
-    },
-    "warning": {
-      "dark": "macYellow",
-      "light": "macYellow"
-    },
-    "success": {
-      "dark": "macGreen",
-      "light": "macGreen"
-    },
-    "info": {
-      "dark": "macTeal",
-      "light": "macTeal"
-    },
-    "text": {
-      "dark": "macText",
-      "light": "macText"
-    },
-    "textMuted": {
-      "dark": "macOverlay2",
-      "light": "macOverlay2"
-    },
-    "background": {
-      "dark": "macBase",
-      "light": "macBase"
-    },
-    "backgroundPanel": {
-      "dark": "macMantle",
-      "light": "macMantle"
-    },
-    "border": {
-      "dark": "macSurface0",
-      "light": "macSurface0"
-    },
-    "borderActive": {
-      "dark": "macSurface1",
-      "light": "macSurface1"
-    },
-    "borderSubtle": {
-      "dark": "macSurface2",
-      "light": "macSurface2"
-    },
-    "diffAddedBg": {
-      "dark": "#29342b",
-      "light": "#29342b"
-    },
-    "diffRemovedBg": {
-      "dark": "#3a2a31",
-      "light": "#3a2a31"
-    }
+  "light": {
+    "canvas": "#fafafa",
+    "surface": "#f0f0f0",
+    "border": "#d4d4d4",
+    "borderMuted": "#e0e0e0",
+    "borderActive": "#2f3241",
+    "text": "#2c2c2c",
+    "textMuted": "#7a7a7a",
+    "accent": "#6179ab",
+    "secondary": "#8b70ac",
+    "accentColor": "#ac84a1",
+    "success": "#6c8e61",
+    "successBg": "#e5ebe3",
+    "danger": "#a65f69",
+    "dangerBg": "#efe2e4",
+    "warning": "#a7946f",
+    "info": "#61958d",
+    "selectionBg": "#6179ab",
+    "selectionText": "#f0f0f0"
   }
 }

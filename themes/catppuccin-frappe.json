@@ -1,84 +1,42 @@
 {
-  "defs": {
-    "frappePink": "#f4b8e4",
-    "frappeMauve": "#ca9ee6",
-    "frappeRed": "#e78284",
-    "frappeYellow": "#e5c890",
-    "frappeGreen": "#a6d189",
-    "frappeTeal": "#81c8be",
-    "frappeBlue": "#8da4e2",
-    "frappeText": "#c6d0f5",
-    "frappeOverlay2": "#949cb8",
-    "frappeSurface2": "#626880",
-    "frappeSurface1": "#51576d",
-    "frappeSurface0": "#414559",
-    "frappeBase": "#303446",
-    "frappeMantle": "#292c3c"
+  "dark": {
+    "canvas": "#303446",
+    "surface": "#292c3c",
+    "border": "#414559",
+    "borderMuted": "#626880",
+    "borderActive": "#51576d",
+    "text": "#c6d0f5",
+    "textMuted": "#949cb8",
+    "accent": "#8da4e2",
+    "secondary": "#ca9ee6",
+    "accentColor": "#f4b8e4",
+    "success": "#a6d189",
+    "successBg": "#29342b",
+    "danger": "#e78284",
+    "dangerBg": "#3a2a31",
+    "warning": "#e5c890",
+    "info": "#81c8be",
+    "selectionBg": "#8da4e2",
+    "selectionText": "#292c3c"
   },
-  "theme": {
-    "primary": {
-      "dark": "frappeBlue",
-      "light": "frappeBlue"
-    },
-    "secondary": {
-      "dark": "frappeMauve",
-      "light": "frappeMauve"
-    },
-    "accent": {
-      "dark": "frappePink",
-      "light": "frappePink"
-    },
-    "error": {
-      "dark": "frappeRed",
-      "light": "frappeRed"
-    },
-    "warning": {
-      "dark": "frappeYellow",
-      "light": "frappeYellow"
-    },
-    "success": {
-      "dark": "frappeGreen",
-      "light": "frappeGreen"
-    },
-    "info": {
-      "dark": "frappeTeal",
-      "light": "frappeTeal"
-    },
-    "text": {
-      "dark": "frappeText",
-      "light": "frappeText"
-    },
-    "textMuted": {
-      "dark": "frappeOverlay2",
-      "light": "frappeOverlay2"
-    },
-    "background": {
-      "dark": "frappeBase",
-      "light": "frappeBase"
-    },
-    "backgroundPanel": {
-      "dark": "frappeMantle",
-      "light": "frappeMantle"
-    },
-    "border": {
-      "dark": "frappeSurface0",
-      "light": "frappeSurface0"
-    },
-    "borderActive": {
-      "dark": "frappeSurface1",
-      "light": "frappeSurface1"
-    },
-    "borderSubtle": {
-      "dark": "frappeSurface2",
-      "light": "frappeSurface2"
-    },
-    "diffAddedBg": {
-      "dark": "#29342b",
-      "light": "#29342b"
-    },
-    "diffRemovedBg": {
-      "dark": "#3a2a31",
-      "light": "#3a2a31"
-    }
+  "light": {
+    "canvas": "#fafafa",
+    "surface": "#f0f0f0",
+    "border": "#d4d4d4",
+    "borderMuted": "#e0e0e0",
+    "borderActive": "#353947",
+    "text": "#2c2c2c",
+    "textMuted": "#7a7a7a",
+    "accent": "#63739e",
+    "secondary": "#8d6fa1",
+    "accentColor": "#ab81a0",
+    "success": "#6c8859",
+    "successBg": "#e5eae1",
+    "danger": "#a25b5c",
+    "dangerBg": "#eee1e2",
+    "warning": "#a08c65",
+    "info": "#5a8c85",
+    "selectionBg": "#63739e",
+    "selectionText": "#f0f0f0"
   }
 }

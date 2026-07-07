@@ -65,7 +65,7 @@ Follows XDG Base Directory spec. All paths configurable in Options.
 
 ## Themes
 
-33 bundled themes including Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, and more. Selectable from the Options tab. Compatible with opencode theme format.
+32 bundled themes including Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, and more. Each theme supports dark and light variants. Selectable from the Options tab.
 
 ## Tech Stack
 

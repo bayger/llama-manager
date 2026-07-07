@@ -1,6 +1,6 @@
 // Theme resolution engine
-// Loads theme JSONs from themes/ directory, resolves defs → theme references,
-// maps to dashboard ThemeColors. Keeps backward-compatible themeColors export.
+// Loads flat theme JSONs from themes/ directory. Each file contains
+// { dark: ThemeColors, light?: ThemeColors } with resolved hex colors.
 
 import fs from "fs-extra";
 import path from "path";
@@ -36,16 +36,9 @@ export interface ThemeColors {
 
 export type Color = keyof ThemeColors | `#${string}` | "None";
 
-interface OpencodeThemeRaw {
-  defs: Record<string, string>;
-  theme: Record<string, string | { dark: string; light: string }>;
-}
-
-// ─── Resolution ──────────────────────────────────────────────────────────────
-
-function resolveRef(defs: Record<string, string>, value: string): string {
-  if (value.startsWith("#")) return value;
-  return defs[value] || "#000000";
+interface ThemeFile {
+  dark: ThemeColors;
+  light?: ThemeColors;
 }
 
 export type ThemeMode = "dark" | "light";
@@ -54,70 +47,6 @@ let themeMode: ThemeMode = "dark";
 
 export function getThemeMode(): ThemeMode {
   return themeMode;
-}
-
-function getValue(entry: string | { dark: string; light: string }): string {
-  if (typeof entry === "string") return entry;
-  return themeMode === "light" ? entry.light : entry.dark;
-}
-
-function getValueWithMode(entry: string | { dark: string; light: string }, mode: ThemeMode): string {
-  if (typeof entry === "string") return entry;
-  return mode === "light" ? entry.light : entry.dark;
-}
-
-function resolveThemeToColors(raw: OpencodeThemeRaw): ThemeColors {
-  const { defs, theme: t } = raw;
-
-  const c = (key: string) => resolveRef(defs, getValue(t[key] || "#000000"));
-
-  return {
-    canvas: c("background"),
-    surface: c("backgroundPanel"),
-    border: c("border"),
-    borderMuted: c("borderSubtle"),
-    borderActive: c("borderActive"),
-    text: c("text"),
-    textMuted: c("textMuted"),
-    accent: c("primary"),
-    secondary: c("secondary"),
-    accentColor: c("accent"),
-    success: c("success"),
-    successBg: c("diffAddedBg"),
-    danger: c("error"),
-    dangerBg: c("diffRemovedBg"),
-    warning: c("warning"),
-    info: c("info"),
-    selectionBg: c("primary"),
-    selectionText: c("backgroundPanel"),
-  };
-}
-
-function resolveThemeToColorsWithMode(raw: OpencodeThemeRaw, mode: ThemeMode): ThemeColors {
-  const { defs, theme: t } = raw;
-
-  const c = (key: string) => resolveRef(defs, getValueWithMode(t[key] || "#000000", mode));
-
-  return {
-    canvas: c("background"),
-    surface: c("backgroundPanel"),
-    border: c("border"),
-    borderMuted: c("borderSubtle"),
-    borderActive: c("borderActive"),
-    text: c("text"),
-    textMuted: c("textMuted"),
-    accent: c("primary"),
-    secondary: c("secondary"),
-    accentColor: c("accent"),
-    success: c("success"),
-    successBg: c("diffAddedBg"),
-    danger: c("error"),
-    dangerBg: c("diffRemovedBg"),
-    warning: c("warning"),
-    info: c("info"),
-    selectionBg: c("primary"),
-    selectionText: c("backgroundPanel"),
-  };
 }
 
 // ─── themeColors (mutable, backward-compatible) ──────────────────────────────
@@ -155,8 +84,8 @@ export function getThemeNames(): string[] {
 export function loadTheme(name: string): ThemeColors | null {
   try {
     const filePath = path.join(THEMES_DIR, `${name}.json`);
-    const raw = fs.readJsonSync(filePath) as OpencodeThemeRaw;
-    return resolveThemeToColors(raw);
+    const raw = fs.readJsonSync(filePath) as ThemeFile;
+    return themeMode === "light" && raw.light ? raw.light : raw.dark;
   } catch {
     return null;
   }
@@ -165,8 +94,8 @@ export function loadTheme(name: string): ThemeColors | null {
 export function loadThemeWithMode(name: string, mode: ThemeMode): ThemeColors | null {
   try {
     const filePath = path.join(THEMES_DIR, `${name}.json`);
-    const raw = fs.readJsonSync(filePath) as OpencodeThemeRaw;
-    return resolveThemeToColorsWithMode(raw, mode);
+    const raw = fs.readJsonSync(filePath) as ThemeFile;
+    return mode === "light" && raw.light ? raw.light : raw.dark;
   } catch {
     return null;
   }
@@ -175,11 +104,8 @@ export function loadThemeWithMode(name: string, mode: ThemeMode): ThemeColors | 
 export function themeHasLightVariant(name: string): boolean {
   try {
     const filePath = path.join(THEMES_DIR, `${name}.json`);
-    const raw = fs.readJsonSync(filePath) as OpencodeThemeRaw;
-    for (const v of Object.values(raw.theme)) {
-      if (typeof v === "object" && v.dark !== v.light) return true;
-    }
-    return false;
+    const raw = fs.readJsonSync(filePath) as ThemeFile;
+    return raw.light !== undefined;
   } catch {
     return false;
   }

@@ -1,94 +1,42 @@
 {
-  "defs": {
-    "darkStep1": "#2d353b",
-    "darkStep2": "#333c43",
-    "darkStep6": "#7a8478",
-    "darkStep7": "#859289",
-    "darkStep8": "#9da9a0",
-    "darkStep9": "#a7c080",
-    "darkStep11": "#7a8478",
-    "darkStep12": "#d3c6aa",
-    "darkRed": "#e67e80",
-    "darkOrange": "#e69875",
-    "darkGreen": "#a7c080",
-    "darkCyan": "#83c092",
-    "lightStep1": "#fdf6e3",
-    "lightStep2": "#efebd4",
-    "lightStep6": "#a6b0a0",
-    "lightStep7": "#939f91",
-    "lightStep8": "#829181",
-    "lightStep9": "#8da101",
-    "lightStep11": "#a6b0a0",
-    "lightStep12": "#5c6a72",
-    "lightRed": "#f85552",
-    "lightOrange": "#f57d26",
-    "lightGreen": "#8da101",
-    "lightCyan": "#35a77c"
+  "dark": {
+    "canvas": "#2d353b",
+    "surface": "#333c43",
+    "border": "#859289",
+    "borderMuted": "#7a8478",
+    "borderActive": "#9da9a0",
+    "text": "#d3c6aa",
+    "textMuted": "#7a8478",
+    "accent": "#a7c080",
+    "secondary": "#7fbbb3",
+    "accentColor": "#d699b6",
+    "success": "#a7c080",
+    "successBg": "#20303b",
+    "danger": "#e67e80",
+    "dangerBg": "#37222c",
+    "warning": "#e69875",
+    "info": "#83c092",
+    "selectionBg": "#a7c080",
+    "selectionText": "#333c43"
   },
-  "theme": {
-    "primary": {
-      "dark": "darkStep9",
-      "light": "lightStep9"
-    },
-    "secondary": {
-      "dark": "#7fbbb3",
-      "light": "#3a94c5"
-    },
-    "accent": {
-      "dark": "#d699b6",
-      "light": "#df69ba"
-    },
-    "error": {
-      "dark": "darkRed",
-      "light": "lightRed"
-    },
-    "warning": {
-      "dark": "darkOrange",
-      "light": "lightOrange"
-    },
-    "success": {
-      "dark": "darkGreen",
-      "light": "lightGreen"
-    },
-    "info": {
-      "dark": "darkCyan",
-      "light": "lightCyan"
-    },
-    "text": {
-      "dark": "darkStep12",
-      "light": "lightStep12"
-    },
-    "textMuted": {
-      "dark": "darkStep11",
-      "light": "lightStep11"
-    },
-    "background": {
-      "dark": "darkStep1",
-      "light": "lightStep1"
-    },
-    "backgroundPanel": {
-      "dark": "darkStep2",
-      "light": "lightStep2"
-    },
-    "border": {
-      "dark": "darkStep7",
-      "light": "lightStep7"
-    },
-    "borderActive": {
-      "dark": "darkStep8",
-      "light": "lightStep8"
-    },
-    "borderSubtle": {
-      "dark": "darkStep6",
-      "light": "lightStep6"
-    },
-    "diffAddedBg": {
-      "dark": "#20303b",
-      "light": "#d5e5d5"
-    },
-    "diffRemovedBg": {
-      "dark": "#37222c",
-      "light": "#f7d8db"
-    }
+  "light": {
+    "canvas": "#fdf6e3",
+    "surface": "#efebd4",
+    "border": "#939f91",
+    "borderMuted": "#a6b0a0",
+    "borderActive": "#829181",
+    "text": "#5c6a72",
+    "textMuted": "#a6b0a0",
+    "accent": "#8da101",
+    "secondary": "#3a94c5",
+    "accentColor": "#df69ba",
+    "success": "#8da101",
+    "successBg": "#d5e5d5",
+    "danger": "#f85552",
+    "dangerBg": "#f7d8db",
+    "warning": "#f57d26",
+    "info": "#35a77c",
+    "selectionBg": "#8da101",
+    "selectionText": "#efebd4"
   }
 }
