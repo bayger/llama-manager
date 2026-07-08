@@ -378,7 +378,7 @@ export class GGUFInfoModal extends Modal {
   }
 
   handleKey(key: string): boolean {
-    if (key === "ESC") {
+    if (key === "ESC" || key === "ESCAPE") {
       this.closeWithResult(false);
       return true;
     }
