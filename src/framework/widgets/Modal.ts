@@ -113,9 +113,11 @@ export class Modal extends Control {
     canvas.moveTo(x, y + 1);
     canvas.bold();
     fgBg(canvas, "accent", "surface", V);
-    fgBg(canvas, "accent", "surface", ` ${this._title}`);
+    const maxTitleLen = Math.max(1, width - 3);
+    const truncated = this._title.length > maxTitleLen ? this._title.slice(0, maxTitleLen - 1) + "…" : this._title;
+    fgBg(canvas, "accent", "surface", ` ${truncated}`);
     canvas.bold(false);
-    const titleLen = 1 + 1 + this._title.length;
+    const titleLen = 1 + 1 + truncated.length;
     for (let col = titleLen; col < width; col++) {
       fgBg(canvas, "text", "surface", " ");
     }

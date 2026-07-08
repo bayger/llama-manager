@@ -295,7 +295,6 @@ export class GGUFInfoModal extends Modal {
   protected _closeBtn: Button;
   protected _cancelBtn: Button;
   protected _loadingLabel: StyledText;
-  protected _escHint: StyledText;
   protected _contentPanel: GGUFContentPanel;
 
   constructor() {
@@ -316,13 +315,9 @@ export class GGUFInfoModal extends Modal {
     this._closeBtn.setAction(() => this.closeWithResult(false));
     this._cancelBtn.setAction(() => this.closeWithResult(false));
 
-    this._escHint = new StyledText();
-    this._escHint.builder.muted("ESC");
-
     this._buttonRow = new Row();
     const spacer = new Spacer();
     spacer.flex = 1;
-    this._buttonRow.add(this._escHint);
     this._buttonRow.add(spacer);
     this._buttonRow.add(this._setActiveBtn);
     this._buttonRow.add(this._closeBtn);
