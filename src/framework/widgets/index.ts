@@ -19,3 +19,4 @@ export { SelectorModal, createSelectorModal } from "./SelectorModal";
 export type { SelectorItem } from "./SelectorModal";
 export { SelectorLabel } from "./SelectorLabel";
 export type { SelectorLabelConfig } from "./SelectorLabel";
+export { GGUFInfoModal, createGGUFInfoModal } from "./GGUFInfoModal";
