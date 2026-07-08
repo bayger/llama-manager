@@ -327,6 +327,7 @@ export class GGUFInfoModal extends Modal {
   protected _closeBtn: Button;
   protected _cancelBtn: Button;
   protected _loadingLabel: StyledText;
+  protected _footerSpacer: Spacer;
   protected _contentPanel: GGUFContentPanel;
 
   constructor() {
@@ -367,7 +368,10 @@ export class GGUFInfoModal extends Modal {
     this._contentPanel.visible = false;
     this._contentColumn.flex = 1;
 
+    this._footerSpacer = new Spacer();
+
     this.add(this._contentColumn);
+    this.add(this._footerSpacer);
     this.add(this._buttonRow);
   }
 
@@ -458,9 +462,11 @@ export class GGUFInfoModal extends Modal {
 
   onLayout(): void {
     const { x, y, width, height } = this.rect;
-    const contentRect = { x: x + 2, y: y + 3, width: width - 4, height: height - 5 };
+    const contentRect = { x: x + 2, y: y + 3, width: width - 4, height: height - 6 };
+    const spacerRect = { x: x + 2, y: y + height - 3, width: width - 4, height: 1 };
     const buttonRect = { x: x + 2, y: y + height - 2, width: width - 4, height: 1 };
     this._contentColumn.layout(contentRect);
+    this._footerSpacer.layout(spacerRect);
     this._buttonRow.layout(buttonRect);
   }
 }
