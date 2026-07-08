@@ -141,6 +141,7 @@ export class ModelsControl extends Control {
             `${model.repoId}/${model.filename}`,
             config,
             model.path,
+            (msg) => this._ctx?.showMessage(msg),
           );
           this._ctx.openModal<boolean>(modal).then((result) => {
             if (result) {

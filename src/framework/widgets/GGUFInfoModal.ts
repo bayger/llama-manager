@@ -8,6 +8,8 @@ import { fg } from "../../lib/theme";
 import { focusManager } from "../FocusManager";
 import { modalManager } from "../ModalManager";
 import { inspectGGUF } from "../../lib/gguf";
+import { spawn } from "child_process";
+import os from "os";
 import type { GGUFInfo } from "../../lib/gguf";
 import type { ConfigData } from "../../lib/config";
 import type { RenderContext } from "../types";
@@ -316,8 +318,11 @@ class GGUFContentPanel extends Scrollable {
 export class GGUFInfoModal extends Modal {
   protected _loading = false;
   protected _resolve: ((value: boolean) => void) | null = null;
+  protected _showMessage: ((msg: string) => void) | null = null;
+  protected _modelPath = "";
   protected _contentColumn: Column;
   protected _buttonRow: Row;
+  protected _copyPathBtn: Button;
   protected _setActiveBtn: Button;
   protected _closeBtn: Button;
   protected _cancelBtn: Button;
@@ -334,15 +339,18 @@ export class GGUFInfoModal extends Modal {
 
     this._contentPanel = new GGUFContentPanel();
 
+    this._copyPathBtn = new Button({ label: "Copy path" });
     this._setActiveBtn = new Button({ label: "Set Active" });
     this._closeBtn = new Button({ label: "Close" });
     this._cancelBtn = new Button({ label: "Cancel" });
 
+    this._copyPathBtn.setAction(() => this._copyPath());
     this._setActiveBtn.setAction(() => this.closeWithResult(true));
     this._closeBtn.setAction(() => this.closeWithResult(false));
     this._cancelBtn.setAction(() => this.closeWithResult(false));
 
     this._buttonRow = new Row();
+    this._buttonRow.add(this._copyPathBtn);
     const spacer = new Spacer();
     spacer.flex = 1;
     this._buttonRow.add(spacer);
@@ -367,10 +375,42 @@ export class GGUFInfoModal extends Modal {
     this._resolve = resolve;
   }
 
+  setShowMessage(cb: (msg: string) => void): void {
+    this._showMessage = cb;
+  }
+
+  setModelPath(path: string): void {
+    this._modelPath = path;
+  }
+
+  protected _copyPath(): void {
+    if (!this._modelPath) return;
+    const platform = os.platform();
+    let copyCmd: string, copyArgs: string[];
+    if (platform === "darwin") {
+      copyCmd = "pbcopy";
+      copyArgs = [];
+    } else if (platform === "win32") {
+      copyCmd = "clip";
+      copyArgs = [];
+    } else {
+      copyCmd = "xclip";
+      copyArgs = ["-selection", "clipboard"];
+    }
+    const child = spawn(copyCmd, copyArgs);
+    child.stdin.write(this._modelPath);
+    child.stdin.end();
+    child.on("error", () => {
+      this._showMessage?.("Could not copy to clipboard");
+    });
+    this._showMessage?.("Path copied to clipboard");
+  }
+
   setLoading(loading: boolean): void {
     this._loading = loading;
     this._loadingLabel.visible = loading;
     this._contentPanel.visible = !loading;
+    this._copyPathBtn.visible = !loading;
     this._setActiveBtn.visible = !loading;
     this._closeBtn.visible = !loading;
     this._cancelBtn.visible = loading;
@@ -381,6 +421,7 @@ export class GGUFInfoModal extends Modal {
     this._loading = false;
     this._loadingLabel.visible = false;
     this._contentPanel.visible = true;
+    this._copyPathBtn.visible = true;
     this._setActiveBtn.visible = true;
     this._closeBtn.visible = true;
     this._cancelBtn.visible = false;
@@ -428,9 +469,12 @@ export function createGGUFInfoModal(
   modelLabel: string,
   config: ConfigData,
   modelPath: string,
+  showMessage: (msg: string) => void,
 ): GGUFInfoModal {
   const modal = new GGUFInfoModal();
   modal.title = "Model Info";
+  modal.setModelPath(modelPath);
+  modal.setShowMessage(showMessage);
   modal.setLoading(true);
 
   inspectGGUF(config, modelPath).then((info) => {
