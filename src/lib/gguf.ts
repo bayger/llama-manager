@@ -12,6 +12,7 @@ export interface GGUFInfo {
   url: string;
   description: string;
   date: string;
+  params: string;
   architecture: string;
   quantization: string;
   fileSize: string;
@@ -79,6 +80,7 @@ function emptyInfo(): GGUFInfo {
     url: "-",
     description: "-",
     date: "-",
+    params: "-",
     architecture: "-",
     quantization: "-",
     fileSize: "-",
@@ -254,6 +256,17 @@ export async function inspectGGUF(config: ConfigData, modelPath: string): Promis
   info.url = kv("general.url") || "-";
   info.description = kv("general.description") || "-";
   info.date = kv("general.date") || "-";
+
+  const paramCount = kv("general.parameter_count");
+  if (paramCount) {
+    const n = parseInt(paramCount, 10);
+    if (!isNaN(n) && n > 0) {
+      if (n >= 1000000000) info.params = `${(n / 1000000000).toFixed(1)}B`;
+      else if (n >= 1000000) info.params = `${(n / 1000000).toFixed(1)}M`;
+      else if (n >= 1000) info.params = `${(n / 1000).toFixed(1)}k`;
+      else info.params = String(n);
+    }
+  }
 
   return info;
 }

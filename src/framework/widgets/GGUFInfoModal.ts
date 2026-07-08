@@ -44,6 +44,7 @@ const SECTIONS: SectionDef[] = [
       const rows: KVRow[] = [];
       if (nonEmpty(i.name)) rows.push({ label: "Name", value: i.name, color: "accent" });
       if (nonEmpty(i.architecture)) rows.push({ label: "Arch", value: i.architecture, color: "info" });
+      if (nonEmpty(i.params)) rows.push({ label: "Params", value: i.params, color: "info" });
       if (nonEmpty(i.quantization)) rows.push({ label: "Quant", value: i.quantization, color: "success" });
       if (nonEmpty(i.fileSize)) rows.push({ label: "Size", value: i.fileSize });
       if (nonEmpty(i.ggufVersion)) rows.push({ label: "GGUF", value: i.ggufVersion });
