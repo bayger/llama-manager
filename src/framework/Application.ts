@@ -64,7 +64,7 @@ export class Application {
       } catch (e) {
         console.error("[Application] Render error:", e);
       }
-    }, 1);
+    }, 10);
   }
 
   public getCanvas(): FramebufferCanvas {

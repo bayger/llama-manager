@@ -384,6 +384,7 @@ export class ThemeSelectorModal extends Modal {
   }
 
   protected apply(): void {
+    this._selectedTheme = this.getSelectedTheme() || this._selectedTheme;
     setThemeMode(this._previewMode);
     setActiveTheme(this._selectedTheme);
     if (this._resolve) {
