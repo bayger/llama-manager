@@ -2,7 +2,7 @@ import { Control } from "../../framework/Control";
 import { Column, Row } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Spacer } from "../../framework/widgets/Spacer";
-import { List, ListItem } from "../../framework/widgets/List";
+import { Table, TableItem } from "../../framework/widgets/Table";
 import { Scrollable } from "../../framework/widgets/Scrollable";
 import { Section } from "../../framework/widgets/Section";
 import { fg } from "../../lib/theme";
@@ -24,7 +24,7 @@ import {
   getArchKey,
 } from "../../lib/versions";
 import { saveConfig } from "../../lib/config";
-import { fireAsync, formatSize } from "../../lib/utils";
+import { fireAsync, formatSize, formatDate } from "../../lib/utils";
 import { createDownloadDialog } from "../../framework/widgets/DownloadDialog";
 import { createConfirmDialog } from "../../framework/widgets/ConfirmDialog";
 import { getInstallableForks, getFork } from "../../lib/forks";
@@ -91,7 +91,7 @@ export class VersionsControl extends Control {
   protected _btnBack: Button;
   protected _contentRow: Row;
   protected _versionsSection: Section;
-  protected _list: List<string, VersionInfo | RemoteVersion | AvailableBackend>;
+  protected _table: Table<VersionInfo | RemoteVersion | AvailableBackend>;
   protected _changelogSection: Section;
   protected _changelog: ChangelogView;
   protected _summary: StyledText;
@@ -109,13 +109,69 @@ export class VersionsControl extends Control {
     this._summary = new StyledText();
     this._summary.flex = 1;
 
-    this._list = new List();
-
-    this._list.flex = 1;
+    this._table = new Table();
+    this._table.showHeader = true;
+    this._table.flex = 1;
+    this._table.columns = [
+      {
+        label: "Tag",
+        width: 14,
+        flex: 1,
+        align: "left",
+        format: (_v, row: VersionInfo | RemoteVersion | AvailableBackend) => {
+          if ("active" in row) {
+            return row.active ? `✓ ${row.tag}` : `  ${row.tag}`;
+          }
+          if ("tag" in row) {
+            return row.tag;
+          }
+          return row.label;
+        },
+      },
+      {
+        label: "Backend",
+        width: 12,
+        align: "left",
+        format: (_v, row: VersionInfo | RemoteVersion | AvailableBackend) => {
+          if ("active" in row) {
+            return BACKEND_LABELS[row.backend] || row.backend;
+          }
+          if ("publishedAt" in row) {
+            return "-";
+          }
+          return row.assetName;
+        },
+      },
+      {
+        label: "Fork",
+        width: 12,
+        align: "left",
+        format: (_v, row: VersionInfo | RemoteVersion | AvailableBackend) => {
+          if ("active" in row) {
+            return getFork(row.fork).label;
+          }
+          return "-";
+        },
+      },
+      {
+        label: "Date",
+        width: 10,
+        align: "right",
+        format: (_v, row: VersionInfo | RemoteVersion | AvailableBackend) => {
+          if ("active" in row) {
+            return formatDate(new Date(row.createdAt).toISOString());
+          }
+          if ("publishedAt" in row) {
+            return row.publishedAt ? formatDate(row.publishedAt) : "-";
+          }
+          return "-";
+        },
+      },
+    ];
 
     this._versionsSection = new Section();
     this._versionsSection.title = "Installed Versions";
-    this._versionsSection.add(this._list);
+    this._versionsSection.add(this._table);
 
     this._changelog = new ChangelogView();
     this._changelogSection = new Section();
@@ -190,7 +246,7 @@ export class VersionsControl extends Control {
 
     this._btnDelete.setAction(() => {
       fireAsync(async () => {
-        const selected = this._list.getSelectedItem();
+        const selected = this._table.getSelectedItem();
         if (!selected) return;
         const config = ctx.getConfig();
         if (!config) throw new Error("No config loaded");
@@ -206,7 +262,7 @@ export class VersionsControl extends Control {
       }, ctx);
     });
 
-    this._list.setOnSelect((item) => {
+    this._table.setOnSelect((item) => {
       fireAsync(async () => {
         if (this._mode === "local") {
           const config = ctx.getConfig();
@@ -225,14 +281,15 @@ export class VersionsControl extends Control {
       }, ctx);
     });
 
-    this._list.handleKey = (key: string) => {
+    const tableHandleKey = this._table.handleKey.bind(this._table);
+    this._table.handleKey = (key: string) => {
       if (key === "g" && !focusManager.isTextInputActive()) {
         fireAsync(async () => {
           await this.goBack();
         }, ctx);
         return true;
       }
-      return List.prototype.handleKey.call(this._list, key);
+      return tableHandleKey(key);
     };
 
     this.refreshLocal();
@@ -254,8 +311,8 @@ export class VersionsControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    if (this._list.items.length > 0) {
-      focusManager.setFocus(this._list);
+    if (this._table.items.length > 0) {
+      focusManager.setFocus(this._table);
     } else if (this._mode === "local") {
       focusManager.setFocus(this._btnInstall);
     }
@@ -317,32 +374,31 @@ export class VersionsControl extends Control {
     this._changelogSection.visible = true;
     this._forkButton.visible = true;
     this._forkButton.label = getFork(this._selectedFork).label;
-    this._list.selectedIndex = -1;
-    this._list.items = [];
+    this._table.selectedIndex = -1;
+    this._table.updateItems([]);
     this._summary.builder.muted("GitHub Releases");
     this.markDirty();
 
     try {
       const releases = await listRecentVersions(this._selectedFork, 30);
-      const items: ListItem<string, RemoteVersion>[] = releases.map(r => ({
+      const items: TableItem<RemoteVersion>[] = releases.map(r => ({
         id: r.tag,
         label: r.tag,
-        sublabel: r.publishedAt ? r.publishedAt.substring(0, 10) : "",
         data: r,
       }));
 
-      this._list.setOnHighlight((item) => {
+      this._table.setOnHighlight((item) => {
         if (item) {
           this._changelog.update((item.data as RemoteVersion).body || "");
         } else {
           this._changelog.clear();
         }
       });
-      this._list.items = items;
+      this._table.updateItems(items);
       this._summary.builder
         .muted("Releases")
         .accentColor(` ${items.length}`);
-      focusManager.setFocus(this._list);
+      focusManager.setFocus(this._table);
       this.markDirty();
     } catch (err: any) {
       ctx.showMessage(`Failed to fetch releases: ${err.message}`);
@@ -362,8 +418,8 @@ export class VersionsControl extends Control {
     this._btnBack.visible = true;
     this._btnInstall.visible = false;
     this._btnDelete.visible = false;
-    this._list.selectedIndex = -1;
-    this._list.items = [];
+    this._table.selectedIndex = -1;
+    this._table.updateItems([]);
     this.markDirty();
 
     try {
@@ -377,16 +433,15 @@ export class VersionsControl extends Control {
         return;
       }
 
-      const items: ListItem<string, AvailableBackend>[] = backends.map(b => ({
+      const items: TableItem<AvailableBackend>[] = backends.map(b => ({
         id: b.id,
         label: b.label,
-        sublabel: b.assetName,
         data: b,
       }));
 
-      this._list.items = items;
+      this._table.updateItems(items);
       this._summary.builder.muted(`Backends for ${release.tag}`);
-      focusManager.setFocus(this._list);
+      focusManager.setFocus(this._table);
       this.markDirty();
     } catch (err: any) {
       ctx.showMessage(`Error: ${err.message}`);
@@ -443,27 +498,23 @@ export class VersionsControl extends Control {
         .muted("  Size ")
         .text(formatSize(totalSize));
 
-      const items: ListItem<string, VersionInfo>[] = versions.map(v => {
-        const forkLabel = v.fork && v.fork !== "llama.cpp" ? ` [${getFork(v.fork).label}]` : "";
-        return {
-          id: v.version,
-          label: v.active ? `✓ ${v.version}` : `  ${v.version}`,
-          sublabel: `${BACKEND_LABELS[v.backend] || v.backend}${forkLabel}`,
-          data: v,
-        };
-      });
+      const items: TableItem<VersionInfo>[] = versions.map(v => ({
+        id: v.version,
+        label: v.version,
+        data: v,
+      }));
 
-      this._list.selectedId = config.activeVersion || null;
-      this._list.items = items;
+      this._table.selectedId = config.activeVersion || null;
+      this._table.updateItems(items);
 
       if (config.activeVersion) {
         const activeIdx = items.findIndex(i => (i.data as VersionInfo).active);
         if (activeIdx >= 0) {
-          this._list.selectedIndex = activeIdx;
+          this._table.selectedIndex = activeIdx;
         }
       }
 
-      const sel = this._list.getSelectedItem();
+      const sel = this._table.getSelectedItem();
       this._btnDelete.disabled = !sel || !(sel.data as VersionInfo).active;
       this.markDirty();
     } catch (err: any) {
