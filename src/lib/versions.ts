@@ -14,6 +14,7 @@ import {
 export const BACKEND_LABELS: Record<string, string> = {
   cpu: "CPU",
   metal: "Metal",
+  cuda: "CUDA",
   cuda12: "CUDA 12",
   cuda13: "CUDA 13",
   vulkan: "Vulkan",
@@ -38,6 +39,7 @@ export interface VersionInfo {
   path: string;
   active: boolean;
   fork: string;
+  createdAt: number;
 }
 
 export interface RemoteVersion {
@@ -101,6 +103,7 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
     const binary = path.join(versionPath, binaryName);
     if (await fs.pathExists(binary)) {
       const { tag, backend } = parseFolderNameV2(entry.name);
+      const stat = await fs.stat(versionPath);
       versions.push({
         version: entry.name,
         tag,
@@ -108,6 +111,7 @@ export async function listVersions(config: ConfigData): Promise<VersionInfo[]> {
         path: versionPath,
         active: entry.name === config.activeVersion,
         fork: fork.id,
+        createdAt: stat.birthtimeMs,
       });
     }
   }
