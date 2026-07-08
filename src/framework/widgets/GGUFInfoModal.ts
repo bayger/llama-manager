@@ -139,13 +139,15 @@ const SECTIONS: SectionDef[] = [
 class GGUFContentPanel extends Scrollable {
   focusable = true;
   protected _info: GGUFInfo | null = null;
+  protected _modelLabel = "";
 
   constructor() {
     super();
   }
 
-  setInfo(info: GGUFInfo | null): void {
+  setInfo(info: GGUFInfo | null, modelLabel?: string): void {
     this._info = info;
+    if (modelLabel) this._modelLabel = modelLabel;
     this.scrollOffset = 0;
     this.markDirty();
   }
@@ -166,19 +168,25 @@ class GGUFContentPanel extends Scrollable {
       const sec = SECTIONS[si]!;
       const rows = sec.getRows(this._info);
       if (sec.skipIfZero && this._info[sec.skipIfZero] === 0) continue;
-      if (rows.length === 0) continue;
+      if (rows.length === 0 && si !== 0) continue;
       result.push(si);
     }
     return result;
+  }
+
+  protected _sectionRowCount(si: number): number {
+    if (!this._info) return 0;
+    let count = SECTIONS[si]!.getRows(this._info).length;
+    if (si === 0 && this._modelLabel) count++;
+    return count;
   }
 
   protected _totalContentHeight(): number {
     let h = 0;
     const visible = this._visibleSections();
     for (let i = 0; i < visible.length; i++) {
-      const sec = SECTIONS[visible[i]]!;
       h++;
-      h += sec.getRows(this._info!).length;
+      h += this._sectionRowCount(visible[i]!);
       if (i < visible.length - 1) h++;
     }
     return h;
@@ -233,7 +241,8 @@ class GGUFContentPanel extends Scrollable {
     let visualY = 0;
 
     for (let i = 0; i < visible.length; i++) {
-      const sec = SECTIONS[visible[i]]!;
+      const si = visible[i]!;
+      const sec = SECTIONS[si]!;
       const rows = sec.getRows(this._info);
 
       // Section header
@@ -243,6 +252,25 @@ class GGUFContentPanel extends Scrollable {
         fg(canvas, "secondary", sec.title);
       }
       visualY++;
+
+      // Model label row (first in Identity, front-truncated)
+      if (si === 0 && this._modelLabel) {
+        const maxValLen = Math.max(1, width - maxLabelLen - 5);
+        let labelVal = this._modelLabel;
+        if (labelVal.length > maxValLen) {
+          labelVal = "…" + labelVal.slice(-maxValLen + 3);
+        }
+        if (visualY >= this.scrollOffset && visualY < this.scrollOffset + height) {
+          const drawY = y + (visualY - this.scrollOffset);
+          canvas.moveTo(x, drawY);
+          canvas.setForegroundColor("borderMuted");
+          canvas.write(" ");
+          const lbl = ("  Model:").padEnd(maxLabelLen + 2);
+          fg(canvas, "textMuted", lbl);
+          fg(canvas, "text", labelVal);
+        }
+        visualY++;
+      }
 
       // Section rows (indented 2 chars)
       for (const row of rows) {
@@ -286,7 +314,6 @@ class GGUFContentPanel extends Scrollable {
 }
 
 export class GGUFInfoModal extends Modal {
-  protected _info: GGUFInfo | null = null;
   protected _loading = false;
   protected _resolve: ((value: boolean) => void) | null = null;
   protected _contentColumn: Column;
@@ -350,15 +377,14 @@ export class GGUFInfoModal extends Modal {
     this.markDirty();
   }
 
-  setInfo(info: GGUFInfo | null): void {
-    this._info = info;
+  setInfo(info: GGUFInfo | null, modelLabel?: string): void {
     this._loading = false;
     this._loadingLabel.visible = false;
     this._contentPanel.visible = true;
     this._setActiveBtn.visible = true;
     this._closeBtn.visible = true;
     this._cancelBtn.visible = false;
-    this._contentPanel.setInfo(info);
+    this._contentPanel.setInfo(info, modelLabel);
     this.markDirty();
   }
 
@@ -404,11 +430,11 @@ export function createGGUFInfoModal(
   modelPath: string,
 ): GGUFInfoModal {
   const modal = new GGUFInfoModal();
-  modal.title = `Model Info: ${modelLabel}`;
+  modal.title = "Model Info";
   modal.setLoading(true);
 
   inspectGGUF(config, modelPath).then((info) => {
-    modal.setInfo(info);
+    modal.setInfo(info, modelLabel);
   });
 
   return modal;
