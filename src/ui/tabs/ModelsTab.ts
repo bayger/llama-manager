@@ -122,8 +122,9 @@ export class ModelsControl extends Control {
     this._modelsSection.add(this._modelList);
     this._modelList.flex = 1;
 
+    const modelListHandleKey = this._modelList.handleKey.bind(this._modelList);
     this._modelList.handleKey = (key: string) => {
-      if (key === "SPACE") {
+      if (key === "SPACE" || key === " ") {
         const selected = this._modelList.getSelectedItem();
         if (selected) {
           this.selectModel(selected.data!);
@@ -149,7 +150,7 @@ export class ModelsControl extends Control {
         }
         return true;
       }
-      return Table.prototype.handleKey.call(this._modelList, key);
+      return modelListHandleKey(key);
     };
 
     this._column = new Column();

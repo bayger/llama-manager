@@ -10,7 +10,7 @@ import { modalManager } from "../ModalManager";
 import { inspectGGUF } from "../../lib/gguf";
 import type { GGUFInfo } from "../../lib/gguf";
 import type { ConfigData } from "../../lib/config";
-import type { Point, RenderContext } from "../types";
+import type { RenderContext } from "../types";
 
 interface KVRow {
   label: string;
@@ -20,7 +20,6 @@ interface KVRow {
 
 interface SectionDef {
   title: string;
-  defaultOpen: boolean;
   getRows: (info: GGUFInfo) => KVRow[];
   skipIfZero?: keyof GGUFInfo;
 }
@@ -39,7 +38,6 @@ function nonEmpty(value: string | number): boolean {
 const SECTIONS: SectionDef[] = [
   {
     title: "Identity",
-    defaultOpen: true,
     getRows: (i: GGUFInfo) => {
       const rows: KVRow[] = [];
       if (nonEmpty(i.name)) rows.push({ label: "Name", value: i.name, color: "accent" });
@@ -52,7 +50,6 @@ const SECTIONS: SectionDef[] = [
   },
   {
     title: "Architecture",
-    defaultOpen: true,
     getRows: (i: GGUFInfo) => {
       const rows: KVRow[] = [];
       if (nonEmpty(i.layers)) rows.push({ label: "Layers", value: String(i.layers) });
@@ -67,7 +64,6 @@ const SECTIONS: SectionDef[] = [
   },
   {
     title: "Attention",
-    defaultOpen: true,
     getRows: (i: GGUFInfo) => {
       const rows: KVRow[] = [];
       if (nonEmpty(i.attentionHeads)) rows.push({ label: "Attn Heads", value: String(i.attentionHeads) });
@@ -84,7 +80,6 @@ const SECTIONS: SectionDef[] = [
   },
   {
     title: "Vision",
-    defaultOpen: false,
     skipIfZero: "visionBlockCount",
     getRows: (i: GGUFInfo) => {
       const rows: KVRow[] = [];
@@ -101,7 +96,6 @@ const SECTIONS: SectionDef[] = [
   },
   {
     title: "Tokenizer",
-    defaultOpen: false,
     getRows: (i: GGUFInfo) => {
       const rows: KVRow[] = [];
       if (nonEmpty(i.tokenizerModel)) rows.push({ label: "Tokenizer", value: i.tokenizerModel });
@@ -115,7 +109,6 @@ const SECTIONS: SectionDef[] = [
   },
   {
     title: "Provenance",
-    defaultOpen: false,
     getRows: (i: GGUFInfo) => {
       const rows: KVRow[] = [];
       if (nonEmpty(i.author)) rows.push({ label: "Author", value: i.author });
@@ -130,7 +123,6 @@ const SECTIONS: SectionDef[] = [
   },
   {
     title: "Tensors",
-    defaultOpen: false,
     getRows: (i: GGUFInfo) => {
       const rows: KVRow[] = [];
       if (i.tensorTypes.length > 0) {
@@ -147,13 +139,9 @@ const SECTIONS: SectionDef[] = [
 class GGUFContentPanel extends Scrollable {
   focusable = true;
   protected _info: GGUFInfo | null = null;
-  protected _sectionOpen: Map<number, boolean> = new Map();
 
   constructor() {
     super();
-    for (let i = 0; i < SECTIONS.length; i++) {
-      this._sectionOpen.set(i, SECTIONS[i].defaultOpen);
-    }
   }
 
   setInfo(info: GGUFInfo | null): void {
@@ -178,7 +166,7 @@ class GGUFContentPanel extends Scrollable {
       const sec = SECTIONS[si]!;
       const rows = sec.getRows(this._info);
       if (sec.skipIfZero && this._info[sec.skipIfZero] === 0) continue;
-      if (rows.length === 0 && !this._sectionOpen.get(si)) continue;
+      if (rows.length === 0) continue;
       result.push(si);
     }
     return result;
@@ -186,28 +174,14 @@ class GGUFContentPanel extends Scrollable {
 
   protected _totalContentHeight(): number {
     let h = 0;
-    for (const si of this._visibleSections()) {
-      const sec = SECTIONS[si]!;
+    const visible = this._visibleSections();
+    for (let i = 0; i < visible.length; i++) {
+      const sec = SECTIONS[visible[i]]!;
       h++;
-      if (this._sectionOpen.get(si)) {
-        h += sec.getRows(this._info!).length;
-      }
+      h += sec.getRows(this._info!).length;
+      if (i < visible.length - 1) h++;
     }
     return h;
-  }
-
-  protected _hitTestSection(pointY: number): number | null {
-    if (!this._info) return null;
-    let visualY = 0;
-    for (const si of this._visibleSections()) {
-      const headerY = visualY;
-      visualY++;
-      if (pointY === headerY) return si;
-      if (this._sectionOpen.get(si)) {
-        visualY += SECTIONS[si]!.getRows(this._info).length;
-      }
-    }
-    return null;
   }
 
   handleKey(key: string): boolean {
@@ -244,21 +218,6 @@ class GGUFContentPanel extends Scrollable {
     return false;
   }
 
-  onMouseDown(point: Point): boolean {
-    const relY = point.y - this.rect.y;
-    if (relY < 0 || relY >= this.rect.height) return false;
-    const visualRow = this.scrollOffset + relY;
-    const si = this._hitTestSection(visualRow);
-    if (si !== null) {
-      const isOpen = this._sectionOpen.get(si);
-      this._sectionOpen.set(si, !isOpen);
-      this.scrollOffset = 0;
-      this.markDirty();
-      return true;
-    }
-    return false;
-  }
-
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
@@ -270,47 +229,51 @@ class GGUFContentPanel extends Scrollable {
     }
 
     const maxLabelLen = 14;
-    let cy = y;
+    const visible = this._visibleSections();
+    let visualY = 0;
 
-    for (const si of this._visibleSections()) {
-      const sec = SECTIONS[si]!;
+    for (let i = 0; i < visible.length; i++) {
+      const sec = SECTIONS[visible[i]]!;
       const rows = sec.getRows(this._info);
-      const isOpen = this._sectionOpen.get(si);
-      const arrow = isOpen ? "\u25b2" : "\u25bc";
-      const visibleCount = rows.length;
-      const headerText = ` ${arrow} ${sec.title}${visibleCount > 0 ? ` (${visibleCount})` : ""}`;
 
-      const headerVisualY = this._visualYForSection(si);
-      if (headerVisualY !== null && headerVisualY >= this.scrollOffset && headerVisualY < this.scrollOffset + height) {
-        const drawY = cy + (headerVisualY - this.scrollOffset);
+      // Section header
+      if (visualY >= this.scrollOffset && visualY < this.scrollOffset + height) {
+        const drawY = y + (visualY - this.scrollOffset);
         canvas.moveTo(x, drawY);
-        canvas.setForegroundColor("borderMuted");
-        canvas.write(" ");
-        fg(canvas, "secondary", headerText);
+        fg(canvas, "secondary", sec.title);
+      }
+      visualY++;
+
+      // Section rows (indented 2 chars)
+      for (const row of rows) {
+        if (visualY >= this.scrollOffset && visualY < this.scrollOffset + height) {
+          const drawY = y + (visualY - this.scrollOffset);
+          canvas.moveTo(x, drawY);
+          canvas.setForegroundColor("borderMuted");
+          canvas.write(" ");
+          const label = ("  " + row.label + ":").padEnd(maxLabelLen + 2);
+          fg(canvas, "textMuted", label);
+          fg(canvas, row.color || "text", row.value);
+        }
+        visualY++;
       }
 
-      if (isOpen) {
-        let rowVisualY = (headerVisualY ?? 0) + 1;
-        for (const row of rows) {
-          if (rowVisualY >= this.scrollOffset && rowVisualY < this.scrollOffset + height) {
-            const drawY = cy + (rowVisualY - this.scrollOffset);
-            canvas.moveTo(x, drawY);
-            canvas.setForegroundColor("borderMuted");
-            canvas.write(" ");
-            const label = (" " + row.label + ":").padEnd(maxLabelLen);
-            fg(canvas, "textMuted", label);
-            fg(canvas, row.color || "text", row.value);
-          }
-          rowVisualY++;
+      // Blank line between sections
+      if (i < visible.length - 1) {
+        if (visualY >= this.scrollOffset && visualY < this.scrollOffset + height) {
+          const drawY = y + (visualY - this.scrollOffset);
+          canvas.moveTo(x, drawY);
+          canvas.clearRect(x, drawY, width, 1);
         }
+        visualY++;
       }
     }
 
     const totalH = this._totalContentHeight();
     for (let row = 0; row < height; row++) {
-      const visualRow = this.scrollOffset + row;
-      if (visualRow >= totalH) {
-        const drawY = cy + row;
+      const vr = this.scrollOffset + row;
+      if (vr >= totalH) {
+        const drawY = y + row;
         canvas.moveTo(x, drawY);
         canvas.clearRect(x, drawY, width, 1);
       }
@@ -319,19 +282,6 @@ class GGUFContentPanel extends Scrollable {
     if (this.needsScrollbar) {
       this.drawScrollbar(canvas, x + width - 1, y, 1, height);
     }
-  }
-
-  protected _visualYForSection(targetSi: number): number | null {
-    if (!this._info) return null;
-    let visualY = 0;
-    for (const si of this._visibleSections()) {
-      if (si === targetSi) return visualY;
-      visualY++;
-      if (this._sectionOpen.get(si)) {
-        visualY += SECTIONS[si]!.getRows(this._info!).length;
-      }
-    }
-    return null;
   }
 }
 
@@ -349,8 +299,8 @@ export class GGUFInfoModal extends Modal {
 
   constructor() {
     super();
-    this.setMinSize(60, 12);
-    this.setMaxSize(120, 30);
+    this.setMinSize(60, 30);
+    this.setMaxSize(60, 30);
 
     this._loadingLabel = new StyledText();
     this._loadingLabel.builder.muted("Running llama-tokenize, please wait...");
