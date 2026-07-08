@@ -24,6 +24,7 @@ import { saveConfig, getModelsDir, ConfigData } from "../../lib/config";
 import { fireAsync, formatDate } from "../../lib/utils";
 import { createDownloadDialog } from "../../framework/widgets/DownloadDialog";
 import { createConfirmDialog } from "../../framework/widgets/ConfirmDialog";
+import { createGGUFInfoModal } from "../../framework/widgets/GGUFInfoModal";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Size } from "../../framework/types";
 
@@ -121,9 +122,37 @@ export class ModelsControl extends Control {
     this._modelsSection.add(this._modelList);
     this._modelList.flex = 1;
 
-    this._modelList.setOnSelect((item) => {
-      this.selectModel(item.data!);
-    });
+    const modelListHandleKey = this._modelList.handleKey.bind(this._modelList);
+    this._modelList.handleKey = (key: string) => {
+      if (key === "SPACE" || key === " ") {
+        const selected = this._modelList.getSelectedItem();
+        if (selected) {
+          this.selectModel(selected.data!);
+        }
+        return true;
+      }
+      if (key === "RETURN" || key === "ENTER") {
+        const selected = this._modelList.getSelectedItem();
+        if (selected && this._ctx) {
+          const model = selected.data!;
+          const config = this._ctx.getConfig();
+          if (!config) return true;
+          const modal = createGGUFInfoModal(
+            `${model.repoId}/${model.filename}`,
+            config,
+            model.path,
+            (msg) => this._ctx?.showMessage(msg),
+          );
+          this._ctx.openModal<boolean>(modal).then((result) => {
+            if (result) {
+              this.selectModel(model);
+            }
+          });
+        }
+        return true;
+      }
+      return modelListHandleKey(key);
+    };
 
     this._column = new Column();
     this._column.add(this._buttonRow);
