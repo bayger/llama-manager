@@ -170,7 +170,7 @@ class ThemePreviewControl extends Control {
     canvas.moveTo(x, y + row);
     canvas.setBackgroundColor(tc(t.selectionBg));
     canvas.setForegroundColor(tc(t.selectionText));
-    const selRow = ` 0     generating  1024    256     45.2t/s 12s `.substring(0, width);
+     const selRow = ` 0     generating  1024    256     45.2 t/s 12s `.substring(0, width);
     canvas.write(selRow);
     for (let col = selRow.length; col < width; col++) canvas.write(" ");
     canvas.setBackgroundColor(tc(t.canvas));
@@ -180,7 +180,7 @@ class ThemePreviewControl extends Control {
     // Table row (normal)
     canvas.moveTo(x, y + row);
     canvas.setForegroundColor(tc(t.text));
-    const normRow = " 1     idle        512     128     38.7t/s 8s ";
+     const normRow = " 1     idle        512     128     38.7 t/s 8s ";
     canvas.write(normRow);
     for (let col = normRow.length; col < width; col++) canvas.write(" ");
     row++;

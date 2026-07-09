@@ -241,13 +241,13 @@ export class TasksControl extends Control {
       .muted("Tasks ")
       .accentColor(`${stats.count}`)
       .muted("  Prompt ")
-      .text(`${stats.totalPromptTokens.toLocaleString()}`)
+      .info(`${stats.totalPromptTokens.toLocaleString()}`)
       .muted("  Output ")
-      .text(`${stats.totalOutputTokens.toLocaleString()}`)
+      .success(`${stats.totalOutputTokens.toLocaleString()}`)
       .muted("  Avg PP ")
-      .accentColor(`${stats.avgPromptSpeed.toFixed(1)}`)
+      .info(`${stats.avgPromptSpeed.toFixed(1)} t/s`)
       .muted("  Avg TG ")
-      .accentColor(`${stats.avgOutputSpeed.toFixed(1)}`);
+      .success(`${stats.avgOutputSpeed.toFixed(1)} t/s`);
   }
 
   updateColumns(): void {
@@ -259,8 +259,8 @@ export class TasksControl extends Control {
       { label: "ID", width: 6, align: "right" as const, headerSuffix: this._sortField === "taskId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `#${r.taskId}` },
       { label: "Slot", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `S${r.slotId}` },
       { label: "Profile", width: 8, flex: 1, align: "left" as const, format: (_c, r: TaskMetrics) => r.profile || "-" },
-      { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined, color: "info", format: (_c, r: TaskMetrics) => `${r.promptSpeed.toFixed(1)} tps` },
-      { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined, color: "success", format: (_c, r: TaskMetrics) => `${r.outputSpeed.toFixed(1)} tps` },
+      { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined, color: "info", format: (_c, r: TaskMetrics) => `${r.promptSpeed.toFixed(1)} t/s` },
+      { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined, color: "success", format: (_c, r: TaskMetrics) => `${r.outputSpeed.toFixed(1)} t/s` },
       { label: "Prompt", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined, color: "info", format: (_c, r: TaskMetrics) => String(r.promptTokens) },
       { label: "Output", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined, color: "success", format: (_c, r: TaskMetrics) => String(r.outputTokens) },
       { label: "Duration", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => formatMs(r.totalTimeMs) },

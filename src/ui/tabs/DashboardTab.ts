@@ -102,7 +102,6 @@ export class DashboardControl extends Control {
     this._column.add(this._metricsSection);
     this._column.add(new Spacer());
     this._column.add(this._chartsSection);
-    this._column.add(new Spacer());
 
     this.add(this._column);
   }
