@@ -1,6 +1,6 @@
 import { Control } from "../framework/Control";
 import { Column } from "../framework/Layout";
-import { HalfBar } from "../framework/widgets/HalfBar";
+import { Spacer } from "../framework/widgets/Spacer";
 import { Color, fg } from "../lib/theme";
 import type { Point, Rect, RenderContext, Size } from "../framework/types";
 import type { TabContext } from "../lib/tabcontext";
@@ -25,12 +25,9 @@ export type TabId = (typeof TABS)[number];
 export class MainControl extends Column {
   foregroundColor = 'canvas' as Color;
   backgroundColor = 'canvas' as Color;
-  protected _topBar: HalfBar;
   protected _tabBar: TabBar;
   protected _tabContent: TabContent;
-  protected _statusBarHalfBar: HalfBar;
   protected _statusBar: StatusBar;
-  protected _bottomBar: HalfBar;
   protected _activeTab: TabId = "Dashboard";
   protected _message: string | null = null;
   protected _messageTimer: ReturnType<typeof setTimeout> | null = null;
@@ -42,23 +39,17 @@ export class MainControl extends Column {
   ) {
     super();
 
-    this._topBar = new HalfBar();
     this._tabBar = new TabBar((index) => {
       this.setActiveTab(TABS[index]);
     });
     this._tabContent = new TabContent(_ctx);
-    this._statusBarHalfBar = new HalfBar();
-    this._statusBarHalfBar.mode = 'top';
     this._statusBar = new StatusBar();
-    this._bottomBar = new HalfBar();
-    this._bottomBar.mode = 'bottom';
 
-    this.add(this._topBar);
     this.add(this._tabBar);
+    this.add(new Spacer());
     this.add(this._tabContent);
-    this.add(this._statusBarHalfBar);
+    this.add(new Spacer());
     this.add(this._statusBar);
-    this.add(this._bottomBar);
 
     this._tabContent.flex = 1;
   }
@@ -216,7 +207,7 @@ class TabBar extends Control {
   }
 
   measure(_parentSize?: Size): Size {
-    return { width: this.rect.width || 80, height: 2 };
+    return { width: this.rect.width || 80, height: 3 };
   }
 
   setSelectedIndex(idx: number): void {
@@ -228,7 +219,7 @@ class TabBar extends Control {
     const canvas = ctx.canvas;
     const { x, y, width } = this.rect;
 
-    canvas.moveTo(x, y);
+    canvas.moveTo(x, y + 1);
     fg(canvas, "text", " ");
     canvas.bold();
     fg(canvas, "accentColor", this._appStr);
@@ -268,14 +259,14 @@ class TabBar extends Control {
       fg(canvas, "borderMuted", " ".repeat(padLen));
     }
 
-    canvas.moveTo(x, y + 1);
+    canvas.moveTo(x, y + 2);
     for (let i = 0; i < width; i++) {
-      fg(canvas, "canvas", "\u2584");
+      fg(canvas, "canvas", " ");
     }
   }
 
   onMouseDown(point: Point): boolean {
-    if (point.y !== this.rect.y) return false;
+    if (point.y !== this.rect.y + 1) return false;
     const offset = point.x - this.rect.x - 1 - this._appStr.length - 3;
     for (let i = 0; i < this._tabRects.length; i++) {
       const rect = this._tabRects[i]!;
@@ -372,7 +363,7 @@ class StatusBar extends Control {
   protected _versionRect: { x: number; y: number; len: number } | null = null;
 
   measure(_parentSize?: Size): Size {
-    return { width: this.rect.width || 80, height: 1 };
+    return { width: this.rect.width || 80, height: 3 };
   }
 
   onInit(): void {
@@ -456,7 +447,7 @@ class StatusBar extends Control {
       versionStr = `v${APP_VERSION} `;
     }
 
-    canvas.moveTo(x, y);
+    canvas.moveTo(x, y + 1);
     fg(canvas, "text", " ");
 
     let leftLen = 0;
@@ -493,12 +484,17 @@ class StatusBar extends Control {
     }
 
     const versionX = x + leftLen + (padLen > 0 ? padLen : 0);
-    this._versionRect = { x: versionX, y, len: versionStr.length };
+    this._versionRect = { x: versionX, y: y + 1, len: versionStr.length };
 
     if (this._updateAvailable) {
       fg(canvas, "warning", versionStr);
     } else {
       fg(canvas, "textMuted", versionStr);
+    }
+
+    canvas.moveTo(x, y + 2);
+    for (let i = 0; i < width; i++) {
+      fg(canvas, "canvas", " ");
     }
   }
 }

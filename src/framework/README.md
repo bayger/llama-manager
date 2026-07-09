@@ -343,16 +343,6 @@ All properties are protected with dirty-tracking getters/setters.
 
 Renders a 2-row widget: row 1 has spinner + label + percentage + extraLabel; row 2 has filled (`▓`) and empty (`░`) bar.
 
-### `HalfBar`
-
-Horizontal half-block bar. Non-focusable. Renders half-block characters (`▄`) with top/bottom color split.
-
-| Property | Type | Default |
-|---|---|---|
-| `mode` | `'top' \| 'bottom'` | `'top'` |
-
-Measures to `rect.width || 80` × 1.
-
 ### `BarChart`
 
 High-density bar chart using Braille characters (2 bars × 4 rows per cell). Non-focusable. Supports horizontal scrolling, Y-axis labels, X-axis labels, and configurable scaling.

@@ -7,7 +7,6 @@ export { List } from "./List";
 export { Scrollable } from "./Scrollable";
 export { Spacer } from "./Spacer";
 export { ProgressBar } from "./ProgressBar";
-export { HalfBar } from "./HalfBar";
 export { Table } from "./Table";
 export type { TableColumn, TableItem } from "./Table";
 export { Section } from "./Section";

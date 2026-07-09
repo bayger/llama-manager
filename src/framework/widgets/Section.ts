@@ -1,9 +1,8 @@
 import { Control } from "../Control";
-import { Color, fg, fgBg } from "../../lib/theme";
+import { Color, fg } from "../../lib/theme";
 import type { Size, RenderContext } from "../types";
 
 const V = "\u2502";
-const HALF_BLOCK = "\u2584";
 
 export class Section extends Control {
   focusable = false;
@@ -74,32 +73,27 @@ export class Section extends Control {
 
     if (width < 3 || height < 4) return;
 
-    // Half bar row
+    // Top padding row
     canvas.moveTo(x, y);
-    //fg(canvas, "accent", V);
-    canvas.setForegroundColor("surface");
-    canvas.setBackgroundColor("canvas");
-    for (let col = 0; col < width; col++) {
-      fgBg(canvas, "surface", "canvas", HALF_BLOCK);
-    }
+    canvas.setForegroundColor("borderMuted");
+    canvas.write(V);
 
     // Caption row
     canvas.moveTo(x, y + 1);
+    canvas.setForegroundColor("borderMuted");
+    canvas.write(V);
+    canvas.moveTo(x + 1, y + 1);
     canvas.bold();
-    fgBg(canvas, "secondary", "surface", V);
-    fgBg(canvas, "secondary", "surface", ` ${this.title}`);
+    fg(canvas, "secondary", ` ${this.title}`);
     canvas.bold(false);
     if (this.hint) {
       const titleLen = 2 + this.title.length;
-      const hintWithPad = ` ${this.hint}`;
+      const hintWithPad = `  ${this.hint} `;
       const startCol = width - 1 - hintWithPad.length;
       if (startCol > titleLen) {
         canvas.moveTo(x + titleLen, y + 1);
-        for (let col = titleLen; col < startCol; col++) {
-          fgBg(canvas, "secondary", "surface", " ");
-        }
-        canvas.moveTo(x + startCol, y + 1);
-        fgBg(canvas, "textMuted", "surface", hintWithPad);
+        fg(canvas, "secondary", " ".repeat(startCol - titleLen));
+        fg(canvas, "textMuted", hintWithPad);
       }
     }
 

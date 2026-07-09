@@ -2,6 +2,7 @@ import { Control } from "../../framework/Control";
 import { Column, Row } from "../../framework/Layout";
 import { Table } from "../../framework/widgets/Table";
 import { Section } from "../../framework/widgets/Section";
+import { Spacer } from "../../framework/widgets/Spacer";
 import { fg, fgBg } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
 import { StyledText } from "../../framework/widgets/StyledText";
@@ -181,6 +182,7 @@ export class TasksControl extends Control {
 
     this._column = new Column();
     this._column.add(this._summary);
+    this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
 
