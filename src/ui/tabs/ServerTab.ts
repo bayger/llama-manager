@@ -93,6 +93,7 @@ export class ServerControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
+    this._column.add(new Spacer());
     this._column.add(this._section);
 
     this.add(this._column);

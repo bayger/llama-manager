@@ -3,6 +3,7 @@ import { Column, Row } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Label } from "../../framework/widgets/Label";
 import { Section } from "../../framework/widgets/Section";
+import { Spacer } from "../../framework/widgets/Spacer";
 import { SelectorLabel } from "../../framework/widgets/SelectorLabel";
 import { MetricsPanel } from "../specialized/MetricsPanel";
 import { LoadedModelPanel } from "../specialized/LoadedModelPanel";
@@ -51,11 +52,9 @@ export class DashboardControl extends Control {
       this._buttonRow.add(btn);
     }
 
-    const sep1 = new Label();
-    sep1.text = "│";
-    sep1.color = "borderMuted";
-    sep1.focusable = false;
-    this._buttonRow.add(sep1);
+    const spacer = new Spacer();
+    spacer.flex = 1;
+    this._buttonRow.add(spacer);
 
     this._profileSelector = new SelectorLabel({
       prefix: "Profile",
@@ -63,12 +62,6 @@ export class DashboardControl extends Control {
       onActivate: () => this.openProfileSelector(),
     });
     this._buttonRow.add(this._profileSelector);
-
-    const sep2 = new Label();
-    sep2.text = "│";
-    sep2.color = "borderMuted";
-    sep2.focusable = false;
-    this._buttonRow.add(sep2);
 
     this._versionSelector = new SelectorLabel({
       prefix: "Version",
@@ -103,8 +96,11 @@ export class DashboardControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
+    this._column.add(new Spacer());
     this._column.add(this._modelSection);
+    this._column.add(new Spacer());
     this._column.add(this._metricsSection);
+    this._column.add(new Spacer());
     this._column.add(this._chartsSection);
 
     this.add(this._column);

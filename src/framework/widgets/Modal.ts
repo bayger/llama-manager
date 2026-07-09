@@ -4,11 +4,11 @@ import { fg, fgBg } from "../../lib/theme";
 import type { Point, RenderContext, Size } from "../types";
 
 const V = "\u2502";
-const HALF_BLOCK = "\u2584";
 
 export class Modal extends Control {
   focusable = true;
   protected _title = "";
+  protected _hint = "";
   protected _onClose: (() => void) | null = null;
   protected _minWidth = 30;
   protected _maxWidth = 120;
@@ -22,6 +22,15 @@ export class Modal extends Control {
 
   get title(): string {
     return this._title;
+  }
+
+  set hint(v: string) {
+    this._hint = v;
+    this.markDirty();
+  }
+
+  get hint(): string {
+    return this._hint;
   }
 
   setOnClose(callback: () => void): void {
@@ -97,51 +106,45 @@ export class Modal extends Control {
     const { canvas } = ctx;
     const { x, y, width, height } = this.rect;
 
-    if (width < 3 || height < 4) return;
+    if (width < 3 || height < 3) return;
 
     canvas.setClipRect({ x, y, width, height });
 
-    // Row 0: Half-block top bar
+    // Row 0: Top padding
     canvas.moveTo(x, y);
-    canvas.setForegroundColor("surface");
-    canvas.setBackgroundColor("canvas");
-    for (let col = 0; col < width; col++) {
-      fgBg(canvas, "surface", "canvas", HALF_BLOCK);
-    }
-
-    // Row 1: Title bar
-    canvas.moveTo(x, y + 1);
-    canvas.bold();
-    fgBg(canvas, "accent", "surface", V);
-    const maxTitleLen = Math.max(1, width - 3);
-    const truncated = this._title.length > maxTitleLen ? this._title.slice(0, maxTitleLen - 1) + "…" : this._title;
-    fgBg(canvas, "accent", "surface", ` ${truncated}`);
-    canvas.bold(false);
-    const titleLen = 1 + 1 + truncated.length;
-    for (let col = titleLen; col < width; col++) {
-      fgBg(canvas, "text", "surface", " ");
-    }
-
-    // Row 2: Spacing row (left border)
-    canvas.moveTo(x, y + 2);
     canvas.setForegroundColor("borderMuted");
     canvas.write(V);
 
-    // Rows 3..height-3: Content area (left border)
-    for (let row = 3; row < height - 2; row++) {
+    // Row 1: Title bar
+    canvas.moveTo(x, y + 1);
+    canvas.setForegroundColor("borderMuted");
+    canvas.write(V);
+    canvas.moveTo(x + 1, y + 1);
+    canvas.bold();
+    fg(canvas, "secondary", ` ${this._title}`);
+    canvas.bold(false);
+    if (this._hint) {
+      const titleLen = 2 + this._title.length;
+      const hintWithPad = `  ${this._hint} `;
+      const startCol = width - 1 - hintWithPad.length;
+      if (startCol > titleLen) {
+        canvas.moveTo(x + titleLen, y + 1);
+        fg(canvas, "secondary", " ".repeat(startCol - titleLen));
+        fg(canvas, "textMuted", hintWithPad);
+      }
+    }
+
+    // Rows 2..height-2: Left border
+    for (let row = 2; row < height - 1; row++) {
       canvas.moveTo(x, y + row);
       canvas.setForegroundColor("borderMuted");
       canvas.write(V);
     }
 
-    // Row height-2: Bottom padding (left border)
-    canvas.moveTo(x, y + height - 2);
+    // Row height-1: Bottom padding
+    canvas.moveTo(x, y + height - 1);
     canvas.setForegroundColor("borderMuted");
     canvas.write(V);
-
-    // Row height-1: Bottom border (left border)
-    canvas.moveTo(x, y + height - 1);
-    fgBg(canvas, "borderMuted", "surface", V);
 
     canvas.styleReset();
   }

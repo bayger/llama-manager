@@ -156,7 +156,7 @@ export class ModelsControl extends Control {
 
     this._column = new Column();
     this._column.add(this._buttonRow);
-    //this._column.add(new Spacer());
+    this._column.add(new Spacer());
     this._column.add(this._modelsSection);
     this._modelsSection.flex = 1;
 
@@ -289,7 +289,7 @@ export class ModelsControl extends Control {
 
     this._hfColumn = new Column();
     this._hfColumn.add(this._hfButtonRow);
-    //this._hfColumn.add(new Spacer());
+    this._hfColumn.add(new Spacer());
     this._hfColumn.add(this._hfContentColumn);
     this._hfColumn.visible = false;
 

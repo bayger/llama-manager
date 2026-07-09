@@ -2,11 +2,12 @@ import { Control } from "../../framework/Control";
 import { Column, Row } from "../../framework/Layout";
 import { Table } from "../../framework/widgets/Table";
 import { Section } from "../../framework/widgets/Section";
+import { Spacer } from "../../framework/widgets/Spacer";
 import { fg, fgBg } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
 import { StyledText } from "../../framework/widgets/StyledText";
 import { focusManager } from "../../framework/FocusManager";
-import { fireAsync, formatMs } from "../../lib/utils";
+import { fireAsync, formatMs, formatDate } from "../../lib/utils";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Point, Size, RenderContext } from "../../framework/types";
@@ -70,10 +71,12 @@ class TaskDetailsControl extends Section {
     const task = this._task;
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
+    const dateStr = formatDate(task.timestamp);
 
     return [
       { label: "ID", value: `#${task.taskId}` },
       { label: "Slot", value: `S${task.slotId}` },
+      { label: "Date", value: dateStr },
       { label: "Time", value: timeStr },
       { label: "", value: "" },
       { label: "Profile", value: task.profile || "-" },
@@ -181,6 +184,7 @@ export class TasksControl extends Control {
 
     this._column = new Column();
     this._column.add(this._summary);
+    this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
 
@@ -237,25 +241,26 @@ export class TasksControl extends Control {
       .muted("Tasks ")
       .accentColor(`${stats.count}`)
       .muted("  Prompt ")
-      .text(`${stats.totalPromptTokens.toLocaleString()}`)
+      .info(`${stats.totalPromptTokens.toLocaleString()}`)
       .muted("  Output ")
-      .text(`${stats.totalOutputTokens.toLocaleString()}`)
+      .success(`${stats.totalOutputTokens.toLocaleString()}`)
       .muted("  Avg PP ")
-      .accentColor(`${stats.avgPromptSpeed.toFixed(1)}`)
+      .info(`${stats.avgPromptSpeed.toFixed(1)} t/s`)
       .muted("  Avg TG ")
-      .accentColor(`${stats.avgOutputSpeed.toFixed(1)}`);
+      .success(`${stats.avgOutputSpeed.toFixed(1)} t/s`);
   }
 
   updateColumns(): void {
     const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
 
     this._table.columns = [
-      { label: "Time", width: 10, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => { const t = new Date(r.timestamp); return `${t.getHours().toString().padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}:${t.getSeconds().toString().padStart(2, "0")}`; } },
+      { label: "Date", width: 11, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => formatDate(r.timestamp) },
+      { label: "Time", width: 8, align: "left" as const, format: (_c, r: TaskMetrics) => { const t = new Date(r.timestamp); return `${t.getHours().toString().padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}:${t.getSeconds().toString().padStart(2, "0")}`; } },
       { label: "ID", width: 6, align: "right" as const, headerSuffix: this._sortField === "taskId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `#${r.taskId}` },
       { label: "Slot", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `S${r.slotId}` },
       { label: "Profile", width: 8, flex: 1, align: "left" as const, format: (_c, r: TaskMetrics) => r.profile || "-" },
-      { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined, color: "info", format: (_c, r: TaskMetrics) => `${r.promptSpeed.toFixed(1)} tps` },
-      { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined, color: "success", format: (_c, r: TaskMetrics) => `${r.outputSpeed.toFixed(1)} tps` },
+      { label: "PP", width: 10, align: "right" as const, headerSuffix: this._sortField === "promptSpeed" ? sortIndicator : undefined, color: "info", format: (_c, r: TaskMetrics) => `${r.promptSpeed.toFixed(1)} t/s` },
+      { label: "TG", width: 10, align: "right" as const, headerSuffix: this._sortField === "outputSpeed" ? sortIndicator : undefined, color: "success", format: (_c, r: TaskMetrics) => `${r.outputSpeed.toFixed(1)} t/s` },
       { label: "Prompt", width: 8, align: "right" as const, headerSuffix: this._sortField === "promptTokens" ? sortIndicator : undefined, color: "info", format: (_c, r: TaskMetrics) => String(r.promptTokens) },
       { label: "Output", width: 8, align: "right" as const, headerSuffix: this._sortField === "outputTokens" ? sortIndicator : undefined, color: "success", format: (_c, r: TaskMetrics) => String(r.outputTokens) },
       { label: "Duration", width: 8, align: "right" as const, headerSuffix: this._sortField === "totalTimeMs" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => formatMs(r.totalTimeMs) },

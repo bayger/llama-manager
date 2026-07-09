@@ -208,7 +208,7 @@ export class Table<T = any> extends Control {
       this.renderHeader(canvas, x, y, width, visibleCols);
       // Separator line below header
       canvas.moveTo(x, y + 1);
-      fg(canvas, "borderActive", "\u2500".repeat(width));
+      fg(canvas, "borderMuted", "\u2500".repeat(width));
     }
 
     const bodyStartY = y + (hasHeader ? this.headerHeight : 0);

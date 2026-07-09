@@ -155,7 +155,7 @@ export class VersionsControl extends Control {
       },
       {
         label: "Date",
-        width: 10,
+        width: 11,
         align: "right",
         format: (_v, row: VersionInfo | RemoteVersion | AvailableBackend) => {
           if ("active" in row) {
@@ -205,9 +205,8 @@ export class VersionsControl extends Control {
     this._changelogSection.flex = 1;
 
     this._column = new Column();
-    //this._column.add(this._dividerButtons);
     this._column.add(this._buttonRow);
-    //this._column.add(new Spacer());
+    this._column.add(new Spacer());
     this._column.add(this._contentRow);
     this._contentRow.flex = 1;
 

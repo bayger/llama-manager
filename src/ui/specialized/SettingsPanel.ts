@@ -269,6 +269,7 @@ export class SettingsPanel extends EditableList {
       const currentMmproj = presetData?.mmproj as string | null;
       modal.setItems(items, currentMmproj);
       modal.title = "Select mmproj file";
+      modal.hint = "enter confirm";
       modal.setMinSize(40, 8);
       modal.setMaxSize(80, 22);
 

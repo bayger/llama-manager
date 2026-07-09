@@ -142,7 +142,7 @@ export function formatDraftRate(rate: number): string {
 
 export function formatDate(iso: string): string {
   const d = new Date(iso);
-  return [d.getMonth() + 1, d.getDate()].map((v) => String(v).padStart(2, "0")).join("/");
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function formatTime(iso: string): string {

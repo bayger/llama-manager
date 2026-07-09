@@ -156,6 +156,7 @@ export class DeviceSelectorModal extends Modal {
 export function createDeviceSelectorModal(config: ConfigData): DeviceSelectorModal {
   const modal = new DeviceSelectorModal();
   modal.title = "Select Device";
+  modal.hint = "enter confirm";
   modal.setMinSize(60, 12);
   modal.setMaxSize(100, 30);
   modal.setConfig(config);

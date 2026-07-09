@@ -128,12 +128,12 @@ export class MetricsPanel extends Scrollable {
         canvas.moveTo(x, cy - scrollOff + y);
         fg(canvas, "textMuted", "Tasks ");
         fg(canvas, "accent", String(global.tasksCompleted));
-        fg(canvas, "textMuted", `  |  PP `);
+        fg(canvas, "textMuted", `  ·  PP `);
         fg(canvas, "info", `${global.avgPromptSpeed.toFixed(1)} t/s`);
-        fg(canvas, "textMuted", `  |  TG `);
+        fg(canvas, "textMuted", `  ·  TG `);
         fg(canvas, "success", `${global.avgGenSpeed.toFixed(1)} t/s`);
         if (this._detailLevel !== "basic") {
-          fg(canvas, "textMuted", `  |  Tokens `);
+          fg(canvas, "textMuted", `  ·  Tokens `);
           fg(canvas, "info", `${formatNum(global.totalPromptTokens)}`);
           fg(canvas, "textMuted", " / ");
           fg(canvas, "success", `${formatNum(global.totalOutputTokens)}`);
@@ -148,7 +148,7 @@ export class MetricsPanel extends Scrollable {
           fg(canvas, "textMuted", "  Draft ");
           fg(canvas, "accentColor", formatDraftRate(global.avgDraftAcceptance));
           if (global.activeSlots > 0) {
-            fg(canvas, "textMuted", `  |  Active `);
+            fg(canvas, "textMuted", `  ·  Active `);
             fg(canvas, "warning", String(global.activeSlots));
           }
         }
@@ -218,10 +218,10 @@ export class MetricsPanel extends Scrollable {
         const limit = slot.nCtxSlot;
         if (limit !== null && limit > 0) {
           const used = slot.cachedTokens ?? slot.contextSize;
-          fg(canvas, "textMuted", `  \u2502  Ctx `);
+          fg(canvas, "textMuted", `  ·  Ctx `);
           fg(canvas, "text", `${formatCtxNum(used)} / ${formatCtxNum(limit)}`);
         } else if (slot.contextSize > 0) {
-          fg(canvas, "textMuted", `  \u2502  Ctx `);
+          fg(canvas, "textMuted", `  ·  Ctx `);
           fg(canvas, "text", `${formatCtxNum(slot.contextSize)}`);
         }
       }
@@ -231,9 +231,9 @@ export class MetricsPanel extends Scrollable {
       const ppSpeed = slot.state === "prompting" ? slot.promptSpeed : lt?.promptSpeed ?? null;
       const tgSpeed = slot.state === "generating" ? slot.generationSpeed : lt?.outputSpeed ?? null;
 
-      fg(canvas, "textMuted", `  \u2502  PP `);
+      fg(canvas, "textMuted", `  ·  PP `);
       fg(canvas, "info", ppSpeed !== null ? `${ppSpeed.toFixed(1)} t/s` : "-");
-      fg(canvas, "textMuted", `  \u2502  TG `);
+      fg(canvas, "textMuted", `  ·  TG `);
       fg(canvas, "success", tgSpeed !== null ? `${tgSpeed.toFixed(1)} t/s` : "-");
       return;
     }
