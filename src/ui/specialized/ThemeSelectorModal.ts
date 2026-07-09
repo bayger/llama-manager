@@ -399,6 +399,7 @@ export function createThemeSelectorModal(currentTheme: string): Promise<string |
   return new Promise((resolve) => {
     const modal = new ThemeSelectorModal();
     modal.title = "Select Theme";
+    modal.hint = "space toggle light";
     modal.setMinSize(80, 26);
     modal.setMaxSize(120, 26);
     modal.setInitialTheme(currentTheme);

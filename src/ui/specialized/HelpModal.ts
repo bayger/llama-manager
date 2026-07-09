@@ -92,6 +92,7 @@ export class HelpModal extends Modal {
   constructor() {
     super();
     this.title = "Help";
+    this.hint = "? close";
     this.setMinSize(60, 22);
     this.setMaxSize(90, 30);
 

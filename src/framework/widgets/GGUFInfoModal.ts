@@ -480,6 +480,7 @@ export function createGGUFInfoModal(
 ): GGUFInfoModal {
   const modal = new GGUFInfoModal();
   modal.title = "Model Info";
+  modal.hint = "j/k scroll";
   modal.setModelPath(modelPath);
   modal.setShowMessage(showMessage);
   modal.setLoading(true);
