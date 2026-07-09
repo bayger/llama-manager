@@ -1,5 +1,6 @@
 import { Control } from "../../framework/Control";
 import { focusManager } from "../../framework/FocusManager";
+import { Section } from "../../framework/widgets/Section";
 import { LogsViewer } from "../specialized/LogsViewer";
 import { serverLogLines, onServerLog } from "../../lib/server";
 import type { TabContext } from "../../lib/tabcontext";
@@ -7,6 +8,7 @@ import type { Size } from "../../framework/types";
 
 export class LogsControl extends Control {
   protected _ctx: TabContext | null = null;
+  protected _section: Section;
   protected _logsControl: LogsViewer;
   protected _logUnsub: (() => void) | null = null;
   protected _logRenderTimer: ReturnType<typeof setTimeout> | null = null;
@@ -15,13 +17,19 @@ export class LogsControl extends Control {
     super();
     this._ctx = ctx;
 
+    this._section = new Section();
+    this._section.title = "Logs";
+    this._section.hint = "scroll to navigate";
+    this._section.flex = 1;
+
     this._logsControl = new LogsViewer({
       getLines: () => serverLogLines,
       emptyMessage: "Start the server to see logs",
     });
     this._logsControl.flex = 1;
 
-    this.add(this._logsControl);
+    this._section.add(this._logsControl);
+    this.add(this._section);
   }
 
   measure(parentSize?: Size): Size {

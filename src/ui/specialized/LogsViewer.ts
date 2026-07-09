@@ -108,9 +108,9 @@ export class LogsViewer extends Control {
     for (let i = 0; i < trackHeight; i++) {
       canvas.moveTo(sx, trackTop + i);
       if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
-        fgBg(canvas, "textMuted", "surface", " ".repeat(sw));
+        fgBg(canvas, "textMuted", "border", " ".repeat(sw));
       } else {
-        fgBg(canvas, "surface", "canvas", " ".repeat(sw));
+        fgBg(canvas, "surface", "borderMuted", " ".repeat(sw));
       }
     }
   }
