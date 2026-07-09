@@ -7,7 +7,7 @@ import { fg, fgBg } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
 import { StyledText } from "../../framework/widgets/StyledText";
 import { focusManager } from "../../framework/FocusManager";
-import { fireAsync, formatMs } from "../../lib/utils";
+import { fireAsync, formatMs, formatDate } from "../../lib/utils";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks";
 import type { TabContext } from "../../lib/tabcontext";
 import type { Point, Size, RenderContext } from "../../framework/types";
@@ -71,10 +71,12 @@ class TaskDetailsControl extends Section {
     const task = this._task;
     const time = new Date(task.timestamp);
     const timeStr = `${time.getHours().toString().padStart(2, "0")}:${time.getMinutes().toString().padStart(2, "0")}:${time.getSeconds().toString().padStart(2, "0")}`;
+    const dateStr = formatDate(task.timestamp);
 
     return [
       { label: "ID", value: `#${task.taskId}` },
       { label: "Slot", value: `S${task.slotId}` },
+      { label: "Date", value: dateStr },
       { label: "Time", value: timeStr },
       { label: "", value: "" },
       { label: "Profile", value: task.profile || "-" },
@@ -252,7 +254,8 @@ export class TasksControl extends Control {
     const sortIndicator = this._sortDir === "asc" ? "▲" : "▼";
 
     this._table.columns = [
-      { label: "Time", width: 10, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => { const t = new Date(r.timestamp); return `${t.getHours().toString().padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}:${t.getSeconds().toString().padStart(2, "0")}`; } },
+      { label: "Date", width: 11, align: "left" as const, headerSuffix: this._sortField === "timestamp" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => formatDate(r.timestamp) },
+      { label: "Time", width: 8, align: "left" as const, format: (_c, r: TaskMetrics) => { const t = new Date(r.timestamp); return `${t.getHours().toString().padStart(2, "0")}:${t.getMinutes().toString().padStart(2, "0")}:${t.getSeconds().toString().padStart(2, "0")}`; } },
       { label: "ID", width: 6, align: "right" as const, headerSuffix: this._sortField === "taskId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `#${r.taskId}` },
       { label: "Slot", width: 4, align: "left" as const, headerSuffix: this._sortField === "slotId" ? sortIndicator : undefined, format: (_c, r: TaskMetrics) => `S${r.slotId}` },
       { label: "Profile", width: 8, flex: 1, align: "left" as const, format: (_c, r: TaskMetrics) => r.profile || "-" },

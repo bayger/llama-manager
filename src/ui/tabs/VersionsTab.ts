@@ -155,7 +155,7 @@ export class VersionsControl extends Control {
       },
       {
         label: "Date",
-        width: 10,
+        width: 11,
         align: "right",
         format: (_v, row: VersionInfo | RemoteVersion | AvailableBackend) => {
           if ("active" in row) {
