@@ -224,7 +224,7 @@ class TabBar extends Control {
     canvas.bold();
     fg(canvas, "accentColor", this._appStr);
     canvas.bold(false);
-    fg(canvas, "borderMuted", " │ ");
+    fg(canvas, "borderMuted", " · ");
 
     this._tabRects = [];
     let pos = 0;
@@ -248,8 +248,8 @@ class TabBar extends Control {
       }
       pos += labelLen;
       if (i < TABS.length - 1) {
-        fg(canvas, "borderMuted", " │ ");
-        pos += 3;
+      fg(canvas, "borderMuted", "  ·  ");
+        pos += 5;
       }
     }
 
@@ -454,7 +454,7 @@ class StatusBar extends Control {
     if (this._message) {
       const isError = this._message.startsWith("Error") || this._message.startsWith("Failed");
       fg(canvas, isError ? "danger" : "success", this._message);
-      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "borderMuted", "  ·  ");
       fg(canvas, "textMuted", "? help");
       leftLen = this._message.length + 10;
     } else {
@@ -465,11 +465,11 @@ class StatusBar extends Control {
       if (this._serverRunning) {
         fg(canvas, "textMuted", ` (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`);
       }
-      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "borderMuted", "  ·  ");
       fg(canvas, "textMuted", "F1-F7 navigate");
-      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "borderMuted", "  ·  ");
       fg(canvas, "textMuted", "q quit");
-      fg(canvas, "borderMuted", "  │  ");
+      fg(canvas, "borderMuted", "  ·  ");
       fg(canvas, "textMuted", "? help");
       const serverLen = this._serverRunning
         ? `Server: Running (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`.length

@@ -447,9 +447,9 @@ export class LoadedModelPanel extends Control {
     if (cy >= y + this.rect.height) return;
     canvas.moveTo(x, cy);
     fg(canvas, "accent", model.name);
-    fg(canvas, "textMuted", `  \u2502  ${model.quantization}`);
-    fg(canvas, "textMuted", `  \u2502  ${model.fileSize}`);
-    fg(canvas, "textMuted", `  \u2502  Ctx `);
+    fg(canvas, "textMuted", `  ·  ${model.quantization}`);
+    fg(canvas, "textMuted", `  ·  ${model.fileSize}`);
+    fg(canvas, "textMuted", `  ·  Ctx `);
     fg(canvas, "text", `${fmtCtx(model.contextRuntime)}`);
     fg(canvas, "textMuted", ` / ${fmtCtx(model.contextTrain)}`);
     cy++;
@@ -473,12 +473,12 @@ export class LoadedModelPanel extends Control {
       fg(canvas, "textMuted", "  ");
       fg(canvas, "textMuted", "GPU ");
       fg(canvas, "success", model.gpuOffloaded);
-      fg(canvas, "textMuted", `  \u2502  KV Cache `);
+      fg(canvas, "textMuted", `  ·  KV Cache `);
       fg(canvas, "text", `${model.kvCacheTypeK} / ${model.kvCacheTypeV}`);
-      fg(canvas, "textMuted", `  \u2502  VRAM `);
+      fg(canvas, "textMuted", `  ·  VRAM `);
       fg(canvas, "info", `${totalVramUsed} MiB`);
       if (totalRamUsed > 0) {
-        fg(canvas, "textMuted", `  \u2502  RAM `);
+        fg(canvas, "textMuted", `  ·  RAM `);
         fg(canvas, "info", `${totalRamUsed} MiB`);
       }
       cy++;
@@ -491,9 +491,9 @@ export class LoadedModelPanel extends Control {
     fg(canvas, "textMuted", "  ");
     fg(canvas, "textMuted", "Arch ");
     fg(canvas, "info", model.architecture);
-    fg(canvas, "textMuted", `  \u2502  Params `);
+    fg(canvas, "textMuted", `  ·  Params `);
     fg(canvas, "info", model.params);
-    fg(canvas, "textMuted", `  \u2502  Vocab `);
+    fg(canvas, "textMuted", `  ·  Vocab `);
     fg(canvas, "text", formatNum(model.vocabSize));
     cy++;
 
@@ -505,9 +505,9 @@ export class LoadedModelPanel extends Control {
     if (model.mtpLayers > 0) {
       fg(canvas, "textMuted", ` + ${model.mtpLayers} MTP`);
     }
-    fg(canvas, "textMuted", `  \u2502  GPU `);
+    fg(canvas, "textMuted", `  ·  GPU `);
     fg(canvas, "success", model.gpuOffloaded);
-    fg(canvas, "textMuted", `  \u2502  VRAM `);
+    fg(canvas, "textMuted", `  ·  VRAM `);
     fg(canvas, "info", model.gpuVram);
     cy++;
 
@@ -516,7 +516,7 @@ export class LoadedModelPanel extends Control {
     fg(canvas, "textMuted", "  ");
     fg(canvas, "textMuted", "KV Cache ");
     fg(canvas, "text", `${model.kvCacheTypeK} / ${model.kvCacheTypeV}`);
-    fg(canvas, "textMuted", `  \u2502  Size `);
+    fg(canvas, "textMuted", `  ·  Size `);
     fg(canvas, "info", model.kvCacheSize);
     cy++;
 
