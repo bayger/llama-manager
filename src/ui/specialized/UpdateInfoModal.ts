@@ -1,5 +1,5 @@
 import { Modal } from "../../framework/widgets/Modal";
-import { Column, Row } from "../../framework/Layout";
+import { Column, Row, createSplitButtonRow } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Spacer } from "../../framework/widgets/Spacer";
 import { StyledText } from "../../framework/widgets/StyledText";
@@ -11,14 +11,9 @@ import os from "os";
 import type { TabContext } from "../../lib/tabcontext";
 
 export class UpdateInfoModal extends Modal {
-  protected _resolve: ((value: boolean) => void) | null = null;
   protected _latestVersion: string;
   protected _currentVersion: string;
   protected _ctx: TabContext | null = null;
-
-  setResolve(resolve: (value: boolean) => void): void {
-    this._resolve = resolve;
-  }
 
   setContext(ctx: TabContext | null): void {
     this._ctx = ctx;
@@ -72,7 +67,6 @@ export class UpdateInfoModal extends Modal {
     spacer2.flex = 1;
     contentColumn.add(spacer2);
 
-    const buttonRow = new Row();
     const copyBtn = new Button({ label: "Copy" });
     const openBtn = new Button({ label: "Open Releases" });
     const dismissBtn = new Button({ label: "Dismiss" });
@@ -84,12 +78,7 @@ export class UpdateInfoModal extends Modal {
     });
     dismissBtn.setAction(() => this.closeWithResult(false));
 
-    buttonRow.add(copyBtn);
-    const btnSpacer = new Spacer();
-    btnSpacer.flex = 1;
-    buttonRow.add(btnSpacer);
-    buttonRow.add(openBtn);
-    buttonRow.add(dismissBtn);
+    const buttonRow = createSplitButtonRow(copyBtn, openBtn, dismissBtn);
     contentColumn.add(buttonRow);
 
     this.add(contentColumn);
@@ -139,13 +128,7 @@ export class UpdateInfoModal extends Modal {
   }
 
   public closeWithResult(result: boolean): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(result);
   }
 }
 

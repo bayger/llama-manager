@@ -1,7 +1,6 @@
-import { Control } from "../Control";
-import { fg, fgBg } from "../../lib/theme";
+import { Scrollable } from "./Scrollable";
+import { fgBg, rowColors } from "../../lib/theme";
 import type { Point, Size, RenderContext } from "../types";
-import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 export interface ListItem<ID = string, D = unknown> {
   id: ID;
@@ -10,15 +9,12 @@ export interface ListItem<ID = string, D = unknown> {
   data?: D;
 }
 
-export class List<ID = string, D = unknown> extends Control {
+export class List<ID = string, D = unknown> extends Scrollable {
   focusable = true;
   protected _items: ListItem<ID, D>[] = [];
   protected _selectedIndex = -1;
   protected _selectedId: ID | null = null;
   public itemHeight = 1;
-  public scrollOffset = 0;
-  protected _viewportHeight = 0;
-  protected _scrollbarWidth = 1;
 
   get items(): ListItem<ID, D>[] { return this._items; }
   set items(value: ListItem<ID, D>[]) {
@@ -31,27 +27,16 @@ export class List<ID = string, D = unknown> extends Control {
     this.markDirty();
   }
 
-  get contentHeight(): number { return this._items.length; }
-
-  get maxScrollOffset(): number {
-    return Math.max(0, this.contentHeight - this._viewportHeight);
-  }
-
-  get needsScrollbar(): boolean {
-    return this.contentHeight > this._viewportHeight;
-  }
-
-  get contentWidth(): number {
-    return this.needsScrollbar ? this.rect.width - this._scrollbarWidth : this.rect.width;
-  }
-  protected _onSelect: ((item: ListItem<ID, D>) => void) | null = null;
-  protected _onHighlight: ((item: ListItem<ID, D> | null) => void) | null = null;
+  public override get contentHeight(): number { return this._items.length; }
 
   get selectedIndex(): number { return this._selectedIndex; }
   set selectedIndex(v: number) { if (v !== this._selectedIndex) { this._selectedIndex = v; this.markDirty(); } }
 
   get selectedId(): ID | null { return this._selectedId; }
   set selectedId(v: ID | null) { if (v !== this._selectedId) { this._selectedId = v; this.markDirty(); } }
+
+  protected _onSelect: ((item: ListItem<ID, D>) => void) | null = null;
+  protected _onHighlight: ((item: ListItem<ID, D> | null) => void) | null = null;
 
   measure(parentSize?: Size): Size {
     const wantedHeight = Math.max(1, this.items.length * this.itemHeight);
@@ -61,12 +46,7 @@ export class List<ID = string, D = unknown> extends Control {
 
   onLayout(): void {
     this._viewportHeight = Math.max(0, Math.floor(this.rect.height / this.itemHeight));
-    this.clampScrollBounds();
-  }
-
-  protected clampScrollBounds(): void {
-    const maxScroll = Math.max(0, this.contentHeight - this._viewportHeight);
-    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxScroll));
+    this.clampScroll();
   }
 
   protected ensureSelectedVisible(): void {
@@ -76,11 +56,7 @@ export class List<ID = string, D = unknown> extends Control {
     if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
       this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
     }
-    this.clampScrollBounds();
-  }
-
-  protected clampScroll(): void {
-    this.clampScrollBounds();
+    this.clampScroll();
   }
 
   setOnSelect(callback: (item: ListItem<ID, D>) => void): void {
@@ -110,48 +86,24 @@ export class List<ID = string, D = unknown> extends Control {
       if (!item) continue;
       const isHighlighted = globalIndex === this.selectedIndex;
       const isSelected = item.id === this._selectedId;
-      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-      const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
+      const colors = rowColors(isHighlighted, isSelected, this.focused);
       canvas.moveTo(x, y + i);
 
       const label = item.label;
       const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
-      if (isHighlighted) {
+      if (colors.bold) {
         canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, display);
-        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, cw - display.length)));
+        fgBg(canvas, colors.fg, colors.bg, display);
+        fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, cw - display.length)));
         canvas.bold(false);
       } else {
-        fgBg(canvas, fgColor, bgColor, display);
+        fgBg(canvas, colors.fg, colors.bg, display);
       }
     }
 
     if (this.needsScrollbar) {
       this.drawScrollbar(canvas, x + cw, y, this._scrollbarWidth, height);
-    }
-  }
-
-  protected drawScrollbar(canvas: FramebufferCanvas, sx: number, sy: number, sw: number, sh: number): void {
-    if (sh <= 0 || sw <= 0) return;
-
-    const trackTop = sy;
-    const trackHeight = sh;
-    const thumbMinHeight = 2;
-    const ratio = this._viewportHeight / this.contentHeight;
-    const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
-    const maxThumbPos = trackHeight - thumbHeight;
-    const thumbOffset = this.maxScrollOffset > 0
-      ? Math.floor((this.scrollOffset / this.maxScrollOffset) * maxThumbPos)
-      : 0;
-
-    for (let i = 0; i < trackHeight; i++) {
-      canvas.moveTo(sx, trackTop + i);
-      if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
-        fgBg(canvas, "textMuted", "border", " ".repeat(sw));
-      } else {
-        fgBg(canvas, "surface", "borderMuted", " ".repeat(sw));
-      }
     }
   }
 
@@ -161,11 +113,7 @@ export class List<ID = string, D = unknown> extends Control {
     if (key === "UP" || key === "k") {
       if (this.selectedIndex > 0) {
         this.selectedIndex--;
-        if (this.selectedIndex < this.scrollOffset) {
-          this.scrollOffset = this.selectedIndex;
-        } else if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
-          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
-        }
+        this.ensureSelectedVisible();
         this._fireHighlight();
         this.markDirty();
         return true;
@@ -175,11 +123,7 @@ export class List<ID = string, D = unknown> extends Control {
     if (key === "DOWN" || key === "j") {
       if (this.selectedIndex < this.items.length - 1) {
         this.selectedIndex++;
-        if (this.selectedIndex < this.scrollOffset) {
-          this.scrollOffset = this.selectedIndex;
-        } else if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
-          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
-        }
+        this.ensureSelectedVisible();
         this._fireHighlight();
         this.markDirty();
         return true;
@@ -191,9 +135,7 @@ export class List<ID = string, D = unknown> extends Control {
       const newIdx = Math.max(0, this.selectedIndex - viewport);
       if (newIdx !== this.selectedIndex) {
         this.selectedIndex = newIdx;
-        if (this.selectedIndex < this.scrollOffset) {
-          this.scrollOffset = this.selectedIndex;
-        }
+        this.ensureSelectedVisible();
         this._fireHighlight();
         this.markDirty();
       }
@@ -204,9 +146,7 @@ export class List<ID = string, D = unknown> extends Control {
       const newIdx = Math.min(this.items.length - 1, this.selectedIndex + viewport);
       if (newIdx !== this.selectedIndex) {
         this.selectedIndex = newIdx;
-        if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
-          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
-        }
+        this.ensureSelectedVisible();
         this._fireHighlight();
         this.markDirty();
       }
@@ -247,7 +187,7 @@ export class List<ID = string, D = unknown> extends Control {
       this._fireHighlight();
       this.markDirty();
     }
-    this.clampScrollBounds();
+    this.clampScroll();
   }
 
   getSelectedItem(): ListItem<ID, D> | null {
@@ -259,17 +199,7 @@ export class List<ID = string, D = unknown> extends Control {
 
   onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
     if (this.items.length === 0) return false;
-    if (direction === 'up' && this.scrollOffset > 0) {
-      this.scrollOffset--;
-      this.markDirty();
-      return true;
-    }
-    if (direction === 'down' && this.scrollOffset < this.maxScrollOffset) {
-      this.scrollOffset++;
-      this.markDirty();
-      return true;
-    }
-    return false;
+    return super.onMouseWheel(_point, direction);
   }
 
   onMouseDown(point: Point): boolean {
@@ -287,11 +217,10 @@ export class List<ID = string, D = unknown> extends Control {
         const ratio = this._viewportHeight / this.contentHeight;
         const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
         const maxThumbPos = trackHeight - thumbHeight;
-        const maxScroll = this.maxScrollOffset;
 
-        if (maxScroll > 0) {
-          const newOffset = Math.floor((clickY / maxThumbPos) * maxScroll);
-          this.scrollOffset = Math.max(0, Math.min(maxScroll, newOffset));
+        if (maxThumbPos > 0) {
+          const newOffset = Math.floor((clickY / maxThumbPos) * this.maxScrollOffset);
+          this.scrollOffset = Math.max(0, Math.min(this.maxScrollOffset, newOffset));
           this.markDirty();
           return true;
         }

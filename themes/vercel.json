@@ -22,7 +22,7 @@
   "light": {
     "canvas": "#FFFFFF",
     "surface": "#FAFAFA",
-    "border": "#EAEAEA",
+    "border": "#d5d5d5",
     "borderMuted": "#EAEAEA",
     "borderActive": "#999999",
     "text": "#171717",

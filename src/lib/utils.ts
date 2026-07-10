@@ -5,6 +5,15 @@ export function spinnerChar(): string {
   return SPINNER_FRAMES[Math.floor(Date.now() / SPINNER_INTERVAL) % SPINNER_FRAMES.length];
 }
 
+/**
+ * Start a spinner timer that calls `tick` at SPINNER_INTERVAL.
+ * Returns a dispose function. Call it to stop the timer.
+ */
+export function startSpinner(tick: () => void): () => void {
+  const id = setInterval(tick, SPINNER_INTERVAL);
+  return () => clearInterval(id);
+}
+
 // - Responsive breakpoints -
 
 export type Breakpoint = "sm" | "md" | "lg" | "xl" | "2xl";
@@ -154,4 +163,13 @@ export function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+export type DetailLevel = "basic" | "middle" | "detailed";
+
+const DETAIL_LEVELS: DetailLevel[] = ["basic", "middle", "detailed"];
+
+export function cycleDetailLevel(current: DetailLevel): DetailLevel {
+  const idx = DETAIL_LEVELS.indexOf(current);
+  return DETAIL_LEVELS[(idx + 1) % DETAIL_LEVELS.length]!;
 }

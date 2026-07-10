@@ -1,33 +1,25 @@
 import { Modal } from "../../framework/widgets/Modal";
-import { Column, Row } from "../../framework/Layout";
+import { Column, Row, createButtonRow } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Spacer } from "../../framework/widgets/Spacer";
 import { List } from "../../framework/widgets/List";
 import { StyledText } from "../../framework/widgets/StyledText";
 import { modalManager } from "../../framework/ModalManager";
 import { listDevices } from "../../lib/server";
-import { spinnerChar } from "../../lib/utils";
+import { spinnerChar, startSpinner } from "../../lib/utils";
 import type { ConfigData } from "../../lib/config";
 import type { Size } from "../../framework/types";
-
-const SPINNER_INTERVAL = 100;
 
 export class DeviceSelectorModal extends Modal {
   protected _config: ConfigData | null = null;
   protected _isScanning = false;
-  protected _resolve: ((value: string | null) => void) | null = null;
   protected _scanButton: Button;
   protected _list: List<string, string>;
   protected _closeButton: Button;
-  protected _spinnerTimer: ReturnType<typeof setTimeout> | null = null;
   protected _statusLabel: StyledText;
 
   setConfig(config: ConfigData): void {
     this._config = config;
-  }
-
-  setResolve(resolve: (value: string | null) => void): void {
-    this._resolve = resolve;
   }
 
   constructor() {
@@ -53,11 +45,7 @@ export class DeviceSelectorModal extends Modal {
       this.closeWithResult(null);
     });
 
-    const buttonRow = new Row();
-    const spacer = new Spacer();
-    spacer.flex = 1;
-    buttonRow.add(spacer);
-    buttonRow.add(this._closeButton);
+    const buttonRow = createButtonRow(this._closeButton);
 
     const contentColumn = new Column();
     contentColumn.add(this._scanButton);
@@ -71,15 +59,13 @@ export class DeviceSelectorModal extends Modal {
 
     this.add(contentColumn);
 
-    const tick = () => {
+    this.disposeOnDestroy(startSpinner(() => {
       if (this._isScanning) {
         this._statusLabel.builder.text(`${spinnerChar()} Scanning devices...`);
         this.markDirty();
         modalManager.markDirty();
-        this._spinnerTimer = setTimeout(tick, SPINNER_INTERVAL);
       }
-    };
-    this._spinnerTimer = setTimeout(tick, SPINNER_INTERVAL);
+    }));
   }
 
   async scanDevices(): Promise<void> {
@@ -131,25 +117,7 @@ export class DeviceSelectorModal extends Modal {
   }
 
   public closeWithResult(result: string | null): void {
-    if (this._spinnerTimer) {
-      clearTimeout(this._spinnerTimer);
-      this._spinnerTimer = null;
-    }
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
-  }
-
-  onDestroy(): void {
-    if (this._spinnerTimer) {
-      clearTimeout(this._spinnerTimer);
-      this._spinnerTimer = null;
-    }
-    super.onDestroy();
+    super.closeWithResult(result);
   }
 }
 

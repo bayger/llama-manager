@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
+import { Column, Row, createButtonRow } from "../Layout";
 import { Button } from "./Button";
 import { Spacer } from "./Spacer";
 import { StyledText } from "./StyledText";
@@ -10,7 +10,6 @@ export type ExitResult = "cancel" | "exit" | "stop_and_exit";
 
 export class ExitDialog extends Modal {
   protected _message = "";
-  protected _resolve: ((value: ExitResult) => void) | null = null;
   protected _messageLabel: StyledText;
 
   set message(v: string) {
@@ -19,17 +18,9 @@ export class ExitDialog extends Modal {
     this.markDirty();
   }
 
-  setResolve(resolve: (value: ExitResult) => void): void {
-    this._resolve = resolve;
-  }
-
   constructor() {
     super();
     this._messageLabel = new StyledText();
-
-    const buttonRow = new Row();
-    const spacer = new Spacer();
-    spacer.flex = 1;
 
     const cancelBtn = new Button({ label: "Cancel" });
     const exitBtn = new Button({ label: "Exit Now" });
@@ -39,10 +30,7 @@ export class ExitDialog extends Modal {
     exitBtn.setAction(() => this.closeWithResult("exit"));
     stopExitBtn.setAction(() => this.closeWithResult("stop_and_exit"));
 
-    buttonRow.add(spacer);
-    buttonRow.add(cancelBtn);
-    buttonRow.add(exitBtn);
-    buttonRow.add(stopExitBtn);
+    const buttonRow = createButtonRow(cancelBtn, exitBtn, stopExitBtn);
 
     const contentColumn = new Column();
     contentColumn.add(this._messageLabel);
@@ -60,13 +48,7 @@ export class ExitDialog extends Modal {
   }
 
   public closeWithResult(result: ExitResult): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(result);
   }
 }
 

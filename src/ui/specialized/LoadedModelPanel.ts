@@ -1,6 +1,6 @@
 import { Control } from "../../framework/Control";
 import { fg } from "../../lib/theme";
-import { formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
+import { formatNum, spinnerChar, SPINNER_INTERVAL, cycleDetailLevel } from "../../lib/utils";
 import { EventEmitter } from "events";
 import type { RenderContext, Size } from "../../framework/types";
 
@@ -351,7 +351,8 @@ export function getLoadingModelName(): string | null {
   return isModelLoading() ? accum.name || null : null;
 }
 
-export type ModelDetailLevel = "basic" | "middle" | "detailed";
+import type { DetailLevel } from "../../lib/utils";
+export type ModelDetailLevel = DetailLevel;
 
 function fmtCtx(n: number): string {
   if (n >= 1024) return `${(n / 1024).toFixed(n % 1024 === 0 ? 0 : 1)}K`;
@@ -374,9 +375,7 @@ export class LoadedModelPanel extends Control {
   }
 
   cycleDetailLevel(): void {
-    const levels: ModelDetailLevel[] = ["basic", "middle", "detailed"];
-    const idx = levels.indexOf(this._detailLevel);
-    this._detailLevel = levels[(idx + 1) % levels.length]!;
+    this._detailLevel = cycleDetailLevel(this._detailLevel);
     this.markDirty();
   }
 

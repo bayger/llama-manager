@@ -5,9 +5,16 @@ import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 export class Scrollable extends Control {
   public scrollOffset = 0;
-  public contentHeight = 0;
+  protected _contentHeight = 0;
   protected _viewportHeight = 0;
   protected _scrollbarWidth = 1;
+
+  public get contentHeight(): number { return this._contentHeight; }
+  public set contentHeight(v: number) {
+    this._contentHeight = v;
+    this.clampScroll();
+    this.markDirty();
+  }
 
   measure(_parentSize?: Size): Size {
     return { width: this.rect.width || 40, height: this.rect.height || 10 };
@@ -15,7 +22,7 @@ export class Scrollable extends Control {
 
   onLayout(): void {
     this._viewportHeight = this.rect.height;
-    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
+    this.clampScroll();
   }
 
   get maxScrollOffset(): number {
@@ -36,8 +43,8 @@ export class Scrollable extends Control {
   }
 
   setContentHeight(h: number): void {
-    this.contentHeight = h;
-    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
+    this._contentHeight = h;
+    this.clampScroll();
     this.markDirty();
   }
 
@@ -47,6 +54,10 @@ export class Scrollable extends Control {
 
   canScrollDown(): boolean {
     return this.scrollOffset < this.maxScrollOffset;
+  }
+
+  protected clampScroll(): void {
+    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, this.maxScrollOffset));
   }
 
   drawScrollbar(canvas: FramebufferCanvas, sx: number, sy: number, sw: number, sh: number): void {
@@ -73,12 +84,12 @@ export class Scrollable extends Control {
   }
 
   handleKey(key: string): boolean {
-    if (key === "UP" && this.canScrollUp()) {
+    if ((key === "UP" || key === "k") && this.canScrollUp()) {
       this.scrollOffset--;
       this.markDirty();
       return true;
     }
-    if (key === "DOWN" && this.canScrollDown()) {
+    if ((key === "DOWN" || key === "j") && this.canScrollDown()) {
       this.scrollOffset++;
       this.markDirty();
       return true;

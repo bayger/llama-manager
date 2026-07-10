@@ -147,6 +147,43 @@ export function popThemeChanged(): boolean {
 // Keep backward compat for lib files that import theme colors
 export const theme = themeColors;
 
+// ─── Row coloring helper ──────────────────────────────────────────────────────
+
+export interface RowColors {
+  fg: Color;
+  fgMuted: Color;
+  bg: Color;
+  bold: boolean;
+}
+
+/**
+ * Compute foreground/background colors for a row based on highlight, selection, and focus state.
+ */
+export function rowColors(isHighlighted: boolean, isSelected: boolean, focused: boolean): RowColors {
+  if (isHighlighted) {
+    return {
+      fg: focused ? "canvas" : "text",
+      fgMuted: focused ? "canvas" : "textMuted",
+      bg: focused ? "selectionBg" : "surface",
+      bold: true,
+    };
+  }
+  if (isSelected) {
+    return {
+      fg: "accent",
+      fgMuted: "textMuted",
+      bg: "surface",
+      bold: false,
+    };
+  }
+  return {
+    fg: "text",
+    fgMuted: "textMuted",
+    bg: "surface",
+    bold: false,
+  };
+}
+
 // ─── Color resolution ────────────────────────────────────────────────────────
 
 export function resolveColor(color: Color): string {
@@ -170,6 +207,66 @@ export function fgBg(target: FramebufferCanvas, fgColor: Color, bgColor: Color, 
   if (fgColor !== "None") target.setForegroundColor(fgColor);
   if (bgColor !== "None") target.setBackgroundColor(bgColor);
   target.write(text);
+}
+
+export function drawTitleBar(canvas: FramebufferCanvas, x: number, y: number, width: number, title: string, hint?: string): void {
+  canvas.moveTo(x, y);
+  canvas.setForegroundColor("borderMuted");
+  canvas.write(V);
+  canvas.moveTo(x + 1, y);
+  canvas.bold();
+  fg(canvas, "secondary", ` ${title}`);
+  canvas.bold(false);
+  if (hint) {
+    const titleLen = 2 + title.length;
+    const hintWithPad = `  ${hint} `;
+    const startCol = width - 1 - hintWithPad.length;
+    if (startCol > titleLen) {
+      canvas.moveTo(x + titleLen, y);
+      fg(canvas, "secondary", " ".repeat(startCol - titleLen));
+      fg(canvas, "textMuted", hintWithPad);
+    }
+  }
+}
+
+export function drawEditableHeader(canvas: FramebufferCanvas, categoryName: string, collapsed: boolean, isHighlighted: boolean, focused: boolean, width: number): void {
+  const arrow = collapsed ? "\u25b6" : "\u25bc";
+  const headerText = ` ${arrow} ${categoryName}`;
+  const fgColor = isHighlighted ? (focused ? "canvas" : "accent") : "accent";
+  const bgColor = focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
+
+  const padded = headerText.padEnd(width);
+  if (isHighlighted) {
+    canvas.bold(true);
+    fgBg(canvas, fgColor, bgColor, padded);
+    canvas.bold(false);
+  } else {
+    fgBg(canvas, fgColor, bgColor, padded);
+  }
+}
+
+export function drawEditableField(canvas: FramebufferCanvas, keyStr: string, value: string, extra: string, isEditing: boolean, isHighlighted: boolean, focused: boolean, width: number): void {
+  if (isEditing) {
+    fgBg(canvas, "warning", "surface", keyStr);
+    fgBg(canvas, "accent", "canvas", value);
+    return;
+  }
+
+  const descSpace = Math.max(0, width - keyStr.length - value.length - extra.length - 2);
+  const desc = descSpace > 0 ? " ".repeat(descSpace) : "";
+
+  const colors = rowColors(isHighlighted, false, focused);
+  const content = keyStr + value + extra + (desc ? "  " + desc : "");
+
+  if (colors.bold) {
+    canvas.bold(true);
+    fgBg(canvas, colors.fg, colors.bg, content.substring(0, width));
+    canvas.bold(false);
+  } else {
+    fgBg(canvas, colors.fgMuted, colors.bg, keyStr);
+    fgBg(canvas, colors.fg, colors.bg, value);
+    fgBg(canvas, colors.fgMuted, colors.bg, desc ? "  " + desc : "");
+  }
 }
 
 export function termWidth(target: FramebufferCanvas): number {
@@ -204,7 +301,7 @@ const TR = "\u2510";
 const BL = "\u2514";
 const BR = "\u2518";
 const H = "\u2500";
-const V = "\u2502";
+export const V = "\u2502";
 const L = "\u251c";
 const R = "\u2524";
 

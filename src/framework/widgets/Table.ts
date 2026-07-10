@@ -1,7 +1,7 @@
-import { Control } from "../Control";
-import { fg, fgBg } from "../../lib/theme";
+import { Scrollable } from "./Scrollable";
+import { fg, fgBg, rowColors } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
-import type { Point, Size, RenderContext } from "../types";
+import type { Point, RenderContext } from "../types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
 export interface TableColumn {
@@ -28,21 +28,18 @@ interface VisibleColumn {
   width: number;
 }
 
-export class Table<T = any> extends Control {
+export class Table<T = any> extends Scrollable {
   focusable = true;
 
   public columns: TableColumn[] = [];
   public items: TableItem<T>[] = [];
   protected _selectedIndex = -1;
   protected _selectedId: string | number | null = null;
-  public scrollOffset = 0;
-  public contentHeight = 0;
   public showHeader = true;
   public headerHeight = 2;
 
   protected _onSelect: ((item: TableItem<T>) => void) | null = null;
   protected _onHighlight: ((item: TableItem<T> | null) => void) | null = null;
-  protected _viewportHeight = 0;
   protected _virtualTotal = 0;
   protected _virtualLoader: VirtualLoader<T> | null = null;
   protected _virtualCacheStart = -1;
@@ -54,14 +51,14 @@ export class Table<T = any> extends Control {
   get selectedId(): string | number | null { return this._selectedId; }
   set selectedId(v: string | number | null) { if (v !== this._selectedId) { this._selectedId = v; this.markDirty(); } }
 
-  measure(_parentSize?: Size): Size {
-    return { width: this.rect.width || 40, height: this.rect.height || 10 };
+  get totalItems(): number {
+    return this._virtualLoader ? this._virtualTotal : this.items.length;
   }
 
   onLayout(): void {
     const bodyHeight = this.rect.height - (this.showHeader ? this.headerHeight : 0);
     this._viewportHeight = Math.max(0, bodyHeight);
-    this.clampScrollBounds();
+    this.clampScroll();
   }
 
   setOnSelect(callback: (item: TableItem<T>) => void): void {
@@ -76,7 +73,7 @@ export class Table<T = any> extends Control {
     this._virtualTotal = total;
     this._virtualLoader = loader;
     this._virtualCacheStart = -1;
-    this.contentHeight = total;
+    this._contentHeight = total;
     this.clampScroll();
     this.markDirty();
   }
@@ -100,7 +97,7 @@ export class Table<T = any> extends Control {
     this._virtualCacheStart = -1;
     this._virtualCache = [];
     this.items = items;
-    this.contentHeight = items.length;
+    this._contentHeight = items.length;
     if (this.selectedIndex >= items.length) {
       this.selectedIndex = items.length > 0 ? items.length - 1 : -1;
     }
@@ -128,13 +125,14 @@ export class Table<T = any> extends Control {
     }
   }
 
-  protected clampScrollBounds(): void {
-    const maxScroll = Math.max(0, this.contentHeight - this._viewportHeight);
-    this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxScroll));
-  }
-
-  protected clampScroll(): void {
-    this.clampScrollBounds();
+  protected ensureSelectedVisible(): void {
+    if (this.selectedIndex < this.scrollOffset) {
+      this.scrollOffset = this.selectedIndex;
+    }
+    if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
+      this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
+    }
+    this.clampScroll();
   }
 
   protected computeVisibleColumns(availableWidth: number): VisibleColumn[] {
@@ -200,13 +198,12 @@ export class Table<T = any> extends Control {
     if (items.length === 0) return;
 
     const visibleCols = this.computeVisibleColumns(width);
-    const   hasHeader = this.showHeader && visibleCols.length > 0;
+    const hasHeader = this.showHeader && visibleCols.length > 0;
 
     if (hasHeader) {
       canvas.moveTo(x, y);
       canvas.setBackgroundColor("surface");
       this.renderHeader(canvas, x, y, width, visibleCols);
-      // Separator line below header
       canvas.moveTo(x, y + 1);
       fg(canvas, "borderMuted", "\u2500".repeat(width));
     }
@@ -261,8 +258,7 @@ export class Table<T = any> extends Control {
     }
 
     const isSelected = item.id === this._selectedId;
-    const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-    const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
+    const colors = rowColors(isHighlighted, isSelected, this.focused);
 
     let display: string;
 
@@ -286,50 +282,46 @@ export class Table<T = any> extends Control {
         return { text, color };
       });
 
-      if (isHighlighted) canvas.bold(true);
+      if (colors.bold) canvas.bold(true);
       let cx = x;
       for (let i = 0; i < parts.length; i++) {
         const p = parts[i]!;
-        const cellColor = isHighlighted ? fgColor : (p.color || fgColor);
-        fgBg(canvas, cellColor, bgColor, p.text);
+        const cellColor = isHighlighted ? colors.fg : (p.color || colors.fg);
+        fgBg(canvas, cellColor, colors.bg, p.text);
         canvas.moveTo(cx + p.text.length, y);
         cx += p.text.length;
         if (i < parts.length - 1) {
-          fgBg(canvas, fgColor, bgColor, " ");
+          fgBg(canvas, colors.fg, colors.bg, " ");
           canvas.moveTo(cx + 1, y);
           cx += 1;
         }
       }
-      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - (cx - x))));
-      if (isHighlighted) canvas.bold(false);
+      fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, width - (cx - x))));
+      if (colors.bold) canvas.bold(false);
       return;
     } else {
       display = `${item.label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
     }
 
-    if (isHighlighted) {
+    if (colors.bold) {
       canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, display);
-      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
+      fgBg(canvas, colors.fg, colors.bg, display);
+      fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, width - display.length)));
       canvas.bold(false);
     } else {
-      fgBg(canvas, fgColor, bgColor, display);
-      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
+      fgBg(canvas, colors.fg, colors.bg, display);
+      fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, width - display.length)));
     }
   }
 
   handleKey(key: string): boolean {
-    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    const total = this.totalItems;
     if (total === 0) return false;
 
     if (key === "UP" || key === "k") {
       if (this.selectedIndex > 0) {
         this.selectedIndex--;
-        if (this.selectedIndex < this.scrollOffset) {
-          this.scrollOffset = this.selectedIndex;
-        } else if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
-          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
-        }
+        this.ensureSelectedVisible();
         this._fireHighlight();
         this.markDirty();
         return true;
@@ -340,11 +332,7 @@ export class Table<T = any> extends Control {
     if (key === "DOWN" || key === "j") {
       if (this.selectedIndex < total - 1) {
         this.selectedIndex++;
-        if (this.selectedIndex < this.scrollOffset) {
-          this.scrollOffset = this.selectedIndex;
-        } else if (this.selectedIndex >= this.scrollOffset + this._viewportHeight) {
-          this.scrollOffset = this.selectedIndex - this._viewportHeight + 1;
-        }
+        this.ensureSelectedVisible();
         this._fireHighlight();
         this.markDirty();
         return true;
@@ -398,7 +386,7 @@ export class Table<T = any> extends Control {
 
   onFocus(): void {
     super.onFocus();
-    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    const total = this.totalItems;
     if (this.selectedIndex < 0 && total > 0) {
       this.selectedIndex = 0;
       this._fireHighlight();
@@ -408,7 +396,7 @@ export class Table<T = any> extends Control {
   }
 
   onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
-    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    const total = this.totalItems;
     const maxScroll = Math.max(0, total - this._viewportHeight);
     if (direction === 'up' && this.scrollOffset > 0) {
       this.scrollOffset--;
@@ -424,7 +412,7 @@ export class Table<T = any> extends Control {
   }
 
   onMouseDown(point: Point): boolean {
-    const total = this._virtualLoader ? this._virtualTotal : this.items.length;
+    const total = this.totalItems;
     if (total === 0) return false;
     const hasHeader = this.showHeader && this.columns.length > 0;
     const bodyStartY = this.rect.y + (hasHeader ? this.headerHeight : 0);
@@ -440,5 +428,4 @@ export class Table<T = any> extends Control {
     }
     return false;
   }
-
- }
+}

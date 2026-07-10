@@ -1,11 +1,11 @@
 import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
+import { Column, Row, createButtonRow } from "../Layout";
 import { Button } from "./Button";
 import { Spacer } from "./Spacer";
 import { StyledText } from "./StyledText";
 import { ProgressBar } from "./ProgressBar";
 import { modalManager } from "../ModalManager";
-import { spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
+import { spinnerChar, startSpinner } from "../../lib/utils";
 import type { Size } from "../types";
 
 export interface DownloadDialogHandle {
@@ -19,8 +19,6 @@ export class DownloadDialog extends Modal {
   protected _fileName = "";
   protected _status = "";
   protected _progress = 0;
-  protected _resolve: ((value: boolean) => void) | null = null;
-  protected _spinnerTimer: ReturnType<typeof setTimeout> | null = null;
   protected _fileNameLabel: StyledText;
   protected _statusLabel: StyledText;
   protected _progressBar: ProgressBar;
@@ -54,23 +52,15 @@ export class DownloadDialog extends Modal {
     return this._progress;
   }
 
-  setResolve(resolve: (value: boolean) => void): void {
-    this._resolve = resolve;
-  }
-
   constructor() {
     super();
     this._fileNameLabel = new StyledText();
     this._statusLabel = new StyledText();
     this._progressBar = new ProgressBar();
 
-    const buttonRow = new Row();
-    const spacer = new Spacer();
-    spacer.flex = 1;
     const cancelBtn = new Button({ label: "Cancel" });
     cancelBtn.setAction(() => this.closeWithResult(true));
-    buttonRow.add(spacer);
-    buttonRow.add(cancelBtn);
+    const buttonRow = createButtonRow(cancelBtn);
 
     const contentColumn = new Column();
     contentColumn.add(this._fileNameLabel);
@@ -87,13 +77,7 @@ export class DownloadDialog extends Modal {
 
     this.add(contentColumn);
 
-    const tick = () => {
-      if (this._spinnerTimer) {
-        this.updateStatus();
-        this._spinnerTimer = setTimeout(tick, SPINNER_INTERVAL);
-      }
-    };
-    this._spinnerTimer = setTimeout(tick, SPINNER_INTERVAL);
+    this.disposeOnDestroy(startSpinner(() => this.updateStatus()));
   }
 
   measure(parentSize?: Size): Size {
@@ -108,13 +92,9 @@ export class DownloadDialog extends Modal {
         if (status !== undefined) this.status = status;
       },
       close: () => {
-        if (this._spinnerTimer) clearTimeout(this._spinnerTimer);
-        this._spinnerTimer = null;
         this.closeWithResult(false);
       },
       cancel: () => {
-        if (this._spinnerTimer) clearTimeout(this._spinnerTimer);
-        this._spinnerTimer = null;
         this.closeWithResult(true);
       },
       promise: new Promise<boolean>((r) => {
@@ -130,24 +110,8 @@ export class DownloadDialog extends Modal {
     };
   }
 
-  onDestroy(): void {
-    if (this._spinnerTimer) {
-      clearTimeout(this._spinnerTimer);
-      this._spinnerTimer = null;
-    }
-    super.onDestroy();
-  }
-
   public closeWithResult(cancelled: boolean): void {
-    if (this._spinnerTimer) clearTimeout(this._spinnerTimer);
-    this._spinnerTimer = null;
-    if (this._resolve) {
-      this._resolve(cancelled);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(cancelled);
   }
 }
 

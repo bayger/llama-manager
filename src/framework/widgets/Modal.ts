@@ -1,9 +1,8 @@
 import { Control } from "../Control";
 import { focusManager } from "../FocusManager";
-import { fg, fgBg } from "../../lib/theme";
+import { fg, fgBg, V, drawTitleBar } from "../../lib/theme";
+import { modalManager } from "../ModalManager";
 import type { Point, RenderContext, Size } from "../types";
-
-const V = "\u2502";
 
 export class Modal extends Control {
   focusable = true;
@@ -14,6 +13,7 @@ export class Modal extends Control {
   protected _maxWidth = 120;
   protected _minHeight = 8;
   protected _maxHeight = 30;
+  protected _resolve: ((value: any) => void) | null = null;
 
   set title(v: string) {
     this._title = v;
@@ -35,6 +35,21 @@ export class Modal extends Control {
 
   setOnClose(callback: () => void): void {
     this._onClose = callback;
+  }
+
+  setResolve(resolve: (value: any) => void): void {
+    this._resolve = resolve;
+  }
+
+  /** Resolve the modal promise and close it from the modal stack. Override for pre-close cleanup. */
+  closeWithResult(result: any): void {
+    if (this._resolve) {
+      this._resolve(result);
+      this._resolve = null;
+    }
+    if (modalManager.getTop() === this) {
+      modalManager.close();
+    }
   }
 
   setMinSize(minWidth: number, minHeight: number): void {
@@ -116,23 +131,7 @@ export class Modal extends Control {
     canvas.write(V);
 
     // Row 1: Title bar
-    canvas.moveTo(x, y + 1);
-    canvas.setForegroundColor("borderMuted");
-    canvas.write(V);
-    canvas.moveTo(x + 1, y + 1);
-    canvas.bold();
-    fg(canvas, "secondary", ` ${this._title}`);
-    canvas.bold(false);
-    if (this._hint) {
-      const titleLen = 2 + this._title.length;
-      const hintWithPad = `  ${this._hint} `;
-      const startCol = width - 1 - hintWithPad.length;
-      if (startCol > titleLen) {
-        canvas.moveTo(x + titleLen, y + 1);
-        fg(canvas, "secondary", " ".repeat(startCol - titleLen));
-        fg(canvas, "textMuted", hintWithPad);
-      }
-    }
+    drawTitleBar(canvas, x, y + 1, width, this._title, this._hint);
 
     // Rows 2..height-2: Left border
     for (let row = 2; row < height - 1; row++) {

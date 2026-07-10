@@ -1,12 +1,13 @@
 import { Scrollable } from "../../framework/widgets/Scrollable";
 import { fg, fgBg } from "../../lib/theme";
 import { getGlobal, getSlots, onMetricsChange, type SlotMetrics } from "../../lib/metricstracker";
-import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
+import { formatMs, formatDraftRate, formatNum, spinnerChar, SPINNER_INTERVAL, cycleDetailLevel } from "../../lib/utils";
 import type { Color } from "../../lib/theme";
 import type { RenderContext, Size } from "../../framework/types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
-export type MetricsDetailLevel = "basic" | "middle" | "detailed";
+import type { DetailLevel } from "../../lib/utils";
+export type MetricsDetailLevel = DetailLevel;
 
 const STATE_COLOR: Record<string, Color> = {
   idle: "textMuted",
@@ -16,7 +17,6 @@ const STATE_COLOR: Record<string, Color> = {
 
 const THINKING_ICON = "\u221e";
 const CONTEXT_BAR_WIDTH = 33;
-const DETAIL_LEVELS: MetricsDetailLevel[] = ["basic", "middle", "detailed"];
 
 function formatCtxNum(n: number): string {
   return n.toLocaleString("en-US");
@@ -82,8 +82,7 @@ export class MetricsPanel extends Scrollable {
   }
 
   cycleDetailLevel(): void {
-    const idx = DETAIL_LEVELS.indexOf(this._detailLevel);
-    this._detailLevel = DETAIL_LEVELS[(idx + 1) % DETAIL_LEVELS.length];
+    this._detailLevel = cycleDetailLevel(this._detailLevel);
     this.markDirty();
   }
 

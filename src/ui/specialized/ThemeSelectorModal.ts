@@ -1,7 +1,7 @@
 import { Modal } from "../../framework/widgets/Modal";
 import { Control } from "../../framework/Control";
 import { List } from "../../framework/widgets/List";
-import { Column, Row } from "../../framework/Layout";
+import { Column, Row, createButtonRow } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Checkbox } from "../../framework/widgets/Checkbox";
 import { Spacer } from "../../framework/widgets/Spacer";
@@ -228,7 +228,6 @@ export class ThemeSelectorModal extends Modal {
   protected _checkboxRow: Row;
   protected _buttonRow: Row;
   protected _contentColumn: Column;
-  protected _resolve: ((value: string | null) => void) | null = null;
   protected _originalTheme = "";
   protected _originalMode: ThemeMode = "dark";
   protected _previewMode: ThemeMode = "dark";
@@ -254,7 +253,6 @@ export class ThemeSelectorModal extends Modal {
     this._contentRow = new Row();
     this._contentRow.flex = 1;
     this._checkboxRow = new Row();
-    this._buttonRow = new Row();
     this._contentColumn = new Column();
 
     const listNav = this._list.handleKey.bind(this._list);
@@ -285,11 +283,7 @@ export class ThemeSelectorModal extends Modal {
     this._cancelBtn.setAction(() => this.cancel());
     this._applyBtn.setAction(() => this.apply());
 
-    const btnSpacer = new Spacer();
-    btnSpacer.flex = 1;
-    this._buttonRow.add(btnSpacer);
-    this._buttonRow.add(this._cancelBtn);
-    this._buttonRow.add(this._applyBtn);
+    this._buttonRow = createButtonRow(this._cancelBtn, this._applyBtn);
 
     this._contentRow.add(this._list);
     const rowSpacer = new Spacer();
@@ -312,10 +306,6 @@ export class ThemeSelectorModal extends Modal {
     this._contentColumn.flex = 1;
 
     this.add(this._contentColumn);
-  }
-
-  setResolve(resolve: (value: string | null) => void): void {
-    this._resolve = resolve;
   }
 
   setInitialTheme(name: string): void {
@@ -376,22 +366,18 @@ export class ThemeSelectorModal extends Modal {
 
   protected cancel(): void {
     setActiveTheme(this._originalTheme);
-    if (this._resolve) {
-      this._resolve(null);
-      this._resolve = null;
-    }
-    modalManager.close();
+    this.closeWithResult(null);
   }
 
   protected apply(): void {
     this._selectedTheme = this.getSelectedTheme() || this._selectedTheme;
     setThemeMode(this._previewMode);
     setActiveTheme(this._selectedTheme);
-    if (this._resolve) {
-      this._resolve(this._selectedTheme);
-      this._resolve = null;
-    }
-    modalManager.close();
+    this.closeWithResult(this._selectedTheme);
+  }
+
+  closeWithResult(result: string | null): void {
+    super.closeWithResult(result);
   }
 }
 

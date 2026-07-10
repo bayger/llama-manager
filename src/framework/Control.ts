@@ -24,6 +24,7 @@ export class Control {
 
   protected children: Control[] = [];
   protected _parent: Control | null = null;
+  protected _disposeCallbacks: Array<() => void> = [];
 
   get parent(): Control | null {
     return this._parent;
@@ -223,10 +224,24 @@ export class Control {
     }
   }
 
+  // - Dispose tracking -
+
+  /**
+   * Register a cleanup function that runs automatically in destroy().
+   * Useful for timers, subscriptions, and other resources.
+   */
+  disposeOnDestroy(cb: () => void): void {
+    this._disposeCallbacks.push(cb);
+  }
+
   // - Destroy -
 
   destroy(): void {
     this.onDestroy();
+    for (const cb of this._disposeCallbacks) {
+      try { cb(); } catch { /* swallow dispose errors */ }
+    }
+    this._disposeCallbacks.length = 0;
     for (const child of this.children) {
       child.destroy();
     }

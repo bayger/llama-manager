@@ -2,8 +2,8 @@
   "dark": {
     "canvas": "#303446",
     "surface": "#292c3c",
-    "border": "#414559",
-    "borderMuted": "#626880",
+    "border": "#626880",
+    "borderMuted": "#414559",
     "borderActive": "#51576d",
     "text": "#c6d0f5",
     "textMuted": "#949cb8",

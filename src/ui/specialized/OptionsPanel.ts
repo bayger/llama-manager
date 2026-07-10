@@ -1,4 +1,4 @@
-import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant, getThemeMode } from "../../lib/theme";
+import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant, getThemeMode, rowColors, drawEditableHeader, drawEditableField } from "../../lib/theme";
 import { focusManager } from "../../framework/FocusManager";
 import { ConfigData, saveConfig } from "../../lib/config";
 import { getInstallableForks } from "../../lib/forks";
@@ -216,19 +216,7 @@ export class OptionsPanel extends EditableList {
 
   protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, width: number): void {
     const cat = OPTION_CATEGORIES[row.catIdx]!;
-    const arrow = this._collapsed.has(row.catIdx) ? "\u25b6" : "\u25bc";
-    const headerText = ` ${arrow} ${cat.name}`;
-    const fgColor = isHighlighted ? (this.focused ? "canvas" : "accent") : "accent";
-    const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
-
-    const padded = headerText.padEnd(width);
-    if (isHighlighted) {
-      canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, padded);
-      canvas.bold(false);
-    } else {
-      fgBg(canvas, fgColor, bgColor, padded);
-    }
+    drawEditableHeader(canvas, cat.name, this._collapsed.has(row.catIdx), isHighlighted, this.focused, width);
   }
 
   protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, isEditing: boolean, width: number): void {
@@ -239,9 +227,7 @@ export class OptionsPanel extends EditableList {
     const keyStr = ` ${field.key}`.padEnd(KEY_COL_WIDTH);
 
     if (isEditing && this._edit) {
-      const value = this._edit.text;
-      fgBg(canvas, "warning", "surface", keyStr);
-      fgBg(canvas, "accent", "canvas", value);
+      drawEditableField(canvas, keyStr, this._edit.text, "", true, isHighlighted, this.focused, width);
     } else {
       let value = formatFieldValue(field, data?.[field.key]);
       if (field.key === "hfToken" && value !== "(null)") {
@@ -253,23 +239,7 @@ export class OptionsPanel extends EditableList {
         extra = " (toggle)";
       }
 
-      const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
-      const desc = descSpace > 0 && field.description ? field.description.substring(0, descSpace) : "";
-
-      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : "text";
-      const fgMutedColor = isHighlighted ? "canvas" : "textMuted";
-      const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
-      const content = keyStr + value + extra + (desc ? "  " + desc : "");
-
-      if (isHighlighted) {
-        canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, content.substring(0, width));
-        canvas.bold(false);
-      } else {
-        fgBg(canvas, fgMutedColor, bgColor, keyStr);
-        fgBg(canvas, fgColor, bgColor, value);
-        fgBg(canvas, fgMutedColor, bgColor, desc ? "  " + desc : "");
-      }
+      drawEditableField(canvas, keyStr, value, extra, false, isHighlighted, this.focused, width);
     }
   }
 
