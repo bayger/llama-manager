@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
+import { Column, Row, createSplitButtonRow } from "../Layout";
 import { Button } from "./Button";
 import { Spacer } from "./Spacer";
 import { Scrollable } from "./Scrollable";
@@ -350,15 +350,8 @@ export class GGUFInfoModal extends Modal {
     this._closeBtn.setAction(() => this.closeWithResult(false));
     this._cancelBtn.setAction(() => this.closeWithResult(false));
 
-    this._buttonRow = new Row();
-    this._buttonRow.add(this._copyPathBtn);
-    const spacer = new Spacer();
-    spacer.flex = 1;
-    this._buttonRow.add(spacer);
-    this._buttonRow.add(this._setActiveBtn);
-    this._buttonRow.add(this._closeBtn);
     this._cancelBtn.visible = false;
-    this._buttonRow.add(this._cancelBtn);
+    this._buttonRow = createSplitButtonRow(this._copyPathBtn, this._setActiveBtn, this._closeBtn, this._cancelBtn);
 
     this._contentColumn = new Column();
     this._contentColumn.add(this._loadingLabel);

@@ -1,4 +1,6 @@
 import { Control } from "./Control";
+import { Button } from "./widgets/Button";
+import { Spacer } from "./widgets/Spacer";
 import type { Rect, Size, RenderContext } from "./types";
 
 export class Column extends Control {
@@ -148,4 +150,30 @@ export class Row extends Control {
   }
 
   draw(_ctx: RenderContext): void { }
+}
+
+export function createButtonRow(...buttons: Button[]): Row {
+  const row = new Row();
+  const spacer = new Spacer();
+  spacer.flex = 1;
+  row.add(spacer);
+  for (const btn of buttons) {
+    row.add(btn);
+  }
+  return row;
+}
+
+export function createSplitButtonRow(left: Button | Button[], ...right: Button[]): Row {
+  const row = new Row();
+  const leftButtons = Array.isArray(left) ? left : [left];
+  for (const btn of leftButtons) {
+    row.add(btn);
+  }
+  const spacer = new Spacer();
+  spacer.flex = 1;
+  row.add(spacer);
+  for (const btn of right) {
+    row.add(btn);
+  }
+  return row;
 }

@@ -1,5 +1,5 @@
 import { Modal } from "../../framework/widgets/Modal";
-import { Column, Row } from "../../framework/Layout";
+import { Column, Row, createButtonRow } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Spacer } from "../../framework/widgets/Spacer";
 import { List } from "../../framework/widgets/List";
@@ -45,11 +45,7 @@ export class DeviceSelectorModal extends Modal {
       this.closeWithResult(null);
     });
 
-    const buttonRow = new Row();
-    const spacer = new Spacer();
-    spacer.flex = 1;
-    buttonRow.add(spacer);
-    buttonRow.add(this._closeButton);
+    const buttonRow = createButtonRow(this._closeButton);
 
     const contentColumn = new Column();
     contentColumn.add(this._scanButton);

@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
+import { Column, Row, createButtonRow } from "../Layout";
 import { Button } from "./Button";
 import { List, ListItem } from "./List";
 import { Spacer } from "./Spacer";
@@ -38,7 +38,6 @@ export class SelectorModal extends Modal {
     this._list = new List();
     this._list.flex = 1;
     this._list.setOnSelect(() => this.confirm());
-    this._buttonRow = new Row();
 
     const okBtn = new Button({ label: "OK" });
     const cancelBtn = new Button({ label: "Cancel" });
@@ -46,11 +45,7 @@ export class SelectorModal extends Modal {
     okBtn.setAction(() => this.confirm());
     cancelBtn.setAction(() => this.closeWithResult(null));
 
-    const spacer = new Spacer();
-    spacer.flex = 1;
-    this._buttonRow.add(spacer);
-    this._buttonRow.add(cancelBtn);
-    this._buttonRow.add(okBtn);
+    this._buttonRow = createButtonRow(cancelBtn, okBtn);
 
     const column = new Column();
     column.add(this._list);

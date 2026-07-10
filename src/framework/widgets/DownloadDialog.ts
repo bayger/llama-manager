@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
+import { Column, Row, createButtonRow } from "../Layout";
 import { Button } from "./Button";
 import { Spacer } from "./Spacer";
 import { StyledText } from "./StyledText";
@@ -58,13 +58,9 @@ export class DownloadDialog extends Modal {
     this._statusLabel = new StyledText();
     this._progressBar = new ProgressBar();
 
-    const buttonRow = new Row();
-    const spacer = new Spacer();
-    spacer.flex = 1;
     const cancelBtn = new Button({ label: "Cancel" });
     cancelBtn.setAction(() => this.closeWithResult(true));
-    buttonRow.add(spacer);
-    buttonRow.add(cancelBtn);
+    const buttonRow = createButtonRow(cancelBtn);
 
     const contentColumn = new Column();
     contentColumn.add(this._fileNameLabel);

@@ -1,5 +1,5 @@
 import { Modal } from "../../framework/widgets/Modal";
-import { Column, Row } from "../../framework/Layout";
+import { Column, Row, createSplitButtonRow } from "../../framework/Layout";
 import { Button } from "../../framework/widgets/Button";
 import { Spacer } from "../../framework/widgets/Spacer";
 import { StyledText } from "../../framework/widgets/StyledText";
@@ -67,7 +67,6 @@ export class UpdateInfoModal extends Modal {
     spacer2.flex = 1;
     contentColumn.add(spacer2);
 
-    const buttonRow = new Row();
     const copyBtn = new Button({ label: "Copy" });
     const openBtn = new Button({ label: "Open Releases" });
     const dismissBtn = new Button({ label: "Dismiss" });
@@ -79,12 +78,7 @@ export class UpdateInfoModal extends Modal {
     });
     dismissBtn.setAction(() => this.closeWithResult(false));
 
-    buttonRow.add(copyBtn);
-    const btnSpacer = new Spacer();
-    btnSpacer.flex = 1;
-    buttonRow.add(btnSpacer);
-    buttonRow.add(openBtn);
-    buttonRow.add(dismissBtn);
+    const buttonRow = createSplitButtonRow(copyBtn, openBtn, dismissBtn);
     contentColumn.add(buttonRow);
 
     this.add(contentColumn);

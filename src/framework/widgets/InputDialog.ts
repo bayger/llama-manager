@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
+import { Column, Row, createButtonRow } from "../Layout";
 import { Button } from "./Button";
 import { Spacer } from "./Spacer";
 import { TextInput } from "./TextInput";
@@ -33,12 +33,7 @@ export class InputDialog extends Modal {
     okBtn.setAction(() => this.closeWithResult(this._textInput.value.trim() || null));
     cancelBtn.setAction(() => this.closeWithResult(null));
 
-    const buttonRow = new Row();
-    const spacer = new Spacer();
-    spacer.flex = 1;
-    buttonRow.add(spacer);
-    buttonRow.add(okBtn);
-    buttonRow.add(cancelBtn);
+    const buttonRow = createButtonRow(okBtn, cancelBtn);
 
     const contentColumn = new Column();
     contentColumn.add(this._textInput);

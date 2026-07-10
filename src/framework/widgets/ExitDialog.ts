@@ -1,5 +1,5 @@
 import { Modal } from "./Modal";
-import { Column, Row } from "../Layout";
+import { Column, Row, createButtonRow } from "../Layout";
 import { Button } from "./Button";
 import { Spacer } from "./Spacer";
 import { StyledText } from "./StyledText";
@@ -22,10 +22,6 @@ export class ExitDialog extends Modal {
     super();
     this._messageLabel = new StyledText();
 
-    const buttonRow = new Row();
-    const spacer = new Spacer();
-    spacer.flex = 1;
-
     const cancelBtn = new Button({ label: "Cancel" });
     const exitBtn = new Button({ label: "Exit Now" });
     const stopExitBtn = new Button({ label: "Stop & Exit" });
@@ -34,10 +30,7 @@ export class ExitDialog extends Modal {
     exitBtn.setAction(() => this.closeWithResult("exit"));
     stopExitBtn.setAction(() => this.closeWithResult("stop_and_exit"));
 
-    buttonRow.add(spacer);
-    buttonRow.add(cancelBtn);
-    buttonRow.add(exitBtn);
-    buttonRow.add(stopExitBtn);
+    const buttonRow = createButtonRow(cancelBtn, exitBtn, stopExitBtn);
 
     const contentColumn = new Column();
     contentColumn.add(this._messageLabel);
