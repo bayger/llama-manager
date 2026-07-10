@@ -73,12 +73,12 @@ export class Scrollable extends Control {
   }
 
   handleKey(key: string): boolean {
-    if (key === "UP" && this.canScrollUp()) {
+    if ((key === "UP" || key === "k") && this.canScrollUp()) {
       this.scrollOffset--;
       this.markDirty();
       return true;
     }
-    if (key === "DOWN" && this.canScrollDown()) {
+    if ((key === "DOWN" || key === "j") && this.canScrollDown()) {
       this.scrollOffset++;
       this.markDirty();
       return true;

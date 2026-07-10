@@ -1,5 +1,5 @@
-import { Control } from "../../framework/Control";
-import { fg, fgBg } from "../../lib/theme";
+import { Scrollable } from "../../framework/widgets/Scrollable";
+import { fg } from "../../lib/theme";
 import { renderLogLine } from "../../lib/logcolors";
 import type { Point, Size, RenderContext } from "../../framework/types";
 
@@ -8,14 +8,10 @@ export interface LogsViewerConfig {
   emptyMessage?: string;
 }
 
-export class LogsViewer extends Control {
+export class LogsViewer extends Scrollable {
   focusable = true;
   protected _config: LogsViewerConfig;
-  protected _scrollOffset = 0;
-  protected _viewportHeight = 0;
-  protected _totalLines = 0;
   protected _autoScroll = true;
-  protected _scrollbarWidth = 1;
 
   constructor(config: LogsViewerConfig) {
     super();
@@ -27,37 +23,27 @@ export class LogsViewer extends Control {
   }
 
   onLayout(): void {
-    const prevViewport = this._viewportHeight;
     this._viewportHeight = this.rect.height;
     const lines = this._config.getLines();
-    this._totalLines = lines.length;
+    const prevContentHeight = this.contentHeight;
+    this.contentHeight = lines.length;
 
     const maxScroll = this.maxScrollOffset;
-    if (this._autoScroll || this._scrollOffset > maxScroll) {
-      this._scrollOffset = maxScroll;
+    if (this._autoScroll || this.scrollOffset > maxScroll) {
+      this._autoScroll = true;
+      this.scrollOffset = maxScroll;
+    } else {
+      this.scrollOffset = Math.max(0, Math.min(this.scrollOffset, maxScroll));
     }
-    this._scrollOffset = Math.max(0, this._scrollOffset);
 
-    if (prevViewport !== this._viewportHeight) {
+    if (prevContentHeight !== this.contentHeight) {
       this.markDirty();
     }
   }
 
-  get maxScrollOffset(): number {
-    return Math.max(0, this._totalLines - this._viewportHeight);
-  }
-
-  get needsScrollbar(): boolean {
-    return this._totalLines > this._viewportHeight;
-  }
-
-  get contentWidth(): number {
-    return this.needsScrollbar ? this.rect.width - this._scrollbarWidth : this.rect.width;
-  }
-
   scrollToBottom(): void {
     this._autoScroll = true;
-    this._scrollOffset = this.maxScrollOffset;
+    this.scrollOffset = this.maxScrollOffset;
     this.markDirty();
   }
 
@@ -65,9 +51,7 @@ export class LogsViewer extends Control {
     const canvas = ctx.canvas;
     const { x, y, width, height } = this.rect;
 
-    if (height <= 0) {
-      return;
-    }
+    if (height <= 0) return;
 
     const lines = this._config.getLines();
     const totalLines = lines.length;
@@ -80,7 +64,7 @@ export class LogsViewer extends Control {
       fg(canvas, "textMuted", this._config.emptyMessage);
     } else {
       for (let i = 0; i < height; i++) {
-        const lineIdx = this._scrollOffset + i;
+        const lineIdx = this.scrollOffset + i;
         if (lineIdx >= 0 && lineIdx < totalLines) {
           renderLogLine(canvas, x, y + i, cw, lines[lineIdx]!);
         }
@@ -88,113 +72,76 @@ export class LogsViewer extends Control {
     }
 
     if (this.needsScrollbar) {
-      this.drawScrollbar(canvas, x + cw, y, width - cw, height);
+      this.drawScrollbar(canvas, x + cw, y, this._scrollbarWidth, height);
     }
   }
 
-  protected drawScrollbar(canvas: any, sx: number, sy: number, sw: number, sh: number): void {
-    if (sh <= 0 || sw <= 0) return;
-
-    const trackTop = sy;
-    const trackHeight = sh;
-    const thumbMinHeight = 2;
-    const ratio = this._viewportHeight / this._totalLines;
-    const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
-    const maxThumbPos = trackHeight - thumbHeight;
-    const thumbOffset = this.maxScrollOffset > 0
-      ? Math.floor((this._scrollOffset / this.maxScrollOffset) * maxThumbPos)
-      : 0;
-
-    for (let i = 0; i < trackHeight; i++) {
-      canvas.moveTo(sx, trackTop + i);
-      if (i >= thumbOffset && i < thumbOffset + thumbHeight) {
-        fgBg(canvas, "textMuted", "border", " ".repeat(sw));
-      } else {
-        fgBg(canvas, "surface", "borderMuted", " ".repeat(sw));
-      }
+  protected tryScroll(delta: number): boolean {
+    const newOffset = this.scrollOffset + delta;
+    if (newOffset < 0 || newOffset > this.maxScrollOffset) return false;
+    this.scrollOffset = newOffset;
+    if (this.scrollOffset === this.maxScrollOffset) {
+      this._autoScroll = true;
+    } else {
+      this._autoScroll = false;
     }
+    this.markDirty();
+    return true;
   }
 
   handleKey(key: string): boolean {
-    if (this._totalLines === 0) return false;
+    if (this.contentHeight === 0) return false;
 
     if (key === "UP" || key === "k") {
-      if (this._scrollOffset > 0) {
+      if (this.scrollOffset > 0) {
         this._autoScroll = false;
-        this._scrollOffset--;
+        this.scrollOffset--;
         this.markDirty();
         return true;
       }
       return false;
     }
     if (key === "DOWN" || key === "j") {
-      if (this._scrollOffset < this.maxScrollOffset) {
-        this._scrollOffset++;
-        if (this._scrollOffset === this.maxScrollOffset) {
-          this._autoScroll = true;
-        }
-        this.markDirty();
-        return true;
-      }
-      return false;
+      return this.tryScroll(1);
     }
     if (key === "PAGE_UP") {
-      const prev = this._scrollOffset;
-      this._scrollOffset = Math.max(0, this._scrollOffset - this._viewportHeight + 1);
-      if (this._scrollOffset !== prev) {
+      if (this.canScrollUp()) {
         this._autoScroll = false;
-        this.markDirty();
       }
-      return true;
+      return super.handleKey(key);
     }
     if (key === "PAGE_DOWN") {
-      const prev = this._scrollOffset;
-      this._scrollOffset = Math.min(this.maxScrollOffset, this._scrollOffset + this._viewportHeight - 1);
-      if (this._scrollOffset !== prev) {
-        if (this._scrollOffset === this.maxScrollOffset) {
-          this._autoScroll = true;
-        } else {
-          this._autoScroll = false;
-        }
-        this.markDirty();
-      }
-      return true;
+      return this.tryScroll(this._viewportHeight - 1);
     }
     if (key === "HOME") {
-      if (this._scrollOffset !== 0) {
+      if (this.scrollOffset !== 0) {
         this._autoScroll = false;
-        this._scrollOffset = 0;
+        this.scrollOffset = 0;
         this.markDirty();
       }
       return true;
     }
     if (key === "END") {
-      const maxScroll = this.maxScrollOffset;
-      if (this._scrollOffset !== maxScroll) {
+      if (this.scrollOffset !== this.maxScrollOffset) {
         this._autoScroll = true;
-        this._scrollOffset = maxScroll;
+        this.scrollOffset = this.maxScrollOffset;
         this.markDirty();
       }
       return true;
     }
-    return false;
+    return super.handleKey(key);
   }
 
   onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
-    if (this._totalLines === 0) return false;
-    if (direction === 'up' && this._scrollOffset > 0) {
+    if (this.contentHeight === 0) return false;
+    if (direction === 'up' && this.scrollOffset > 0) {
       this._autoScroll = false;
-      this._scrollOffset--;
+      this.scrollOffset--;
       this.markDirty();
       return true;
     }
-    if (direction === 'down' && this._scrollOffset < this.maxScrollOffset) {
-      this._scrollOffset++;
-      if (this._scrollOffset === this.maxScrollOffset) {
-        this._autoScroll = true;
-      }
-      this.markDirty();
-      return true;
+    if (direction === 'down') {
+      return this.tryScroll(1);
     }
     return false;
   }
@@ -210,16 +157,15 @@ export class LogsViewer extends Control {
       const trackHeight = this.rect.height;
       const clickY = point.y - trackTop;
       const thumbMinHeight = 2;
-      const ratio = this._viewportHeight / this._totalLines;
+      const ratio = this._viewportHeight / this.contentHeight;
       const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
       const maxThumbPos = trackHeight - thumbHeight;
-      const maxScroll = this.maxScrollOffset;
 
-      if (maxScroll <= 0) return false;
+      if (maxThumbPos <= 0) return false;
 
-      const newOffset = Math.floor((clickY / maxThumbPos) * maxScroll);
-      this._scrollOffset = Math.max(0, Math.min(maxScroll, newOffset));
-      this._autoScroll = this._scrollOffset === this.maxScrollOffset;
+      const newOffset = Math.floor((clickY / maxThumbPos) * this.maxScrollOffset);
+      this.scrollOffset = Math.max(0, Math.min(this.maxScrollOffset, newOffset));
+      this._autoScroll = this.scrollOffset === this.maxScrollOffset;
       this.markDirty();
       return true;
     }
