@@ -164,3 +164,12 @@ export function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 }
+
+export type DetailLevel = "basic" | "middle" | "detailed";
+
+const DETAIL_LEVELS: DetailLevel[] = ["basic", "middle", "detailed"];
+
+export function cycleDetailLevel(current: DetailLevel): DetailLevel {
+  const idx = DETAIL_LEVELS.indexOf(current);
+  return DETAIL_LEVELS[(idx + 1) % DETAIL_LEVELS.length]!;
+}
