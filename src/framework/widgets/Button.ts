@@ -1,6 +1,6 @@
 import { Control } from "../Control";
 import { fg, fgBg } from "../../lib/theme";
-import { focusManager } from "../FocusManager";
+import { FocusManager, focusManager } from "../FocusManager";
 import type { Point, Size, RenderContext } from "../types";
 
 export interface ButtonConfig {
@@ -83,14 +83,7 @@ export class Button extends Control {
       if (this._action) this._action();
       return true;
     }
-    if (key === "UP" || key === "k") {
-      focusManager.focusPrev();
-      return true;
-    }
-    if (key === "DOWN" || key === "j") {
-      focusManager.focusNext();
-      return true;
-    }
+    if (FocusManager.handleNavKeys(key)) return true;
     return false;
   }
 

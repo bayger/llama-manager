@@ -1,6 +1,6 @@
 import { Control } from "../Control";
 import { fg, fgBg } from "../../lib/theme";
-import { focusManager } from "../FocusManager";
+import { FocusManager, focusManager } from "../FocusManager";
 import type { Color } from "../../lib/theme";
 import type { Point, Size, RenderContext } from "../types";
 
@@ -57,14 +57,7 @@ export class SelectorLabel extends Control {
       this._activate();
       return true;
     }
-    if (key === "LEFT" || key === "UP" || key === "k" || key === "h") {
-      focusManager.focusPrev();
-      return true;
-    }
-    if (key === "RIGHT" || key === "DOWN" || key === "j" || key === "l") {
-      focusManager.focusNext();
-      return true;
-    }
+    if (FocusManager.handleNavKeys(key, true)) return true;
     return false;
   }
 

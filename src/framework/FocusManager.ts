@@ -153,6 +153,18 @@ export class FocusManager {
     return false;
   }
 
+  static handleNavKeys(key: string, bidirectional = false): boolean {
+    if (key === "UP" || key === "k" || (bidirectional && (key === "LEFT" || key === "h"))) {
+      focusManager.focusPrev();
+      return true;
+    }
+    if (key === "DOWN" || key === "j" || (bidirectional && (key === "RIGHT" || key === "l"))) {
+      focusManager.focusNext();
+      return true;
+    }
+    return false;
+  }
+
   handleKey(key: string): boolean {
     if (!this._root) return false;
 
