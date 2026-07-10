@@ -2,7 +2,7 @@
   "dark": {
     "canvas": "#2E3440",
     "surface": "#3B4252",
-    "border": "#434C5E",
+    "border": "#4e5769",
     "borderMuted": "#434C5E",
     "borderActive": "#4C566A",
     "text": "#ECEFF4",
@@ -22,7 +22,7 @@
   "light": {
     "canvas": "#ECEFF4",
     "surface": "#E5E9F0",
-    "border": "#4C566A",
+    "border": "#5e6a7e",
     "borderMuted": "#4C566A",
     "borderActive": "#434C5E",
     "text": "#2E3440",

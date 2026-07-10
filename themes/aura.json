@@ -2,7 +2,7 @@
   "dark": {
     "canvas": "#0f0f0f",
     "surface": "#15141b",
-    "border": "#2d2d2d",
+    "border": "#3d3d3d",
     "borderMuted": "#2d2d2d",
     "borderActive": "#6d6d6d",
     "text": "#edecee",

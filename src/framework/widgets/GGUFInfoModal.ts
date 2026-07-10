@@ -12,7 +12,7 @@ import { spawn } from "child_process";
 import os from "os";
 import type { GGUFInfo } from "../../lib/gguf";
 import type { ConfigData } from "../../lib/config";
-import type { RenderContext } from "../types";
+import type { Point, RenderContext } from "../types";
 
 interface KVRow {
   label: string;
@@ -231,7 +231,8 @@ class GGUFContentPanel extends Scrollable {
 
   draw(ctx: RenderContext): void {
     const { canvas } = ctx;
-    const { x, y, width, height } = this.rect;
+    const { x, y, height } = this.rect;
+    const cw = this.contentWidth;
 
     if (!this._info) {
       canvas.moveTo(x, y);
@@ -258,7 +259,7 @@ class GGUFContentPanel extends Scrollable {
 
       // Model label row (first in Identity, front-truncated)
       if (si === 0 && this._modelLabel) {
-        const maxValLen = Math.max(1, width - maxLabelLen - 5);
+        const maxValLen = Math.max(1, cw - maxLabelLen - 5);
         let labelVal = this._modelLabel;
         if (labelVal.length > maxValLen) {
           labelVal = "…" + labelVal.slice(-maxValLen + 3);
@@ -294,7 +295,7 @@ class GGUFContentPanel extends Scrollable {
         if (visualY >= this.scrollOffset && visualY < this.scrollOffset + height) {
           const drawY = y + (visualY - this.scrollOffset);
           canvas.moveTo(x, drawY);
-          canvas.clearRect(x, drawY, width, 1);
+          canvas.clearRect(x, drawY, cw, 1);
         }
         visualY++;
       }
@@ -306,13 +307,53 @@ class GGUFContentPanel extends Scrollable {
       if (vr >= totalH) {
         const drawY = y + row;
         canvas.moveTo(x, drawY);
-        canvas.clearRect(x, drawY, width, 1);
+        canvas.clearRect(x, drawY, cw, 1);
       }
     }
 
     if (this.needsScrollbar) {
-      this.drawScrollbar(canvas, x + width - 1, y, 1, height);
+      this.drawScrollbar(canvas, x + cw, y, this._scrollbarWidth, height);
     }
+  }
+
+  onMouseWheel(_point: Point, direction: 'up' | 'down'): boolean {
+    if (direction === 'up' && this.scrollOffset > 0) {
+      this.scrollOffset--;
+      this.markDirty();
+      return true;
+    }
+    if (direction === 'down' && this.scrollOffset < this.maxScrollOffset) {
+      this.scrollOffset++;
+      this.markDirty();
+      return true;
+    }
+    return false;
+  }
+
+  onMouseDown(point: Point): boolean {
+    if (!this.needsScrollbar) return false;
+
+    const sx = this.rect.x + this.contentWidth;
+    const sw = this._scrollbarWidth;
+
+    if (point.x >= sx && point.x < sx + sw) {
+      const trackTop = this.rect.y;
+      const trackHeight = this.rect.height;
+      const clickY = point.y - trackTop;
+      const thumbMinHeight = 2;
+      const ratio = this._viewportHeight / this.contentHeight;
+      const thumbHeight = Math.max(thumbMinHeight, Math.floor(ratio * trackHeight));
+      const maxThumbPos = trackHeight - thumbHeight;
+
+      if (maxThumbPos <= 0) return false;
+
+      this.scrollOffset = Math.floor((clickY / maxThumbPos) * this.maxScrollOffset);
+      this.scrollOffset = Math.max(0, Math.min(this.maxScrollOffset, this.scrollOffset));
+      this.markDirty();
+      return true;
+    }
+
+    return false;
   }
 }
 
