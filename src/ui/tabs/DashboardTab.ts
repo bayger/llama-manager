@@ -187,38 +187,29 @@ export class DashboardControl extends Control {
 
   handleKey(key: string): boolean {
     if (key === "m" && !focusManager.isTextInputActive() && !modalManager.isOpen()) {
-      this._modelPanel.cycleDetailLevel();
       const config = this._ctx?.getConfig();
       if (config) {
+        this._modelPanel.cycleDetailLevel();
         config.dashboard.modelDetailLevel = this._modelPanel.detailLevel;
-        fireAsync(async () => {
-          const cfg = this._ctx!.getConfig();
-          if (cfg) await saveConfig(cfg);
-        }, this._ctx!);
+        this._fireSaveConfig();
       }
       return true;
     }
     if (key === "s" && !focusManager.isTextInputActive() && !modalManager.isOpen()) {
-      this._metricsPanel.cycleDetailLevel();
       const config = this._ctx?.getConfig();
       if (config) {
+        this._metricsPanel.cycleDetailLevel();
         config.dashboard.metricsDetailLevel = this._metricsPanel.detailLevel;
-        fireAsync(async () => {
-          const cfg = this._ctx!.getConfig();
-          if (cfg) await saveConfig(cfg);
-        }, this._ctx!);
+        this._fireSaveConfig();
       }
       return true;
     }
     if (key === "t" && !focusManager.isTextInputActive() && !modalManager.isOpen()) {
-      this._chartsSection.cycleChartMode();
       const config = this._ctx?.getConfig();
       if (config) {
+        this._chartsSection.cycleChartMode();
         config.dashboard.chartMode = this._chartsSection.chartMode;
-        fireAsync(async () => {
-          const cfg = this._ctx!.getConfig();
-          if (cfg) await saveConfig(cfg);
-        }, this._ctx!);
+        this._fireSaveConfig();
       }
       return true;
     }
@@ -257,6 +248,13 @@ export class DashboardControl extends Control {
       this._hintLabel.text = " Restart to apply";
     }
     this.markDirty();
+  }
+
+  _fireSaveConfig(): void {
+    fireAsync(async () => {
+      const cfg = this._ctx!.getConfig();
+      if (cfg) await saveConfig(cfg);
+    }, this._ctx!);
   }
 
   updateModelDetailLevel(): void {
