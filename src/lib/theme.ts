@@ -229,6 +229,46 @@ export function drawTitleBar(canvas: FramebufferCanvas, x: number, y: number, wi
   }
 }
 
+export function drawEditableHeader(canvas: FramebufferCanvas, categoryName: string, collapsed: boolean, isHighlighted: boolean, focused: boolean, width: number): void {
+  const arrow = collapsed ? "\u25b6" : "\u25bc";
+  const headerText = ` ${arrow} ${categoryName}`;
+  const fgColor = isHighlighted ? (focused ? "canvas" : "accent") : "accent";
+  const bgColor = focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
+
+  const padded = headerText.padEnd(width);
+  if (isHighlighted) {
+    canvas.bold(true);
+    fgBg(canvas, fgColor, bgColor, padded);
+    canvas.bold(false);
+  } else {
+    fgBg(canvas, fgColor, bgColor, padded);
+  }
+}
+
+export function drawEditableField(canvas: FramebufferCanvas, keyStr: string, value: string, extra: string, isEditing: boolean, isHighlighted: boolean, focused: boolean, width: number): void {
+  if (isEditing) {
+    fgBg(canvas, "warning", "surface", keyStr);
+    fgBg(canvas, "accent", "canvas", value);
+    return;
+  }
+
+  const descSpace = Math.max(0, width - keyStr.length - value.length - extra.length - 2);
+  const desc = descSpace > 0 ? " ".repeat(descSpace) : "";
+
+  const colors = rowColors(isHighlighted, false, focused);
+  const content = keyStr + value + extra + (desc ? "  " + desc : "");
+
+  if (colors.bold) {
+    canvas.bold(true);
+    fgBg(canvas, colors.fg, colors.bg, content.substring(0, width));
+    canvas.bold(false);
+  } else {
+    fgBg(canvas, colors.fgMuted, colors.bg, keyStr);
+    fgBg(canvas, colors.fg, colors.bg, value);
+    fgBg(canvas, colors.fgMuted, colors.bg, desc ? "  " + desc : "");
+  }
+}
+
 export function termWidth(target: FramebufferCanvas): number {
   const w = target.width;
   if (typeof w === "number" && isFinite(w) && w > 0) return w;

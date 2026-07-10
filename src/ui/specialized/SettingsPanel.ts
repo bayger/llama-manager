@@ -1,4 +1,4 @@
-import { fg, fgBg, rowColors } from "../../lib/theme";
+import { fg, fgBg, rowColors, drawEditableHeader, drawEditableField } from "../../lib/theme";
 import {
   PRESET_CATEGORIES,
   ConfigData,
@@ -116,19 +116,7 @@ export class SettingsPanel extends EditableList {
 
   protected drawHeader(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, width: number): void {
     const cat = PRESET_CATEGORIES[row.catIdx]!;
-    const arrow = this._collapsed.has(row.catIdx) ? "\u25b6" : "\u25bc";
-    const headerText = ` ${arrow} ${cat.name}`;
-    const fgColor = isHighlighted ? (this.focused ? "canvas" : "accent") : "accent";
-    const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
-
-    const padded = headerText.padEnd(width);
-    if (isHighlighted) {
-      canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, padded);
-      canvas.bold(false);
-    } else {
-      fgBg(canvas, fgColor, bgColor, padded);
-    }
+    drawEditableHeader(canvas, cat.name, this._collapsed.has(row.catIdx), isHighlighted, this.focused, width);
   }
 
   protected drawField(canvas: NonNullable<RenderContext["canvas"]>, row: EditableRowInfo, isHighlighted: boolean, isEditing: boolean, width: number): void {
@@ -140,9 +128,7 @@ export class SettingsPanel extends EditableList {
     const keyStr = ` ${field.key}`.padEnd(KEY_COL_WIDTH);
 
     if (isEditing && this._edit) {
-      const value = this._edit.text;
-      fgBg(canvas, "warning", "surface", keyStr);
-      fgBg(canvas, "accent", "canvas", value);
+      drawEditableField(canvas, keyStr, this._edit.text, "", true, isHighlighted, this.focused, width);
     } else {
       const value = formatFieldValue(field, presetData?.[field.key]);
 
@@ -153,21 +139,7 @@ export class SettingsPanel extends EditableList {
         extra = ` [${field.options.join(" | ")}]`;
       }
 
-      const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
-      const desc = descSpace > 0 && field.description ? field.description.substring(0, descSpace) : "";
-
-      const colors = rowColors(isHighlighted, false, this.focused);
-      const content = keyStr + value + extra + (desc ? "  " + desc : "");
-
-      if (colors.bold) {
-        canvas.bold(true);
-        fgBg(canvas, colors.fg, colors.bg, content.substring(0, width));
-        canvas.bold(false);
-      } else {
-        fgBg(canvas, colors.fgMuted, colors.bg, keyStr);
-        fgBg(canvas, colors.fg, colors.bg, value);
-        fgBg(canvas, colors.fgMuted, colors.bg, desc ? "  " + desc : "");
-      }
+      drawEditableField(canvas, keyStr, value, extra, false, isHighlighted, this.focused, width);
     }
   }
 
