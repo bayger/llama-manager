@@ -5,6 +5,15 @@ export function spinnerChar(): string {
   return SPINNER_FRAMES[Math.floor(Date.now() / SPINNER_INTERVAL) % SPINNER_FRAMES.length];
 }
 
+/**
+ * Start a spinner timer that calls `tick` at SPINNER_INTERVAL.
+ * Returns a dispose function. Call it to stop the timer.
+ */
+export function startSpinner(tick: () => void): () => void {
+  const id = setInterval(tick, SPINNER_INTERVAL);
+  return () => clearInterval(id);
+}
+
 // - Responsive breakpoints -
 
 export type Breakpoint = "sm" | "md" | "lg" | "xl" | "2xl";

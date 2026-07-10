@@ -228,7 +228,6 @@ export class ThemeSelectorModal extends Modal {
   protected _checkboxRow: Row;
   protected _buttonRow: Row;
   protected _contentColumn: Column;
-  protected _resolve: ((value: string | null) => void) | null = null;
   protected _originalTheme = "";
   protected _originalMode: ThemeMode = "dark";
   protected _previewMode: ThemeMode = "dark";
@@ -314,10 +313,6 @@ export class ThemeSelectorModal extends Modal {
     this.add(this._contentColumn);
   }
 
-  setResolve(resolve: (value: string | null) => void): void {
-    this._resolve = resolve;
-  }
-
   setInitialTheme(name: string): void {
     this._originalTheme = name;
     this._originalMode = getThemeMode();
@@ -376,22 +371,18 @@ export class ThemeSelectorModal extends Modal {
 
   protected cancel(): void {
     setActiveTheme(this._originalTheme);
-    if (this._resolve) {
-      this._resolve(null);
-      this._resolve = null;
-    }
-    modalManager.close();
+    this.closeWithResult(null);
   }
 
   protected apply(): void {
     this._selectedTheme = this.getSelectedTheme() || this._selectedTheme;
     setThemeMode(this._previewMode);
     setActiveTheme(this._selectedTheme);
-    if (this._resolve) {
-      this._resolve(this._selectedTheme);
-      this._resolve = null;
-    }
-    modalManager.close();
+    this.closeWithResult(this._selectedTheme);
+  }
+
+  closeWithResult(result: string | null): void {
+    super.closeWithResult(result);
   }
 }
 

@@ -8,7 +8,6 @@ import type { Size } from "../types";
 
 export class ConfirmDialog extends Modal {
   protected _message = "";
-  protected _resolve: ((value: boolean) => void) | null = null;
   protected _contentColumn: Column;
   protected _messageLabel: StyledText;
   protected _buttonRow: Row;
@@ -17,10 +16,6 @@ export class ConfirmDialog extends Modal {
     this._message = v;
     this._messageLabel.builder.text(v);
     this.markDirty();
-  }
-
-  setResolve(resolve: (value: boolean) => void): void {
-    this._resolve = resolve;
   }
 
   constructor() {
@@ -60,13 +55,7 @@ export class ConfirmDialog extends Modal {
   }
 
   public closeWithResult(result: boolean): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(result);
   }
 }
 

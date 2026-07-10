@@ -147,6 +147,43 @@ export function popThemeChanged(): boolean {
 // Keep backward compat for lib files that import theme colors
 export const theme = themeColors;
 
+// ─── Row coloring helper ──────────────────────────────────────────────────────
+
+export interface RowColors {
+  fg: Color;
+  fgMuted: Color;
+  bg: Color;
+  bold: boolean;
+}
+
+/**
+ * Compute foreground/background colors for a row based on highlight, selection, and focus state.
+ */
+export function rowColors(isHighlighted: boolean, isSelected: boolean, focused: boolean): RowColors {
+  if (isHighlighted) {
+    return {
+      fg: focused ? "canvas" : "text",
+      fgMuted: focused ? "canvas" : "textMuted",
+      bg: focused ? "selectionBg" : "surface",
+      bold: true,
+    };
+  }
+  if (isSelected) {
+    return {
+      fg: "accent",
+      fgMuted: "textMuted",
+      bg: "surface",
+      bold: false,
+    };
+  }
+  return {
+    fg: "text",
+    fgMuted: "textMuted",
+    bg: "surface",
+    bold: false,
+  };
+}
+
 // ─── Color resolution ────────────────────────────────────────────────────────
 
 export function resolveColor(color: Color): string {

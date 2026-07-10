@@ -16,13 +16,8 @@ export interface SelectorItem {
 export class SelectorModal extends Modal {
   protected _items: SelectorItem[] = [];
   protected _selectedId: string | null = null;
-  protected _resolve: ((value: string | null) => void) | null = null;
   protected _list: List<string, SelectorItem>;
   protected _buttonRow: Row;
-
-  setResolve(resolve: (value: string | null) => void): void {
-    this._resolve = resolve;
-  }
 
   setItems(items: SelectorItem[], selectedId: string | null): void {
     this._items = items;
@@ -95,13 +90,7 @@ export class SelectorModal extends Modal {
   }
 
   public closeWithResult(result: string | null): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(result);
   }
 }
 

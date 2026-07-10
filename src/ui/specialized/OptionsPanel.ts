@@ -1,4 +1,4 @@
-import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant, getThemeMode } from "../../lib/theme";
+import { fg, fgBg, setActiveTheme, getThemeNames, setThemeMode, themeHasLightVariant, getThemeMode, rowColors } from "../../lib/theme";
 import { focusManager } from "../../framework/FocusManager";
 import { ConfigData, saveConfig } from "../../lib/config";
 import { getInstallableForks } from "../../lib/forks";
@@ -256,19 +256,17 @@ export class OptionsPanel extends EditableList {
       const descSpace = Math.max(0, width - KEY_COL_WIDTH - value.length - extra.length - 2);
       const desc = descSpace > 0 && field.description ? field.description.substring(0, descSpace) : "";
 
-      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : "text";
-      const fgMutedColor = isHighlighted ? "canvas" : "textMuted";
-      const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
+      const colors = rowColors(isHighlighted, false, this.focused);
       const content = keyStr + value + extra + (desc ? "  " + desc : "");
 
-      if (isHighlighted) {
+      if (colors.bold) {
         canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, content.substring(0, width));
+        fgBg(canvas, colors.fg, colors.bg, content.substring(0, width));
         canvas.bold(false);
       } else {
-        fgBg(canvas, fgMutedColor, bgColor, keyStr);
-        fgBg(canvas, fgColor, bgColor, value);
-        fgBg(canvas, fgMutedColor, bgColor, desc ? "  " + desc : "");
+        fgBg(canvas, colors.fgMuted, colors.bg, keyStr);
+        fgBg(canvas, colors.fg, colors.bg, value);
+        fgBg(canvas, colors.fgMuted, colors.bg, desc ? "  " + desc : "");
       }
     }
   }

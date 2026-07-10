@@ -10,17 +10,12 @@ export type ExitResult = "cancel" | "exit" | "stop_and_exit";
 
 export class ExitDialog extends Modal {
   protected _message = "";
-  protected _resolve: ((value: ExitResult) => void) | null = null;
   protected _messageLabel: StyledText;
 
   set message(v: string) {
     this._message = v;
     this._messageLabel.builder.text(v);
     this.markDirty();
-  }
-
-  setResolve(resolve: (value: ExitResult) => void): void {
-    this._resolve = resolve;
   }
 
   constructor() {
@@ -60,13 +55,7 @@ export class ExitDialog extends Modal {
   }
 
   public closeWithResult(result: ExitResult): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(result);
   }
 }
 

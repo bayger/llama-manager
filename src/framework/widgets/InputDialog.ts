@@ -8,7 +8,6 @@ import type { Size } from "../types";
 
 export class InputDialog extends Modal {
   protected _textInput: TextInput;
-  protected _resolve: ((value: string | null) => void) | null = null;
 
   set value(v: string) {
     this._textInput.value = v;
@@ -21,10 +20,6 @@ export class InputDialog extends Modal {
 
   set placeholder(v: string) {
     this._textInput.placeholder = v;
-  }
-
-  setResolve(resolve: (value: string | null) => void): void {
-    this._resolve = resolve;
   }
 
   constructor() {
@@ -57,11 +52,7 @@ export class InputDialog extends Modal {
   }
 
   public closeWithResult(result: string | null): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    modalManager.close();
+    super.closeWithResult(result);
   }
 }
 

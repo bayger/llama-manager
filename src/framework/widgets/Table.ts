@@ -1,5 +1,5 @@
 import { Control } from "../Control";
-import { fg, fgBg } from "../../lib/theme";
+import { fg, fgBg, rowColors } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
 import type { Point, Size, RenderContext } from "../types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
@@ -261,8 +261,7 @@ export class Table<T = any> extends Control {
     }
 
     const isSelected = item.id === this._selectedId;
-    const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-    const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
+    const colors = rowColors(isHighlighted, isSelected, this.focused);
 
     let display: string;
 
@@ -286,35 +285,35 @@ export class Table<T = any> extends Control {
         return { text, color };
       });
 
-      if (isHighlighted) canvas.bold(true);
+      if (colors.bold) canvas.bold(true);
       let cx = x;
       for (let i = 0; i < parts.length; i++) {
         const p = parts[i]!;
-        const cellColor = isHighlighted ? fgColor : (p.color || fgColor);
-        fgBg(canvas, cellColor, bgColor, p.text);
+        const cellColor = isHighlighted ? colors.fg : (p.color || colors.fg);
+        fgBg(canvas, cellColor, colors.bg, p.text);
         canvas.moveTo(cx + p.text.length, y);
         cx += p.text.length;
         if (i < parts.length - 1) {
-          fgBg(canvas, fgColor, bgColor, " ");
+          fgBg(canvas, colors.fg, colors.bg, " ");
           canvas.moveTo(cx + 1, y);
           cx += 1;
         }
       }
-      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - (cx - x))));
-      if (isHighlighted) canvas.bold(false);
+      fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, width - (cx - x))));
+      if (colors.bold) canvas.bold(false);
       return;
     } else {
       display = `${item.label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
     }
 
-    if (isHighlighted) {
+    if (colors.bold) {
       canvas.bold(true);
-      fgBg(canvas, fgColor, bgColor, display);
-      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
+      fgBg(canvas, colors.fg, colors.bg, display);
+      fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, width - display.length)));
       canvas.bold(false);
     } else {
-      fgBg(canvas, fgColor, bgColor, display);
-      fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, width - display.length)));
+      fgBg(canvas, colors.fg, colors.bg, display);
+      fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, width - display.length)));
     }
   }
 

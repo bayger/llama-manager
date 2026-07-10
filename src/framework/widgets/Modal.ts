@@ -1,6 +1,7 @@
 import { Control } from "../Control";
 import { focusManager } from "../FocusManager";
 import { fg, fgBg } from "../../lib/theme";
+import { modalManager } from "../ModalManager";
 import type { Point, RenderContext, Size } from "../types";
 
 const V = "\u2502";
@@ -14,6 +15,7 @@ export class Modal extends Control {
   protected _maxWidth = 120;
   protected _minHeight = 8;
   protected _maxHeight = 30;
+  protected _resolve: ((value: any) => void) | null = null;
 
   set title(v: string) {
     this._title = v;
@@ -35,6 +37,21 @@ export class Modal extends Control {
 
   setOnClose(callback: () => void): void {
     this._onClose = callback;
+  }
+
+  setResolve(resolve: (value: any) => void): void {
+    this._resolve = resolve;
+  }
+
+  /** Resolve the modal promise and close it from the modal stack. Override for pre-close cleanup. */
+  closeWithResult(result: any): void {
+    if (this._resolve) {
+      this._resolve(result);
+      this._resolve = null;
+    }
+    if (modalManager.getTop() === this) {
+      modalManager.close();
+    }
   }
 
   setMinSize(minWidth: number, minHeight: number): void {

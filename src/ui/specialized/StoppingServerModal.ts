@@ -1,18 +1,15 @@
 import { Modal } from "../../framework/widgets/Modal";
 import { Control } from "../../framework/Control";
 import { fg } from "../../lib/theme";
-import { spinnerChar, SPINNER_INTERVAL } from "../../lib/utils";
+import { spinnerChar, startSpinner } from "../../lib/utils";
 import type { RenderContext, Size } from "../../framework/types";
 
 class StoppingContent extends Control {
   focusable = false;
-  protected _spinnerTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     super();
-    this._spinnerTimer = setInterval(() => {
-      this.markDirty();
-    }, SPINNER_INTERVAL);
+    this.disposeOnDestroy(startSpinner(() => this.markDirty()));
   }
 
   measure(parentSize?: Size): Size {
@@ -29,13 +26,6 @@ class StoppingContent extends Control {
     canvas.moveTo(x, y);
     fg(canvas, "textMuted", "Stopping server ");
     fg(canvas, "textMuted", spinnerChar());
-  }
-
-  onDestroy(): void {
-    if (this._spinnerTimer) {
-      clearInterval(this._spinnerTimer);
-      this._spinnerTimer = null;
-    }
   }
 }
 

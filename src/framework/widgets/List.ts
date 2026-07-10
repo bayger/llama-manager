@@ -1,5 +1,5 @@
 import { Control } from "../Control";
-import { fg, fgBg } from "../../lib/theme";
+import { fg, fgBg, rowColors } from "../../lib/theme";
 import type { Point, Size, RenderContext } from "../types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
 
@@ -110,20 +110,19 @@ export class List<ID = string, D = unknown> extends Control {
       if (!item) continue;
       const isHighlighted = globalIndex === this.selectedIndex;
       const isSelected = item.id === this._selectedId;
-      const fgColor = isHighlighted ? (this.focused ? "canvas" : "text") : (isSelected ? "accent" : "text");
-      const bgColor = this.focused ? (isHighlighted ? "selectionBg" : "surface") : "surface";
+      const colors = rowColors(isHighlighted, isSelected, this.focused);
       canvas.moveTo(x, y + i);
 
       const label = item.label;
       const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
 
-      if (isHighlighted) {
+      if (colors.bold) {
         canvas.bold(true);
-        fgBg(canvas, fgColor, bgColor, display);
-        fgBg(canvas, fgColor, bgColor, " ".repeat(Math.max(0, cw - display.length)));
+        fgBg(canvas, colors.fg, colors.bg, display);
+        fgBg(canvas, colors.fg, colors.bg, " ".repeat(Math.max(0, cw - display.length)));
         canvas.bold(false);
       } else {
-        fgBg(canvas, fgColor, bgColor, display);
+        fgBg(canvas, colors.fg, colors.bg, display);
       }
     }
 

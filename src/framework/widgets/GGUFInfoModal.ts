@@ -318,7 +318,6 @@ class GGUFContentPanel extends Scrollable {
 
 export class GGUFInfoModal extends Modal {
   protected _loading = false;
-  protected _resolve: ((value: boolean) => void) | null = null;
   protected _showMessage: ((msg: string) => void) | null = null;
   protected _modelPath = "";
   protected _contentColumn: Column;
@@ -376,10 +375,6 @@ export class GGUFInfoModal extends Modal {
     this.add(this._buttonRow);
   }
 
-  setResolve(resolve: (value: boolean) => void): void {
-    this._resolve = resolve;
-  }
-
   setShowMessage(cb: (msg: string) => void): void {
     this._showMessage = cb;
   }
@@ -435,13 +430,7 @@ export class GGUFInfoModal extends Modal {
   }
 
   closeWithResult(result: boolean): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(result);
   }
 
   handleKey(key: string): boolean {

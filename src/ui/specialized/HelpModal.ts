@@ -83,12 +83,6 @@ class HelpContent extends Control {
 }
 
 export class HelpModal extends Modal {
-  protected _resolve: ((value: boolean) => void) | null = null;
-
-  setResolve(resolve: (value: boolean) => void): void {
-    this._resolve = resolve;
-  }
-
   constructor() {
     super();
     this.title = "Help";
@@ -116,13 +110,7 @@ export class HelpModal extends Modal {
   }
 
   public closeWithResult(_result: boolean): void {
-    if (this._resolve) {
-      this._resolve(_result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(_result);
   }
 }
 

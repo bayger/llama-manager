@@ -11,14 +11,9 @@ import os from "os";
 import type { TabContext } from "../../lib/tabcontext";
 
 export class UpdateInfoModal extends Modal {
-  protected _resolve: ((value: boolean) => void) | null = null;
   protected _latestVersion: string;
   protected _currentVersion: string;
   protected _ctx: TabContext | null = null;
-
-  setResolve(resolve: (value: boolean) => void): void {
-    this._resolve = resolve;
-  }
 
   setContext(ctx: TabContext | null): void {
     this._ctx = ctx;
@@ -139,13 +134,7 @@ export class UpdateInfoModal extends Modal {
   }
 
   public closeWithResult(result: boolean): void {
-    if (this._resolve) {
-      this._resolve(result);
-      this._resolve = null;
-    }
-    if (modalManager.getTop() === this) {
-      modalManager.close();
-    }
+    super.closeWithResult(result);
   }
 }
 
