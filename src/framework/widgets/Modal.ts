@@ -1,10 +1,8 @@
 import { Control } from "../Control";
 import { focusManager } from "../FocusManager";
-import { fg, fgBg } from "../../lib/theme";
+import { fg, fgBg, V, drawTitleBar } from "../../lib/theme";
 import { modalManager } from "../ModalManager";
 import type { Point, RenderContext, Size } from "../types";
-
-const V = "\u2502";
 
 export class Modal extends Control {
   focusable = true;
@@ -133,23 +131,7 @@ export class Modal extends Control {
     canvas.write(V);
 
     // Row 1: Title bar
-    canvas.moveTo(x, y + 1);
-    canvas.setForegroundColor("borderMuted");
-    canvas.write(V);
-    canvas.moveTo(x + 1, y + 1);
-    canvas.bold();
-    fg(canvas, "secondary", ` ${this._title}`);
-    canvas.bold(false);
-    if (this._hint) {
-      const titleLen = 2 + this._title.length;
-      const hintWithPad = `  ${this._hint} `;
-      const startCol = width - 1 - hintWithPad.length;
-      if (startCol > titleLen) {
-        canvas.moveTo(x + titleLen, y + 1);
-        fg(canvas, "secondary", " ".repeat(startCol - titleLen));
-        fg(canvas, "textMuted", hintWithPad);
-      }
-    }
+    drawTitleBar(canvas, x, y + 1, width, this._title, this._hint);
 
     // Rows 2..height-2: Left border
     for (let row = 2; row < height - 1; row++) {

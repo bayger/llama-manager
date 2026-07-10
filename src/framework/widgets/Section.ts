@@ -1,8 +1,6 @@
 import { Control } from "../Control";
-import { Color, fg } from "../../lib/theme";
+import { Color, fg, V, drawTitleBar } from "../../lib/theme";
 import type { Size, RenderContext } from "../types";
-
-const V = "\u2502";
 
 export class Section extends Control {
   focusable = false;
@@ -79,23 +77,7 @@ export class Section extends Control {
     canvas.write(V);
 
     // Caption row
-    canvas.moveTo(x, y + 1);
-    canvas.setForegroundColor("borderMuted");
-    canvas.write(V);
-    canvas.moveTo(x + 1, y + 1);
-    canvas.bold();
-    fg(canvas, "secondary", ` ${this.title}`);
-    canvas.bold(false);
-    if (this.hint) {
-      const titleLen = 2 + this.title.length;
-      const hintWithPad = `  ${this.hint} `;
-      const startCol = width - 1 - hintWithPad.length;
-      if (startCol > titleLen) {
-        canvas.moveTo(x + titleLen, y + 1);
-        fg(canvas, "secondary", " ".repeat(startCol - titleLen));
-        fg(canvas, "textMuted", hintWithPad);
-      }
-    }
+    drawTitleBar(canvas, x, y + 1, width, this.title, this.hint);
 
     // Left border
     for (let row = 2; row < height - 1; row++) {

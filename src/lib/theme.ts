@@ -209,6 +209,26 @@ export function fgBg(target: FramebufferCanvas, fgColor: Color, bgColor: Color, 
   target.write(text);
 }
 
+export function drawTitleBar(canvas: FramebufferCanvas, x: number, y: number, width: number, title: string, hint?: string): void {
+  canvas.moveTo(x, y);
+  canvas.setForegroundColor("borderMuted");
+  canvas.write(V);
+  canvas.moveTo(x + 1, y);
+  canvas.bold();
+  fg(canvas, "secondary", ` ${title}`);
+  canvas.bold(false);
+  if (hint) {
+    const titleLen = 2 + title.length;
+    const hintWithPad = `  ${hint} `;
+    const startCol = width - 1 - hintWithPad.length;
+    if (startCol > titleLen) {
+      canvas.moveTo(x + titleLen, y);
+      fg(canvas, "secondary", " ".repeat(startCol - titleLen));
+      fg(canvas, "textMuted", hintWithPad);
+    }
+  }
+}
+
 export function termWidth(target: FramebufferCanvas): number {
   const w = target.width;
   if (typeof w === "number" && isFinite(w) && w > 0) return w;
@@ -241,7 +261,7 @@ const TR = "\u2510";
 const BL = "\u2514";
 const BR = "\u2518";
 const H = "\u2500";
-const V = "\u2502";
+export const V = "\u2502";
 const L = "\u251c";
 const R = "\u2524";
 
