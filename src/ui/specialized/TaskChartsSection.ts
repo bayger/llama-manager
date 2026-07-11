@@ -166,6 +166,7 @@ export class TaskChartsSection extends Section {
 
 export class TaskChartsControl extends Control {
   protected _timeBucket: TimeBucket = "hour";
+  protected _renderMode: "braille" | "block" = "braille";
   protected _column: Column;
   protected _tasksChart: BarChart;
   protected _tasksChartSection: Section;
@@ -176,6 +177,7 @@ export class TaskChartsControl extends Control {
   protected _refreshHandler: (() => void) | null = null;
 
   get timeBucket(): TimeBucket { return this._timeBucket; }
+  get renderMode(): "braille" | "block" { return this._renderMode; }
 
   constructor() {
     super();
@@ -217,6 +219,14 @@ export class TaskChartsControl extends Control {
 
   cycleTimeBucket(): void {
     this._timeBucket = this._timeBucket === "hour" ? "day" : "hour";
+    this.markDirty();
+  }
+
+  cycleRenderMode(): void {
+    this._renderMode = this._renderMode === "braille" ? "block" : "braille";
+    this._tasksChart.renderMode = this._renderMode;
+    this._tokensChart.renderMode = this._renderMode;
+    this._speedChart.renderMode = this._renderMode;
     this.markDirty();
   }
 

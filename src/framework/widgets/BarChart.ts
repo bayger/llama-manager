@@ -28,6 +28,7 @@ export class BarChart extends Control {
 
   // ── Options ──
   protected _mode: "bottom-up" | "top-down" = "bottom-up";
+  protected _renderMode: "braille" | "block" = "braille";
   protected _scale: "auto" | "auto-zero" | "fixed" = "auto-zero";
   protected _yMin = 0;
   protected _yMax = 100;
@@ -56,6 +57,9 @@ export class BarChart extends Control {
 
   get mode(): "bottom-up" | "top-down" { return this._mode; }
   set mode(v: "bottom-up" | "top-down") { if (v !== this._mode) { this._mode = v; this.markDirty(); } }
+
+  get renderMode(): "braille" | "block" { return this._renderMode; }
+  set renderMode(v: "braille" | "block") { if (v !== this._renderMode) { this._renderMode = v; this.markDirty(); } }
 
   get scale(): "auto" | "auto-zero" | "fixed" { return this._scale; }
   set scale(v: "auto" | "auto-zero" | "fixed") { if (v !== this._scale) { this._scale = v; this.markDirty(); } }
@@ -139,6 +143,9 @@ export class BarChart extends Control {
 
   // ── Rendering ──
 
+  // Vertical block elements: 0 = empty, 1..8 = ▁..█
+  private static BLOCK_CHARS = [" ", "\u2581", "\u2582", "\u2583", "\u2584", "\u2585", "\u2586", "\u2587", "\u2588"];
+
   private _totalBrailleCols = 0;
 
   draw(ctx: RenderContext): void {
@@ -157,7 +164,20 @@ export class BarChart extends Control {
     const chartRows = Math.max(1, height - titleRows - xAxisRows);
     const yAxisWidth = this._showYAxis ? this.computeYAxisWidth(yMin, yMax) : 0;
     const chartWidth = Math.max(1, width - yAxisWidth - 1);
-    const logicalHeight = chartRows * 4;
+
+    const isBlock = this._renderMode === "block";
+    const levelsPerRow = isBlock ? 8 : 4;
+    const logicalHeight = chartRows * levelsPerRow;
+
+    if (isBlock) {
+      this.drawBlock(ctx, ox, oy, chartRows, chartWidth, yAxisWidth, logicalHeight, yMin, yMax, range, titleRows, xAxisRows);
+    } else {
+      this.drawBraille(ctx, ox, oy, chartRows, chartWidth, yAxisWidth, logicalHeight, yMin, yMax, range, titleRows, xAxisRows);
+    }
+  }
+
+  private drawBraille(ctx: RenderContext, ox: number, oy: number, chartRows: number, chartWidth: number, yAxisWidth: number, logicalHeight: number, yMin: number, yMax: number, range: number, titleRows: number, xAxisRows: number): void {
+    const { canvas } = ctx;
 
     // Braille columns
     this._totalBrailleCols = Math.ceil(this._data.length / 2);
@@ -169,7 +189,7 @@ export class BarChart extends Control {
     const visibleEndCol = Math.min(this._totalBrailleCols, visibleStartCol + chartWidth);
     const visibleCols = visibleEndCol - visibleStartCol;
 
-    // Build Braille grid: grid[brRow][brCol] = { bits, color }
+    // Build Braille grid: grid[brRow][brCol] = bits
     // brRow 0 = bottom, brCol 0 = left (within visible range)
     const grid: number[][] = [];
     for (let br = 0; br < chartRows; br++) {
@@ -200,17 +220,8 @@ export class BarChart extends Control {
       }
     }
 
-    // Compute y-axis ticks
-    const ticks: { row: number; label: string }[] = [];
-    if (this._showYAxis && this._yTickCount > 0) {
-      for (let i = 0; i < this._yTickCount; i++) {
-        const fraction = this._yTickCount === 1 ? 0.5 : i / (this._yTickCount - 1);
-        const value = yMin + fraction * range;
-        const logicalRow = Math.round(fraction * (logicalHeight - 1));
-        const brRow = Math.min(chartRows - 1, Math.floor(logicalRow / 4));
-        ticks.push({ row: brRow, label: this.formatTick(value) });
-      }
-    }
+    // Compute y-axis ticks (braille: ticks at Braille-row boundaries)
+    const ticks = this.computeTicks(chartRows, logicalHeight, yMin, yMax, range);
     const tickSet = new Map(ticks.map(t => [t.row, t.label]));
 
     let cursorY = oy;
@@ -288,7 +299,139 @@ export class BarChart extends Control {
       fg(canvas, "textMuted", labelStr);
       cursorY++;
     }
+  }
 
+  private drawBlock(ctx: RenderContext, ox: number, oy: number, chartRows: number, chartWidth: number, yAxisWidth: number, logicalHeight: number, yMin: number, yMax: number, range: number, titleRows: number, xAxisRows: number): void {
+    const { canvas } = ctx;
+
+    // Block mode: 1 data point per column
+    this._totalBrailleCols = this._data.length;
+    this._viewportCols = chartWidth;
+    const maxScroll = Math.max(0, this._totalBrailleCols - this._viewportCols);
+    this._scrollOffset = Math.max(0, Math.min(maxScroll, this._scrollOffset));
+
+    const visibleStartCol = this._scrollOffset;
+    const visibleEndCol = Math.min(this._totalBrailleCols, visibleStartCol + chartWidth);
+    const visibleCols = visibleEndCol - visibleStartCol;
+
+    // Build block grid: grid[row][col] = fill level 0..8
+    // row 0 = bottom
+    const grid: number[][] = [];
+    for (let r = 0; r < chartRows; r++) {
+      const row: number[] = [];
+      for (let c = 0; c < visibleCols; c++) {
+        row.push(0);
+      }
+      grid.push(row);
+    }
+
+    // Plot bars
+    for (let c = 0; c < visibleCols; c++) {
+      const dataIdx = visibleStartCol + c;
+      const val = this._data[dataIdx]!;
+      const normalized = Math.max(0, Math.min(1, (val - yMin) / range));
+      const barHeight = Math.round(normalized * logicalHeight);
+
+      for (let y = 0; y < barHeight; y++) {
+        const r = Math.floor(y / 8);
+        if (r < chartRows) {
+          grid[r]![c] = Math.max(grid[r]![c]!, Math.floor(y % 8) + 1);
+        }
+      }
+    }
+
+    // Compute y-axis ticks
+    const ticks = this.computeTicks(chartRows, logicalHeight, yMin, yMax, range);
+    const tickSet = new Map(ticks.map(t => [t.row, t.label]));
+
+    let cursorY = oy;
+
+    // Title
+    if (this._title) {
+      canvas.moveTo(ox, cursorY);
+      fg(canvas, "text", this._title);
+      cursorY++;
+    }
+
+    // Chart area (render from top row to bottom)
+    for (let r = chartRows - 1; r >= 0; r--) {
+      canvas.moveTo(ox, cursorY);
+
+      // Y-axis label
+      if (this._showYAxis) {
+        const label = tickSet.get(r) || "";
+        const padLen = Math.max(0, yAxisWidth - label.length);
+        if (label) {
+          canvas.write(" ".repeat(padLen));
+          fg(canvas, "textMuted", label);
+        } else {
+          canvas.write(" ".repeat(yAxisWidth));
+        }
+      }
+
+      // Separator
+      canvas.setForegroundColor("textMuted");
+      if (r === 0 && this._showBaseline) {
+        canvas.write("\u2524");
+      } else if (tickSet.has(r)) {
+        canvas.write("\u251c");
+      } else {
+        canvas.write("\u2502");
+      }
+
+      // Block bars
+      const rowLevels = grid[r]!;
+      let line = "";
+      for (let c = 0; c < visibleCols; c++) {
+        const level = rowLevels[c]!;
+        line += BarChart.BLOCK_CHARS[level] || " ";
+      }
+      fg(canvas, this._color, line);
+
+      cursorY++;
+    }
+
+    // Baseline
+    if (this._showBaseline) {
+      canvas.moveTo(ox, cursorY);
+      if (this._showYAxis) {
+        fg(canvas, "border", "\u2514" + "\u2500".repeat(yAxisWidth));
+      }
+      fg(canvas, "border", "\u2500".repeat(visibleCols));
+      cursorY++;
+    }
+
+    // X-axis labels
+    if (this._showXAxis && this._labels.length > 0) {
+      canvas.moveTo(ox, cursorY);
+      if (this._showYAxis) {
+        canvas.write(" ".repeat(yAxisWidth + 1));
+      }
+
+      let labelStr = "";
+      for (let c = 0; c < visibleCols; c++) {
+        const dataIdx = visibleStartCol + c;
+        const label = this._labels[dataIdx] || "";
+        const truncated = label.length > 1 ? label[0]! : label || " ";
+        labelStr += truncated;
+      }
+      fg(canvas, "textMuted", labelStr);
+      cursorY++;
+    }
+  }
+
+  private computeTicks(chartRows: number, logicalHeight: number, yMin: number, yMax: number, range: number): { row: number; label: string }[] {
+    const ticks: { row: number; label: string }[] = [];
+    if (this._showYAxis && this._yTickCount > 0) {
+      for (let i = 0; i < this._yTickCount; i++) {
+        const fraction = this._yTickCount === 1 ? 0.5 : i / (this._yTickCount - 1);
+        const value = yMin + fraction * range;
+        const logicalRow = Math.round(fraction * (logicalHeight - 1));
+        const row = Math.min(chartRows - 1, Math.floor(logicalRow / (logicalHeight / chartRows)));
+        ticks.push({ row, label: this.formatTick(value) });
+      }
+    }
+    return ticks;
   }
 
   // ── Helpers ──

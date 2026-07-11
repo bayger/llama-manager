@@ -297,6 +297,11 @@ export class TasksControl extends Control {
         this._ctx?.showMessage(`Time bucket: ${this._chartsControl.timeBucket}`);
         return true;
       }
+      if (key === "v") {
+        this._chartsControl.cycleRenderMode();
+        this._ctx?.showMessage(`Render mode: ${this._chartsControl.renderMode}`);
+        return true;
+      }
       return this._chartsControl.handleKey(key);
     }
 
