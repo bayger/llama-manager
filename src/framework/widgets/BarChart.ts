@@ -170,8 +170,9 @@ export class BarChart extends Control {
     // Layout
     const titleRows = this._title ? 1 : 0;
     const subtitleRows = this._subtitle ? 1 : 0;
+    const baselineRows = this._showBaseline ? 1 : 0;
     const xAxisRows = this._showXAxis ? 1 : 0;
-    const chartRows = Math.max(1, height - titleRows - subtitleRows - xAxisRows);
+    const chartRows = Math.max(1, height - titleRows - subtitleRows - baselineRows - xAxisRows);
     const yAxisWidth = this._showYAxis ? this.computeYAxisWidth(yMin, yMax) : 0;
     const chartWidth = Math.max(1, width - yAxisWidth - 1);
 
