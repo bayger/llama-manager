@@ -1,13 +1,16 @@
+import { Control } from "../../framework/Control";
+import { Column, Row } from "../../framework/Layout";
 import { Section } from "../../framework/widgets/Section";
-import { Row } from "../../framework/Layout";
 import { BarChart } from "../../framework/widgets/BarChart";
-import { taskStore } from "../../lib/tasks";
+import { taskStore, TimeBucket } from "../../lib/tasks";
 import type { Size, RenderContext } from "../../framework/types";
 
 // Y-axis + separator takes ~5 chars (label width + border), leaving rest for bars.
 const AXIS_OVERHEAD = 5;
 
 export type ChartMode = "speed" | "tokens" | "dense";
+
+// ── Per-task charts (used by DashboardTab) ──
 
 export class TaskChartsSection extends Section {
   public chartMode: ChartMode = "speed";
@@ -87,7 +90,6 @@ export class TaskChartsSection extends Section {
     }
     const titles = { speed: "Recent Tasks (speed)", tokens: "Recent Tasks (tokens)", dense: "Recent Tasks (all)" };
     this.title = titles[this.chartMode]!;
-    this.hint = "t";
     this._lastCapacity = 0;
     this.markDirty();
   }
@@ -157,5 +159,117 @@ export class TaskChartsSection extends Section {
   refreshData(): void {
     this._lastCapacity = 0;
     this.markDirty();
+  }
+}
+
+// ── Aggregated charts (used by TasksTab charts view) ──
+
+export class TaskChartsControl extends Control {
+  protected _timeBucket: TimeBucket = "hour";
+  protected _column: Column;
+  protected _tasksChart: BarChart;
+  protected _tasksChartSection: Section;
+  protected _tokensChart: BarChart;
+  protected _tokensChartSection: Section;
+  protected _speedChart: BarChart;
+  protected _speedChartSection: Section;
+  protected _refreshHandler: (() => void) | null = null;
+
+  get timeBucket(): TimeBucket { return this._timeBucket; }
+
+  constructor() {
+    super();
+
+    this._tasksChart = new BarChart();
+    this._tasksChart.color = "accent";
+    this._tasksChart.scale = "auto-zero";
+    this._tasksChartSection = new Section();
+    this._tasksChartSection.title = "Tasks Over Time";
+    this._tasksChartSection.add(this._tasksChart);
+    this._tasksChart.flex = 1;
+
+    this._tokensChart = new BarChart();
+    this._tokensChart.color = "success";
+    this._tokensChart.scale = "auto-zero";
+    this._tokensChartSection = new Section();
+    this._tokensChartSection.title = "Tokens Over Time";
+    this._tokensChartSection.add(this._tokensChart);
+    this._tokensChart.flex = 1;
+
+    this._speedChart = new BarChart();
+    this._speedChart.color = "accentColor";
+    this._speedChart.scale = "auto-zero";
+    this._speedChartSection = new Section();
+    this._speedChartSection.title = "Output Speed Distribution (t/s)";
+    this._speedChartSection.add(this._speedChart);
+    this._speedChart.flex = 1;
+
+    this._column = new Column();
+    this._column.add(this._tasksChartSection);
+    this._tasksChartSection.flex = 1;
+    this._column.add(this._tokensChartSection);
+    this._tokensChartSection.flex = 1;
+    this._column.add(this._speedChartSection);
+    this._speedChartSection.flex = 1;
+
+    this.add(this._column);
+  }
+
+  cycleTimeBucket(): void {
+    this._timeBucket = this._timeBucket === "hour" ? "day" : "hour";
+    this.markDirty();
+  }
+
+  measure(parentSize?: Size): Size {
+    return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
+  }
+
+  onInit(): void {
+    this._refreshHandler = () => this.markDirty();
+    taskStore.on("updated", this._refreshHandler);
+  }
+
+  onDestroy(): void {
+    if (this._refreshHandler) {
+      taskStore.off("updated", this._refreshHandler);
+      this._refreshHandler = null;
+    }
+  }
+
+  onLayout(): void {
+    const { x, y, width, height } = this.rect;
+    this._column.layout({ x, y, width, height });
+
+    const tasksData = taskStore.getTasksOverTime(this._timeBucket);
+    this._tasksChart.setData(
+      tasksData.map(d => d.value),
+      tasksData.map(d => d.label),
+    );
+
+    const tokensData = taskStore.getTokensOverTime(this._timeBucket);
+    this._tokensChart.setData(
+      tokensData.map(d => d.promptTokens + d.outputTokens),
+      tokensData.map(d => d.label),
+    );
+
+    const speedData = taskStore.getSpeedHistogram();
+    this._speedChart.setData(
+      speedData.map(d => d.value),
+      speedData.map(d => d.label),
+    );
+  }
+
+  draw(_ctx: RenderContext): void {
+    // no-op, charts render themselves
+  }
+
+  handleKey(key: string): boolean {
+    if (key === "LEFT" || key === "RIGHT" || key === "PAGE_UP" || key === "PAGE_DOWN" || key === "HOME" || key === "END") {
+      if (this._tasksChartSection.visible && this._tasksChart.handleKey(key)) return true;
+      if (this._tokensChartSection.visible && this._tokensChart.handleKey(key)) return true;
+      if (this._speedChartSection.visible && this._speedChart.handleKey(key)) return true;
+      return false;
+    }
+    return false;
   }
 }

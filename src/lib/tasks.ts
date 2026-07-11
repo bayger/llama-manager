@@ -30,6 +30,18 @@ export interface TaskFilter {
 
 export type TaskSortField = "taskId" | "timestamp" | "slotId" | "promptSpeed" | "outputSpeed" | "totalTimeMs" | "promptTokens" | "outputTokens";
 export type TaskSortDir = "asc" | "desc";
+export type TimeBucket = "hour" | "day";
+
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+}
+
+export interface TokensDataPoint {
+  label: string;
+  promptTokens: number;
+  outputTokens: number;
+}
 
 const SORT_FIELD_MAP: Record<TaskSortField, string> = {
   taskId: "task_id",
@@ -407,6 +419,54 @@ class TaskStore extends EventEmitter {
       truncated: (row.truncated as number) === 1,
       graphsReused: row.graphs_reused as number,
     };
+  }
+
+  getTasksOverTime(bucket: TimeBucket): ChartDataPoint[] {
+    if (!this.db) return [];
+    const fmt = bucket === "hour" ? "strftime('%Y-%m-%d %H:00', timestamp)" : "strftime('%Y-%m-%d', timestamp)";
+    const rows = this.db.prepare(`
+      SELECT ${fmt} as bucket, COUNT(*) as cnt
+      FROM tasks
+      GROUP BY bucket
+      ORDER BY bucket
+      LIMIT 48
+    `).all() as { bucket: string; cnt: number }[];
+    return rows.map(r => ({ label: r.bucket, value: r.cnt }));
+  }
+
+  getTokensOverTime(bucket: TimeBucket): TokensDataPoint[] {
+    if (!this.db) return [];
+    const fmt = bucket === "hour" ? "strftime('%Y-%m-%d %H:00', timestamp)" : "strftime('%Y-%m-%d', timestamp)";
+    const rows = this.db.prepare(`
+      SELECT ${fmt} as bucket,
+        COALESCE(SUM(prompt_tokens), 0) as pt,
+        COALESCE(SUM(output_tokens), 0) as ot
+      FROM tasks
+      GROUP BY bucket
+      ORDER BY bucket
+      LIMIT 48
+    `).all() as { bucket: string; pt: number; ot: number }[];
+    return rows.map(r => ({ label: r.bucket, promptTokens: r.pt, outputTokens: r.ot }));
+  }
+
+  getSpeedHistogram(): ChartDataPoint[] {
+    if (!this.db) return [];
+    const bins = [
+      { label: "0-10", min: 0, max: 10 },
+      { label: "10-25", min: 10, max: 25 },
+      { label: "25-50", min: 25, max: 50 },
+      { label: "50-100", min: 50, max: 100 },
+      { label: "100+", min: 100, max: Infinity },
+    ];
+    const rows = this.db.prepare(`
+      SELECT output_speed FROM tasks WHERE output_speed > 0
+    `).all() as { output_speed: number }[];
+    const counts = bins.map(() => 0);
+    for (const r of rows) {
+      const idx = bins.findIndex(b => r.output_speed >= b.min && r.output_speed < b.max);
+      if (idx >= 0) counts[idx]!++;
+    }
+    return bins.map((b, i) => ({ label: b.label, value: counts[i]! }));
   }
 
   dispose() {
