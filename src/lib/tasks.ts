@@ -431,7 +431,9 @@ class TaskStore extends EventEmitter {
       ORDER BY bucket
       LIMIT 48
     `).all() as { bucket: string; cnt: number }[];
-    return rows.map(r => ({ label: r.bucket, value: r.cnt }));
+    if (rows.length === 0) return [];
+    const dataMap = new Map(rows.map(r => [r.bucket, r.cnt]));
+    return this.fillTimeBuckets(bucket, rows[0]!.bucket, rows[rows.length - 1]!.bucket, dataMap);
   }
 
   getTokensOverTime(bucket: TimeBucket): TokensDataPoint[] {
@@ -446,7 +448,39 @@ class TaskStore extends EventEmitter {
       ORDER BY bucket
       LIMIT 48
     `).all() as { bucket: string; pt: number; ot: number }[];
-    return rows.map(r => ({ label: r.bucket, promptTokens: r.pt, outputTokens: r.ot }));
+    if (rows.length === 0) return [];
+    const dataMap = new Map(rows.map(r => [r.bucket, { promptTokens: r.pt, outputTokens: r.ot }]));
+    const labels = this.generateTimeLabels(bucket, rows[0]!.bucket, rows[rows.length - 1]!.bucket);
+    return labels.map(label => ({
+      label,
+      promptTokens: dataMap.get(label)?.promptTokens ?? 0,
+      outputTokens: dataMap.get(label)?.outputTokens ?? 0,
+    }));
+  }
+
+  private generateTimeLabels(bucket: TimeBucket, start: string, end: string): string[] {
+    const labels: string[] = [];
+    const currentDate = bucket === "hour"
+      ? new Date(start.replace(" ", "T") + "Z")
+      : new Date(start + "T00:00:00Z");
+    const endDate = bucket === "hour"
+      ? new Date(end.replace(" ", "T") + "Z")
+      : new Date(end + "T00:00:00Z");
+
+    while (currentDate <= endDate) {
+      const label = bucket === "hour"
+        ? `${currentDate.getUTCFullYear()}-${String(currentDate.getUTCMonth() + 1).padStart(2, "0")}-${String(currentDate.getUTCDate()).padStart(2, "0")} ${String(currentDate.getUTCHours()).padStart(2, "0")}:00`
+        : `${currentDate.getUTCFullYear()}-${String(currentDate.getUTCMonth() + 1).padStart(2, "0")}-${String(currentDate.getUTCDate()).padStart(2, "0")}`;
+      labels.push(label);
+      currentDate.setUTCHours(currentDate.getUTCHours() + (bucket === "hour" ? 1 : 0));
+      if (bucket === "day") currentDate.setUTCDate(currentDate.getUTCDate() + 1);
+    }
+    return labels;
+  }
+
+  private fillTimeBuckets(bucket: TimeBucket, start: string, end: string, dataMap: Map<string, number>): ChartDataPoint[] {
+    const labels = this.generateTimeLabels(bucket, start, end);
+    return labels.map(label => ({ label, value: dataMap.get(label) ?? 0 }));
   }
 
   getSpeedHistogram(): ChartDataPoint[] {
