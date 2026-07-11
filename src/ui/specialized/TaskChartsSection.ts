@@ -171,8 +171,6 @@ export class TaskChartsControl extends Control {
   protected _tasksChartSection: Section;
   protected _tokensChart: BarChart;
   protected _tokensChartSection: Section;
-  protected _speedChart: BarChart;
-  protected _speedChartSection: Section;
   protected _refreshHandler: (() => void) | null = null;
 
   get timeBucket(): TimeBucket { return this._timeBucket; }
@@ -196,21 +194,11 @@ export class TaskChartsControl extends Control {
     this._tokensChartSection.add(this._tokensChart);
     this._tokensChart.flex = 1;
 
-    this._speedChart = new BarChart();
-    this._speedChart.color = "accentColor";
-    this._speedChart.scale = "auto-zero";
-    this._speedChartSection = new Section();
-    this._speedChartSection.title = "Output Speed Distribution (t/s)";
-    this._speedChartSection.add(this._speedChart);
-    this._speedChart.flex = 1;
-
     this._column = new Column();
     this._column.add(this._tasksChartSection);
     this._tasksChartSection.flex = 1;
     this._column.add(this._tokensChartSection);
     this._tokensChartSection.flex = 1;
-    this._column.add(this._speedChartSection);
-    this._speedChartSection.flex = 1;
 
     this.add(this._column);
   }
@@ -256,20 +244,11 @@ export class TaskChartsControl extends Control {
       tokensData.map(d => d.label),
     );
 
-    const speedData = taskStore.getSpeedHistogram();
-    this._speedChart.setData(
-      speedData.map(d => d.value),
-      speedData.map(d => d.label),
-    );
-
-    // Set subtitle and label interval for time-based charts
     const subtitle = this.buildSubtitle(tasksData);
     this._tasksChart.subtitle = subtitle;
     this._tokensChart.subtitle = subtitle;
     this._tasksChart.labelInterval = 0;
     this._tokensChart.labelInterval = 0;
-    this._speedChart.subtitle = "";
-    this._speedChart.labelInterval = 0;
   }
 
   private buildSubtitle(data: { label: string }[]): string {
@@ -290,7 +269,6 @@ export class TaskChartsControl extends Control {
     if (key === "LEFT" || key === "RIGHT" || key === "PAGE_UP" || key === "PAGE_DOWN" || key === "HOME" || key === "END") {
       if (this._tasksChartSection.visible && this._tasksChart.handleKey(key)) return true;
       if (this._tokensChartSection.visible && this._tokensChart.handleKey(key)) return true;
-      if (this._speedChartSection.visible && this._speedChart.handleKey(key)) return true;
       return false;
     }
     return false;
