@@ -186,7 +186,6 @@ export class TasksControl extends Control {
     this._detailsPanel.layout({ x: 0, y: 0, width: DETAILS_WIDTH, height: 1 });
 
     this._tableColumn = new Column();
-    this._tableColumn.add(new Spacer());
     this._tableColumn.add(this._contentRow);
     this._contentRow.flex = 1;
 
@@ -194,6 +193,7 @@ export class TasksControl extends Control {
 
     this._column = new Column();
     this._column.add(this._summary);
+    this._column.add(new Spacer());
     this._column.add(this._tableColumn);
     this._tableColumn.flex = 1;
     this._column.add(this._chartsControl);
@@ -252,8 +252,7 @@ export class TasksControl extends Control {
 
   draw(_ctx: RenderContext): void {
     const stats = taskStore.getStats();
-
-    this._summary.builder
+    const statsText = this._summary.builder
       .muted("Tasks ")
       .accentColor(`${stats.count}`)
       .muted("  Prompt ")
@@ -264,6 +263,11 @@ export class TasksControl extends Control {
       .info(`${stats.avgPromptSpeed.toFixed(1)} t/s`)
       .muted("  Avg TG ")
       .success(`${stats.avgOutputSpeed.toFixed(1)} t/s`);
+
+    const help = this._view === "table" ? "c charts  s sort  r reverse" : "c table  b day/hour";
+    const statsLen = this._summary.segments.reduce((a, s) => a + s.text.length, 0);
+    const padLen = Math.max(1, this.rect.width - statsLen - help.length);
+    statsText.muted(" ".repeat(padLen)).muted(help);
   }
 
   updateColumns(): void {
