@@ -250,13 +250,17 @@ export class TaskChartsControl extends Control {
     const { x, y, width, height } = this.rect;
     this._column.layout({ x, y, width, height });
 
-    const tasksData = taskStore.getTasksOverTime(this._timeBucket);
+    const yAxisWidth = 5;
+    const chartWidth = Math.max(1, width - yAxisWidth - 1);
+    const count = this._renderMode === "block" ? chartWidth : Math.ceil(chartWidth / 2) * 2;
+
+    const tasksData = taskStore.getTasksOverTime(this._timeBucket, count);
     this._tasksChart.setData(
       tasksData.map(d => d.value),
       tasksData.map(d => d.label),
     );
 
-    const tokensData = taskStore.getTokensOverTime(this._timeBucket);
+    const tokensData = taskStore.getTokensOverTime(this._timeBucket, count);
     this._tokensChart.setData(
       tokensData.map(d => d.promptTokens + d.outputTokens),
       tokensData.map(d => d.label),
@@ -267,6 +271,25 @@ export class TaskChartsControl extends Control {
       speedData.map(d => d.value),
       speedData.map(d => d.label),
     );
+
+    // Set subtitle and label interval for time-based charts
+    const subtitle = this.buildSubtitle(tasksData);
+    this._tasksChart.subtitle = subtitle;
+    this._tokensChart.subtitle = subtitle;
+    this._tasksChart.labelInterval = 0;
+    this._tokensChart.labelInterval = 0;
+    this._speedChart.subtitle = "";
+    this._speedChart.labelInterval = 0;
+  }
+
+  private buildSubtitle(data: { label: string }[]): string {
+    if (data.length === 0) return "";
+    const first = data[0]!.label;
+    const last = data[data.length - 1]!.label;
+    const firstShort = first.length > 11 ? first.substring(first.lastIndexOf("-") + 1) : first;
+    const lastShort = last.length > 11 ? last.substring(last.lastIndexOf("-") + 1) : last;
+    const range = this._timeBucket === "hour" ? `${data.length}h` : `${data.length}d`;
+    return `${firstShort} – ${lastShort} (${range})`;
   }
 
   draw(_ctx: RenderContext): void {
