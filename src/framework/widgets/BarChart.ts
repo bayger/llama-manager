@@ -429,11 +429,11 @@ export class BarChart extends Control {
   }
 
   private computeLabelInterval(visibleCols: number): number {
-    if (visibleCols < 12) return 2;
-    if (visibleCols < 24) return 4;
-    if (visibleCols < 48) return 6;
-    if (visibleCols < 72) return 12;
-    return 24;
+    if (visibleCols < 8) return 1;
+    if (visibleCols < 16) return 2;
+    if (visibleCols < 32) return 4;
+    if (visibleCols < 64) return 6;
+    return 8;
   }
 
   private shortLabel(label: string): string {
