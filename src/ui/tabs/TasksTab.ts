@@ -6,6 +6,7 @@ import { Spacer } from "../../framework/widgets/Spacer";
 import { fg, fgBg } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
 import { StyledText } from "../../framework/widgets/StyledText";
+import { TaskChartsControl } from "../specialized/TaskChartsSection";
 import { focusManager } from "../../framework/FocusManager";
 import { fireAsync, formatMs, formatDate, formatTime } from "../../lib/utils";
 import { taskStore, TaskMetrics, TaskSortField, TaskSortDir } from "../../lib/tasks";
@@ -113,7 +114,6 @@ class TaskDetailsControl extends Section {
     const innerW = width - 2;
     const labelWidth = 14;
 
-    // blank separator row
     canvas.moveTo(x + 2, y + 2);
     fgBg(canvas, "surface", "surface", " ".repeat(innerW));
 
@@ -152,6 +152,10 @@ export class TasksControl extends Control {
   protected _sortField: TaskSortField = "timestamp";
   protected _sortDir: TaskSortDir = "desc";
 
+  protected _view: "table" | "charts" = "table";
+  protected _tableColumn: Column;
+  protected _chartsControl: TaskChartsControl;
+
   constructor(ctx: TabContext) {
     super();
     this._ctx = ctx;
@@ -181,11 +185,19 @@ export class TasksControl extends Control {
     this._contentRow.add(this._detailsPanel);
     this._detailsPanel.layout({ x: 0, y: 0, width: DETAILS_WIDTH, height: 1 });
 
+    this._tableColumn = new Column();
+    this._tableColumn.add(this._contentRow);
+    this._contentRow.flex = 1;
+
+    this._chartsControl = new TaskChartsControl();
+
     this._column = new Column();
     this._column.add(this._summary);
     this._column.add(new Spacer());
-    this._column.add(this._contentRow);
-    this._contentRow.flex = 1;
+    this._column.add(this._tableColumn);
+    this._tableColumn.flex = 1;
+    this._column.add(this._chartsControl);
+    this._chartsControl.flex = 1;
 
     this.add(this._column);
   }
@@ -209,34 +221,38 @@ export class TasksControl extends Control {
 
   onLayout(): void {
     const { x, y, width, height } = this.rect;
-    const showDetails = width >= DETAILS_WIDTH + 26;
-    this._detailsPanel.visible = showDetails;
+    this._tableColumn.visible = this._view === "table";
+    this._chartsControl.visible = this._view === "charts";
     this._column.layout({ x, y, width, height });
 
-    const total = taskStore.getTotalCount();
+    if (this._view === "table") {
+      const showDetails = width >= DETAILS_WIDTH + 26;
+      this._detailsPanel.visible = showDetails;
 
-    this._table.setVirtualLoader(total, (start, end) => {
-      const tasks = taskStore.getRange(start, end - start, undefined, this._sortField, this._sortDir);
-      return tasks.map((t) => ({
-        id: t.taskId,
-        label: "",
-        data: t,
-      }));
-    });
+      const total = taskStore.getTotalCount();
 
-    if (total > 0 && this._table.selectedIndex < 0) {
-      this._table.selectedIndex = 0;
+      this._table.setVirtualLoader(total, (start, end) => {
+        const tasks = taskStore.getRange(start, end - start, undefined, this._sortField, this._sortDir);
+        return tasks.map((t) => ({
+          id: t.taskId,
+          label: "",
+          data: t,
+        }));
+      });
+
+      if (total > 0 && this._table.selectedIndex < 0) {
+        this._table.selectedIndex = 0;
+      }
+      this.updateColumns();
+
+      const selected = this._table.getSelectedItem();
+      this._detailsPanel.update(selected ? selected.data ?? null : null);
     }
-    this.updateColumns();
-
-    const selected = this._table.getSelectedItem();
-    this._detailsPanel.update(selected ? selected.data ?? null : null);
   }
 
   draw(_ctx: RenderContext): void {
     const stats = taskStore.getStats();
-
-    this._summary.builder
+    const statsText = this._summary.builder
       .muted("Tasks ")
       .accentColor(`${stats.count}`)
       .muted("  Prompt ")
@@ -247,6 +263,11 @@ export class TasksControl extends Control {
       .info(`${stats.avgPromptSpeed.toFixed(1)} t/s`)
       .muted("  Avg TG ")
       .success(`${stats.avgOutputSpeed.toFixed(1)} t/s`);
+
+    const help = this._view === "table" ? "c charts  s sort  r reverse" : "c table  b day/hour";
+    const statsLen = this._summary.segments.reduce((a, s) => a + s.text.length, 0);
+    const padLen = Math.max(1, this.rect.width - statsLen - help.length);
+    statsText.muted(" ".repeat(padLen)).muted(help);
   }
 
   updateColumns(): void {
@@ -266,7 +287,23 @@ export class TasksControl extends Control {
     ];
   }
 
- handleKey(key: string): boolean {
+  handleKey(key: string): boolean {
+    if (key === "c") {
+      this._view = this._view === "table" ? "charts" : "table";
+      this.markDirty();
+      this._ctx?.showMessage(this._view === "charts" ? "View: Charts" : "View: Table");
+      return true;
+    }
+
+    if (this._view === "charts") {
+      if (key === "b") {
+        this._chartsControl.cycleTimeBucket();
+        this._ctx?.showMessage(`Time bucket: ${this._chartsControl.timeBucket}`);
+        return true;
+      }
+      return this._chartsControl.handleKey(key);
+    }
+
     if (key === "s") {
       const idx = SORT_FIELDS.findIndex((s) => s.field === this._sortField);
       if (idx < SORT_FIELDS.length - 1) {
@@ -302,7 +339,9 @@ export class TasksControl extends Control {
 
   onFocus(): void {
     super.onFocus();
-    focusManager.setFocus(this._table);
+    if (this._view === "table") {
+      focusManager.setFocus(this._table);
+    }
     this.markDirty();
   }
 

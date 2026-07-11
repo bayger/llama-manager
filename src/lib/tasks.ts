@@ -30,6 +30,18 @@ export interface TaskFilter {
 
 export type TaskSortField = "taskId" | "timestamp" | "slotId" | "promptSpeed" | "outputSpeed" | "totalTimeMs" | "promptTokens" | "outputTokens";
 export type TaskSortDir = "asc" | "desc";
+export type TimeBucket = "hour" | "day";
+
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+}
+
+export interface TokensDataPoint {
+  label: string;
+  promptTokens: number;
+  outputTokens: number;
+}
 
 const SORT_FIELD_MAP: Record<TaskSortField, string> = {
   taskId: "task_id",
@@ -407,6 +419,62 @@ class TaskStore extends EventEmitter {
       truncated: (row.truncated as number) === 1,
       graphsReused: row.graphs_reused as number,
     };
+  }
+
+  getTasksOverTime(bucket: TimeBucket, count: number): ChartDataPoint[] {
+    if (!this.db || count <= 0) return [];
+    const fmt = bucket === "hour" ? "strftime('%Y-%m-%d %H:00', timestamp)" : "strftime('%Y-%m-%d', timestamp)";
+    const labels = this.generateTimeLabelsFromNow(bucket, count);
+    const startDate = labels[0]!;
+    const rows = this.db.prepare(`
+      SELECT ${fmt} as bucket, COUNT(*) as cnt
+      FROM tasks
+      WHERE timestamp >= ?
+      GROUP BY bucket
+    `).all(startDate) as { bucket: string; cnt: number }[];
+    const dataMap = new Map(rows.map(r => [r.bucket, r.cnt]));
+    return labels.map(label => ({ label, value: dataMap.get(label) ?? 0 }));
+  }
+
+  getTokensOverTime(bucket: TimeBucket, count: number): TokensDataPoint[] {
+    if (!this.db || count <= 0) return [];
+    const fmt = bucket === "hour" ? "strftime('%Y-%m-%d %H:00', timestamp)" : "strftime('%Y-%m-%d', timestamp)";
+    const labels = this.generateTimeLabelsFromNow(bucket, count);
+    const startDate = labels[0]!;
+    const rows = this.db.prepare(`
+      SELECT ${fmt} as bucket,
+        COALESCE(SUM(prompt_tokens), 0) as pt,
+        COALESCE(SUM(output_tokens), 0) as ot
+      FROM tasks
+      WHERE timestamp >= ?
+      GROUP BY bucket
+    `).all(startDate) as { bucket: string; pt: number; ot: number }[];
+    const dataMap = new Map(rows.map(r => [r.bucket, { promptTokens: r.pt, outputTokens: r.ot }]));
+    return labels.map(label => ({
+      label,
+      promptTokens: dataMap.get(label)?.promptTokens ?? 0,
+      outputTokens: dataMap.get(label)?.outputTokens ?? 0,
+    }));
+  }
+
+  private generateTimeLabelsFromNow(bucket: TimeBucket, count: number): string[] {
+    const labels: string[] = [];
+    const now = new Date();
+    for (let i = count - 1; i >= 0; i--) {
+      const d = new Date(now);
+      if (bucket === "hour") {
+        d.setUTCMinutes(0, 0, 0);
+        d.setUTCHours(d.getUTCHours() - i);
+      } else {
+        d.setUTCHours(0, 0, 0, 0);
+        d.setUTCDate(d.getUTCDate() - i);
+      }
+      const label = bucket === "hour"
+        ? `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")} ${String(d.getUTCHours()).padStart(2, "0")}:00`
+        : `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      labels.push(label);
+    }
+    return labels;
   }
 
   dispose() {
