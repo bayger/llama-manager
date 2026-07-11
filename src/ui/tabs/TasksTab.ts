@@ -186,7 +186,6 @@ export class TasksControl extends Control {
     this._detailsPanel.layout({ x: 0, y: 0, width: DETAILS_WIDTH, height: 1 });
 
     this._tableColumn = new Column();
-    this._tableColumn.add(this._summary);
     this._tableColumn.add(new Spacer());
     this._tableColumn.add(this._contentRow);
     this._contentRow.flex = 1;
@@ -194,6 +193,7 @@ export class TasksControl extends Control {
     this._chartsControl = new TaskChartsControl();
 
     this._column = new Column();
+    this._column.add(this._summary);
     this._column.add(this._tableColumn);
     this._tableColumn.flex = 1;
     this._column.add(this._chartsControl);
