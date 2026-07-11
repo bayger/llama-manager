@@ -423,10 +423,11 @@ class TaskStore extends EventEmitter {
 
   getTasksOverTime(bucket: TimeBucket, count: number): ChartDataPoint[] {
     if (!this.db || count <= 0) return [];
+    const fmt = bucket === "hour" ? "strftime('%Y-%m-%d %H:00', timestamp)" : "strftime('%Y-%m-%d', timestamp)";
     const labels = this.generateTimeLabelsFromNow(bucket, count);
     const startDate = labels[0]!;
     const rows = this.db.prepare(`
-      SELECT strftime('%Y-%m-%d %H:00', timestamp) as bucket, COUNT(*) as cnt
+      SELECT ${fmt} as bucket, COUNT(*) as cnt
       FROM tasks
       WHERE timestamp >= ?
       GROUP BY bucket
@@ -437,10 +438,11 @@ class TaskStore extends EventEmitter {
 
   getTokensOverTime(bucket: TimeBucket, count: number): TokensDataPoint[] {
     if (!this.db || count <= 0) return [];
+    const fmt = bucket === "hour" ? "strftime('%Y-%m-%d %H:00', timestamp)" : "strftime('%Y-%m-%d', timestamp)";
     const labels = this.generateTimeLabelsFromNow(bucket, count);
     const startDate = labels[0]!;
     const rows = this.db.prepare(`
-      SELECT strftime('%Y-%m-%d %H:00', timestamp) as bucket,
+      SELECT ${fmt} as bucket,
         COALESCE(SUM(prompt_tokens), 0) as pt,
         COALESCE(SUM(output_tokens), 0) as ot
       FROM tasks
