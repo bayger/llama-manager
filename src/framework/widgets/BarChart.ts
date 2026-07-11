@@ -29,7 +29,7 @@ export class BarChart extends Control {
 
   // ── Options ──
   protected _mode: "bottom-up" | "top-down" = "bottom-up";
-  protected _renderMode: "braille" | "block" = "braille";
+  protected _renderMode: "braille" | "block" = "block";
   protected _scale: "auto" | "auto-zero" | "fixed" = "auto-zero";
   protected _yMin = 0;
   protected _yMax = 100;

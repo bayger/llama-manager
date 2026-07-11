@@ -166,7 +166,6 @@ export class TaskChartsSection extends Section {
 
 export class TaskChartsControl extends Control {
   protected _timeBucket: TimeBucket = "hour";
-  protected _renderMode: "braille" | "block" = "braille";
   protected _column: Column;
   protected _tasksChart: BarChart;
   protected _tasksChartSection: Section;
@@ -177,7 +176,6 @@ export class TaskChartsControl extends Control {
   protected _refreshHandler: (() => void) | null = null;
 
   get timeBucket(): TimeBucket { return this._timeBucket; }
-  get renderMode(): "braille" | "block" { return this._renderMode; }
 
   constructor() {
     super();
@@ -222,14 +220,6 @@ export class TaskChartsControl extends Control {
     this.markDirty();
   }
 
-  cycleRenderMode(): void {
-    this._renderMode = this._renderMode === "braille" ? "block" : "braille";
-    this._tasksChart.renderMode = this._renderMode;
-    this._tokensChart.renderMode = this._renderMode;
-    this._speedChart.renderMode = this._renderMode;
-    this.markDirty();
-  }
-
   measure(parentSize?: Size): Size {
     return parentSize ? { width: parentSize.width, height: parentSize.height } : super.measure(parentSize);
   }
@@ -252,7 +242,7 @@ export class TaskChartsControl extends Control {
 
     const yAxisWidth = 5;
     const chartWidth = Math.max(1, width - yAxisWidth - 1);
-    const count = this._renderMode === "block" ? chartWidth : Math.ceil(chartWidth / 2) * 2;
+    const count = chartWidth;
 
     const tasksData = taskStore.getTasksOverTime(this._timeBucket, count);
     this._tasksChart.setData(
