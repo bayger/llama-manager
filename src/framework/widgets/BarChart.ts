@@ -168,11 +168,10 @@ export class BarChart extends Control {
     const range = yMax - yMin || 1;
 
     // Layout
-    const titleRows = this._title ? 1 : 0;
-    const subtitleRows = this._subtitle ? 1 : 0;
+    const titleRows = (this._title || this._subtitle) ? 1 : 0;
     const baselineRows = this._showBaseline ? 1 : 0;
     const xAxisRows = this._showXAxis ? 1 : 0;
-    const chartRows = Math.max(1, height - titleRows - subtitleRows - baselineRows - xAxisRows);
+    const chartRows = Math.max(1, height - titleRows - baselineRows - xAxisRows);
     const yAxisWidth = this._showYAxis ? this.computeYAxisWidth(yMin, yMax) : 0;
     const chartWidth = Math.max(1, width - yAxisWidth - 1);
 
@@ -182,17 +181,21 @@ export class BarChart extends Control {
 
     let cursorY = oy;
 
-    // Title
-    if (this._title) {
+    // Title + subtitle (right-aligned)
+    if (this._title || this._subtitle) {
       canvas.moveTo(ox, cursorY);
-      fg(canvas, "text", this._title);
-      cursorY++;
-    }
-
-    // Subtitle
-    if (this._subtitle) {
-      canvas.moveTo(ox, cursorY);
-      fg(canvas, "textMuted", this._subtitle);
+      const titleStr = this._title || "";
+      const subtitleStr = this._subtitle || "";
+      const used = titleStr.length + (titleStr && subtitleStr ? 2 : 0);
+      const pad = Math.max(0, width - used - subtitleStr.length);
+      if (titleStr) {
+        fg(canvas, "text", titleStr);
+      }
+      if (subtitleStr) {
+        if (titleStr) canvas.write("  ");
+        canvas.write(" ".repeat(pad));
+        fg(canvas, "textMuted", subtitleStr);
+      }
       cursorY++;
     }
 
