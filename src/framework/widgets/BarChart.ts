@@ -408,7 +408,6 @@ export class BarChart extends Control {
 
   private drawXAxisLabels(canvas: FramebufferCanvas, ox: number, yAxisWidth: number, visibleCols: number, visibleStartCol: number, isBlock: boolean): void {
     if (this._showXAxis && this._labels.length > 0) {
-      canvas.moveTo(ox, 0);
       if (this._showYAxis) {
         canvas.write(" ".repeat(yAxisWidth + 1));
       }
