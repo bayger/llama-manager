@@ -475,26 +475,6 @@ class TaskStore extends EventEmitter {
     return labels;
   }
 
-  getSpeedHistogram(): ChartDataPoint[] {
-    if (!this.db) return [];
-    const bins = [
-      { label: "0-10", min: 0, max: 10 },
-      { label: "10-25", min: 10, max: 25 },
-      { label: "25-50", min: 25, max: 50 },
-      { label: "50-100", min: 50, max: 100 },
-      { label: "100+", min: 100, max: Infinity },
-    ];
-    const rows = this.db.prepare(`
-      SELECT output_speed FROM tasks WHERE output_speed > 0
-    `).all() as { output_speed: number }[];
-    const counts = bins.map(() => 0);
-    for (const r of rows) {
-      const idx = bins.findIndex(b => r.output_speed >= b.min && r.output_speed < b.max);
-      if (idx >= 0) counts[idx]!++;
-    }
-    return bins.map((b, i) => ({ label: b.label, value: counts[i]! }));
-  }
-
   dispose() {
     if (this.stopTailer) this.stopTailer();
     logParser.stop();
