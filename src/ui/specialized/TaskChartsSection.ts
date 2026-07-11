@@ -32,6 +32,7 @@ export class TaskChartsSection extends Section {
     this._inputSpeedChart.color = "warning";
     this._inputSpeedChart.yTickCount = 4;
     this._inputSpeedChart.showXAxis = false;
+    this._inputSpeedChart.renderMode = "braille";
     this._inputSpeedChart.flex = 1;
 
     this._outputSpeedChart = new BarChart();
@@ -39,6 +40,7 @@ export class TaskChartsSection extends Section {
     this._outputSpeedChart.color = "accentColor";
     this._outputSpeedChart.yTickCount = 4;
     this._outputSpeedChart.showXAxis = false;
+    this._outputSpeedChart.renderMode = "braille";
     this._outputSpeedChart.flex = 1;
 
     this._inputTokenChart = new BarChart();
@@ -46,6 +48,7 @@ export class TaskChartsSection extends Section {
     this._inputTokenChart.color = "warning";
     this._inputTokenChart.yTickCount = 4;
     this._inputTokenChart.showXAxis = false;
+    this._inputTokenChart.renderMode = "braille";
     this._inputTokenChart.flex = 1;
 
     this._outputTokenChart = new BarChart();
@@ -53,6 +56,7 @@ export class TaskChartsSection extends Section {
     this._outputTokenChart.color = "accentColor";
     this._outputTokenChart.yTickCount = 4;
     this._outputTokenChart.showXAxis = false;
+    this._outputTokenChart.renderMode = "braille";
     this._outputTokenChart.flex = 1;
 
     this._row = new Row();
