@@ -6,7 +6,7 @@ import { LlamaManagerApp } from "./LlamaManagerApp";
 const term = terminalKit.terminal;
 
 term.fullscreen(true);
-term.grabInput({ mouse: 'drag' });
+term.grabInput({ mouse: 'motion' });
 term.hideCursor();
 
 const app = new LlamaManagerApp(term);
