@@ -146,9 +146,20 @@ export class MainControl extends Column {
       return false;
     }
 
-    for (let i = 0; i < 7; i++) {
-      if (key === `F${i + 1}`) {
-        this.setActiveTab(TABS[i]);
+    // Alt+Left / Alt+Right for cycling tabs
+    if (key === "ALT_LEFT" || key === "ALT_RIGHT") {
+      const dir = key === "ALT_RIGHT" ? 1 : -1;
+      const idx = TABS.indexOf(this._activeTab);
+      const newIdx = ((idx + dir) % TABS.length + TABS.length) % TABS.length;
+      this.setActiveTab(TABS[newIdx]);
+      return true;
+    }
+
+    // 1-7 switch tabs (only when no text input is focused)
+    if (!focusManager.isTextInputActive()) {
+      const idx = parseInt(key, 10);
+      if (idx >= 1 && idx <= 7) {
+        this.setActiveTab(TABS[idx - 1]);
         return true;
       }
     }
@@ -231,17 +242,17 @@ class TabBar extends Control {
     let activeStart = 0;
     let activeEnd = 0;
     for (let i = 0; i < TABS.length; i++) {
-      const labelLen = `F${i + 1} ${TABS[i]}`.length;
+      const labelLen = `${i + 1} ${TABS[i]}`.length;
       this._tabRects.push({ start: pos, end: pos + labelLen });
       if (i === this._selectedIndex) {
-        fg(canvas, "textMuted", `F${i + 1}`);
+        fg(canvas, "textMuted", `${i + 1}`);
         canvas.bold();
         fg(canvas, "accent", ` ${TABS[i]}`);
         canvas.bold(false);
         activeStart = pos;
         activeEnd = pos + labelLen;
       } else {
-        fg(canvas, "border", `F${i + 1}`);
+        fg(canvas, "border", `${i + 1}`);
         canvas.bold();
         fg(canvas, "textMuted", ` ${TABS[i]}`);
         canvas.bold(false);
@@ -466,7 +477,7 @@ class StatusBar extends Control {
         fg(canvas, "textMuted", ` (PID ${this._serverPid}, ${formatUptime(this._serverUptime)})`);
       }
       fg(canvas, "borderMuted", "  ·  ");
-      fg(canvas, "textMuted", "F1-F7 navigate");
+      fg(canvas, "textMuted", "1-7 navigate");
       fg(canvas, "borderMuted", "  ·  ");
       fg(canvas, "textMuted", "q quit");
       fg(canvas, "borderMuted", "  ·  ");

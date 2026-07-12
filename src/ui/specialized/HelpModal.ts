@@ -8,7 +8,9 @@ const HELP_SECTIONS = [
   {
     title: "Navigation",
     keys: [
-      ["F1-F7", "Switch tabs"],
+      ["1-7", "Switch tabs"],
+      ["Alt+Right", "Next tab"],
+      ["Alt+Left", "Previous tab"],
       ["Tab / Shift+Tab", "Move focus"],
       ["Enter", "Confirm / select"],
       ["Esc", "Cancel / go back"],
@@ -27,13 +29,13 @@ const HELP_SECTIONS = [
   {
     title: "Tab Shortcuts",
     keys: [
-      ["F1", "Dashboard - metrics and server control"],
-      ["F2", "Logs - live server log viewer"],
-      ["F3", "Tasks - inference task history"],
-      ["F4", "Profiles - preset editing and management"],
-      ["F5", "Versions - install and switch llama.cpp builds"],
-      ["F6", "Models - browse, download, and manage GGUF models"],
-      ["F7", "Options - global application settings"],
+      ["1", "Dashboard - metrics and server control"],
+      ["2", "Logs - live server log viewer"],
+      ["3", "Tasks - inference task history"],
+      ["4", "Profiles - preset editing and management"],
+      ["5", "Versions - install and switch llama.cpp builds"],
+      ["6", "Models - browse, download, and manage GGUF models"],
+      ["7", "Options - global application settings"],
     ],
   },
 ];
