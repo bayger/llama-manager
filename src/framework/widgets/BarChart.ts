@@ -45,6 +45,14 @@ export class BarChart extends Control {
   protected _scrollOffset = 0;
   protected _viewportCols = 0;
 
+  // ── Hover ──
+  protected _hoverSubtitle = "";
+  protected _titleRows = 0;
+  protected _chartRows = 0;
+  protected _chartWidth = 0;
+  protected _yAxisWidth = 0;
+  protected _visibleStartCol = 0;
+
   // ── Getters / setters ──
 
   get data(): number[] { return this._data; }
@@ -150,6 +158,78 @@ export class BarChart extends Control {
     return false;
   }
 
+  onMouseEnter(point: Point): void {
+    this.updateHover(point);
+  }
+
+  onMouseMove(point: Point): void {
+    this.updateHover(point);
+  }
+
+  onMouseLeave(): void {
+    if (this._hoverSubtitle) {
+      this._hoverSubtitle = "";
+      this.markDirty();
+    }
+  }
+
+  protected updateHover(point: Point): void {
+    const { x, y } = point;
+    const chartOy = this._titleRows;
+
+    if (y < chartOy || y >= chartOy + this._chartRows) {
+      if (this._hoverSubtitle) {
+        this._hoverSubtitle = "";
+        this.markDirty();
+      }
+      return;
+    }
+
+    const chartCol = x - this._yAxisWidth - 1;
+    if (chartCol < 0 || chartCol >= this._chartWidth) {
+      if (this._hoverSubtitle) {
+        this._hoverSubtitle = "";
+        this.markDirty();
+      }
+      return;
+    }
+
+    const isBlock = this._renderMode === "block";
+    const dataIdx = isBlock
+      ? this._visibleStartCol + chartCol
+      : (this._visibleStartCol + chartCol) * 2;
+
+    if (isBlock) {
+      // Block mode: 1 bar per column
+      if (dataIdx < this._data.length) {
+        const val = this._data[dataIdx]!;
+        const label = this._labels[dataIdx] || "";
+        this._hoverSubtitle = this.buildHoverSubtitle(label, [val]);
+      } else {
+        this._hoverSubtitle = "";
+      }
+    } else {
+      // Braille mode: 2 bars per column
+      const vals: number[] = [];
+      const labels: string[] = [];
+      for (let side = 0; side < 2; side++) {
+        const idx = dataIdx + side;
+        if (idx < this._data.length) {
+          vals.push(this._data[idx]!);
+          labels.push(this._labels[idx] || "");
+        }
+      }
+      this._hoverSubtitle = vals.length > 0 ? this.buildHoverSubtitle(labels.join(" / "), vals) : "";
+    }
+
+    this.markDirty();
+  }
+
+  protected buildHoverSubtitle(label: string, values: number[]): string {
+    const vals = values.map(v => this.formatTick(v)).join(", ");
+    return label ? `${label}: ${vals}` : vals;
+  }
+
   // ── Rendering ──
 
   // Vertical block elements: 0 = empty, 1..8 = ▁..█
@@ -167,8 +247,8 @@ export class BarChart extends Control {
     const { yMin, yMax } = this.computeScale();
     const range = yMax - yMin || 1;
 
-    // Layout
-    const titleRows = (this._title || this._subtitle) ? 1 : 0;
+    // Layout — always reserve title row when there's data (stable layout for hover tooltips)
+    const titleRows = (this._title || this._subtitle || this._data.length > 0) ? 1 : 0;
     const baselineRows = this._showBaseline ? 1 : 0;
     const xAxisRows = this._showXAxis ? 1 : 0;
     const chartRows = Math.max(1, height - titleRows - baselineRows - xAxisRows);
@@ -179,13 +259,20 @@ export class BarChart extends Control {
     const levelsPerRow = isBlock ? 8 : 4;
     const logicalHeight = chartRows * levelsPerRow;
 
+    // Store layout as local offsets for hover computation
+    this._titleRows = titleRows;
+    this._chartRows = chartRows;
+    this._chartWidth = chartWidth;
+    this._yAxisWidth = yAxisWidth;
+
     let cursorY = oy;
 
     // Title + subtitle (right-aligned)
-    if (this._title || this._subtitle) {
+    const effectiveSubtitle = this._hoverSubtitle || this._subtitle;
+    if (this._title || effectiveSubtitle) {
       canvas.moveTo(ox, cursorY);
       const titleStr = this._title || "";
-      const subtitleStr = this._subtitle || "";
+      const subtitleStr = effectiveSubtitle || "";
       const used = titleStr.length + (titleStr && subtitleStr ? 2 : 0);
       const pad = Math.max(0, width - used - subtitleStr.length);
       if (titleStr) {
@@ -215,6 +302,7 @@ export class BarChart extends Control {
     this._scrollOffset = Math.max(0, Math.min(maxScroll, this._scrollOffset));
 
     const visibleStartCol = this._scrollOffset;
+    this._visibleStartCol = visibleStartCol;
     const visibleEndCol = Math.min(this._totalBrailleCols, visibleStartCol + chartWidth);
     const visibleCols = visibleEndCol - visibleStartCol;
 
@@ -305,6 +393,7 @@ export class BarChart extends Control {
     this._scrollOffset = Math.max(0, Math.min(maxScroll, this._scrollOffset));
 
     const visibleStartCol = this._scrollOffset;
+    this._visibleStartCol = visibleStartCol;
     const visibleEndCol = Math.min(this._totalBrailleCols, visibleStartCol + chartWidth);
     const visibleCols = visibleEndCol - visibleStartCol;
 
@@ -368,12 +457,18 @@ export class BarChart extends Control {
 
       // Block bars
       const rowLevels = grid[r]!;
-      let line = "";
       for (let c = 0; c < visibleCols; c++) {
         const level = rowLevels[c]!;
-        line += BarChart.BLOCK_CHARS[level] || " ";
+        const ch = BarChart.BLOCK_CHARS[level] || " ";
+        if (level === 8) {
+          fgBg(canvas, this._color, this._color, ch);
+          canvas.setBackgroundColor("None");
+        } else if (level > 0) {
+          fg(canvas, this._color, ch);
+        } else {
+          canvas.write(ch);
+        }
       }
-      fg(canvas, this._color, line);
 
       cursorY++;
     }
