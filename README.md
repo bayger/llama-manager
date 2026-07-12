@@ -18,13 +18,13 @@ Requires Node.js 18+ and a llama.cpp binary (managed via the Versions tab or ins
 
 ## Features
 
-- **Dashboard** — real-time per-slot metrics, server controls (start/stop/restart), live log viewer
+- **Dashboard** — real-time per-slot metrics, server controls (start/stop/restart), loaded model info, and recent-task charts
 - **Logs** — dedicated server log viewer with structured severity coloring
-- **Tasks** — parsed task history with token counts, speeds, draft acceptance, filtering, SQLite persistence, and aggregated charts (tasks/tokens over time)
+- **Tasks** — parsed task history with token counts, speeds, draft acceptance, sorting, SQLite persistence, and aggregated charts (tasks/tokens over time)
 - **Profiles** — named server configurations with type-aware preset editors and free-form arguments
-- **Versions** — install, switch, and uninstall llama.cpp builds from GitHub releases
-- **Models** — search Hugging Face, download GGUF models with progress tracking, set active model
-- **Options** — global settings: paths, poll interval, task limits, appearance, theme, HF token
+- **Versions** — install, switch, and uninstall llama.cpp builds; browse releases, select backend and fork, view changelogs
+- **Models** — search Hugging Face, download GGUF models with progress tracking, set active, delete
+- **Options** — global settings: paths, poll interval, task limits, appearance, theme, HF token, fork selection, update checks
 
 ## Navigation
 
@@ -36,6 +36,9 @@ Requires Node.js 18+ and a llama.cpp binary (managed via the Versions tab or ins
 | `Enter` | Confirm / select |
 | `Esc` | Cancel |
 | `?` | Show help |
+| `Ctrl+T` | Open theme selector |
+| `Ctrl+D` | Toggle dark/light mode |
+| `Ctrl+U` | Check for updates |
 | `q` | Quit |
 | Mouse click | Select tabs, list items, buttons |
 | Mouse scroll | Scroll in log viewer, tables, lists |
@@ -44,12 +47,12 @@ Requires Node.js 18+ and a llama.cpp binary (managed via the Versions tab or ins
 
 | Tab | Key | Description |
 |---|---|---|
-| Dashboard | 1 | Per-slot metrics, server controls, live log viewer |
+| Dashboard | 1 | Per-slot metrics, server controls, model info, recent-task charts |
 | Logs | 2 | Dedicated server log viewer |
 | Tasks | 3 | Parsed task history, aggregated charts view |
 | Profiles | 4 | Profile management, preset editing |
-| Versions | 5 | Local versions, GitHub install/uninstall |
-| Models | 6 | Local GGUFs, HF browse, download |
+| Versions | 5 | Local versions, GitHub releases, backend & fork selection, changelog |
+| Models | 6 | Local GGUFs, HF browse, download, delete |
 | Options | 7 | Global app settings |
 
 ## Storage
@@ -62,7 +65,7 @@ Follows XDG Base Directory spec. All paths configurable in Options.
 | Versions | `~/.local/share/llama-manager/versions/` |
 | Models | `~/.cache/huggingface/llama-manager/` |
 | Tasks DB | `~/.local/share/llama-manager/tasks.db` |
-| Server log | `~/.local/state/llama-manager/server.log` |
+| Server log | `~/.local/state/llama-manager/logs/server.<timestamp>.log` |
 
 ## Themes
 
