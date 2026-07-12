@@ -216,6 +216,9 @@ export class Control {
   onMouseWheel(_point: Point, _direction: 'up' | 'down'): boolean {
     return false;
   }
+  onMouseEnter(_point: Point): void {}
+  onMouseLeave(): void {}
+  onMouseMove(_point: Point): void {}
   onLayout(): void {
     for (const child of this.children) {
       if (child.visible) {
@@ -263,6 +266,20 @@ export class Control {
       return this;
     }
     return null;
+  }
+
+  isMouseOver(): boolean {
+    const pos = focusManager.getMousePos();
+    if (!pos) return false;
+    const { x, y, width, height } = this.rect;
+    return pos.x >= x && pos.x < x + width && pos.y >= y && pos.y < y + height;
+  }
+
+  getMouseLocalPos(): Point | null {
+    const pos = focusManager.getMousePos();
+    if (!pos) return null;
+    const { x, y } = this.rect;
+    return { x: pos.x - x, y: pos.y - y };
   }
 
   // - Utilities -

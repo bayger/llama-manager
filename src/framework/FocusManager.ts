@@ -5,6 +5,8 @@ export class FocusManager {
   private _root: Control | null = null;
   private _focused: Control | null = null;
   private _textInputActive = false;
+  private _mousePos: Point | null = null;
+  private _hovered: Control | null = null;
 
   setRoot(root: Control): void {
     this._root = root;
@@ -151,6 +153,39 @@ export class FocusManager {
       current = current.parent;
     }
     return false;
+  }
+
+  getMousePos(): Point | null {
+    return this._mousePos;
+  }
+
+  handleMouseMove(point: Point): void {
+    if (!this._root) return;
+    this._mousePos = point;
+
+    const target = this._root.hitTest(point);
+    if (target === this._hovered) {
+      // Still over same control, dispatch move with local coords
+      if (target) {
+        const local = { x: point.x - target.rect.x, y: point.y - target.rect.y };
+        target.onMouseMove(local);
+      }
+      return;
+    }
+
+    // Mouse left old control
+    if (this._hovered) {
+      this._hovered.onMouseLeave();
+      this._hovered = null;
+    }
+
+    // Mouse entered new control
+    if (target) {
+      this._hovered = target;
+      const local = { x: point.x - target.rect.x, y: point.y - target.rect.y };
+      target.onMouseEnter(local);
+      target.onMouseMove(local);
+    }
   }
 
   static handleNavKeys(key: string, bidirectional = false): boolean {
