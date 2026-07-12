@@ -20,7 +20,7 @@ Requires Node.js 18+ and a llama.cpp binary (managed via the Versions tab or ins
 
 - **Dashboard** — real-time per-slot metrics, server controls (start/stop/restart), live log viewer
 - **Logs** — dedicated server log viewer with structured severity coloring
-- **Tasks** — parsed task history with token counts, speeds, draft acceptance, filtering, and SQLite persistence
+- **Tasks** — parsed task history with token counts, speeds, draft acceptance, filtering, SQLite persistence, and aggregated charts (tasks/tokens over time)
 - **Profiles** — named server configurations with type-aware preset editors and free-form arguments
 - **Versions** — install, switch, and uninstall llama.cpp builds from GitHub releases
 - **Models** — search Hugging Face, download GGUF models with progress tracking, set active model
@@ -30,7 +30,8 @@ Requires Node.js 18+ and a llama.cpp binary (managed via the Versions tab or ins
 
 | Key | Action |
 |---|---|
-| `F1`-`F7` | Switch tabs |
+| `1`-`7` | Switch tabs |
+| `Alt+Left` / `Alt+Right` | Cycle tabs |
 | `Tab` / `Shift+Tab` | Move focus |
 | `Enter` | Confirm / select |
 | `Esc` | Cancel |
@@ -43,13 +44,13 @@ Requires Node.js 18+ and a llama.cpp binary (managed via the Versions tab or ins
 
 | Tab | Key | Description |
 |---|---|---|
-| Dashboard | F1 | Per-slot metrics, server controls, live log viewer |
-| Logs | F2 | Dedicated server log viewer |
-| Tasks | F3 | Parsed task history with columns |
-| Profiles | F4 | Profile management, preset editing |
-| Versions | F5 | Local versions, GitHub install/uninstall |
-| Models | F6 | Local GGUFs, HF browse, download |
-| Options | F7 | Global app settings |
+| Dashboard | 1 | Per-slot metrics, server controls, live log viewer |
+| Logs | 2 | Dedicated server log viewer |
+| Tasks | 3 | Parsed task history, aggregated charts view |
+| Profiles | 4 | Profile management, preset editing |
+| Versions | 5 | Local versions, GitHub install/uninstall |
+| Models | 6 | Local GGUFs, HF browse, download |
+| Options | 7 | Global app settings |
 
 ## Storage
 
@@ -65,7 +66,7 @@ Follows XDG Base Directory spec. All paths configurable in Options.
 
 ## Themes
 
-32 bundled themes including Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, and more. Each theme supports dark and light variants. Selectable from the Options tab.
+31 bundled themes including Catppuccin, Dracula, Gruvbox, Nord, Tokyo Night, and more. Each theme supports dark and light variants. Selectable from the Options tab.
 
 ## Tech Stack
 
