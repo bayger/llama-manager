@@ -368,12 +368,18 @@ export class BarChart extends Control {
 
       // Block bars
       const rowLevels = grid[r]!;
-      let line = "";
       for (let c = 0; c < visibleCols; c++) {
         const level = rowLevels[c]!;
-        line += BarChart.BLOCK_CHARS[level] || " ";
+        const ch = BarChart.BLOCK_CHARS[level] || " ";
+        if (level === 8) {
+          fgBg(canvas, this._color, this._color, ch);
+          canvas.setBackgroundColor("None");
+        } else if (level > 0) {
+          fg(canvas, this._color, ch);
+        } else {
+          canvas.write(ch);
+        }
       }
-      fg(canvas, this._color, line);
 
       cursorY++;
     }
