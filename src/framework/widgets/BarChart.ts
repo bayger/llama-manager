@@ -1,8 +1,29 @@
 import { Control } from "../Control";
-import { fg, fgBg } from "../../lib/theme";
+import { fg, fgBg, resolveColor } from "../../lib/theme";
 import type { Color } from "../../lib/theme";
 import type { Size, RenderContext, Point } from "../types";
 import type { FramebufferCanvas } from "../../lib/framebuffer-canvas";
+
+// ── Color interpolation helpers ──
+
+function parseHex(hex: string): [number, number, number] {
+  hex = hex.replace("#", "");
+  return [
+    parseInt(hex.substring(0, 2), 16),
+    parseInt(hex.substring(2, 4), 16),
+    parseInt(hex.substring(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  return "#" + [r, g, b].map(c => Math.round(Math.max(0, Math.min(255, c))).toString(16).padStart(2, "0")).join("");
+}
+
+function interpolateColor(from: Color, to: Color, t: number): Color {
+  const [r0, g0, b0] = parseHex(resolveColor(from));
+  const [r1, g1, b1] = parseHex(resolveColor(to));
+  return rgbToHex(r0 + (r1 - r0) * t, g0 + (g1 - g0) * t, b0 + (b1 - b0) * t) as Color;
+}
 
 // Braille dot bit positions for chart bars (2 bars × 4 rows per cell):
 //   Left bar:  dot 1 (bit 0, +1),  dot 2 (bit 1, +2),  dot 3 (bit 2, +4),  dot 7 (bit 6, +64)
@@ -34,6 +55,7 @@ export class BarChart extends Control {
   protected _yMin = 0;
   protected _yMax = 100;
   protected _color: Color = "accent";
+  protected _gradientEnd: Color = "None";
   protected _showYAxis = true;
   protected _showXAxis = true;
   protected _showBaseline = true;
@@ -83,6 +105,9 @@ export class BarChart extends Control {
 
   get color(): Color { return this._color; }
   set color(v: Color) { if (v !== this._color) { this._color = v; this.markDirty(); } }
+
+  get gradientEnd(): Color { return this._gradientEnd; }
+  set gradientEnd(v: Color) { if (v !== this._gradientEnd) { this._gradientEnd = v; this.markDirty(); } }
 
   get showYAxis(): boolean { return this._showYAxis; }
   set showYAxis(v: boolean) { if (v !== this._showYAxis) { this._showYAxis = v; this.markDirty(); } }
@@ -358,12 +383,25 @@ export class BarChart extends Control {
         canvas.write("\u2502");
       }
       const rowBits = grid[br]!;
-      let line = "";
-      for (let bc = 0; bc < visibleCols; bc++) {
-        const bits = rowBits[bc]!;
-        line += bits ? brailleChar(bits) : " ";
+      if (this._gradientEnd !== "None") {
+        const rowColor = interpolateColor(this._color, this._gradientEnd, br / (chartRows - 1 || 1));
+        for (let bc = 0; bc < visibleCols; bc++) {
+          const bits = rowBits[bc]!;
+          const ch = bits ? brailleChar(bits) : " ";
+          if (bits) {
+            fg(canvas, rowColor, ch);
+          } else {
+            canvas.write(ch);
+          }
+        }
+      } else {
+        let line = "";
+        for (let bc = 0; bc < visibleCols; bc++) {
+          const bits = rowBits[bc]!;
+          line += bits ? brailleChar(bits) : " ";
+        }
+        fg(canvas, this._color, line);
       }
-      fg(canvas, this._color, line);
       cursorY++;
     }
 
@@ -378,7 +416,7 @@ export class BarChart extends Control {
 
     if (this._showXAxis && this._labels.length > 0) {
       canvas.moveTo(ox, cursorY);
-      this.drawXAxisLabels(canvas, ox, yAxisWidth, visibleCols, visibleStartCol, false);
+      this.drawXAxisLabels(canvas, ox, cursorY, yAxisWidth, visibleCols, visibleStartCol, false);
       cursorY++;
     }
   }
@@ -457,16 +495,32 @@ export class BarChart extends Control {
 
       // Block bars
       const rowLevels = grid[r]!;
-      for (let c = 0; c < visibleCols; c++) {
-        const level = rowLevels[c]!;
-        const ch = BarChart.BLOCK_CHARS[level] || " ";
-        if (level === 8) {
-          fgBg(canvas, this._color, this._color, ch);
-          canvas.setBackgroundColor("None");
-        } else if (level > 0) {
-          fg(canvas, this._color, ch);
-        } else {
-          canvas.write(ch);
+      if (this._gradientEnd !== "None") {
+        const rowColor = interpolateColor(this._color, this._gradientEnd, r / (chartRows - 1 || 1));
+        for (let c = 0; c < visibleCols; c++) {
+          const level = rowLevels[c]!;
+          const ch = BarChart.BLOCK_CHARS[level] || " ";
+          if (level === 8) {
+            fgBg(canvas, rowColor, rowColor, ch);
+            canvas.setBackgroundColor("None");
+          } else if (level > 0) {
+            fg(canvas, rowColor, ch);
+          } else {
+            canvas.write(ch);
+          }
+        }
+      } else {
+        for (let c = 0; c < visibleCols; c++) {
+          const level = rowLevels[c]!;
+          const ch = BarChart.BLOCK_CHARS[level] || " ";
+          if (level === 8) {
+            fgBg(canvas, this._color, this._color, ch);
+            canvas.setBackgroundColor("None");
+          } else if (level > 0) {
+            fg(canvas, this._color, ch);
+          } else {
+            canvas.write(ch);
+          }
         }
       }
 
@@ -486,7 +540,7 @@ export class BarChart extends Control {
     // X-axis labels (sparse)
     if (this._showXAxis && this._labels.length > 0) {
       canvas.moveTo(ox, cursorY);
-      this.drawXAxisLabels(canvas, ox, yAxisWidth, visibleCols, visibleStartCol, true);
+      this.drawXAxisLabels(canvas, ox, cursorY, yAxisWidth, visibleCols, visibleStartCol, true);
       cursorY++;
     }
   }
@@ -505,24 +559,17 @@ export class BarChart extends Control {
     return ticks;
   }
 
-  private drawXAxisLabels(canvas: FramebufferCanvas, ox: number, yAxisWidth: number, visibleCols: number, visibleStartCol: number, isBlock: boolean): void {
+  private drawXAxisLabels(canvas: FramebufferCanvas, ox: number, oy: number, yAxisWidth: number, visibleCols: number, visibleStartCol: number, isBlock: boolean): void {
     if (this._showXAxis && this._labels.length > 0) {
-      if (this._showYAxis) {
-        canvas.write(" ".repeat(yAxisWidth + 1));
-      }
-
       const interval = this._labelInterval > 0 ? this._labelInterval : this.computeLabelInterval(visibleCols);
-      let labelStr = "";
       for (let c = 0; c < visibleCols; c++) {
         const dataIdx = isBlock ? visibleStartCol + c : (visibleStartCol + c) * 2;
         const fullLabel = this._labels[dataIdx] || "";
         if (c % interval === 0 && fullLabel) {
-          labelStr += this.shortLabel(fullLabel);
-        } else {
-          labelStr += " ";
+          canvas.moveTo(ox + yAxisWidth + 1 + c, oy);
+          fg(canvas, "textMuted", this.shortLabel(fullLabel));
         }
       }
-      fg(canvas, "textMuted", labelStr);
     }
   }
 

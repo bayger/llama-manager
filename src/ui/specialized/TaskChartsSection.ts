@@ -30,6 +30,7 @@ export class TaskChartsSection extends Section {
     this._inputSpeedChart = new BarChart();
     this._inputSpeedChart.title = "PP Speed (t/s)";
     this._inputSpeedChart.color = "warning";
+    this._inputSpeedChart.gradientEnd = "text";
     this._inputSpeedChart.yTickCount = 4;
     this._inputSpeedChart.showXAxis = false;
     this._inputSpeedChart.renderMode = "braille";
@@ -38,6 +39,7 @@ export class TaskChartsSection extends Section {
     this._outputSpeedChart = new BarChart();
     this._outputSpeedChart.title = "TG Speed (t/s)";
     this._outputSpeedChart.color = "accentColor";
+    this._outputSpeedChart.gradientEnd = "text";
     this._outputSpeedChart.yTickCount = 4;
     this._outputSpeedChart.showXAxis = false;
     this._outputSpeedChart.renderMode = "braille";
@@ -46,6 +48,7 @@ export class TaskChartsSection extends Section {
     this._inputTokenChart = new BarChart();
     this._inputTokenChart.title = "Prompt Tokens";
     this._inputTokenChart.color = "warning";
+    this._inputTokenChart.gradientEnd = "text";
     this._inputTokenChart.yTickCount = 4;
     this._inputTokenChart.showXAxis = false;
     this._inputTokenChart.renderMode = "braille";
@@ -54,6 +57,7 @@ export class TaskChartsSection extends Section {
     this._outputTokenChart = new BarChart();
     this._outputTokenChart.title = "Output Tokens";
     this._outputTokenChart.color = "accentColor";
+    this._outputTokenChart.gradientEnd = "text";
     this._outputTokenChart.yTickCount = 4;
     this._outputTokenChart.showXAxis = false;
     this._outputTokenChart.renderMode = "braille";
@@ -184,6 +188,7 @@ export class TaskChartsControl extends Control {
 
     this._tasksChart = new BarChart();
     this._tasksChart.color = "accent";
+    this._tasksChart.gradientEnd = "text";
     this._tasksChart.scale = "auto-zero";
     this._tasksChartSection = new Section();
     this._tasksChartSection.title = "Tasks Over Time";
@@ -192,6 +197,7 @@ export class TaskChartsControl extends Control {
 
     this._tokensChart = new BarChart();
     this._tokensChart.color = "success";
+    this._tokensChart.gradientEnd = "text";
     this._tokensChart.scale = "auto-zero";
     this._tokensChartSection = new Section();
     this._tokensChartSection.title = "Tokens Over Time";
