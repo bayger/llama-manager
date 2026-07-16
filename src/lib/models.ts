@@ -54,7 +54,7 @@ export async function listLocalModels(config: ConfigData): Promise<LocalModel[]>
   if (!(await fs.pathExists(dir))) return [];
 
   const models: LocalModel[] = [];
-  await scanDir(dir, dir, [], models, config.activeModel);
+  await scanDir(dir, dir, [], "", models, config.activeModel);
   return models.sort((a, b) => {
     if (a.isMmproj !== b.isMmproj) return a.isMmproj ? 1 : -1;
     return a.filename.localeCompare(b.filename);
@@ -65,6 +65,7 @@ async function scanDir(
   baseDir: string,
   currentDir: string,
   repoParts: string[],
+  subPath: string,
   results: LocalModel[],
   activeModel: string | null,
 ) {
@@ -74,19 +75,28 @@ async function scanDir(
     const fullPath = path.join(currentDir, entry.name);
 
     if (entry.isDirectory()) {
-      await scanDir(baseDir, fullPath, [...repoParts, entry.name], results, activeModel);
+      const isNewRepoLevel = repoParts.length < 2;
+      await scanDir(
+        baseDir,
+        fullPath,
+        isNewRepoLevel ? [...repoParts, entry.name] : repoParts,
+        subPath ? `${subPath}/${entry.name}` : entry.name,
+        results,
+        activeModel,
+      );
     } else if (entry.name.endsWith(".gguf")) {
       const repoId = repoParts.join("/");
+      const filename = subPath ? `${subPath}/${entry.name}` : entry.name;
       const stat = await fs.stat(fullPath);
       const mmproj = isMmprojFile(entry.name);
       results.push({
         repoId,
-        filename: entry.name,
+        filename,
         path: fullPath,
         sizeBytes: stat.size,
         downloadedAt: stat.mtime.toISOString(),
         active:
-          activeModel === `${repoId}/${entry.name}` ||
+          activeModel === `${repoId}/${filename}` ||
           activeModel === fullPath,
         isMmproj: mmproj,
       });
@@ -166,7 +176,7 @@ export async function downloadModel(
     throw new Error(`Model already exists: ${filename}`);
   }
 
-  await fs.ensureDir(repoDir);
+  await fs.ensureDir(path.dirname(modelPath));
   const downloadUrl = getDownloadUrl(repoId, filename);
 
   onProgress(0, "Starting download...");
