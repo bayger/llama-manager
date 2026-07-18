@@ -137,7 +137,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
     name: "Model",
     presetKey: "model",
     fields: [
-      { key: "model", flag: "--model", type: "string", default: null, description: "GGUF model path" },
+      { key: "model", flag: "--model", type: "string", default: null, description: "GGUF model path", modal: true },
       { key: "lora", flag: "--lora", type: "string", default: null, description: "LoRA adapter path" },
       { key: "hfRepo", flag: "--hf-repo", type: "string", default: null, description: "HF repo (user/model[:quant])", advanced: true },
       { key: "chatTemplate", flag: "--chat-template", type: "string", default: null, description: "Chat template name" },
@@ -232,7 +232,7 @@ export const PRESET_CATEGORIES: PresetCategory[] = [
     name: "Speculative",
     presetKey: "speculative",
     fields: [
-      { key: "draftModel", flag: "--spec-draft-model", type: "string", default: null, description: "Draft model path", advanced: true },
+      { key: "draftModel", flag: "--spec-draft-model", type: "string", default: null, description: "Draft model path", advanced: true, modal: true },
       { key: "specType", flag: "--spec-type", type: "string", default: "none", description: "Spec type" },
       { key: "draftNMax", flag: "--spec-draft-n-max", type: "number", default: 3, description: "Max draft tokens" },
       { key: "draftThreads", flag: "--spec-draft-threads", type: "number", default: null, description: "Draft threads", advanced: true },
