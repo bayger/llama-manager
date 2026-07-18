@@ -10,6 +10,7 @@ import type { RenderContext } from "../../framework/types";
 import { EditableList, EditableRowInfo, formatFieldValue } from "./EditableList";
 import { createDeviceSelectorModal } from "./DeviceSelectorModal";
 import { createMmprojSelectorModal } from "./MmprojSelectorModal";
+import { createModelSelectorModal } from "./ModelSelectorModal";
 import type { TabContext } from "../../lib/tabcontext";
 import { fireAsync } from "../../lib/utils";
 import { detectForkFromFolder, isForkCompatibleWithPreset, isFieldCompatibleWithFork } from "../../lib/forks";
@@ -168,6 +169,8 @@ export class SettingsPanel extends EditableList {
       if (row && row.type === "field" && row.field && (row.field as ModalFieldDef)?.modal) {
         if (row.field.key === "mmproj") {
           this.openMmprojSelector(row);
+        } else if (row.field.key === "model" || row.field.key === "draftModel") {
+          this.openModelSelector(row);
         } else {
           this.openDeviceSelector(row);
         }
@@ -242,6 +245,40 @@ export class SettingsPanel extends EditableList {
       modal.hint = "enter confirm";
       modal.setMinSize(40, 8);
       modal.setMaxSize(80, 22);
+
+      const result = await ctx.openModal<string | null>(modal);
+      if (result !== null) {
+        if (presetData) {
+          presetData[field.key] = result;
+          try {
+            saveConfig(config);
+            this._onMessage?.(`Set ${field.key} to: ${result}`);
+          } catch (e) {
+            this._onMessage?.(`Error saving: ${e}`);
+          }
+        }
+      }
+    }, ctx);
+  }
+
+  protected openModelSelector(row: import("./EditableList").EditableRowInfo): void {
+    const config = this._config;
+    const ctx = this._ctx;
+    if (!config || !ctx) return;
+    const field = row.field!;
+
+    fireAsync(async () => {
+      const modal = createModelSelectorModal(config);
+      const items = await modal.scanModels();
+      const profileName = this._editingProfile || config.server.activeProfile;
+      const presets = config.server.profiles[profileName]?.presets;
+      const presetData = presets?.[PRESET_CATEGORIES[row.catIdx]!.presetKey];
+      const currentValue = presetData?.[field.key] as string | null;
+      modal.setItems(items, currentValue);
+      modal.title = "Select model file";
+      modal.hint = "enter confirm";
+      modal.setMinSize(60, 8);
+      modal.setMaxSize(120, 22);
 
       const result = await ctx.openModal<string | null>(modal);
       if (result !== null) {

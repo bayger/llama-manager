@@ -15,6 +15,10 @@ export class List<ID = string, D = unknown> extends Scrollable {
   protected _selectedIndex = -1;
   protected _selectedId: ID | null = null;
   public itemHeight = 1;
+  protected _truncate: "tail" | "head" | false = false;
+
+  get truncate(): "tail" | "head" | false { return this._truncate; }
+  set truncate(v: "tail" | "head" | false) { this._truncate = v; }
 
   get items(): ListItem<ID, D>[] { return this._items; }
   set items(value: ListItem<ID, D>[]) {
@@ -90,7 +94,17 @@ export class List<ID = string, D = unknown> extends Scrollable {
       canvas.moveTo(x, y + i);
 
       const label = item.label;
-      const display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
+      let display = `${label}${item.sublabel ? `  ${item.sublabel}` : ""}`;
+
+      if (this._truncate && display.length > cw) {
+        const ellipsis = "\u2026";
+        const sliceLen = Math.max(0, cw - ellipsis.length);
+        if (this._truncate === "tail") {
+          display = display.slice(0, sliceLen) + ellipsis;
+        } else {
+          display = ellipsis + display.slice(-sliceLen);
+        }
+      }
 
       if (colors.bold) {
         canvas.bold(true);
